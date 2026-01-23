@@ -14,7 +14,7 @@ The add-all command has critical bugs in component detection and naming logic th
 
 ## User Stories
 
-- [ ] Story-001: As a user running add-all on a repository with multiple skills, I want all skills to be detected and downloaded so that I can access all available components from the repository.
+- [x] Story-001: As a user running add-all on a repository with multiple skills, I want all skills to be detected and downloaded so that I can access all available components from the repository.
 
   **Acceptance Criteria:**
   - Component detection correctly identifies all SKILL.md files in nested directories

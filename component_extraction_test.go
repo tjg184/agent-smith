@@ -32,7 +32,7 @@ func TestComponentNameExtraction(t *testing.T) {
 			filesToCreate: map[string]string{
 				"myskill/SKILL.md": "# My Skill",
 			},
-			expectedNames: []string{"root-skill"}, // Current implementation uses parent directory name, which becomes "." and gets converted to root-skill
+			expectedNames: []string{"myskill"}, // Fixed: should extract actual directory name
 			description:   "Skill name extracted from parent directory containing SKILL.md",
 		},
 		{
