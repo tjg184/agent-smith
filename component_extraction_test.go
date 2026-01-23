@@ -562,6 +562,66 @@ func TestComponentNameValidation(t *testing.T) {
 	}
 }
 
+// TestPluginsSkillsPathIssue tests the exact issue mentioned in the task description
+func TestPluginsSkillsPathIssue(t *testing.T) {
+	// Create temporary directory for test
+	tempDir, err := os.MkdirTemp("", "specific-issue-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create the exact scenario from the task: plugins/X/skills/Y/SKILL.md
+	testFile := filepath.Join(tempDir, "plugins", "X", "skills", "Y", "SKILL.md")
+
+	// Create directory structure
+	if err := os.MkdirAll(filepath.Dir(testFile), 0755); err != nil {
+		t.Fatalf("Failed to create directory structure: %v", err)
+	}
+
+	// Create SKILL.md file
+	if err := os.WriteFile(testFile, []byte("# Test Skill"), 0644); err != nil {
+		t.Fatalf("Failed to create SKILL.md file: %v", err)
+	}
+
+	// Create detector and find components
+	detector := NewRepositoryDetector()
+	components, err := detector.detectComponentsInRepo(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to detect components: %v", err)
+	}
+
+	// Should find exactly one skill component
+	if len(components) != 1 {
+		t.Errorf("Expected 1 component, got %d", len(components))
+		for i, comp := range components {
+			t.Logf("Component %d: Name=%s, Path=%s, Type=%s", i, comp.Name, comp.Path, comp.Type)
+		}
+		return
+	}
+
+	component := components[0]
+
+	// Verify it's a skill
+	if component.Type != ComponentSkill {
+		t.Errorf("Expected component type to be skill, got %s", component.Type)
+	}
+
+	// Verify the path is the immediate parent directory (plugins/X/skills/Y)
+	expectedPath := filepath.Join("plugins", "X", "skills", "Y")
+	if component.Path != expectedPath {
+		t.Errorf("Expected path to be %s, got %s", expectedPath, component.Path)
+	}
+
+	// Verify the name is the immediate parent directory name (Y)
+	expectedName := "Y"
+	if component.Name != expectedName {
+		t.Errorf("Expected name to be %s, got %s", expectedName, component.Name)
+	}
+
+	t.Logf("SUCCESS: Component correctly detected with Name=%s, Path=%s", component.Name, component.Path)
+}
+
 // BenchmarkComponentDetection benchmarks the component detection performance
 func BenchmarkComponentDetection(b *testing.B) {
 	// Create a complex repository structure for benchmarking

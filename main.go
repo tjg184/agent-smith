@@ -504,7 +504,7 @@ func (rd *RepositoryDetector) matchesFileExtension(fileName string, fileExtensio
 }
 
 // detectComponentForPattern checks if a file matches a component detection pattern
-func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullRelPath string, pattern ComponentDetectionPattern, componentType ComponentType) (string, bool) {
+func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullRelPath string, pattern ComponentDetectionPattern, componentType ComponentType) (string, string, bool) {
 	// Debug logging for component detection process
 	log.Printf("DEBUG: Processing file: %s, relPath: %s, fileName: %s", fullRelPath, relPath, fileName)
 	log.Printf("DEBUG: Component pattern: %s, exactFiles: %v", pattern.Name, pattern.ExactFiles)
@@ -512,7 +512,7 @@ func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullR
 	// Check if path should be ignored
 	if rd.shouldIgnorePath(relPath, pattern.IgnorePaths) {
 		log.Printf("DEBUG: Path ignored: %s", relPath)
-		return "", false
+		return "", "", false
 	}
 
 	// Check exact file matches first (highest priority)
@@ -524,14 +524,14 @@ func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullR
 		if componentDir == "." {
 			componentName := "root-" + pattern.Name
 			log.Printf("DEBUG: Root component, name: %s", componentName)
-			return componentName, true
+			return componentName, componentDir, true
 		}
 
 		// Fixed: extract clean directory name without quotes
 		componentName := filepath.Base(componentDir)
 		log.Printf("DEBUG: Extracted component name: %s from directory: %s", componentName, componentDir)
 		log.Printf("DEBUG: Component name: '%s', componentKey: '%s-%s'", componentName, pattern.Name, componentName)
-		return componentName, true
+		return componentName, componentDir, true
 	}
 
 	// Check path patterns with file extensions (medium priority)
@@ -539,7 +539,7 @@ func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullR
 		if rd.matchesPathPattern(relPath, pattern.PathPatterns) && rd.matchesFileExtension(fileName, pattern.FileExtensions) {
 			componentName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 			log.Printf("DEBUG: Path pattern + extension match, name: %s", componentName)
-			return componentName, true
+			return componentName, relPath, true
 		}
 		log.Printf("DEBUG: Path pattern + extension check failed")
 	}
@@ -548,12 +548,12 @@ func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullR
 	if len(pattern.PathPatterns) > 0 && rd.matchesPathPattern(relPath, pattern.PathPatterns) {
 		componentName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 		log.Printf("DEBUG: Path pattern match, name: %s", componentName)
-		return componentName, true
+		return componentName, relPath, true
 	}
 	log.Printf("DEBUG: Path pattern check failed")
 
 	log.Printf("DEBUG: No pattern matched for file: %s", fileName)
-	return "", false
+	return "", "", false
 }
 
 func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]DetectedComponent, error) {
@@ -587,7 +587,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 		for componentTypeStr, pattern := range rd.detectionConfig.Components {
 			componentType := ComponentType(componentTypeStr)
 
-			if componentName, matched := rd.detectComponentForPattern(fileName, relPath, fullRelPath, pattern, componentType); matched {
+			if componentName, componentPath, matched := rd.detectComponentForPattern(fileName, relPath, fullRelPath, pattern, componentType); matched {
 				log.Printf("DEBUG: Match result: true for componentType: %s", componentTypeStr)
 
 				// Handle default component names
@@ -603,7 +603,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 					components = append(components, DetectedComponent{
 						Type:       componentType,
 						Name:       componentName,
-						Path:       relPath,
+						Path:       componentPath,
 						SourceFile: fileName,
 					})
 					seenComponents[componentKey] = true
