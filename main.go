@@ -21,10 +21,10 @@ import (
 
 const (
 	agentsDir    = "~/.agents"
-	skillsDir    = agentsDir + "/skills"
-	agentsSubDir = agentsDir + "/agents"
-	commandsDir  = agentsDir + "/commands"
-	opencodeDir  = "~/.config/opencode"
+	skillsDir    = agentsDir + string(filepath.Separator) + "skills"
+	agentsSubDir = agentsDir + string(filepath.Separator) + "agents"
+	commandsDir  = agentsDir + string(filepath.Separator) + "commands"
+	opencodeDir  = "~/.config" + string(filepath.Separator) + "opencode"
 )
 
 type RepositoryDetector struct {
@@ -106,6 +106,31 @@ type ComponentMetadata struct {
 	Downloaded string `json:"downloaded"`
 	Components int    `json:"components,omitempty"`
 	Detection  string `json:"detection,omitempty"`
+}
+
+// Cross-platform helper functions
+func getCrossPlatformPermissions() os.FileMode {
+	if runtime.GOOS == "windows" {
+		return 0666 // Windows has less granular permissions
+	}
+	return 0755 // Unix-like systems
+}
+
+func getCrossPlatformFilePermissions() os.FileMode {
+	if runtime.GOOS == "windows" {
+		return 0644 // Windows has less granular permissions
+	}
+	return 0644 // Unix-like systems
+}
+
+func createDirectoryWithPermissions(path string) error {
+	perm := getCrossPlatformPermissions()
+	return os.MkdirAll(path, perm)
+}
+
+func createFileWithPermissions(path string, data []byte) error {
+	perm := getCrossPlatformFilePermissions()
+	return os.WriteFile(path, data, perm)
 }
 
 func NewRepositoryDetector() *RepositoryDetector {
@@ -231,7 +256,7 @@ func NewSkillDownloader() *SkillDownloader {
 	baseDir := filepath.Join(home, ".agents", "skills")
 
 	// Create base directory if it doesn't exist
-	if err := os.MkdirAll(baseDir, 0755); err != nil {
+	if err := createDirectoryWithPermissions(baseDir); err != nil {
 		log.Fatal("Failed to create skills directory:", err)
 	}
 
@@ -250,7 +275,7 @@ func NewAgentDownloader() *AgentDownloader {
 	baseDir := filepath.Join(home, ".agents", "agents")
 
 	// Create base directory if it doesn't exist
-	if err := os.MkdirAll(baseDir, 0755); err != nil {
+	if err := createDirectoryWithPermissions(baseDir); err != nil {
 		log.Fatal("Failed to create agents directory:", err)
 	}
 
@@ -269,7 +294,7 @@ func NewCommandDownloader() *CommandDownloader {
 	baseDir := filepath.Join(home, ".agents", "commands")
 
 	// Create base directory if it doesn't exist
-	if err := os.MkdirAll(baseDir, 0755); err != nil {
+	if err := createDirectoryWithPermissions(baseDir); err != nil {
 		log.Fatal("Failed to create commands directory:", err)
 	}
 
@@ -289,7 +314,7 @@ func NewComponentLinker() *ComponentLinker {
 	opencodeDir := filepath.Join(home, ".config", "opencode")
 
 	// Create opencode directory if it doesn't exist
-	if err := os.MkdirAll(opencodeDir, 0755); err != nil {
+	if err := createDirectoryWithPermissions(opencodeDir); err != nil {
 		log.Fatal("Failed to create opencode directory:", err)
 	}
 
@@ -467,7 +492,7 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
 
 	// Create skill directory
 	skillDir := filepath.Join(sd.baseDir, skillName)
-	if err := os.MkdirAll(skillDir, 0755); err != nil {
+	if err := createDirectoryWithPermissions(skillDir); err != nil {
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
@@ -488,7 +513,7 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
 			componentDir := filepath.Join(skillDir, component.Name)
 			componentPath := filepath.Join(tempDir, component.Path)
 
-			err = os.MkdirAll(componentDir, 0755)
+			err = createDirectoryWithPermissions(componentDir)
 			if err != nil {
 				continue
 			}
@@ -580,7 +605,7 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
 func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName string) error {
 	// Create skill directory
 	skillDir := filepath.Join(sd.baseDir, skillName)
-	if err := os.MkdirAll(skillDir, 0755); err != nil {
+	if err := createDirectoryWithPermissions(skillDir); err != nil {
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
@@ -672,7 +697,7 @@ func (sd *SkillDownloader) copyDirectoryContents(src, dst string) error {
 		dstPath := filepath.Join(dst, relPath)
 
 		if info.IsDir() {
-			return os.MkdirAll(dstPath, info.Mode())
+			return createDirectoryWithPermissions(dstPath)
 		}
 
 		return sd.copyFile(path, dstPath)
@@ -685,7 +710,7 @@ func (sd *SkillDownloader) copyFile(src, dst string) error {
 		return err
 	}
 
-	return os.WriteFile(dst, data, 0644)
+	return createFileWithPermissions(dst, data)
 }
 
 func (sd *SkillDownloader) saveMetadata(filePath string, metadata map[string]interface{}) error {
@@ -696,7 +721,7 @@ func (sd *SkillDownloader) saveMetadata(filePath string, metadata map[string]int
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
-	return os.WriteFile(filePath, jsonData, 0644)
+	return createFileWithPermissions(filePath, jsonData)
 }
 
 // Save component lock entry in npx add-skill compatible format
@@ -707,7 +732,7 @@ func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceT
 	}
 
 	agentsDir := filepath.Join(home, ".agents")
-	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+	if err := createDirectoryWithPermissions(agentsDir); err != nil {
 		return fmt.Errorf("failed to create agents directory: %w", err)
 	}
 
@@ -789,7 +814,7 @@ Add usage instructions here.
 *Auto-generated by Agent Smith*
 `, skillName, source)
 
-	return os.WriteFile(filePath, []byte(content), 0644)
+	return createFileWithPermissions(filePath, []byte(content))
 }
 
 func (cd *CommandDownloader) parseRepoURL(repoURL string) (string, error) {
@@ -841,7 +866,7 @@ func (cd *CommandDownloader) downloadCommand(repoURL, commandName string) error 
 
 	// Create command directory
 	commandDir := filepath.Join(cd.baseDir, commandName)
-	if err := os.MkdirAll(commandDir, 0755); err != nil {
+	if err := createDirectoryWithPermissions(commandDir); err != nil {
 		return fmt.Errorf("failed to create command directory: %w", err)
 	}
 
@@ -862,7 +887,7 @@ func (cd *CommandDownloader) downloadCommand(repoURL, commandName string) error 
 			componentDir := filepath.Join(commandDir, component.Name)
 			componentPath := filepath.Join(tempDir, component.Path)
 
-			err = os.MkdirAll(componentDir, 0755)
+			err = createDirectoryWithPermissions(componentDir)
 			if err != nil {
 				continue
 			}
@@ -952,7 +977,7 @@ func (cd *CommandDownloader) downloadCommand(repoURL, commandName string) error 
 func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) error {
 	// Create command directory
 	commandDir := filepath.Join(cd.baseDir, commandName)
-	if err := os.MkdirAll(commandDir, 0755); err != nil {
+	if err := createDirectoryWithPermissions(commandDir); err != nil {
 		return fmt.Errorf("failed to create command directory: %w", err)
 	}
 
@@ -1042,7 +1067,7 @@ func (cd *CommandDownloader) copyDirectoryContents(src, dst string) error {
 		dstPath := filepath.Join(dst, relPath)
 
 		if info.IsDir() {
-			return os.MkdirAll(dstPath, info.Mode())
+			return createDirectoryWithPermissions(dstPath)
 		}
 
 		return cd.copyFile(path, dstPath)
@@ -1055,7 +1080,7 @@ func (cd *CommandDownloader) copyFile(src, dst string) error {
 		return err
 	}
 
-	return os.WriteFile(dst, data, 0644)
+	return createFileWithPermissions(dst, data)
 }
 
 func (cd *CommandDownloader) saveMetadata(filePath string, metadata map[string]interface{}) error {
@@ -1066,7 +1091,7 @@ func (cd *CommandDownloader) saveMetadata(filePath string, metadata map[string]i
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
-	return os.WriteFile(filePath, jsonData, 0644)
+	return createFileWithPermissions(filePath, jsonData)
 }
 
 // Save command lock entry in npx add-skill compatible format
@@ -1077,7 +1102,7 @@ func (cd *CommandDownloader) saveLockFile(commandName string, source string, sou
 	}
 
 	agentsDir := filepath.Join(home, ".agents")
-	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+	if err := createDirectoryWithPermissions(agentsDir); err != nil {
 		return fmt.Errorf("failed to create agents directory: %w", err)
 	}
 
@@ -1154,7 +1179,7 @@ Add usage instructions here.
 *Auto-generated by Agent Smith*
 `, commandName, source)
 
-	return os.WriteFile(filePath, []byte(content), 0644)
+	return createFileWithPermissions(filePath, []byte(content))
 }
 
 func (ad *AgentDownloader) parseRepoURL(repoURL string) (string, error) {
@@ -1206,7 +1231,7 @@ func (ad *AgentDownloader) downloadAgent(repoURL, agentName string) error {
 
 	// Create agent directory
 	agentDir := filepath.Join(ad.baseDir, agentName)
-	if err := os.MkdirAll(agentDir, 0755); err != nil {
+	if err := createDirectoryWithPermissions(agentDir); err != nil {
 		return fmt.Errorf("failed to create agent directory: %w", err)
 	}
 
@@ -1227,7 +1252,7 @@ func (ad *AgentDownloader) downloadAgent(repoURL, agentName string) error {
 			componentDir := filepath.Join(agentDir, component.Name)
 			componentPath := filepath.Join(tempDir, component.Path)
 
-			err = os.MkdirAll(componentDir, 0755)
+			err = createDirectoryWithPermissions(componentDir)
 			if err != nil {
 				continue
 			}
@@ -1317,7 +1342,7 @@ func (ad *AgentDownloader) downloadAgent(repoURL, agentName string) error {
 func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error {
 	// Create agent directory
 	agentDir := filepath.Join(ad.baseDir, agentName)
-	if err := os.MkdirAll(agentDir, 0755); err != nil {
+	if err := createDirectoryWithPermissions(agentDir); err != nil {
 		return fmt.Errorf("failed to create agent directory: %w", err)
 	}
 
@@ -1407,7 +1432,7 @@ func (ad *AgentDownloader) copyDirectoryContents(src, dst string) error {
 		dstPath := filepath.Join(dst, relPath)
 
 		if info.IsDir() {
-			return os.MkdirAll(dstPath, info.Mode())
+			return createDirectoryWithPermissions(dstPath)
 		}
 
 		return ad.copyFile(path, dstPath)
@@ -1420,7 +1445,7 @@ func (ad *AgentDownloader) copyFile(src, dst string) error {
 		return err
 	}
 
-	return os.WriteFile(dst, data, 0644)
+	return createFileWithPermissions(dst, data)
 }
 
 func (ad *AgentDownloader) saveMetadata(filePath string, metadata map[string]interface{}) error {
@@ -1431,7 +1456,7 @@ func (ad *AgentDownloader) saveMetadata(filePath string, metadata map[string]int
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
-	return os.WriteFile(filePath, jsonData, 0644)
+	return createFileWithPermissions(filePath, jsonData)
 }
 
 // Save agent lock entry in npx add-skill compatible format
@@ -1442,7 +1467,7 @@ func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceT
 	}
 
 	agentsDir := filepath.Join(home, ".agents")
-	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+	if err := createDirectoryWithPermissions(agentsDir); err != nil {
 		return fmt.Errorf("failed to create agents directory: %w", err)
 	}
 
@@ -1519,7 +1544,7 @@ Add usage instructions here.
 *Auto-generated by Agent Smith*
 `, agentName, source)
 
-	return os.WriteFile(filePath, []byte(content), 0644)
+	return createFileWithPermissions(filePath, []byte(content))
 }
 
 func (cl *ComponentLinker) createSymlink(src, dst string) error {
@@ -1547,8 +1572,8 @@ func (cl *ComponentLinker) createSymlink(src, dst string) error {
 }
 
 func (cl *ComponentLinker) createJunction(src, dst string) error {
-	// For Windows, we would need to use Windows API calls
-	// For now, fall back to copying the directory
+	// For Windows, we would need to use Windows API calls for proper junctions
+	// For now, fall back to copying the directory as cross-platform solution
 	return cl.copyDirectory(src, dst)
 }
 
@@ -1566,7 +1591,7 @@ func (cl *ComponentLinker) copyDirectory(src, dst string) error {
 		dstPath := filepath.Join(dst, relPath)
 
 		if info.IsDir() {
-			return os.MkdirAll(dstPath, info.Mode())
+			return createDirectoryWithPermissions(dstPath)
 		}
 
 		return cl.copyFile(path, dstPath)
@@ -1579,7 +1604,7 @@ func (cl *ComponentLinker) copyFile(src, dst string) error {
 		return err
 	}
 
-	return os.WriteFile(dst, data, 0644)
+	return createFileWithPermissions(dst, data)
 }
 
 func (cl *ComponentLinker) linkComponent(componentType, componentName string) error {
@@ -1592,7 +1617,7 @@ func (cl *ComponentLinker) linkComponent(componentType, componentName string) er
 	}
 
 	// Create destination directory
-	if err := os.MkdirAll(filepath.Dir(dstDir), 0755); err != nil {
+	if err := createDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
