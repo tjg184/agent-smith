@@ -12,7 +12,7 @@ The `add-all` command in Agent Smith is experiencing performance degradation due
 
 ## User Stories
 
-- [ ] Story-001: As a user running add-all, I want the repository to be cloned only once so that the command completes faster and uses less bandwidth.
+- [x] Story-001: As a user running add-all, I want the repository to be cloned only once so that the command completes faster and uses less bandwidth.
 
   **Acceptance Criteria:**
   - Repository is cloned exactly once during add-all execution

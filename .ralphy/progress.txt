@@ -25,3 +25,4 @@
 - [✓] 2026-01-23 18:32 - Add agent detection logic for .md files in /agents/ paths
 - [✓] 2026-01-23 18:34 - Add command detection logic for .md files in /commands/ paths
 - [✓] 2026-01-23 18:48 - Test component name extraction for all types
+- [✓] 2026-01-23 19:05 - Story-001: As a user running add-all, I want the repository to be cloned only once so that the command completes faster and uses less bandwidth.
