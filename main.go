@@ -18,6 +18,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/tgaines/agent-smith/cmd"
 )
 
 const (
@@ -2523,160 +2524,81 @@ func (ce *ComponentExecutor) resolveAndRunPackage(name string, args []string) er
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: agent-smith <command> [args...]")
-		fmt.Println("Commands:")
-		fmt.Println("  add-skill   <repository-url> <skill-name>   Download a skill from a git repository")
-		fmt.Println("  add-agent   <repository-url> <agent-name>   Download an agent from a git repository")
-		fmt.Println("  add-command <repository-url> <command-name> Download a command from a git repository")
-		fmt.Println("  add-all     <repository-url>               Download all components from a git repository")
-		fmt.Println("  npx         <repository-or-package> [args]  Execute a component without installing (npx-like)")
-		fmt.Println("  run         <repository-or-package> [args]  Execute a component without installing")
-		fmt.Println("  update      <type> <name>                  Check and update a specific component")
-		fmt.Println("  update-all                                  Check and update all downloaded components")
-		fmt.Println("  link        <type> <name>                   Link a downloaded component to opencode")
-		fmt.Println("  link-all                                     Link all downloaded components to opencode")
-		fmt.Println("  auto-link                                   Automatically detect and link components from current repository")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  agent-smith add-skill owner/repo my-skill")
-		fmt.Println("  agent-smith add-skill https://github.com/owner/repo my-skill")
-		fmt.Println("  agent-smith add-agent owner/repo my-agent")
-		fmt.Println("  agent-smith add-agent https://github.com/owner/repo my-agent")
-		fmt.Println("  agent-smith add-command owner/repo my-command")
-		fmt.Println("  agent-smith add-command https://github.com/owner/repo my-command")
-		fmt.Println("  agent-smith add-all owner/repo")
-		fmt.Println("  agent-smith add-all https://github.com/owner/repo")
-		fmt.Println("  agent-smith npx owner/repo --some-arg")
-		fmt.Println("  agent-smith npx my-local-agent --some-arg")
-		fmt.Println("  agent-smith run owner/repo --some-arg")
-		fmt.Println("  agent-smith update skills my-skill")
-		fmt.Println("  agent-smith update agents my-agent")
-		fmt.Println("  agent-smith update commands my-command")
-		fmt.Println("  agent-smith update-all")
-		fmt.Println("  agent-smith link skills my-skill")
-		fmt.Println("  agent-smith link agents my-agent")
-		fmt.Println("  agent-smith link commands my-command")
-		fmt.Println("  agent-smith link-all")
-		fmt.Println("  agent-smith auto-link")
-		os.Exit(1)
-	}
+	// Set up handlers for Cobra commands
+	cmd.SetHandlers(
+		func(repoURL, name string) {
+			downloader := NewSkillDownloader()
+			if err := downloader.downloadSkill(repoURL, name); err != nil {
+				log.Fatal("Failed to download skill:", err)
+			}
+		},
+		func(repoURL, name string) {
+			downloader := NewAgentDownloader()
+			if err := downloader.downloadAgent(repoURL, name); err != nil {
+				log.Fatal("Failed to download agent:", err)
+			}
+		},
+		func(repoURL, name string) {
+			downloader := NewCommandDownloader()
+			if err := downloader.downloadCommand(repoURL, name); err != nil {
+				log.Fatal("Failed to download command:", err)
+			}
+		},
+		func(repoURL string) {
+			bulkDownloader := NewBulkDownloader()
+			if err := bulkDownloader.AddAll(repoURL); err != nil {
+				log.Fatal("Failed to bulk download components:", err)
+			}
+		},
+		func(target string, args []string) {
+			if err := executeComponent(target, args); err != nil {
+				log.Fatal("Failed to execute component:", err)
+			}
+		},
+		func(componentType, componentName string) {
+			// Validate component type
+			if componentType != "skills" && componentType != "agents" && componentType != "commands" {
+				log.Fatal("Invalid component type. Use: skills, agents, or commands")
+			}
 
-	command := os.Args[1]
+			detector := NewUpdateDetector()
 
-	switch command {
-	case "add-skill":
-		if len(os.Args) < 4 {
-			fmt.Println("Usage: agent-smith add-skill <repository-url> <skill-name>")
-			os.Exit(1)
-		}
-		repoURL := os.Args[2]
-		name := os.Args[3]
-		downloader := NewSkillDownloader()
-		if err := downloader.downloadSkill(repoURL, name); err != nil {
-			log.Fatal("Failed to download skill:", err)
-		}
-	case "add-agent":
-		if len(os.Args) < 4 {
-			fmt.Println("Usage: agent-smith add-agent <repository-url> <agent-name>")
-			os.Exit(1)
-		}
-		repoURL := os.Args[2]
-		name := os.Args[3]
-		downloader := NewAgentDownloader()
-		if err := downloader.downloadAgent(repoURL, name); err != nil {
-			log.Fatal("Failed to download agent:", err)
-		}
-	case "add-command":
-		if len(os.Args) < 4 {
-			fmt.Println("Usage: agent-smith add-command <repository-url> <command-name>")
-			os.Exit(1)
-		}
-		repoURL := os.Args[2]
-		name := os.Args[3]
-		downloader := NewCommandDownloader()
-		if err := downloader.downloadCommand(repoURL, name); err != nil {
-			log.Fatal("Failed to download command:", err)
-		}
-	case "add-all":
-		if len(os.Args) < 3 {
-			fmt.Println("Usage: agent-smith add-all <repository-url>")
-			os.Exit(1)
-		}
-		repoURL := os.Args[2]
-		bulkDownloader := NewBulkDownloader()
-		if err := bulkDownloader.AddAll(repoURL); err != nil {
-			log.Fatal("Failed to bulk download components:", err)
-		}
-	case "link":
-		if len(os.Args) < 4 {
-			fmt.Println("Usage: agent-smith link <type> <name>")
-			fmt.Println("Types: skills, agents, commands")
-			os.Exit(1)
-		}
-		componentType := os.Args[2]
-		componentName := os.Args[3]
-		linker := NewComponentLinker()
-		if err := linker.linkComponent(componentType, componentName); err != nil {
-			log.Fatal("Failed to link component:", err)
-		}
-	case "update":
-		if len(os.Args) < 4 {
-			fmt.Println("Usage: agent-smith update <type> <name>")
-			fmt.Println("Types: skills, agents, commands")
-			os.Exit(1)
-		}
-		componentType := os.Args[2]
-		componentName := os.Args[3]
+			// Load metadata to get source URL
+			metadata, err := detector.loadMetadata(componentType, componentName)
+			if err != nil {
+				log.Fatal("Failed to load component metadata:", err)
+			}
 
-		// Validate component type
-		if componentType != "skills" && componentType != "agents" && componentType != "commands" {
-			fmt.Println("Invalid component type. Use: skills, agents, or commands")
-			os.Exit(1)
-		}
+			if err := detector.UpdateComponent(componentType, componentName, metadata.Source); err != nil {
+				log.Fatal("Failed to update component:", err)
+			}
+		},
+		func() {
+			detector := NewUpdateDetector()
+			if err := detector.UpdateAll(); err != nil {
+				log.Fatal("Failed to update components:", err)
+			}
+		},
+		func(componentType, componentName string) {
+			linker := NewComponentLinker()
+			if err := linker.linkComponent(componentType, componentName); err != nil {
+				log.Fatal("Failed to link component:", err)
+			}
+		},
+		func() {
+			linker := NewComponentLinker()
+			if err := linker.linkAllComponents(); err != nil {
+				log.Fatal("Failed to link all components:", err)
+			}
+		},
+		func() {
+			linker := NewComponentLinker()
+			if err := linker.detectAndLinkLocalRepositories(); err != nil {
+				log.Fatal("Failed to auto-link repositories:", err)
+			}
+		},
+	)
 
-		detector := NewUpdateDetector()
-
-		// Load metadata to get source URL
-		metadata, err := detector.loadMetadata(componentType, componentName)
-		if err != nil {
-			log.Fatal("Failed to load component metadata:", err)
-		}
-
-		if err := detector.UpdateComponent(componentType, componentName, metadata.Source); err != nil {
-			log.Fatal("Failed to update component:", err)
-		}
-	case "update-all":
-		detector := NewUpdateDetector()
-		if err := detector.UpdateAll(); err != nil {
-			log.Fatal("Failed to update components:", err)
-		}
-	case "link-all":
-		linker := NewComponentLinker()
-		if err := linker.linkAllComponents(); err != nil {
-			log.Fatal("Failed to link all components:", err)
-		}
-	case "auto-link":
-		linker := NewComponentLinker()
-		if err := linker.detectAndLinkLocalRepositories(); err != nil {
-			log.Fatal("Failed to auto-link repositories:", err)
-		}
-	case "npx", "run":
-		if len(os.Args) < 3 {
-			fmt.Println("Usage: agent-smith npx <repository-or-package> [args...]")
-			fmt.Println("       agent-smith run <repository-or-package> [args...]")
-			os.Exit(1)
-		}
-		target := os.Args[2]
-		execArgs := os.Args[3:]
-
-		// Try to execute the component (npx-like behavior)
-		if err := executeComponent(target, execArgs); err != nil {
-			log.Fatal("Failed to execute component:", err)
-		}
-	default:
-		fmt.Printf("Unknown command: %s\n", command)
-		fmt.Println("Supported commands: add-skill, add-agent, add-command, add-all, npx, run, update, update-all, link, link-all, auto-link")
-		os.Exit(1)
-	}
+	// Execute Cobra command
+	cmd.Execute()
 }
