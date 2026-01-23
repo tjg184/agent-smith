@@ -1,9 +1,13 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -67,6 +71,27 @@ type UpdateDetector struct {
 	detector *RepositoryDetector
 }
 
+type ComponentLockEntry struct {
+	Source          string `json:"source"`
+	SourceType      string `json:"sourceType"`
+	SourceUrl       string `json:"sourceUrl"`
+	SkillPath       string `json:"skillPath,omitempty"`
+	SkillFolderHash string `json:"skillFolderHash"`
+	InstalledAt     string `json:"installedAt"`
+	UpdatedAt       string `json:"updatedAt"`
+	Version         int    `json:"version"`
+	Components      int    `json:"components,omitempty"`
+	Detection       string `json:"detection,omitempty"`
+}
+
+type ComponentLockFile struct {
+	Version  int                           `json:"version"`
+	Skills   map[string]ComponentLockEntry `json:"skills"`
+	Agents   map[string]ComponentLockEntry `json:"agents,omitempty"`
+	Commands map[string]ComponentLockEntry `json:"commands,omitempty"`
+}
+
+// Legacy metadata structure for backward compatibility
 type ComponentMetadata struct {
 	Name       string `json:"name"`
 	Source     string `json:"source"`
@@ -281,6 +306,102 @@ func NewUpdateDetector() *UpdateDetector {
 	}
 }
 
+// Compute GitHub tree SHA for skill folder hash (npx add-skill compatible)
+func computeGitHubTreeSHA(ownerRepo string, skillPath string) (string, error) {
+	// Normalize skill path - remove SKILL.md suffix to get folder path
+	folderPath := skillPath
+	if strings.HasSuffix(folderPath, "/SKILL.md") {
+		folderPath = folderPath[:len(folderPath)-9]
+	} else if strings.HasSuffix(folderPath, "SKILL.md") {
+		folderPath = folderPath[:len(folderPath)-8]
+	}
+	if strings.HasSuffix(folderPath, "/") {
+		folderPath = folderPath[:len(folderPath)-1]
+	}
+
+	branches := []string{"main", "master"}
+
+	for _, branch := range branches {
+		url := fmt.Sprintf("https://api.github.com/repos/%s/git/trees/%s?recursive=1", ownerRepo, branch)
+		resp, err := http.Get(url)
+		if err != nil {
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			continue
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			continue
+		}
+
+		var treeData struct {
+			Tree []struct {
+				Path string `json:"path"`
+				Type string `json:"type"`
+				SHA  string `json:"sha"`
+			} `json:"tree"`
+		}
+
+		if err := json.Unmarshal(body, &treeData); err != nil {
+			continue
+		}
+
+		// Find tree entry for skill folder
+		for _, entry := range treeData.Tree {
+			if entry.Type == "tree" && entry.Path == folderPath {
+				return entry.SHA, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("skill folder not found in GitHub API")
+}
+
+// Compute local content hash for skill folder
+func computeLocalFolderHash(folderPath string) (string, error) {
+	hasher := sha256.New()
+
+	err := filepath.Walk(folderPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		// Get relative path
+		relPath, err := filepath.Rel(folderPath, path)
+		if err != nil {
+			return err
+		}
+
+		// Write relative path and file info to hash
+		hasher.Write([]byte(relPath))
+		hasher.Write([]byte(info.Mode().String()))
+		hasher.Write([]byte(info.ModTime().Format(time.RFC3339)))
+
+		// Write file content
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		hasher.Write(data)
+		return nil
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to compute folder hash: %w", err)
+	}
+
+	return hex.EncodeToString(hasher.Sum(nil)), nil
+}
+
 func (sd *SkillDownloader) parseRepoURL(repoURL string) (string, error) {
 	return sd.detector.normalizeURL(repoURL)
 }
@@ -392,10 +513,40 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
 		"detection":  "recursive",
 	}
 
-	// Save metadata file
+	// Save legacy metadata file for backward compatibility
 	metadataFile := filepath.Join(skillDir, ".skill-metadata.json")
 	if err := sd.saveMetadata(metadataFile, metadata); err != nil {
 		log.Printf("Warning: failed to save metadata: %v", err)
+	}
+
+	// Save to npx add-skill compatible lock file
+	sourceType := "github"
+	if strings.Contains(fullURL, "gitlab") {
+		sourceType = "gitlab"
+	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
+		sourceType = "git"
+	}
+
+	// Compute folder hash if it's a GitHub repo
+	var folderHash string
+	if sourceType == "github" {
+		// Extract owner/repo from URL
+		if strings.HasPrefix(fullURL, "https://github.com/") {
+			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
+			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
+			if hash, err := computeGitHubTreeSHA(ownerRepo, "SKILL.md"); err == nil {
+				folderHash = hash
+			}
+		}
+	} else {
+		// For non-GitHub repos, compute local hash
+		if hash, err := computeLocalFolderHash(skillDir); err == nil {
+			folderHash = hash
+		}
+	}
+
+	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, len(skillComponents), "recursive"); err != nil {
+		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
 	// Clean up git clone if it exists
@@ -444,10 +595,40 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName string) error 
 		"detection":  "direct",
 	}
 
-	// Save metadata file
+	// Save legacy metadata file for backward compatibility
 	metadataFile := filepath.Join(skillDir, ".skill-metadata.json")
 	if err := sd.saveMetadata(metadataFile, metadata); err != nil {
 		log.Printf("Warning: failed to save metadata: %v", err)
+	}
+
+	// Save to npx add-skill compatible lock file
+	sourceType := "github"
+	if strings.Contains(fullURL, "gitlab") {
+		sourceType = "gitlab"
+	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
+		sourceType = "git"
+	}
+
+	// Compute folder hash if it's a GitHub repo
+	var folderHash string
+	if sourceType == "github" {
+		// Extract owner/repo from URL
+		if strings.HasPrefix(fullURL, "https://github.com/") {
+			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
+			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
+			if hash, err := computeGitHubTreeSHA(ownerRepo, "SKILL.md"); err == nil {
+				folderHash = hash
+			}
+		}
+	} else {
+		// For non-GitHub repos, compute local hash
+		if hash, err := computeLocalFolderHash(skillDir); err == nil {
+			folderHash = hash
+		}
+	}
+
+	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, 1, "direct"); err != nil {
+		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
 	// Create SKILL.md if it doesn't exist
@@ -500,6 +681,79 @@ func (sd *SkillDownloader) saveMetadata(filePath string, metadata map[string]int
 	}
 
 	return os.WriteFile(filePath, jsonData, 0644)
+}
+
+// Save component lock entry in npx add-skill compatible format
+func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get user home directory: %w", err)
+	}
+
+	agentsDir := filepath.Join(home, ".agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create agents directory: %w", err)
+	}
+
+	lockFilePath := filepath.Join(agentsDir, ".skill-lock.json")
+
+	// Read existing lock file or create new one
+	var lockFile ComponentLockFile
+	lockData, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			lockFile = ComponentLockFile{
+				Version: 3, // Current version matching npx add-skill
+				Skills:  make(map[string]ComponentLockEntry),
+			}
+		} else {
+			return fmt.Errorf("failed to read lock file: %w", err)
+		}
+	} else {
+		if err := json.Unmarshal(lockData, &lockFile); err != nil {
+			// If lock file is corrupted, create new one
+			lockFile = ComponentLockFile{
+				Version: 3,
+				Skills:  make(map[string]ComponentLockEntry),
+			}
+		}
+		// Ensure version is current
+		if lockFile.Version < 3 {
+			lockFile.Version = 3
+			if lockFile.Skills == nil {
+				lockFile.Skills = make(map[string]ComponentLockEntry)
+			}
+		}
+	}
+
+	now := time.Now().Format(time.RFC3339)
+
+	// Check if entry exists to preserve installedAt
+	existingEntry, exists := lockFile.Skills[skillName]
+	if !exists {
+		existingEntry.InstalledAt = now
+	}
+
+	// Update or add the skill entry
+	lockFile.Skills[skillName] = ComponentLockEntry{
+		Source:          source,
+		SourceType:      sourceType,
+		SourceUrl:       sourceUrl,
+		SkillFolderHash: skillFolderHash,
+		InstalledAt:     existingEntry.InstalledAt,
+		UpdatedAt:       now,
+		Version:         3,
+		Components:      components,
+		Detection:       detection,
+	}
+
+	// Write back to file
+	jsonData, err := json.MarshalIndent(lockFile, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal lock file: %w", err)
+	}
+
+	return os.WriteFile(lockFilePath, jsonData, 0644)
 }
 
 func (sd *SkillDownloader) createSkillFile(filePath, skillName, source string) error {
@@ -633,10 +887,38 @@ func (cd *CommandDownloader) downloadCommand(repoURL, commandName string) error 
 		"detection":  "recursive",
 	}
 
-	// Save metadata file
-	metadataFile := filepath.Join(commandDir, ".command-lock.json")
-	if err := cd.saveMetadata(metadataFile, metadata); err != nil {
-		log.Printf("Warning: failed to save metadata: %v", err)
+	// Save legacy metadata file for backward compatibility
+	legacyMetadataFile := filepath.Join(commandDir, ".command-metadata.json")
+	if err := cd.saveMetadata(legacyMetadataFile, metadata); err != nil {
+		log.Printf("Warning: failed to save legacy metadata: %v", err)
+	}
+
+	// Save to npx add-skill compatible lock file
+	sourceType := "github"
+	if strings.Contains(fullURL, "gitlab") {
+		sourceType = "gitlab"
+	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
+		sourceType = "git"
+	}
+
+	// Compute folder hash if it's a GitHub repo
+	var folderHash string
+	if sourceType == "github" {
+		if strings.HasPrefix(fullURL, "https://github.com/") {
+			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
+			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
+			if hash, err := computeGitHubTreeSHA(ownerRepo, "COMMAND.md"); err == nil {
+				folderHash = hash
+			}
+		}
+	} else {
+		if hash, err := computeLocalFolderHash(commandDir); err == nil {
+			folderHash = hash
+		}
+	}
+
+	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, len(commandComponents), "recursive"); err != nil {
+		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
 	// Clean up git clone if it exists
@@ -685,10 +967,38 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		"detection":  "direct",
 	}
 
-	// Save metadata file
-	metadataFile := filepath.Join(commandDir, ".command-lock.json")
-	if err := cd.saveMetadata(metadataFile, metadata); err != nil {
-		log.Printf("Warning: failed to save metadata: %v", err)
+	// Save legacy metadata file for backward compatibility
+	legacyMetadataFile := filepath.Join(commandDir, ".command-metadata.json")
+	if err := cd.saveMetadata(legacyMetadataFile, metadata); err != nil {
+		log.Printf("Warning: failed to save legacy metadata: %v", err)
+	}
+
+	// Save to npx add-skill compatible lock file
+	sourceType := "github"
+	if strings.Contains(fullURL, "gitlab") {
+		sourceType = "gitlab"
+	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
+		sourceType = "git"
+	}
+
+	// Compute folder hash if it's a GitHub repo
+	var folderHash string
+	if sourceType == "github" {
+		if strings.HasPrefix(fullURL, "https://github.com/") {
+			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
+			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
+			if hash, err := computeGitHubTreeSHA(ownerRepo, "COMMAND.md"); err == nil {
+				folderHash = hash
+			}
+		}
+	} else {
+		if hash, err := computeLocalFolderHash(commandDir); err == nil {
+			folderHash = hash
+		}
+	}
+
+	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, 1, "direct"); err != nil {
+		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
 	// Create COMMAND.md if it doesn't exist
@@ -741,6 +1051,74 @@ func (cd *CommandDownloader) saveMetadata(filePath string, metadata map[string]i
 	}
 
 	return os.WriteFile(filePath, jsonData, 0644)
+}
+
+// Save command lock entry in npx add-skill compatible format
+func (cd *CommandDownloader) saveLockFile(commandName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get user home directory: %w", err)
+	}
+
+	agentsDir := filepath.Join(home, ".agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create agents directory: %w", err)
+	}
+
+	lockFilePath := filepath.Join(agentsDir, ".command-lock.json")
+
+	// Read existing lock file or create new one
+	var lockFile ComponentLockFile
+	lockData, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			lockFile = ComponentLockFile{
+				Version:  3,
+				Commands: make(map[string]ComponentLockEntry),
+			}
+		} else {
+			return fmt.Errorf("failed to read lock file: %w", err)
+		}
+	} else {
+		if err := json.Unmarshal(lockData, &lockFile); err != nil {
+			lockFile = ComponentLockFile{
+				Version:  3,
+				Commands: make(map[string]ComponentLockEntry),
+			}
+		}
+		if lockFile.Version < 3 {
+			lockFile.Version = 3
+			if lockFile.Commands == nil {
+				lockFile.Commands = make(map[string]ComponentLockEntry)
+			}
+		}
+	}
+
+	now := time.Now().Format(time.RFC3339)
+
+	existingEntry, exists := lockFile.Commands[commandName]
+	if !exists {
+		existingEntry.InstalledAt = now
+	}
+
+	lockFile.Commands[commandName] = ComponentLockEntry{
+		Source:          source,
+		SourceType:      sourceType,
+		SourceUrl:       sourceUrl,
+		SkillFolderHash: skillFolderHash,
+		InstalledAt:     existingEntry.InstalledAt,
+		UpdatedAt:       now,
+		Version:         3,
+		Components:      components,
+		Detection:       detection,
+	}
+
+	jsonData, err := json.MarshalIndent(lockFile, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal lock file: %w", err)
+	}
+
+	return os.WriteFile(lockFilePath, jsonData, 0644)
 }
 
 func (cd *CommandDownloader) createCommandFile(filePath, commandName, source string) error {
@@ -874,10 +1252,38 @@ func (ad *AgentDownloader) downloadAgent(repoURL, agentName string) error {
 		"detection":  "recursive",
 	}
 
-	// Save metadata file
-	metadataFile := filepath.Join(agentDir, ".agent-lock.json")
-	if err := ad.saveMetadata(metadataFile, metadata); err != nil {
-		log.Printf("Warning: failed to save metadata: %v", err)
+	// Save legacy metadata file for backward compatibility
+	legacyMetadataFile := filepath.Join(agentDir, ".agent-metadata.json")
+	if err := ad.saveMetadata(legacyMetadataFile, metadata); err != nil {
+		log.Printf("Warning: failed to save legacy metadata: %v", err)
+	}
+
+	// Save to npx add-skill compatible lock file
+	sourceType := "github"
+	if strings.Contains(fullURL, "gitlab") {
+		sourceType = "gitlab"
+	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
+		sourceType = "git"
+	}
+
+	// Compute folder hash if it's a GitHub repo
+	var folderHash string
+	if sourceType == "github" {
+		if strings.HasPrefix(fullURL, "https://github.com/") {
+			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
+			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
+			if hash, err := computeGitHubTreeSHA(ownerRepo, "AGENT.md"); err == nil {
+				folderHash = hash
+			}
+		}
+	} else {
+		if hash, err := computeLocalFolderHash(agentDir); err == nil {
+			folderHash = hash
+		}
+	}
+
+	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, len(agentComponents), "recursive"); err != nil {
+		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
 	// Clean up git clone if it exists
@@ -926,10 +1332,38 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 		"detection":  "direct",
 	}
 
-	// Save metadata file
-	metadataFile := filepath.Join(agentDir, ".agent-lock.json")
-	if err := ad.saveMetadata(metadataFile, metadata); err != nil {
-		log.Printf("Warning: failed to save metadata: %v", err)
+	// Save legacy metadata file for backward compatibility
+	legacyMetadataFile := filepath.Join(agentDir, ".agent-metadata.json")
+	if err := ad.saveMetadata(legacyMetadataFile, metadata); err != nil {
+		log.Printf("Warning: failed to save legacy metadata: %v", err)
+	}
+
+	// Save to npx add-skill compatible lock file
+	sourceType := "github"
+	if strings.Contains(fullURL, "gitlab") {
+		sourceType = "gitlab"
+	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
+		sourceType = "git"
+	}
+
+	// Compute folder hash if it's a GitHub repo
+	var folderHash string
+	if sourceType == "github" {
+		if strings.HasPrefix(fullURL, "https://github.com/") {
+			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
+			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
+			if hash, err := computeGitHubTreeSHA(ownerRepo, "AGENT.md"); err == nil {
+				folderHash = hash
+			}
+		}
+	} else {
+		if hash, err := computeLocalFolderHash(agentDir); err == nil {
+			folderHash = hash
+		}
+	}
+
+	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, 1, "direct"); err != nil {
+		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
 	// Create AGENT.md if it doesn't exist
@@ -982,6 +1416,74 @@ func (ad *AgentDownloader) saveMetadata(filePath string, metadata map[string]int
 	}
 
 	return os.WriteFile(filePath, jsonData, 0644)
+}
+
+// Save agent lock entry in npx add-skill compatible format
+func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get user home directory: %w", err)
+	}
+
+	agentsDir := filepath.Join(home, ".agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create agents directory: %w", err)
+	}
+
+	lockFilePath := filepath.Join(agentsDir, ".agent-lock.json")
+
+	// Read existing lock file or create new one
+	var lockFile ComponentLockFile
+	lockData, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			lockFile = ComponentLockFile{
+				Version: 3,
+				Agents:  make(map[string]ComponentLockEntry),
+			}
+		} else {
+			return fmt.Errorf("failed to read lock file: %w", err)
+		}
+	} else {
+		if err := json.Unmarshal(lockData, &lockFile); err != nil {
+			lockFile = ComponentLockFile{
+				Version: 3,
+				Agents:  make(map[string]ComponentLockEntry),
+			}
+		}
+		if lockFile.Version < 3 {
+			lockFile.Version = 3
+			if lockFile.Agents == nil {
+				lockFile.Agents = make(map[string]ComponentLockEntry)
+			}
+		}
+	}
+
+	now := time.Now().Format(time.RFC3339)
+
+	existingEntry, exists := lockFile.Agents[agentName]
+	if !exists {
+		existingEntry.InstalledAt = now
+	}
+
+	lockFile.Agents[agentName] = ComponentLockEntry{
+		Source:          source,
+		SourceType:      sourceType,
+		SourceUrl:       sourceUrl,
+		SkillFolderHash: skillFolderHash,
+		InstalledAt:     existingEntry.InstalledAt,
+		UpdatedAt:       now,
+		Version:         3,
+		Components:      components,
+		Detection:       detection,
+	}
+
+	jsonData, err := json.MarshalIndent(lockFile, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal lock file: %w", err)
+	}
+
+	return os.WriteFile(lockFilePath, jsonData, 0644)
 }
 
 func (ad *AgentDownloader) createAgentFile(filePath, agentName, source string) error {
@@ -1118,14 +1620,25 @@ func (cl *ComponentLinker) linkAllComponents() error {
 }
 
 func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*ComponentMetadata, error) {
+	// First try to load from npx add-skill compatible lock files
+	if metadata, err := ud.loadFromLockFile(componentType, componentName); err == nil {
+		// Convert to legacy format for compatibility
+		return &ComponentMetadata{
+			Name:   componentName,
+			Source: metadata.SourceUrl,
+			Commit: metadata.SkillFolderHash,
+		}, nil
+	}
+
+	// Fall back to legacy metadata files
 	var metadataFile string
 	switch componentType {
 	case "skills":
 		metadataFile = filepath.Join(ud.baseDir, "skills", componentName, ".skill-metadata.json")
 	case "agents":
-		metadataFile = filepath.Join(ud.baseDir, "agents", componentName, ".agent-lock.json")
+		metadataFile = filepath.Join(ud.baseDir, "agents", componentName, ".agent-metadata.json")
 	case "commands":
-		metadataFile = filepath.Join(ud.baseDir, "commands", componentName, ".command-lock.json")
+		metadataFile = filepath.Join(ud.baseDir, "commands", componentName, ".command-metadata.json")
 	default:
 		return nil, fmt.Errorf("unknown component type: %s", componentType)
 	}
@@ -1141,6 +1654,48 @@ func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*Co
 	}
 
 	return &metadata, nil
+}
+
+func (ud *UpdateDetector) loadFromLockFile(componentType, componentName string) (*ComponentLockEntry, error) {
+	var lockFilePath string
+	var entries map[string]ComponentLockEntry
+
+	switch componentType {
+	case "skills":
+		lockFilePath = filepath.Join(ud.baseDir, ".skill-lock.json")
+	case "agents":
+		lockFilePath = filepath.Join(ud.baseDir, ".agent-lock.json")
+	case "commands":
+		lockFilePath = filepath.Join(ud.baseDir, ".command-lock.json")
+	default:
+		return nil, fmt.Errorf("unknown component type: %s", componentType)
+	}
+
+	lockData, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read lock file: %w", err)
+	}
+
+	var lockFile ComponentLockFile
+	if err := json.Unmarshal(lockData, &lockFile); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal lock file: %w", err)
+	}
+
+	switch componentType {
+	case "skills":
+		entries = lockFile.Skills
+	case "agents":
+		entries = lockFile.Agents
+	case "commands":
+		entries = lockFile.Commands
+	}
+
+	entry, exists := entries[componentName]
+	if !exists {
+		return nil, fmt.Errorf("component %s not found in lock file", componentName)
+	}
+
+	return &entry, nil
 }
 
 func (ud *UpdateDetector) getCurrentRepoSHA(repoURL string) (string, error) {
