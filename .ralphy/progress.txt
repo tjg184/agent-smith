@@ -23,3 +23,5 @@
 - [✓] 2026-01-23 18:27 - Story-003: As a developer, I want maintainable detection logic so that future repository patterns can be added easily.
 - [✓] 2026-01-23 18:28 - Modify detectComponentsInRepo function in main.go
 - [✓] 2026-01-23 18:32 - Add agent detection logic for .md files in /agents/ paths
+- [✓] 2026-01-23 18:34 - Add command detection logic for .md files in /commands/ paths
+- [✓] 2026-01-23 18:48 - Test component name extraction for all types
