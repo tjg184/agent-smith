@@ -13,7 +13,7 @@ The add-all command currently performs repository cloning multiple times - once 
 
 ## User Stories
 
-- [ ] Story-001: As a user running add-all, I want the repository cloned only once so that the command completes faster and uses less bandwidth.
+- [x] Story-001: As a user running add-all, I want the repository cloned only once so that the command completes faster and uses less bandwidth.
 
   **Acceptance Criteria:**
   - Repository is cloned exactly one time during add-all execution
