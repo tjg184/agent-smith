@@ -27,7 +27,7 @@ The wshobson/agents repository uses this pattern:
 
 ## User Stories
 
-- [ ] Story-001: As a user, I want add-all command to detect all components in a repository so that I can bulk download skills, agents, and commands regardless of how they're organized.
+- [x] Story-001: As a user, I want add-all command to detect all components in a repository so that I can bulk download skills, agents, and commands regardless of how they're organized.
 
   **Acceptance Criteria:**
   - System detects SKILL.md files in skills directories (existing behavior preserved)
@@ -36,7 +36,7 @@ The wshobson/agents repository uses this pattern:
   - Bulk download processes all detected component types successfully
   - Existing functionality remains unchanged for repositories with current structure
 
-- [ ] Story-002: As a user, I want correct component names so that downloaded components are properly labeled and organized.
+- [x] Story-002: As a user, I want correct component names so that downloaded components are properly labeled and organized.
 
   **Acceptance Criteria:**
   - Skills use directory name as component name (existing behavior)
@@ -44,7 +44,7 @@ The wshobson/agents repository uses this pattern:
   - Commands use filename without .md extension as component name
   - Downloaded components have correct names in ~/.agents/ directory structure
 
-- [ ] Story-003: As a developer, I want maintainable detection logic so that future repository patterns can be added easily.
+- [x] Story-003: As a developer, I want maintainable detection logic so that future repository patterns can be added easily.
 
   **Acceptance Criteria:**
   - Detection logic organized by component type with clear separation
@@ -165,8 +165,8 @@ if strings.HasSuffix(fileName, ".md") && strings.Contains(relPath, "/commands/")
 
 ## Implementation Checklist
 
-- [ ] Modify detectComponentsInRepo function in main.go
-- [ ] Add agent detection logic for .md files in /agents/ paths
+- [x] Modify detectComponentsInRepo function in main.go
+- [x] Add agent detection logic for .md files in /agents/ paths
 - [ ] Add command detection logic for .md files in /commands/ paths
 - [ ] Test component name extraction for all types
 - [ ] Verify backward compatibility with existing repositories
