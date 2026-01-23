@@ -331,6 +331,7 @@ func (rd *RepositoryDetector) validateRepository(repoURL string) error {
 
 func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]DetectedComponent, error) {
 	var components []DetectedComponent
+	seenComponents := make(map[string]bool) // Prevent duplicates
 
 	// Walk the repository to detect components
 	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
@@ -355,12 +356,16 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 			if componentName == "" || componentName == "." {
 				componentName = "root-skill"
 			}
-			components = append(components, DetectedComponent{
-				Type:       ComponentSkill,
-				Name:       componentName,
-				Path:       relPath,
-				SourceFile: fileName,
-			})
+			componentKey := fmt.Sprintf("skill-%s", componentName)
+			if !seenComponents[componentKey] {
+				components = append(components, DetectedComponent{
+					Type:       ComponentSkill,
+					Name:       componentName,
+					Path:       relPath,
+					SourceFile: fileName,
+				})
+				seenComponents[componentKey] = true
+			}
 		}
 
 		// Detect agent components
@@ -369,12 +374,16 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 			if componentName == "" || componentName == "." {
 				componentName = "root-agent"
 			}
-			components = append(components, DetectedComponent{
-				Type:       ComponentAgent,
-				Name:       componentName,
-				Path:       relPath,
-				SourceFile: fileName,
-			})
+			componentKey := fmt.Sprintf("agent-%s", componentName)
+			if !seenComponents[componentKey] {
+				components = append(components, DetectedComponent{
+					Type:       ComponentAgent,
+					Name:       componentName,
+					Path:       relPath,
+					SourceFile: fileName,
+				})
+				seenComponents[componentKey] = true
+			}
 		}
 
 		// Detect command components
@@ -383,12 +392,16 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 			if componentName == "" || componentName == "." {
 				componentName = "root-command"
 			}
-			components = append(components, DetectedComponent{
-				Type:       ComponentCommand,
-				Name:       componentName,
-				Path:       relPath,
-				SourceFile: fileName,
-			})
+			componentKey := fmt.Sprintf("command-%s", componentName)
+			if !seenComponents[componentKey] {
+				components = append(components, DetectedComponent{
+					Type:       ComponentCommand,
+					Name:       componentName,
+					Path:       relPath,
+					SourceFile: fileName,
+				})
+				seenComponents[componentKey] = true
+			}
 		}
 
 		return nil
