@@ -537,7 +537,7 @@ func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullR
 	// Check path patterns with file extensions (medium priority)
 	if len(pattern.PathPatterns) > 0 && len(pattern.FileExtensions) > 0 {
 		if rd.matchesPathPattern(relPath, pattern.PathPatterns) && rd.matchesFileExtension(fileName, pattern.FileExtensions) {
-			componentName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+			componentName := filepath.Base(relPath)
 			log.Printf("DEBUG: Path pattern + extension match, name: %s", componentName)
 			return componentName, relPath, true
 		}
@@ -616,7 +616,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 
 		// Additional agent detection for .md files in /agents/ paths
 		if strings.HasSuffix(fileName, ".md") && strings.Contains(fullRelPath, "/agents/") {
-			componentName := strings.TrimSuffix(fileName, ".md")
+			componentName := filepath.Base(relPath)
 			log.Printf("DEBUG: Additional agent detection in /agents/ path: %s", componentName)
 			if componentName == "" || componentName == "." {
 				componentName = "root-agent"
@@ -640,7 +640,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 
 		// Additional command detection for .md files in /commands/ paths
 		if strings.HasSuffix(fileName, ".md") && strings.Contains(fullRelPath, "/commands/") {
-			componentName := strings.TrimSuffix(fileName, ".md")
+			componentName := filepath.Base(relPath)
 			log.Printf("DEBUG: Additional command detection in /commands/ path: %s", componentName)
 			if componentName == "" || componentName == "." {
 				componentName = "root-command"
@@ -1320,16 +1320,17 @@ Add usage instructions here.
 }
 
 func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL string, repoPath string, components []DetectedComponent) error {
-	// Filter for skill components from provided components
-	var skillComponents []DetectedComponent
+	// Find the specific skill component with matching name
+	var targetComponent *DetectedComponent
 	for _, comp := range components {
-		if comp.Type == ComponentSkill {
-			skillComponents = append(skillComponents, comp)
+		if comp.Type == ComponentSkill && comp.Name == skillName {
+			targetComponent = &comp
+			break
 		}
 	}
 
-	if len(skillComponents) == 0 {
-		// No skill components detected, fall back to original behavior
+	if targetComponent == nil {
+		// Skill component not found in provided components, fall back to original behavior
 		return sd.downloadSkillDirect(fullURL, skillName, repoURL)
 	}
 
@@ -1339,33 +1340,12 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
-	// If only one skill component found, copy its contents
-	if len(skillComponents) == 1 {
-		component := skillComponents[0]
-		componentPath := filepath.Join(repoPath, component.Path)
-
-		// Copy component contents to skill directory
-		err := sd.copyDirectoryContents(componentPath, skillDir)
-		if err != nil {
-			os.RemoveAll(skillDir)
-			return fmt.Errorf("failed to copy skill contents: %w", err)
-		}
-	} else {
-		// Multiple skills found, create a monorepo structure
-		for _, component := range skillComponents {
-			componentDir := filepath.Join(skillDir, component.Name)
-			componentPath := filepath.Join(repoPath, component.Path)
-
-			err := createDirectoryWithPermissions(componentDir)
-			if err != nil {
-				continue
-			}
-
-			err = sd.copyDirectoryContents(componentPath, componentDir)
-			if err != nil {
-				log.Printf("Warning: failed to copy skill %s: %v", component.Name, err)
-			}
-		}
+	// Copy the specific skill component contents
+	componentPath := filepath.Join(repoPath, targetComponent.Path)
+	err := sd.copyDirectoryContents(componentPath, skillDir)
+	if err != nil {
+		os.RemoveAll(skillDir)
+		return fmt.Errorf("failed to copy skill contents: %w", err)
 	}
 
 	var commitHash string
@@ -1374,15 +1354,13 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 	// Handle metadata differently for local vs remote repositories
 	if sd.detector.detectProvider(repoURL) == "local" {
 		// For local repositories, open the repository directly
-		var err error
-		repo, err = git.PlainOpen(fullURL)
+		repo, err = git.PlainOpen(repoPath)
 		if err != nil {
 			// Non-fatal, continue without git metadata
 			log.Printf("Warning: failed to open local repository for metadata: %v", err)
 		}
 	} else {
 		// For remote repositories, use the already-cloned repository at repoPath
-		var err error
 		repo, err = git.PlainOpen(repoPath)
 		if err != nil {
 			// Non-fatal, continue without git metadata
@@ -1402,8 +1380,8 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 		"source":     fullURL,
 		"commit":     commitHash,
 		"downloaded": "now",
-		"components": len(skillComponents),
-		"detection":  "recursive",
+		"components": 1,
+		"detection":  "single",
 	}
 
 	// Save legacy metadata file for backward compatibility
@@ -1431,7 +1409,7 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 		if strings.HasPrefix(fullURL, "https://github.com/") {
 			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
 			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
-			if hash, err := computeGitHubTreeSHA(ownerRepo, "SKILL.md"); err == nil {
+			if hash, err := computeGitHubTreeSHA(ownerRepo, targetComponent.SourceFile); err == nil {
 				folderHash = hash
 			}
 		}
@@ -1442,7 +1420,7 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 		}
 	}
 
-	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, len(skillComponents), "recursive"); err != nil {
+	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, 1, "single"); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -1455,7 +1433,7 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 
 	fmt.Printf("Successfully downloaded skill '%s' from %s\n", skillName, fullURL)
 	fmt.Printf("Skill stored in: %s\n", skillDir)
-	fmt.Printf("Components detected: %d\n", len(skillComponents))
+	fmt.Printf("Components detected: %d\n", 1)
 
 	return nil
 }
@@ -3161,6 +3139,11 @@ func (bd *BulkDownloader) processComponents(components []DetectedComponent, full
 
 // processPluginComponents handles downloading components for a specific plugin
 func (bd *BulkDownloader) processPluginComponents(components []DetectedComponent, fullURL, repoURL, tempDir, pluginDir string) (int, int, int, error) {
+	// Adjust component paths to be relative to repository root instead of plugin directory
+	for i := range components {
+		components[i].Path = filepath.Join(pluginDir, components[i].Path)
+	}
+
 	// Group components by type for this plugin
 	skillComponents := []DetectedComponent{}
 	agentComponents := []DetectedComponent{}
