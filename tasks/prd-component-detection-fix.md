@@ -167,8 +167,8 @@ if strings.HasSuffix(fileName, ".md") && strings.Contains(relPath, "/commands/")
 
 - [x] Modify detectComponentsInRepo function in main.go
 - [x] Add agent detection logic for .md files in /agents/ paths
-- [ ] Add command detection logic for .md files in /commands/ paths
-- [ ] Test component name extraction for all types
+- [x] Add command detection logic for .md files in /commands/ paths
+- [x] Test component name extraction for all types
 - [ ] Verify backward compatibility with existing repositories
 - [ ] Run integration tests with wshobson/agents repository
 - [ ] Confirm add-all command detects all component types
