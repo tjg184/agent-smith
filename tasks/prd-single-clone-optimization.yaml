@@ -1,0 +1,7 @@
+tasks:
+  - title: "Story-001: As a user running add-all, I want the repository cloned only once so that the command completes faster and uses less bandwidth - Repository is cloned exactly one time during add-all execution, Component detection uses the initial cloned repository, Metadata extraction reuses the same repository object (no additional clones), Individual add-skill/add-agent/add-add-command commands maintain current behavior, Performance improvement is measurable (75% reduction in git operations), Large repositories process significantly faster than current implementation"
+    completed: false
+    parallel_group: 0
+  - title: "Story-002: As a developer maintaining this codebase, I want the optimization to be maintainable and safe so that I can understand and modify the logic easily - Clear separation between optimized and non-optimized code paths, Backward compatibility is preserved through optional parameters, Error handling provides appropriate fallbacks, Code changes are minimal and focused on the clone optimization, Tests validate both optimized and legacy behavior"
+    completed: false
+    parallel_group: 1

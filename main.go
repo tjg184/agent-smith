@@ -1317,17 +1317,12 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 			log.Printf("Warning: failed to open local repository for metadata: %v", err)
 		}
 	} else {
-		// For remote repositories, clone to get git history for metadata
+		// For remote repositories, use the already-cloned repository at repoPath
 		var err error
-		repo, err = git.PlainClone(skillDir+".git", true, &git.CloneOptions{
-			URL:           fullURL,
-			Depth:         1,
-			ReferenceName: plumbing.HEAD,
-			SingleBranch:  true,
-		})
+		repo, err = git.PlainOpen(repoPath)
 		if err != nil {
 			// Non-fatal, continue without git metadata
-			log.Printf("Warning: failed to clone repository for metadata: %v", err)
+			log.Printf("Warning: failed to open repository for metadata: %v", err)
 		}
 	}
 
@@ -1841,17 +1836,23 @@ func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoU
 	var commitHash string
 	var repo *git.Repository
 
-	// For remote repositories, clone to get proper git history for metadata
-	var err error
-	repo, err = git.PlainClone(commandDir+".git", true, &git.CloneOptions{
-		URL:           fullURL,
-		Depth:         1,
-		ReferenceName: plumbing.HEAD,
-		SingleBranch:  true,
-	})
-	if err != nil {
-		// Non-fatal, continue without git metadata
-		log.Printf("Warning: failed to clone repository for metadata: %v", err)
+	// Handle metadata differently for local vs remote repositories
+	if cd.detector.detectProvider(repoURL) == "local" {
+		// For local repositories, open the repository directly
+		var err error
+		repo, err = git.PlainOpen(fullURL)
+		if err != nil {
+			// Non-fatal, continue without git metadata
+			log.Printf("Warning: failed to open local repository for metadata: %v", err)
+		}
+	} else {
+		// For remote repositories, use the already-cloned repository at repoPath
+		var err error
+		repo, err = git.PlainOpen(repoPath)
+		if err != nil {
+			// Non-fatal, continue without git metadata
+			log.Printf("Warning: failed to open repository for metadata: %v", err)
+		}
 	}
 
 	if repo != nil {
@@ -2366,17 +2367,12 @@ func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL str
 			log.Printf("Warning: failed to open local repository for metadata: %v", err)
 		}
 	} else {
-		// For remote repositories, clone to get git history for metadata
+		// For remote repositories, use the already-cloned repository at repoPath
 		var err error
-		repo, err = git.PlainClone(agentDir+".git", true, &git.CloneOptions{
-			URL:           fullURL,
-			Depth:         1,
-			ReferenceName: plumbing.HEAD,
-			SingleBranch:  true,
-		})
+		repo, err = git.PlainOpen(repoPath)
 		if err != nil {
 			// Non-fatal, continue without git metadata
-			log.Printf("Warning: failed to clone repository for metadata: %v", err)
+			log.Printf("Warning: failed to open repository for metadata: %v", err)
 		}
 	}
 
