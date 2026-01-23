@@ -505,33 +505,54 @@ func (rd *RepositoryDetector) matchesFileExtension(fileName string, fileExtensio
 
 // detectComponentForPattern checks if a file matches a component detection pattern
 func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullRelPath string, pattern ComponentDetectionPattern, componentType ComponentType) (string, bool) {
+	// Debug logging for component detection process
+	log.Printf("DEBUG: Processing file: %s, relPath: %s, fileName: %s", fullRelPath, relPath, fileName)
+	log.Printf("DEBUG: Component pattern: %s, exactFiles: %v", pattern.Name, pattern.ExactFiles)
+
 	// Check if path should be ignored
 	if rd.shouldIgnorePath(relPath, pattern.IgnorePaths) {
+		log.Printf("DEBUG: Path ignored: %s", relPath)
 		return "", false
 	}
 
 	// Check exact file matches first (highest priority)
 	if rd.matchesExactFile(fileName, pattern.ExactFiles) {
-		// Use fullRelPath to get the correct directory containing the SKILL.md file
+		// Use fullRelPath to get the correct directory containing the component file
 		componentDir := filepath.Dir(fullRelPath)
+		log.Printf("DEBUG: Exact file match, componentDir: %s", componentDir)
+
 		if componentDir == "." {
-			return "root-" + pattern.Name, true
+			componentName := "root-" + pattern.Name
+			log.Printf("DEBUG: Root component, name: %s", componentName)
+			return componentName, true
 		}
-		return filepath.Base(componentDir), true
+
+		// Fixed: extract clean directory name without quotes
+		componentName := filepath.Base(componentDir)
+		log.Printf("DEBUG: Extracted component name: %s from directory: %s", componentName, componentDir)
+		log.Printf("DEBUG: Component name: '%s', componentKey: '%s-%s'", componentName, pattern.Name, componentName)
+		return componentName, true
 	}
 
 	// Check path patterns with file extensions (medium priority)
 	if len(pattern.PathPatterns) > 0 && len(pattern.FileExtensions) > 0 {
 		if rd.matchesPathPattern(relPath, pattern.PathPatterns) && rd.matchesFileExtension(fileName, pattern.FileExtensions) {
-			return strings.TrimSuffix(fileName, filepath.Ext(fileName)), true
+			componentName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+			log.Printf("DEBUG: Path pattern + extension match, name: %s", componentName)
+			return componentName, true
 		}
+		log.Printf("DEBUG: Path pattern + extension check failed")
 	}
 
 	// Check just path patterns (lower priority)
 	if len(pattern.PathPatterns) > 0 && rd.matchesPathPattern(relPath, pattern.PathPatterns) {
-		return strings.TrimSuffix(fileName, filepath.Ext(fileName)), true
+		componentName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+		log.Printf("DEBUG: Path pattern match, name: %s", componentName)
+		return componentName, true
 	}
+	log.Printf("DEBUG: Path pattern check failed")
 
+	log.Printf("DEBUG: No pattern matched for file: %s", fileName)
 	return "", false
 }
 
@@ -567,12 +588,17 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 			componentType := ComponentType(componentTypeStr)
 
 			if componentName, matched := rd.detectComponentForPattern(fileName, relPath, fullRelPath, pattern, componentType); matched {
+				log.Printf("DEBUG: Match result: true for componentType: %s", componentTypeStr)
+
 				// Handle default component names
 				if componentName == "" || componentName == "." {
 					componentName = fmt.Sprintf("root-%s", pattern.Name)
+					log.Printf("DEBUG: Applied default component name: %s", componentName)
 				}
 
 				componentKey := fmt.Sprintf("%s-%s", pattern.Name, componentName)
+				log.Printf("DEBUG: Component key: %s", componentKey)
+
 				if !seenComponents[componentKey] {
 					components = append(components, DetectedComponent{
 						Type:       componentType,
@@ -581,6 +607,9 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 						SourceFile: fileName,
 					})
 					seenComponents[componentKey] = true
+					log.Printf("DEBUG: Added component: %s (key: %s)", componentName, componentKey)
+				} else {
+					log.Printf("DEBUG: Duplicate component skipped: %s (key: %s)", componentName, componentKey)
 				}
 			}
 		}
@@ -588,10 +617,13 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 		// Additional agent detection for .md files in /agents/ paths
 		if strings.HasSuffix(fileName, ".md") && strings.Contains(fullRelPath, "/agents/") {
 			componentName := strings.TrimSuffix(fileName, ".md")
+			log.Printf("DEBUG: Additional agent detection in /agents/ path: %s", componentName)
 			if componentName == "" || componentName == "." {
 				componentName = "root-agent"
+				log.Printf("DEBUG: Applied default agent name: %s", componentName)
 			}
 			componentKey := fmt.Sprintf("agent-%s", componentName)
+			log.Printf("DEBUG: Agent component key: %s", componentKey)
 			if !seenComponents[componentKey] {
 				components = append(components, DetectedComponent{
 					Type:       ComponentAgent,
@@ -600,16 +632,22 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 					SourceFile: fileName,
 				})
 				seenComponents[componentKey] = true
+				log.Printf("DEBUG: Added additional agent: %s", componentName)
+			} else {
+				log.Printf("DEBUG: Duplicate additional agent skipped: %s", componentName)
 			}
 		}
 
 		// Additional command detection for .md files in /commands/ paths
 		if strings.HasSuffix(fileName, ".md") && strings.Contains(fullRelPath, "/commands/") {
 			componentName := strings.TrimSuffix(fileName, ".md")
+			log.Printf("DEBUG: Additional command detection in /commands/ path: %s", componentName)
 			if componentName == "" || componentName == "." {
 				componentName = "root-command"
+				log.Printf("DEBUG: Applied default command name: %s", componentName)
 			}
 			componentKey := fmt.Sprintf("command-%s", componentName)
+			log.Printf("DEBUG: Command component key: %s", componentKey)
 			if !seenComponents[componentKey] {
 				components = append(components, DetectedComponent{
 					Type:       ComponentCommand,
@@ -618,11 +656,32 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 					SourceFile: fileName,
 				})
 				seenComponents[componentKey] = true
+				log.Printf("DEBUG: Added additional command: %s", componentName)
+			} else {
+				log.Printf("DEBUG: Duplicate additional command skipped: %s", componentName)
 			}
 		}
 
 		return nil
 	})
+
+	log.Printf("DEBUG: Total components detected: %d", len(components))
+
+	// Count components by type for debugging
+	skillCount := 0
+	agentCount := 0
+	commandCount := 0
+	for _, comp := range components {
+		switch comp.Type {
+		case ComponentSkill:
+			skillCount++
+		case ComponentAgent:
+			agentCount++
+		case ComponentCommand:
+			commandCount++
+		}
+	}
+	log.Printf("DEBUG: Component breakdown - Skills: %d, Agents: %d, Commands: %d", skillCount, agentCount, commandCount)
 
 	return components, err
 }

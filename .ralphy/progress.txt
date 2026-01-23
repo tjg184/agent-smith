@@ -28,3 +28,4 @@
 - [✓] 2026-01-23 19:05 - Story-001: As a user running add-all, I want the repository to be cloned only once so that the command completes faster and uses less bandwidth.
 - [✓] 2026-01-23 19:15 - Story-001: As a user running add-all, I want clear output that doesn't confuse me about multiple clones so I can understand that the optimization is working correctly.
 - [✓] 2026-01-23 19:26 - Story-001: As a user running add-all, I want the repository cloned only once so that the command completes faster and uses less bandwidth.
+- [✓] 2026-01-23 19:44 - Story-001: As a user running add-all on a repository with multiple skills, I want all skills to be detected and downloaded so that I can access all available components from the repository.
