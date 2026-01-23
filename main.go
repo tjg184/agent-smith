@@ -386,6 +386,25 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 			}
 		}
 
+		// Additional agent detection for .md files in /agents/ paths
+		if strings.HasSuffix(fileName, ".md") && (strings.Contains(relPath, "/agents/") || strings.HasSuffix(relPath, "agents")) {
+			componentName := strings.TrimSuffix(fileName, ".md")
+			if componentName == "" || componentName == "." {
+				componentName = "root-agent"
+			}
+			componentKey := fmt.Sprintf("agent-%s", componentName)
+			if !seenComponents[componentKey] {
+				components = append(components, DetectedComponent{
+					Type:       ComponentAgent,
+					Name:       componentName,
+					Path:       relPath,
+					SourceFile: fileName,
+				})
+				seenComponents[componentKey] = true
+			} else {
+			}
+		}
+
 		// Detect command components
 		if fileName == "COMMAND.md" {
 			componentName := filepath.Base(parentDir)
@@ -401,6 +420,26 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 					SourceFile: fileName,
 				})
 				seenComponents[componentKey] = true
+			}
+		}
+
+		// Additional command detection for .md files in /commands/ paths
+		if strings.HasSuffix(fileName, ".md") && strings.Contains(relPath, "/commands/") || strings.HasSuffix(relPath, "commands") {
+			componentName := strings.TrimSuffix(fileName, ".md")
+			if componentName == "" || componentName == "." {
+				componentName = "root-command"
+			}
+			componentKey := fmt.Sprintf("command-%s", componentName)
+			if !seenComponents[componentKey] {
+
+				components = append(components, DetectedComponent{
+					Type:       ComponentCommand,
+					Name:       componentName,
+					Path:       relPath,
+					SourceFile: fileName,
+				})
+				seenComponents[componentKey] = true
+			} else {
 			}
 		}
 
