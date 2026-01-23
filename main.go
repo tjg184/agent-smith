@@ -643,19 +643,6 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string, providedRepo
 			return fmt.Errorf("failed to clone repository for detection: %w", err)
 		}
 		repoPath = tempDir
-		defer os.RemoveAll(tempDir)
-
-		// Clone repository to temporary location for detection
-		_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
-			URL:           fullURL,
-			Depth:         1,
-			ReferenceName: plumbing.HEAD,
-			SingleBranch:  true,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to clone repository for detection: %w", err)
-		}
-		repoPath = tempDir
 	}
 
 	// Detect components in the repository
