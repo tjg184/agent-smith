@@ -65,6 +65,7 @@ type CommandDownloader struct {
 type ComponentLinker struct {
 	agentsDir   string
 	opencodeDir string
+	detector    *RepositoryDetector
 }
 
 type BulkDownloader struct {
@@ -469,6 +470,7 @@ func NewComponentLinker() *ComponentLinker {
 	return &ComponentLinker{
 		agentsDir:   agentsDir,
 		opencodeDir: opencodeDir,
+		detector:    NewRepositoryDetector(),
 	}
 }
 
@@ -1889,6 +1891,67 @@ func (cl *ComponentLinker) linkAllComponents() error {
 	return nil
 }
 
+func (cl *ComponentLinker) detectAndLinkLocalRepositories() error {
+	// Get current working directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current working directory: %w", err)
+	}
+
+	// Check if current directory is a git repository
+	if !cl.detector.isLocalPath(cwd) {
+		return fmt.Errorf("current directory is not a git repository")
+	}
+
+	// Detect components in the current repository
+	components, err := cl.detector.detectComponentsInRepo(cwd)
+	if err != nil {
+		return fmt.Errorf("failed to detect components in repository: %w", err)
+	}
+
+	if len(components) == 0 {
+		fmt.Println("No components detected in current repository")
+		return nil
+	}
+
+	fmt.Printf("Detected %d components in current repository:\n", len(components))
+	for _, component := range components {
+		fmt.Printf("  - %s: %s (%s)\n", component.Type, component.Name, component.Path)
+	}
+
+	// Link each detected component
+	for _, component := range components {
+		componentTypeStr := string(component.Type)
+		componentPath := filepath.Join(cwd, component.Path)
+
+		// Create a temporary link to the detected component
+		tempLinkName := fmt.Sprintf("auto-detected-%s", component.Name)
+		tempLinkPath := filepath.Join(cl.agentsDir, componentTypeStr, tempLinkName)
+
+		// Create destination directory
+		if err := createDirectoryWithPermissions(filepath.Dir(tempLinkPath)); err != nil {
+			fmt.Printf("Warning: failed to create directory for %s: %v\n", component.Name, err)
+			continue
+		}
+
+		// Create symlink to the detected component
+		if err := cl.createSymlink(componentPath, tempLinkPath); err != nil {
+			fmt.Printf("Warning: failed to link component %s: %v\n", component.Name, err)
+			continue
+		}
+
+		// Now link it to opencode
+		if err := cl.linkComponent(componentTypeStr, tempLinkName); err != nil {
+			fmt.Printf("Warning: failed to link %s to opencode: %v\n", component.Name, err)
+			continue
+		}
+
+		fmt.Printf("✓ Automatically linked %s '%s' from current repository\n", component.Type, component.Name)
+	}
+
+	return nil
+}
+
 func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*ComponentMetadata, error) {
 	// First try to load from npx add-skill compatible lock files
 	if metadata, err := ud.loadFromLockFile(componentType, componentName); err == nil {
@@ -2473,6 +2536,7 @@ func main() {
 		fmt.Println("  update-all                                  Check and update all downloaded components")
 		fmt.Println("  link        <type> <name>                   Link a downloaded component to opencode")
 		fmt.Println("  link-all                                     Link all downloaded components to opencode")
+		fmt.Println("  auto-link                                   Automatically detect and link components from current repository")
 		fmt.Println()
 		fmt.Println("Examples:")
 		fmt.Println("  agent-smith add-skill owner/repo my-skill")
@@ -2494,6 +2558,7 @@ func main() {
 		fmt.Println("  agent-smith link agents my-agent")
 		fmt.Println("  agent-smith link commands my-command")
 		fmt.Println("  agent-smith link-all")
+		fmt.Println("  agent-smith auto-link")
 		os.Exit(1)
 	}
 
@@ -2591,6 +2656,11 @@ func main() {
 		if err := linker.linkAllComponents(); err != nil {
 			log.Fatal("Failed to link all components:", err)
 		}
+	case "auto-link":
+		linker := NewComponentLinker()
+		if err := linker.detectAndLinkLocalRepositories(); err != nil {
+			log.Fatal("Failed to auto-link repositories:", err)
+		}
 	case "npx", "run":
 		if len(os.Args) < 3 {
 			fmt.Println("Usage: agent-smith npx <repository-or-package> [args...]")
@@ -2606,7 +2676,7 @@ func main() {
 		}
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
-		fmt.Println("Supported commands: add-skill, add-agent, add-command, add-all, npx, run, update, update-all, link, link-all")
+		fmt.Println("Supported commands: add-skill, add-agent, add-command, add-all, npx, run, update, update-all, link, link-all, auto-link")
 		os.Exit(1)
 	}
 }
