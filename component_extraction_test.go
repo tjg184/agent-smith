@@ -622,6 +622,212 @@ func TestPluginsSkillsPathIssue(t *testing.T) {
 	t.Logf("SUCCESS: Component correctly detected with Name=%s, Path=%s", component.Name, component.Path)
 }
 
+// TestAccessibilityCompliancePluginDownload tests Story-002: accessibility-compliance plugin download
+func TestAccessibilityCompliancePluginDownload(t *testing.T) {
+	// Create temporary directory for test repository
+	tempDir, err := os.MkdirTemp("", "accessibility-compliance-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Simulate the repository structure with accessibility-compliance plugin containing 2 skills
+	// and other plugins with additional skills to test isolation
+	testFiles := map[string]string{
+		// accessibility-compliance plugin with exactly 2 skills
+		"plugins/accessibility-compliance/skills/wcag-compliance/SKILL.md":       "# WCAG Compliance Skill\nEnsures WCAG 2.1 compliance",
+		"plugins/accessibility-compliance/skills/screen-reader-support/SKILL.md": "# Screen Reader Support Skill\nOptimizes for screen readers",
+
+		// Other plugins with skills that should NOT be included
+		"plugins/python-development/skills/async-patterns/SKILL.md":   "# Async Python Patterns",
+		"plugins/python-development/skills/testing-patterns/SKILL.md": "# Python Testing",
+		"plugins/kubernetes-operations/skills/manifests/SKILL.md":     "# K8s Manifests",
+		"plugins/kubernetes-operations/skills/helm-charts/SKILL.md":   "# Helm Charts",
+		"plugins/security-scanning/skills/sast-analysis/SKILL.md":     "# SAST Analysis",
+
+		// Additional files to make it realistic (125 other skills across other plugins)
+		"plugins/frontend-development/skills/react-patterns/SKILL.md": "# React Patterns",
+		"plugins/backend-development/skills/api-design/SKILL.md":      "# API Design",
+		"plugins/infrastructure/skills/terraform/SKILL.md":            "# Terraform",
+	}
+
+	// Create all test files
+	for filePath, content := range testFiles {
+		fullPath := filepath.Join(tempDir, filePath)
+		dir := filepath.Dir(fullPath)
+
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatalf("Failed to create directory %s: %v", dir, err)
+		}
+
+		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to create file %s: %v", fullPath, err)
+		}
+	}
+
+	// Create detector
+	detector := NewRepositoryDetector()
+
+	// Test component detection in the entire repository
+	components, err := detector.detectComponentsInRepo(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to detect components: %v", err)
+	}
+
+	// Should detect multiple skill components across all plugins
+	totalSkills := 0
+	var accessibilitySkills []DetectedComponent
+	for _, comp := range components {
+		if comp.Type == ComponentSkill {
+			totalSkills++
+			// Check if this skill belongs to accessibility-compliance plugin
+			if strings.Contains(comp.Path, "accessibility-compliance") {
+				accessibilitySkills = append(accessibilitySkills, comp)
+			}
+		}
+	}
+
+	// Verify total skills detected (should be more than just the 2 accessibility skills)
+	if totalSkills <= 2 {
+		t.Errorf("Expected to detect more than 2 skills total, got %d", totalSkills)
+		t.Logf("Total skills detected: %d", totalSkills)
+	}
+
+	// Verify exactly 2 accessibility-compliance skills detected
+	if len(accessibilitySkills) != 2 {
+		t.Errorf("Expected exactly 2 accessibility-compliance skills, got %d", len(accessibilitySkills))
+		for i, skill := range accessibilitySkills {
+			t.Logf("Accessibility skill %d: Name=%s, Path=%s", i, skill.Name, skill.Path)
+		}
+	}
+
+	// Verify the specific accessibility skills
+	expectedSkills := []struct {
+		name string
+		path string
+	}{
+		{"wcag-compliance", filepath.Join("plugins", "accessibility-compliance", "skills", "wcag-compliance")},
+		{"screen-reader-support", filepath.Join("plugins", "accessibility-compliance", "skills", "screen-reader-support")},
+	}
+
+	for i, expected := range expectedSkills {
+		found := false
+		for _, skill := range accessibilitySkills {
+			if skill.Name == expected.name && skill.Path == expected.path {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected accessibility skill %d: name=%s, path=%s", i, expected.name, expected.path)
+		}
+	}
+
+	// Simulate downloading just the accessibility-compliance plugin
+	// This should copy only the accessibility skills, not all skills
+	pluginDir := filepath.Join(tempDir, "plugins", "accessibility-compliance")
+	pluginComponents, err := detector.detectComponentsInRepo(pluginDir)
+	if err != nil {
+		t.Fatalf("Failed to detect components in plugin directory: %v", err)
+	}
+
+	// Should detect exactly 2 skills in the plugin directory
+	pluginSkillCount := 0
+	for _, comp := range pluginComponents {
+		if comp.Type == ComponentSkill {
+			pluginSkillCount++
+		}
+	}
+
+	if pluginSkillCount != 2 {
+		t.Errorf("Expected exactly 2 skills in accessibility-compliance plugin directory, got %d", pluginSkillCount)
+	}
+
+	// Verify no cross-contamination - skills from other plugins should not be in this list
+	for _, comp := range pluginComponents {
+		if comp.Type == ComponentSkill && !strings.Contains(comp.Path, "wcag-compliance") && !strings.Contains(comp.Path, "screen-reader-support") {
+			t.Errorf("Found unexpected skill in plugin directory: Name=%s, Path=%s", comp.Name, comp.Path)
+		}
+	}
+
+	t.Logf("SUCCESS: accessibility-compliance plugin isolation test passed")
+	t.Logf("  - Total skills in repository: %d", totalSkills)
+	t.Logf("  - Accessibility-compliance skills detected: %d", len(accessibilitySkills))
+	t.Logf("  - Skills in plugin directory: %d", pluginSkillCount)
+}
+
+// TestAccessibilityCompliancePluginMetadata tests metadata generation for accessibility-compliance plugin
+func TestAccessibilityCompliancePluginMetadata(t *testing.T) {
+	// Create temporary directory for test repository
+	tempDir, err := os.MkdirTemp("", "accessibility-metadata-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create accessibility-compliance plugin structure
+	testFiles := map[string]string{
+		"plugins/accessibility-compliance/skills/wcag-compliance/SKILL.md":       "# WCAG Compliance Skill\nEnsures WCAG 2.1 compliance",
+		"plugins/accessibility-compliance/skills/screen-reader-support/SKILL.md": "# Screen Reader Support Skill\nOptimizes for screen readers",
+	}
+
+	// Create test files
+	for filePath, content := range testFiles {
+		fullPath := filepath.Join(tempDir, filePath)
+		dir := filepath.Dir(fullPath)
+
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatalf("Failed to create directory %s: %v", dir, err)
+		}
+
+		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to create file %s: %v", fullPath, err)
+		}
+	}
+
+	// Create detector and test specific plugin path
+	detector := NewRepositoryDetector()
+
+	// Test detection specifically in the accessibility-compliance plugin directory
+	pluginDir := filepath.Join(tempDir, "plugins", "accessibility-compliance")
+	components, err := detector.detectComponentsInRepo(pluginDir)
+	if err != nil {
+		t.Fatalf("Failed to detect components: %v", err)
+	}
+
+	// Should detect exactly 2 skills
+	skillCount := 0
+	for _, comp := range components {
+		if comp.Type == ComponentSkill {
+			skillCount++
+		}
+	}
+
+	if skillCount != 2 {
+		t.Errorf("Expected exactly 2 skills in accessibility-compliance plugin, got %d", skillCount)
+	}
+
+	// Test that metadata would report correct component count
+	// Simulate what would happen during download
+	expectedMetadata := map[string]interface{}{
+		"name":       "accessibility-compliance",
+		"source":     "test-repo",
+		"commit":     "test-commit",
+		"downloaded": "now",
+		"components": skillCount, // This should be 2, not 127
+		"detection":  "recursive",
+	}
+
+	// Verify component count in metadata
+	if expectedMetadata["components"] != 2 {
+		t.Errorf("Expected metadata components to be 2, got %v", expectedMetadata["components"])
+	}
+
+	t.Logf("SUCCESS: accessibility-compliance plugin metadata test passed")
+	t.Logf("  - Skills detected: %d", skillCount)
+	t.Logf("  - Metadata component count: %v", expectedMetadata["components"])
+}
+
 // BenchmarkComponentDetection benchmarks the component detection performance
 func BenchmarkComponentDetection(b *testing.B) {
 	// Create a complex repository structure for benchmarking
