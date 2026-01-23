@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -58,6 +60,20 @@ type CommandDownloader struct {
 type ComponentLinker struct {
 	agentsDir   string
 	opencodeDir string
+}
+
+type UpdateDetector struct {
+	baseDir  string
+	detector *RepositoryDetector
+}
+
+type ComponentMetadata struct {
+	Name       string `json:"name"`
+	Source     string `json:"source"`
+	Commit     string `json:"commit"`
+	Downloaded string `json:"downloaded"`
+	Components int    `json:"components,omitempty"`
+	Detection  string `json:"detection,omitempty"`
 }
 
 func NewRepositoryDetector() *RepositoryDetector {
@@ -248,6 +264,20 @@ func NewComponentLinker() *ComponentLinker {
 	return &ComponentLinker{
 		agentsDir:   agentsDir,
 		opencodeDir: opencodeDir,
+	}
+}
+
+func NewUpdateDetector() *UpdateDetector {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal("Failed to get user home directory:", err)
+	}
+
+	baseDir := filepath.Join(home, ".agents")
+
+	return &UpdateDetector{
+		baseDir:  baseDir,
+		detector: NewRepositoryDetector(),
 	}
 }
 
@@ -462,15 +492,14 @@ func (sd *SkillDownloader) copyFile(src, dst string) error {
 }
 
 func (sd *SkillDownloader) saveMetadata(filePath string, metadata map[string]interface{}) error {
-	// Simple JSON marshaling for now
-	content := fmt.Sprintf(`{
-  "name": "%s",
-  "source": "%s",
-  "commit": "%s",
-  "downloaded": "%s"
-}`, metadata["name"], metadata["source"], metadata["commit"], metadata["downloaded"])
+	metadata["downloaded"] = time.Now().Format(time.RFC3339)
 
-	return os.WriteFile(filePath, []byte(content), 0644)
+	jsonData, err := json.MarshalIndent(metadata, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	return os.WriteFile(filePath, jsonData, 0644)
 }
 
 func (sd *SkillDownloader) createSkillFile(filePath, skillName, source string) error {
@@ -704,15 +733,14 @@ func (cd *CommandDownloader) copyFile(src, dst string) error {
 }
 
 func (cd *CommandDownloader) saveMetadata(filePath string, metadata map[string]interface{}) error {
-	// Simple JSON marshaling for now
-	content := fmt.Sprintf(`{
-  "name": "%s",
-  "source": "%s",
-  "commit": "%s",
-  "downloaded": "%s"
-}`, metadata["name"], metadata["source"], metadata["commit"], metadata["downloaded"])
+	metadata["downloaded"] = time.Now().Format(time.RFC3339)
 
-	return os.WriteFile(filePath, []byte(content), 0644)
+	jsonData, err := json.MarshalIndent(metadata, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	return os.WriteFile(filePath, jsonData, 0644)
 }
 
 func (cd *CommandDownloader) createCommandFile(filePath, commandName, source string) error {
@@ -946,15 +974,14 @@ func (ad *AgentDownloader) copyFile(src, dst string) error {
 }
 
 func (ad *AgentDownloader) saveMetadata(filePath string, metadata map[string]interface{}) error {
-	// Simple JSON marshaling for now
-	content := fmt.Sprintf(`{
-  "name": "%s",
-  "source": "%s",
-  "commit": "%s",
-  "downloaded": "%s"
-}`, metadata["name"], metadata["source"], metadata["commit"], metadata["downloaded"])
+	metadata["downloaded"] = time.Now().Format(time.RFC3339)
 
-	return os.WriteFile(filePath, []byte(content), 0644)
+	jsonData, err := json.MarshalIndent(metadata, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	return os.WriteFile(filePath, jsonData, 0644)
 }
 
 func (ad *AgentDownloader) createAgentFile(filePath, agentName, source string) error {
@@ -1090,6 +1117,147 @@ func (cl *ComponentLinker) linkAllComponents() error {
 	return nil
 }
 
+func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*ComponentMetadata, error) {
+	var metadataFile string
+	switch componentType {
+	case "skills":
+		metadataFile = filepath.Join(ud.baseDir, "skills", componentName, ".skill-metadata.json")
+	case "agents":
+		metadataFile = filepath.Join(ud.baseDir, "agents", componentName, ".agent-lock.json")
+	case "commands":
+		metadataFile = filepath.Join(ud.baseDir, "commands", componentName, ".command-lock.json")
+	default:
+		return nil, fmt.Errorf("unknown component type: %s", componentType)
+	}
+
+	data, err := os.ReadFile(metadataFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read metadata file: %w", err)
+	}
+
+	var metadata ComponentMetadata
+	if err := json.Unmarshal(data, &metadata); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
+	}
+
+	return &metadata, nil
+}
+
+func (ud *UpdateDetector) getCurrentRepoSHA(repoURL string) (string, error) {
+	fullURL, err := ud.detector.normalizeURL(repoURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to normalize URL: %w", err)
+	}
+
+	// Create temporary directory for checking current state
+	tempDir, err := os.MkdirTemp("", "agent-smith-check-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temporary directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Clone repository to get current HEAD
+	repo, err := git.PlainClone(tempDir, true, &git.CloneOptions{
+		URL:           fullURL,
+		Depth:         1,
+		ReferenceName: plumbing.HEAD,
+		SingleBranch:  true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to clone repository: %w", err)
+	}
+
+	// Get HEAD commit hash
+	ref, err := repo.Head()
+	if err != nil {
+		return "", fmt.Errorf("failed to get HEAD reference: %w", err)
+	}
+
+	return ref.Hash().String(), nil
+}
+
+func (ud *UpdateDetector) HasUpdates(componentType, componentName, repoURL string) (bool, error) {
+	// Load existing metadata
+	metadata, err := ud.loadMetadata(componentType, componentName)
+	if err != nil {
+		return false, fmt.Errorf("failed to load metadata: %w", err)
+	}
+
+	// Get current repository SHA
+	currentSHA, err := ud.getCurrentRepoSHA(repoURL)
+	if err != nil {
+		return false, fmt.Errorf("failed to get current repository SHA: %w", err)
+	}
+
+	// Compare stored SHA with current SHA
+	return metadata.Commit != currentSHA, nil
+}
+
+func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL string) error {
+	hasUpdates, err := ud.HasUpdates(componentType, componentName, repoURL)
+	if err != nil {
+		return fmt.Errorf("failed to check for updates: %w", err)
+	}
+
+	if !hasUpdates {
+		fmt.Printf("Component %s/%s is already up to date\n", componentType, componentName)
+		return nil
+	}
+
+	fmt.Printf("Updates detected for %s/%s, downloading new version...\n", componentType, componentName)
+
+	// Re-download the component with the latest changes
+	switch componentType {
+	case "skills":
+		downloader := NewSkillDownloader()
+		return downloader.downloadSkill(repoURL, componentName)
+	case "agents":
+		downloader := NewAgentDownloader()
+		return downloader.downloadAgent(repoURL, componentName)
+	case "commands":
+		downloader := NewCommandDownloader()
+		return downloader.downloadCommand(repoURL, componentName)
+	default:
+		return fmt.Errorf("unknown component type: %s", componentType)
+	}
+}
+
+func (ud *UpdateDetector) UpdateAll() error {
+	componentTypes := []string{"skills", "agents", "commands"}
+
+	for _, componentType := range componentTypes {
+		typeDir := filepath.Join(ud.baseDir, componentType)
+		if _, err := os.Stat(typeDir); os.IsNotExist(err) {
+			continue
+		}
+
+		entries, err := os.ReadDir(typeDir)
+		if err != nil {
+			fmt.Printf("Warning: failed to read %s directory: %v\n", componentType, err)
+			continue
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() {
+				componentName := entry.Name()
+
+				// Load metadata to get source URL
+				metadata, err := ud.loadMetadata(componentType, componentName)
+				if err != nil {
+					fmt.Printf("Warning: failed to load metadata for %s/%s: %v\n", componentType, componentName, err)
+					continue
+				}
+
+				if err := ud.UpdateComponent(componentType, componentName, metadata.Source); err != nil {
+					fmt.Printf("Warning: failed to update %s/%s: %v\n", componentType, componentName, err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: agent-smith <command> [args...]")
@@ -1097,6 +1265,8 @@ func main() {
 		fmt.Println("  add-skill   <repository-url> <skill-name>   Download a skill from a git repository")
 		fmt.Println("  add-agent   <repository-url> <agent-name>   Download an agent from a git repository")
 		fmt.Println("  add-command <repository-url> <command-name> Download a command from a git repository")
+		fmt.Println("  update      <type> <name>                  Check and update a specific component")
+		fmt.Println("  update-all                                  Check and update all downloaded components")
 		fmt.Println("  link        <type> <name>                   Link a downloaded component to opencode")
 		fmt.Println("  link-all                                     Link all downloaded components to opencode")
 		fmt.Println()
@@ -1107,6 +1277,10 @@ func main() {
 		fmt.Println("  agent-smith add-agent https://github.com/owner/repo my-agent")
 		fmt.Println("  agent-smith add-command owner/repo my-command")
 		fmt.Println("  agent-smith add-command https://github.com/owner/repo my-command")
+		fmt.Println("  agent-smith update skills my-skill")
+		fmt.Println("  agent-smith update agents my-agent")
+		fmt.Println("  agent-smith update commands my-command")
+		fmt.Println("  agent-smith update-all")
 		fmt.Println("  agent-smith link skills my-skill")
 		fmt.Println("  agent-smith link agents my-agent")
 		fmt.Println("  agent-smith link commands my-command")
@@ -1162,6 +1336,37 @@ func main() {
 		if err := linker.linkComponent(componentType, componentName); err != nil {
 			log.Fatal("Failed to link component:", err)
 		}
+	case "update":
+		if len(os.Args) < 4 {
+			fmt.Println("Usage: agent-smith update <type> <name>")
+			fmt.Println("Types: skills, agents, commands")
+			os.Exit(1)
+		}
+		componentType := os.Args[2]
+		componentName := os.Args[3]
+
+		// Validate component type
+		if componentType != "skills" && componentType != "agents" && componentType != "commands" {
+			fmt.Println("Invalid component type. Use: skills, agents, or commands")
+			os.Exit(1)
+		}
+
+		detector := NewUpdateDetector()
+
+		// Load metadata to get source URL
+		metadata, err := detector.loadMetadata(componentType, componentName)
+		if err != nil {
+			log.Fatal("Failed to load component metadata:", err)
+		}
+
+		if err := detector.UpdateComponent(componentType, componentName, metadata.Source); err != nil {
+			log.Fatal("Failed to update component:", err)
+		}
+	case "update-all":
+		detector := NewUpdateDetector()
+		if err := detector.UpdateAll(); err != nil {
+			log.Fatal("Failed to update components:", err)
+		}
 	case "link-all":
 		linker := NewComponentLinker()
 		if err := linker.linkAllComponents(); err != nil {
@@ -1169,7 +1374,7 @@ func main() {
 		}
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
-		fmt.Println("Supported commands: add-skill, add-agent, add-command, link, link-all")
+		fmt.Println("Supported commands: add-skill, add-agent, add-command, update, update-all, link, link-all")
 		os.Exit(1)
 	}
 }
