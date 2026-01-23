@@ -43,7 +43,7 @@ Agent Smith is a universal component manager for AI coding environments that pro
   - Support batch downloading from repositories
   - Support opencode command format with frontmatter and proper file structure
 
-- [ ] Story-004: As a developer, I want to link downloaded components to my opencode repository so I can use them in projects.
+- [x] Story-004: As a developer, I want to link downloaded components to my opencode repository so I can use them in projects.
 
   **Acceptance Criteria:**
   - Create relative symlinks from ~/.agents/[type]/[name]/ to ~/.config/opencode/[type]/[name]/
@@ -51,7 +51,7 @@ Agent Smith is a universal component manager for AI coding environments that pro
   - Handle conflicts by skipping existing files with user notification
   - Support cross-platform symlink creation with Windows junction fallbacks
 
-- [ ] Story-005: As a developer, I want the tool to work with any repository format so I'm not limited to standard structure.
+- [x] Story-005: As a developer, I want the tool to work with any repository format so I'm not limited to standard structure.
 
   **Acceptance Criteria:**
   - Perform recursive content-based detection for skills (*/SKILL.md), agents (*/AGENT.md), and commands (*/COMMAND.md)
@@ -59,7 +59,7 @@ Agent Smith is a universal component manager for AI coding environments that pro
   - Support custom repository layouts through flexible parsing and user-configurable patterns
   - Handle monorepo structures with multiple component types in same repository
 
-- [ ] Story-006: As a developer, I want intelligent update detection so I know when components change.
+- [x] Story-006: As a developer, I want intelligent update detection so I know when components change.
 
   **Acceptance Criteria:**
   - Use GitHub tree SHA for precise change detection
