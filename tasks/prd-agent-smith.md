@@ -66,7 +66,7 @@ Agent Smith is a universal component manager for AI coding environments that pro
   - Compare stored hashes with current repository state
   - Only re-download when actual content changes
 
-- [ ] Story-007: As a developer, I want npx add-skill compatibility so I can use both tools together.
+- [x] Story-007: As a developer, I want npx add-skill compatibility so I can use both tools together.
 
   **Acceptance Criteria:**
   - Use same ~/.agents/ directory structure for component storage
@@ -75,7 +75,7 @@ Agent Smith is a universal component manager for AI coding environments that pro
   - Support existing .skill-lock.json files from npx add-skill installations
   - Coexist peacefully with npx add-skill tool (no conflicts or overwrites)
 
-- [ ] Story-008: As a developer, I want bulk operations so I can manage many components efficiently.
+- [x] Story-008: As a developer, I want bulk operations so I can manage many components efficiently.
 
   **Acceptance Criteria:**
   - Download all component types from repositories with add-all command
@@ -83,7 +83,7 @@ Agent Smith is a universal component manager for AI coding environments that pro
   - Perform batch updates across all installed components with configurable concurrency
   - Support bulk operations like add-all, link-all, update-all
 
-- [ ] Story-009: As a developer, I want cross-platform support so I can work on any OS.
+- [x] Story-009: As a developer, I want cross-platform support so I can work on any OS.
 
   **Acceptance Criteria:**
   - Support native symlinks on macOS/Linux with automatic detection
@@ -92,7 +92,7 @@ Agent Smith is a universal component manager for AI coding environments that pro
   - Graceful degradation to file copies when symlinks/junctions are not possible
   - Proper permission handling across different operating systems
 
-- [ ] Story-010: As a developer, I want a CLI interface similar to npx so I have a familiar experience.
+- [x] Story-010: As a developer, I want a CLI interface similar to npx so I have a familiar experience.
 
   **Acceptance Criteria:**
   - Use add-agent, add-command, add-skill subcommands matching npx add-skill patterns
@@ -101,7 +101,7 @@ Agent Smith is a universal component manager for AI coding environments that pro
   - Support global (--global, -g) and force (--force, -f) flags like npx add-skill
   - Provide dry-run functionality to preview actions before execution
 
-- [ ] Story-011: As a developer, I want comprehensive source type support so I can download from anywhere.
+- [x] Story-011: As a developer, I want comprehensive source type support so I can download from anywhere.
 
   **Acceptance Criteria:**
   - Parse GitHub shorthand (owner/repo) and expand to full GitHub URLs
@@ -110,7 +110,7 @@ Agent Smith is a universal component manager for AI coding environments that pro
   - Work with local file paths for testing and local development
   - Validate all source types before attempting download
 
-- [ ] Story-012: As a developer, I want automatic repository detection so linking is effortless.
+- [x] Story-012: As a developer, I want automatic repository detection so linking is effortless.
 
   **Acceptance Criteria:**
   - Detect when current directory is within an opencode repository (walk up to find .git)
