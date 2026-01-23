@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -1943,6 +1944,293 @@ func (bd *BulkDownloader) AddAll(repoURL string) error {
 	return nil
 }
 
+// ComponentExecutor handles npx-like execution of components
+type ComponentExecutor struct {
+	detector   *RepositoryDetector
+	skillDir   string
+	agentDir   string
+	commandDir string
+}
+
+func NewComponentExecutor() *ComponentExecutor {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal("Failed to get user home directory:", err)
+	}
+
+	return &ComponentExecutor{
+		detector:   NewRepositoryDetector(),
+		skillDir:   filepath.Join(home, ".agents", "skills"),
+		agentDir:   filepath.Join(home, ".agents", "agents"),
+		commandDir: filepath.Join(home, ".agents", "commands"),
+	}
+}
+
+// executeComponent provides npx-like functionality to run components without explicit installation
+func executeComponent(target string, args []string) error {
+	executor := NewComponentExecutor()
+
+	// First, check if it's already installed locally
+	if component, componentType, found := executor.findLocalComponent(target); found {
+		return executor.runLocalComponent(component, componentType, args)
+	}
+
+	// If not found locally, try to interpret as a repository and install temporarily
+	if strings.Contains(target, "/") {
+		return executor.runFromRepository(target, args)
+	}
+
+	// If it's a simple name without "/", try to resolve as a known package
+	return executor.resolveAndRunPackage(target, args)
+}
+
+func (ce *ComponentExecutor) findLocalComponent(name string) (string, string, bool) {
+	// Check skills first
+	skillPath := filepath.Join(ce.skillDir, name)
+	if _, err := os.Stat(skillPath); err == nil {
+		return skillPath, "skill", true
+	}
+
+	// Check agents
+	agentPath := filepath.Join(ce.agentDir, name)
+	if _, err := os.Stat(agentPath); err == nil {
+		return agentPath, "agent", true
+	}
+
+	// Check commands
+	commandPath := filepath.Join(ce.commandDir, name)
+	if _, err := os.Stat(commandPath); err == nil {
+		return commandPath, "command", true
+	}
+
+	return "", "", false
+}
+
+func (ce *ComponentExecutor) runLocalComponent(path, componentType string, args []string) error {
+	// Look for executable files in the component directory
+	executables, err := ce.findExecutables(path)
+	if err != nil {
+		return fmt.Errorf("failed to find executables in %s: %w", path, err)
+	}
+
+	if len(executables) == 0 {
+		return fmt.Errorf("no executable found in component at %s", path)
+	}
+
+	// Prefer specific executable names based on component type
+	var preferredExe string
+	switch componentType {
+	case "skill":
+		preferredExe = ce.findExecutable(executables, []string{"skill", "run", "main", "index"})
+	case "agent":
+		preferredExe = ce.findExecutable(executables, []string{"agent", "run", "main", "index"})
+	case "command":
+		preferredExe = ce.findExecutable(executables, []string{"command", "run", "main", "index"})
+	}
+
+	if preferredExe == "" {
+		preferredExe = executables[0] // Use first found if no preferred match
+	}
+
+	return ce.executeFile(preferredExe, args)
+}
+
+func (ce *ComponentExecutor) findExecutables(dir string) ([]string, error) {
+	var executables []string
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		// Check if file is executable
+		if runtime.GOOS != "windows" && info.Mode().Perm()&0111 != 0 {
+			executables = append(executables, path)
+			return nil
+		}
+
+		// On Windows or for scripts, check extensions
+		ext := strings.ToLower(filepath.Ext(path))
+		scriptExts := []string{".sh", ".py", ".js", ".go", ".ts"}
+		for _, scriptExt := range scriptExts {
+			if ext == scriptExt {
+				executables = append(executables, path)
+				break
+			}
+		}
+
+		return nil
+	})
+
+	return executables, err
+}
+
+func (ce *ComponentExecutor) findExecutable(candidates []string, preferredNames []string) string {
+	// Convert to lowercase for comparison
+	preferredLower := make([]string, len(preferredNames))
+	for i, name := range preferredNames {
+		preferredLower[i] = strings.ToLower(name)
+	}
+
+	for _, candidate := range candidates {
+		baseName := strings.ToLower(filepath.Base(candidate))
+		baseNameNoExt := strings.TrimSuffix(baseName, filepath.Ext(baseName))
+
+		for _, preferred := range preferredLower {
+			if baseNameNoExt == preferred {
+				return candidate
+			}
+		}
+	}
+
+	return ""
+}
+
+func (ce *ComponentExecutor) executeFile(exePath string, args []string) error {
+	ext := strings.ToLower(filepath.Ext(exePath))
+
+	var cmdArgs []string
+
+	switch ext {
+	case ".sh":
+		cmdArgs = append([]string{"bash", exePath}, args...)
+	case ".py":
+		cmdArgs = append([]string{"python3", exePath}, args...)
+	case ".js":
+		cmdArgs = append([]string{"node", exePath}, args...)
+	case ".go":
+		// For Go files, we need to compile and run
+		return ce.compileAndRunGo(exePath, args)
+	case ".ts":
+		cmdArgs = append([]string{"npx", "tsx", exePath}, args...)
+	default:
+		// Direct execution for binaries
+		cmdArgs = append([]string{exePath}, args...)
+	}
+
+	if len(cmdArgs) < 1 {
+		return fmt.Errorf("no command to execute")
+	}
+
+	// Create and execute the command
+	return ce.runCommand(cmdArgs[0], cmdArgs[1:]...)
+}
+
+func (ce *ComponentExecutor) compileAndRunGo(goFile string, args []string) error {
+	// Create temporary directory for compilation
+	tempDir, err := os.MkdirTemp("", "agent-smith-go-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Compile the Go file
+	exePath := filepath.Join(tempDir, "run")
+	cmd := exec.Command("go", "build", "-o", exePath, goFile)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to compile Go file: %w", err)
+	}
+
+	// Run the compiled binary
+	return ce.runCommand(exePath, args...)
+}
+
+func (ce *ComponentExecutor) runCommand(name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
+func (ce *ComponentExecutor) runFromRepository(repoURL string, args []string) error {
+	// Normalize repository URL
+	fullURL, err := ce.detector.normalizeURL(repoURL)
+	if err != nil {
+		return fmt.Errorf("invalid repository URL: %w", err)
+	}
+
+	// Create temporary directory for cloning
+	tempDir, err := os.MkdirTemp("", "agent-smith-npx-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Clone repository
+	_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
+		URL:           fullURL,
+		Depth:         1,
+		ReferenceName: plumbing.HEAD,
+		SingleBranch:  true,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to clone repository: %w", err)
+	}
+
+	// Detect components in the repository
+	components, err := ce.detector.detectComponentsInRepo(tempDir)
+	if err != nil {
+		return fmt.Errorf("failed to detect components: %w", err)
+	}
+
+	if len(components) == 0 {
+		return fmt.Errorf("no components found in repository %s", repoURL)
+	}
+
+	// Find the main/root component or use the first one
+	var mainComponent *DetectedComponent
+	for _, comp := range components {
+		if comp.Name == "root-skill" || comp.Name == "root-agent" || comp.Name == "root-command" {
+			mainComponent = &comp
+			break
+		}
+	}
+
+	if mainComponent == nil {
+		mainComponent = &components[0] // Use first component if no root found
+	}
+
+	// Get the component path
+	componentPath := filepath.Join(tempDir, mainComponent.Path)
+
+	// Run the component
+	switch mainComponent.Type {
+	case ComponentSkill:
+		return ce.runLocalComponent(componentPath, "skill", args)
+	case ComponentAgent:
+		return ce.runLocalComponent(componentPath, "agent", args)
+	case ComponentCommand:
+		return ce.runLocalComponent(componentPath, "command", args)
+	default:
+		return fmt.Errorf("unknown component type: %s", mainComponent.Type)
+	}
+}
+
+func (ce *ComponentExecutor) resolveAndRunPackage(name string, args []string) error {
+	// For now, try common GitHub prefixes for popular packages
+	prefixes := []string{
+		"agent-smith/",
+		"opencode/",
+		"npx/",
+	}
+
+	for _, prefix := range prefixes {
+		repo := prefix + name
+		err := ce.runFromRepository(repo, args)
+		if err == nil {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("package '%s' not found locally and couldn't be resolved from common repositories", name)
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: agent-smith <command> [args...]")
@@ -1951,6 +2239,8 @@ func main() {
 		fmt.Println("  add-agent   <repository-url> <agent-name>   Download an agent from a git repository")
 		fmt.Println("  add-command <repository-url> <command-name> Download a command from a git repository")
 		fmt.Println("  add-all     <repository-url>               Download all components from a git repository")
+		fmt.Println("  npx         <repository-or-package> [args]  Execute a component without installing (npx-like)")
+		fmt.Println("  run         <repository-or-package> [args]  Execute a component without installing")
 		fmt.Println("  update      <type> <name>                  Check and update a specific component")
 		fmt.Println("  update-all                                  Check and update all downloaded components")
 		fmt.Println("  link        <type> <name>                   Link a downloaded component to opencode")
@@ -1965,6 +2255,9 @@ func main() {
 		fmt.Println("  agent-smith add-command https://github.com/owner/repo my-command")
 		fmt.Println("  agent-smith add-all owner/repo")
 		fmt.Println("  agent-smith add-all https://github.com/owner/repo")
+		fmt.Println("  agent-smith npx owner/repo --some-arg")
+		fmt.Println("  agent-smith npx my-local-agent --some-arg")
+		fmt.Println("  agent-smith run owner/repo --some-arg")
 		fmt.Println("  agent-smith update skills my-skill")
 		fmt.Println("  agent-smith update agents my-agent")
 		fmt.Println("  agent-smith update commands my-command")
@@ -2070,9 +2363,22 @@ func main() {
 		if err := linker.linkAllComponents(); err != nil {
 			log.Fatal("Failed to link all components:", err)
 		}
+	case "npx", "run":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: agent-smith npx <repository-or-package> [args...]")
+			fmt.Println("       agent-smith run <repository-or-package> [args...]")
+			os.Exit(1)
+		}
+		target := os.Args[2]
+		execArgs := os.Args[3:]
+
+		// Try to execute the component (npx-like behavior)
+		if err := executeComponent(target, execArgs); err != nil {
+			log.Fatal("Failed to execute component:", err)
+		}
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
-		fmt.Println("Supported commands: add-skill, add-agent, add-command, add-all, update, update-all, link, link-all")
+		fmt.Println("Supported commands: add-skill, add-agent, add-command, add-all, npx, run, update, update-all, link, link-all")
 		os.Exit(1)
 	}
 }
