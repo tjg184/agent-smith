@@ -137,19 +137,90 @@ func createFileWithPermissions(path string, data []byte) error {
 func NewRepositoryDetector() *RepositoryDetector {
 	return &RepositoryDetector{
 		patterns: map[string]string{
-			"github":    `^https?://(?:www\.)?github\.com/[^/]+/[^/]+$`,
-			"gitlab":    `^https?://(?:www\.)?gitlab\.com/[^/]+/[^/]+$`,
-			"bitbucket": `^https?://(?:www\.)?bitbucket\.org/[^/]+/[^/]+$`,
-			"git":       `^(https?://|git@|ssh://).+\.git$`,
+			// GitHub patterns (most specific first)
+			"github":     `^https?://(?:www\.)?github\.com/[^/]+/[^/]+$`,
+			"github_git": `^(git@|ssh://)git@github\.com:[^/]+/[^/]+\.git$`,
+			"github_api": `^https?://api\.github\.com/repos/[^/]+/[^/]+$`,
+
+			// GitLab patterns
+			"gitlab":     `^https?://(?:www\.)?gitlab\.com/[^/]+/[^/]+$`,
+			"gitlab_git": `^(git@|ssh://)git@gitlab\.com:[^/]+/[^/]+\.git$`,
+			"gitlab_api": `^https?://gitlab\.com/api/v4/projects/[^/]+$`,
+
+			// Bitbucket patterns
+			"bitbucket":     `^https?://(?:www\.)?bitbucket\.org/[^/]+/[^/]+$`,
+			"bitbucket_git": `^(git@|ssh://)git@bitbucket\.org:[^/]+/[^/]+\.git$`,
+			"bitbucket_api": `^https?://api\.bitbucket\.org/2\.0/repositories/[^/]+/[^/]+$`,
+
+			// Generic git patterns (most generic last)
+			"git_http": `^https?://(?!.*(?:github\.com|gitlab\.com|bitbucket\.org)).+$`,
+			"git_ssh":  `^(ssh://|git@).+$`,
+			"git":      `^(https?://|git@|ssh://).+\.git$`,
 		},
 	}
+}
+
+func (rd *RepositoryDetector) isLocalPath(path string) bool {
+	path = strings.TrimSpace(path)
+
+	// Check for absolute Unix paths
+	if strings.HasPrefix(path, "/") {
+		// Verify it looks like a valid path and exists
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
+	}
+
+	// Check for Windows paths
+	if len(path) > 1 && path[1] == ':' {
+		// C:\... or C:/... format
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
+	}
+
+	// Check for Windows UNC paths
+	if strings.HasPrefix(path, "\\\\") {
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
+	}
+
+	// Check for relative paths that might exist locally
+	if !strings.Contains(path, "://") && !strings.HasPrefix(path, "git@") {
+		// Try expanding to absolute path
+		if absPath, err := filepath.Abs(path); err == nil {
+			if _, err := os.Stat(absPath); err == nil {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func (rd *RepositoryDetector) detectProvider(repoURL string) string {
 	repoURL = strings.TrimSpace(repoURL)
 
+	// Check for local paths first (most specific)
+	if rd.isLocalPath(repoURL) {
+		return "local"
+	}
+
+	// Check for specific providers in order of specificity
 	for provider, pattern := range rd.patterns {
 		if matched, _ := regexp.MatchString(pattern, repoURL); matched {
+			// Normalize provider names (remove suffixes like _git, _api)
+			if strings.HasSuffix(provider, "_git") {
+				return strings.TrimSuffix(provider, "_git")
+			}
+			if strings.HasSuffix(provider, "_api") {
+				return strings.TrimSuffix(provider, "_api")
+			}
+			if strings.Contains(provider, "_") {
+				parts := strings.Split(provider, "_")
+				return parts[0]
+			}
 			return provider
 		}
 	}
@@ -160,9 +231,32 @@ func (rd *RepositoryDetector) detectProvider(repoURL string) string {
 func (rd *RepositoryDetector) normalizeURL(repoURL string) (string, error) {
 	repoURL = strings.TrimSpace(repoURL)
 
-	// If it's already a full URL, return as-is
+	// Handle local paths
+	if rd.isLocalPath(repoURL) {
+		absPath, err := filepath.Abs(repoURL)
+		if err != nil {
+			return "", fmt.Errorf("failed to get absolute path for local repository: %w", err)
+		}
+
+		// Verify it's a valid git repository
+		if _, err := os.Stat(filepath.Join(absPath, ".git")); os.IsNotExist(err) {
+			return "", fmt.Errorf("local path is not a git repository: %s", absPath)
+		}
+
+		return absPath, nil
+	}
+
+	// If it's already a full URL or SSH/Git format, validate and return as-is
 	if strings.HasPrefix(repoURL, "http://") || strings.HasPrefix(repoURL, "https://") ||
 		strings.HasPrefix(repoURL, "git@") || strings.HasPrefix(repoURL, "ssh://") {
+
+		// Basic URL validation
+		if strings.HasPrefix(repoURL, "http") {
+			if !strings.Contains(repoURL, "://") {
+				return "", fmt.Errorf("invalid URL format: %s", repoURL)
+			}
+		}
+
 		return repoURL, nil
 	}
 
@@ -176,8 +270,61 @@ func (rd *RepositoryDetector) normalizeURL(repoURL string) (string, error) {
 		return "", fmt.Errorf("invalid repository format: %s", repoURL)
 	}
 
+	// Validate shorthand format
+	if parts[0] == "" || parts[1] == "" {
+		return "", fmt.Errorf("invalid repository format: %s", repoURL)
+	}
+
 	// Default to GitHub for shorthand notation
 	return fmt.Sprintf("https://github.com/%s", repoURL), nil
+}
+
+func (rd *RepositoryDetector) validateRepository(repoURL string) error {
+	provider := rd.detectProvider(repoURL)
+
+	switch provider {
+	case "local":
+		// For local paths, check if it's a valid git repository
+		absPath, err := filepath.Abs(repoURL)
+		if err != nil {
+			return fmt.Errorf("failed to get absolute path: %w", err)
+		}
+
+		if _, err := os.Stat(filepath.Join(absPath, ".git")); os.IsNotExist(err) {
+			return fmt.Errorf("local path is not a git repository: %s", absPath)
+		}
+
+		// Check if directory is accessible
+		if _, err := os.Stat(absPath); err != nil {
+			return fmt.Errorf("cannot access local repository: %w", err)
+		}
+
+	case "github", "gitlab", "bitbucket":
+		// For known providers, validate the URL format
+		if !strings.Contains(repoURL, "/") {
+			return fmt.Errorf("invalid repository URL format: %s", repoURL)
+		}
+
+		// Additional validation for HTTP/HTTPS URLs
+		if strings.HasPrefix(repoURL, "http") {
+			if !strings.HasPrefix(repoURL, "http://") && !strings.HasPrefix(repoURL, "https://") {
+				return fmt.Errorf("invalid protocol in URL: %s", repoURL)
+			}
+		}
+
+	case "generic", "git":
+		// For generic git URLs, do basic validation
+		if !strings.HasPrefix(repoURL, "http://") && !strings.HasPrefix(repoURL, "https://") &&
+			!strings.HasPrefix(repoURL, "git@") && !strings.HasPrefix(repoURL, "ssh://") &&
+			!strings.HasSuffix(repoURL, ".git") {
+			return fmt.Errorf("unrecognized repository format: %s", repoURL)
+		}
+
+	default:
+		return fmt.Errorf("unsupported repository type: %s", provider)
+	}
+
+	return nil
 }
 
 func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]DetectedComponent, error) {
@@ -445,7 +592,18 @@ func computeLocalFolderHash(folderPath string) (string, error) {
 }
 
 func (sd *SkillDownloader) parseRepoURL(repoURL string) (string, error) {
-	return sd.detector.normalizeURL(repoURL)
+	// Normalize URL first (handles GitHub shorthand, etc.)
+	normalizedURL, err := sd.detector.normalizeURL(repoURL)
+	if err != nil {
+		return "", err
+	}
+
+	// Validate the normalized repository
+	if err := sd.detector.validateRepository(normalizedURL); err != nil {
+		return "", fmt.Errorf("repository validation failed: %w", err)
+	}
+
+	return normalizedURL, nil
 }
 
 func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
@@ -454,26 +612,35 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
 		return err
 	}
 
-	// Create temporary directory for repository detection
-	tempDir, err := os.MkdirTemp("", "agent-smith-detect-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temporary directory: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
+	var repoPath string
 
-	// Clone repository to temporary location for detection
-	_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
-		URL:           fullURL,
-		Depth:         1,
-		ReferenceName: plumbing.HEAD,
-		SingleBranch:  true,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to clone repository for detection: %w", err)
+	// Handle local repositories differently
+	if sd.detector.detectProvider(repoURL) == "local" {
+		// For local repositories, use the path directly
+		repoPath = fullURL
+	} else {
+		// For remote repositories, create temporary directory for repository detection
+		tempDir, err := os.MkdirTemp("", "agent-smith-detect-*")
+		if err != nil {
+			return fmt.Errorf("failed to create temporary directory: %w", err)
+		}
+		defer os.RemoveAll(tempDir)
+
+		// Clone repository to temporary location for detection
+		_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
+			URL:           fullURL,
+			Depth:         1,
+			ReferenceName: plumbing.HEAD,
+			SingleBranch:  true,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to clone repository for detection: %w", err)
+		}
+		repoPath = tempDir
 	}
 
 	// Detect components in the repository
-	components, err := sd.detector.detectComponentsInRepo(tempDir)
+	components, err := sd.detector.detectComponentsInRepo(repoPath)
 	if err != nil {
 		return fmt.Errorf("failed to detect components: %w", err)
 	}
@@ -488,7 +655,7 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
 
 	if len(skillComponents) == 0 {
 		// No skill components detected, fall back to original behavior
-		return sd.downloadSkillDirect(fullURL, skillName)
+		return sd.downloadSkillDirect(fullURL, skillName, repoURL)
 	}
 
 	// Create skill directory
@@ -500,7 +667,7 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
 	// If only one skill component found, copy its contents
 	if len(skillComponents) == 1 {
 		component := skillComponents[0]
-		componentPath := filepath.Join(tempDir, component.Path)
+		componentPath := filepath.Join(repoPath, component.Path)
 
 		// Copy component contents to skill directory
 		err = sd.copyDirectoryContents(componentPath, skillDir)
@@ -512,7 +679,7 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
 		// Multiple skills found, create a monorepo structure
 		for _, component := range skillComponents {
 			componentDir := filepath.Join(skillDir, component.Name)
-			componentPath := filepath.Join(tempDir, component.Path)
+			componentPath := filepath.Join(repoPath, component.Path)
 
 			err = createDirectoryWithPermissions(componentDir)
 			if err != nil {
@@ -526,19 +693,31 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
 		}
 	}
 
-	// Clone the repository again to get proper git history for metadata
-	repo, err := git.PlainClone(skillDir+".git", true, &git.CloneOptions{
-		URL:           fullURL,
-		Depth:         1,
-		ReferenceName: plumbing.HEAD,
-		SingleBranch:  true,
-	})
-	if err != nil {
-		// Non-fatal, continue without git metadata
-		log.Printf("Warning: failed to clone repository for metadata: %v", err)
+	var commitHash string
+	var repo *git.Repository
+
+	// Handle metadata differently for local vs remote repositories
+	if sd.detector.detectProvider(repoURL) == "local" {
+		// For local repositories, open the repository directly
+		repo, err = git.PlainOpen(fullURL)
+		if err != nil {
+			// Non-fatal, continue without git metadata
+			log.Printf("Warning: failed to open local repository for metadata: %v", err)
+		}
+	} else {
+		// For remote repositories, clone to get git history for metadata
+		repo, err = git.PlainClone(skillDir+".git", true, &git.CloneOptions{
+			URL:           fullURL,
+			Depth:         1,
+			ReferenceName: plumbing.HEAD,
+			SingleBranch:  true,
+		})
+		if err != nil {
+			// Non-fatal, continue without git metadata
+			log.Printf("Warning: failed to clone repository for metadata: %v", err)
+		}
 	}
 
-	var commitHash string
 	if repo != nil {
 		if ref, err := repo.Head(); err == nil {
 			commitHash = ref.Hash().String()
@@ -562,11 +741,15 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
 	}
 
 	// Save to npx add-skill compatible lock file
-	sourceType := "github"
-	if strings.Contains(fullURL, "gitlab") {
+	var sourceType string
+	if sd.detector.detectProvider(repoURL) == "local" {
+		sourceType = "local"
+	} else if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
 	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
 		sourceType = "git"
+	} else {
+		sourceType = "github"
 	}
 
 	// Compute folder hash if it's a GitHub repo
@@ -591,9 +774,11 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
-	// Clean up git clone if it exists
-	if _, err := os.Stat(skillDir + ".git"); err == nil {
-		os.RemoveAll(skillDir + ".git")
+	// Clean up git clone only for remote repositories
+	if sd.detector.detectProvider(repoURL) != "local" {
+		if _, err := os.Stat(skillDir + ".git"); err == nil {
+			os.RemoveAll(skillDir + ".git")
+		}
 	}
 
 	fmt.Printf("Successfully downloaded skill '%s' from %s\n", skillName, fullURL)
@@ -603,29 +788,50 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
 	return nil
 }
 
-func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName string) error {
+func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL string) error {
 	// Create skill directory
 	skillDir := filepath.Join(sd.baseDir, skillName)
 	if err := createDirectoryWithPermissions(skillDir); err != nil {
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
-	// Clone repository directly
-	repo, err := git.PlainClone(skillDir, false, &git.CloneOptions{
-		URL:           fullURL,
-		Depth:         1,
-		ReferenceName: plumbing.HEAD,
-		SingleBranch:  true,
-	})
-	if err != nil {
-		os.RemoveAll(skillDir)
-		return fmt.Errorf("failed to clone repository: %w", err)
+	var repo *git.Repository
+	var err error
+
+	// Handle local vs remote repositories
+	if sd.detector.detectProvider(repoURL) == "local" {
+		// For local repositories, copy directory contents directly
+		err = sd.copyDirectoryContents(fullURL, skillDir)
+		if err != nil {
+			os.RemoveAll(skillDir)
+			return fmt.Errorf("failed to copy local repository: %w", err)
+		}
+
+		// Open local repository for metadata
+		repo, err = git.PlainOpen(fullURL)
+		if err != nil {
+			log.Printf("Warning: failed to open local repository for metadata: %v", err)
+		}
+	} else {
+		// For remote repositories, clone directly
+		repo, err = git.PlainClone(skillDir, false, &git.CloneOptions{
+			URL:           fullURL,
+			Depth:         1,
+			ReferenceName: plumbing.HEAD,
+			SingleBranch:  true,
+		})
+		if err != nil {
+			os.RemoveAll(skillDir)
+			return fmt.Errorf("failed to clone repository: %w", err)
+		}
 	}
 
 	// Get repository info for metadata
 	var commitHash string
-	if ref, err := repo.Head(); err == nil {
-		commitHash = ref.Hash().String()
+	if repo != nil {
+		if ref, err := repo.Head(); err == nil {
+			commitHash = ref.Hash().String()
+		}
 	}
 
 	// Create metadata
@@ -819,7 +1025,18 @@ Add usage instructions here.
 }
 
 func (cd *CommandDownloader) parseRepoURL(repoURL string) (string, error) {
-	return cd.detector.normalizeURL(repoURL)
+	// Normalize URL first (handles GitHub shorthand, etc.)
+	normalizedURL, err := cd.detector.normalizeURL(repoURL)
+	if err != nil {
+		return "", err
+	}
+
+	// Validate normalized repository
+	if err := cd.detector.validateRepository(normalizedURL); err != nil {
+		return "", fmt.Errorf("repository validation failed: %w", err)
+	}
+
+	return normalizedURL, nil
 }
 
 func (cd *CommandDownloader) downloadCommand(repoURL, commandName string) error {
@@ -1184,7 +1401,18 @@ Add usage instructions here.
 }
 
 func (ad *AgentDownloader) parseRepoURL(repoURL string) (string, error) {
-	return ad.detector.normalizeURL(repoURL)
+	// Normalize URL first (handles GitHub shorthand, etc.)
+	normalizedURL, err := ad.detector.normalizeURL(repoURL)
+	if err != nil {
+		return "", err
+	}
+
+	// Validate normalized repository
+	if err := ad.detector.validateRepository(normalizedURL); err != nil {
+		return "", fmt.Errorf("repository validation failed: %w", err)
+	}
+
+	return normalizedURL, nil
 }
 
 func (ad *AgentDownloader) downloadAgent(repoURL, agentName string) error {
