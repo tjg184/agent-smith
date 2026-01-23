@@ -2860,30 +2860,30 @@ func (bd *BulkDownloader) AddAll(repoURL string) error {
 		}
 	}
 
-	// Download skills using optimized method
+	// Download skills using optimized method with shared repository
 	for _, comp := range skillComponents {
 		fmt.Printf("Downloading skill: %s\n", comp.Name)
-		if err := bd.skillDownloader.downloadSkill(fullURL, comp.Name, tempDir); err != nil {
+		if err := bd.skillDownloader.downloadSkillWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
 			fmt.Printf("Warning: failed to download skill %s: %v\n", comp.Name, err)
 		} else {
 			fmt.Printf("Successfully downloaded skill: %s\n", comp.Name)
 		}
 	}
 
-	// Download agents using optimized method
+	// Download agents using optimized method with shared repository
 	for _, comp := range agentComponents {
 		fmt.Printf("Downloading agent: %s\n", comp.Name)
-		if err := bd.agentDownloader.downloadAgent(fullURL, comp.Name, tempDir); err != nil {
+		if err := bd.agentDownloader.downloadAgentWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
 			fmt.Printf("Warning: failed to download agent %s: %v\n", comp.Name, err)
 		} else {
 			fmt.Printf("Successfully downloaded agent: %s\n", comp.Name)
 		}
 	}
 
-	// Download commands using optimized method
+	// Download commands using optimized method with shared repository
 	for _, comp := range commandComponents {
 		fmt.Printf("Downloading command: %s\n", comp.Name)
-		if err := bd.commandDownloader.downloadCommand(fullURL, comp.Name, tempDir); err != nil {
+		if err := bd.commandDownloader.downloadCommandWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
 			fmt.Printf("Warning: failed to download command %s: %v\n", comp.Name, err)
 		} else {
 			fmt.Printf("Successfully downloaded command: %s\n", comp.Name)
