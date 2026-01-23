@@ -2628,6 +2628,12 @@ func (bd *BulkDownloader) AddAll(repoURL string) error {
 		return fmt.Errorf("failed to detect components: %w", err)
 	}
 
+	// Debug: Print detected components
+	fmt.Printf("Debug: Detected %d components:\n", len(components))
+	for _, comp := range components {
+		fmt.Printf("  - %s: %s at %s\n", comp.Type, comp.Name, comp.Path)
+	}
+
 	if len(components) == 0 {
 		return fmt.Errorf("no components (skills, agents, or commands) detected in repository")
 	}
