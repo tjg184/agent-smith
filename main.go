@@ -29,8 +29,75 @@ const (
 	opencodeDir  = "~/.config" + string(filepath.Separator) + "opencode"
 )
 
+// ComponentDetectionPattern defines how to detect a component type
+type ComponentDetectionPattern struct {
+	Name           string   `json:"name"`
+	ExactFiles     []string `json:"exactFiles"`     // Files that must match exactly (e.g., "SKILL.md")
+	PathPatterns   []string `json:"pathPatterns"`   // Path patterns (e.g., "/agents/", "*/docs/*")
+	FileExtensions []string `json:"fileExtensions"` // File extensions to match (e.g., ".md")
+	IgnorePaths    []string `json:"ignorePaths"`    // Paths to ignore during detection
+}
+
+// DetectionConfig holds all component detection patterns
+type DetectionConfig struct {
+	Components map[string]ComponentDetectionPattern `json:"components"`
+}
+
+// RepositoryDetector maintains repository patterns and component detection
 type RepositoryDetector struct {
-	patterns map[string]string
+	patterns        map[string]string
+	detectionConfig *DetectionConfig
+}
+
+// createDefaultDetectionConfig returns the default component detection patterns
+func createDefaultDetectionConfig() *DetectionConfig {
+	return &DetectionConfig{
+		Components: map[string]ComponentDetectionPattern{
+			string(ComponentSkill): {
+				Name:       "skill",
+				ExactFiles: []string{"SKILL.md"},
+				IgnorePaths: []string{
+					".git",
+					"node_modules",
+					".vscode",
+					".idea",
+					"target",
+					"build",
+					"dist",
+				},
+			},
+			string(ComponentAgent): {
+				Name:           "agent",
+				ExactFiles:     []string{"AGENT.md"},
+				PathPatterns:   []string{"/agents/", "agents"},
+				FileExtensions: []string{".md"},
+				IgnorePaths: []string{
+					".git",
+					"node_modules",
+					".vscode",
+					".idea",
+					"target",
+					"build",
+					"dist",
+				},
+			},
+			string(ComponentCommand): {
+				Name:           "command",
+				ExactFiles:     []string{"COMMAND.md"},
+				PathPatterns:   []string{"/commands/", "commands"},
+				FileExtensions: []string{".md"},
+				IgnorePaths: []string{
+					".git",
+					"node_modules",
+					".vscode",
+					".idea",
+					"target",
+					"build",
+					"dist",
+				},
+			},
+		},
+	}
 }
 
 type ComponentType string
@@ -136,8 +203,63 @@ func createFileWithPermissions(path string, data []byte) error {
 	return os.WriteFile(path, data, perm)
 }
 
+// loadDetectionConfig loads detection configuration from a JSON file
+func (rd *RepositoryDetector) loadDetectionConfig(configPath string) error {
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		// Config file doesn't exist, use defaults
+		rd.detectionConfig = createDefaultDetectionConfig()
+		return nil
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("failed to read detection config file %s: %v", configPath, err)
+	}
+
+	var config DetectionConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		return fmt.Errorf("failed to parse detection config file %s: %v", configPath, err)
+	}
+
+	rd.detectionConfig = &config
+	return nil
+}
+
+// saveDetectionConfig saves detection configuration to a JSON file
+func (rd *RepositoryDetector) saveDetectionConfig(configPath string) error {
+	if rd.detectionConfig == nil {
+		return fmt.Errorf("no detection config to save")
+	}
+
+	data, err := json.MarshalIndent(rd.detectionConfig, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal detection config: %v", err)
+	}
+
+	// Ensure directory exists
+	dir := filepath.Dir(configPath)
+	if err := os.MkdirAll(dir, getCrossPlatformPermissions()); err != nil {
+		return fmt.Errorf("failed to create config directory: %v", err)
+	}
+
+	return createFileWithPermissions(configPath, data)
+}
+
+// getDetectionConfigPath returns the default path for the detection configuration file
+func getDetectionConfigPath() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "./detection-config.json"
+	}
+	return filepath.Join(homeDir, ".config", "opencode", "detection-config.json")
+}
+
 func NewRepositoryDetector() *RepositoryDetector {
-	return &RepositoryDetector{
+	return NewRepositoryDetectorWithConfig("")
+}
+
+func NewRepositoryDetectorWithConfig(configPath string) *RepositoryDetector {
+	rd := &RepositoryDetector{
 		patterns: map[string]string{
 			// GitHub patterns (most specific first)
 			"github":     `^https?://(?:www\.)?github\.com/[^/]+/[^/]+$`,
@@ -160,6 +282,18 @@ func NewRepositoryDetector() *RepositoryDetector {
 			"git":      `^(https?://|git@|ssh://).+\.git$`,
 		},
 	}
+
+	// Load detection configuration
+	if configPath == "" {
+		configPath = getDetectionConfigPath()
+	}
+
+	if err := rd.loadDetectionConfig(configPath); err != nil {
+		// If loading fails, use default config
+		rd.detectionConfig = createDefaultDetectionConfig()
+	}
+
+	return rd
 }
 
 func (rd *RepositoryDetector) isLocalPath(path string) bool {
@@ -329,6 +463,73 @@ func (rd *RepositoryDetector) validateRepository(repoURL string) error {
 	return nil
 }
 
+// shouldIgnorePath checks if a path should be ignored during detection
+func (rd *RepositoryDetector) shouldIgnorePath(relPath string, ignorePaths []string) bool {
+	for _, ignorePath := range ignorePaths {
+		if strings.Contains(relPath, ignorePath) {
+			return true
+		}
+	}
+	return false
+}
+
+// matchesExactFile checks if the filename matches any exact file patterns
+func (rd *RepositoryDetector) matchesExactFile(fileName string, exactFiles []string) bool {
+	for _, exactFile := range exactFiles {
+		if fileName == exactFile {
+			return true
+		}
+	}
+	return false
+}
+
+// matchesPathPattern checks if the relative path matches any path patterns
+func (rd *RepositoryDetector) matchesPathPattern(relPath string, pathPatterns []string) bool {
+	for _, pattern := range pathPatterns {
+		if strings.Contains(relPath, pattern) || strings.HasSuffix(relPath, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// matchesFileExtension checks if the file has any of the specified extensions
+func (rd *RepositoryDetector) matchesFileExtension(fileName string, fileExtensions []string) bool {
+	for _, ext := range fileExtensions {
+		if strings.HasSuffix(fileName, ext) {
+			return true
+		}
+	}
+	return false
+}
+
+// detectComponentForPattern checks if a file matches a component detection pattern
+func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath string, pattern ComponentDetectionPattern, componentType ComponentType) (string, bool) {
+	// Check if path should be ignored
+	if rd.shouldIgnorePath(relPath, pattern.IgnorePaths) {
+		return "", false
+	}
+
+	// Check exact file matches first (highest priority)
+	if rd.matchesExactFile(fileName, pattern.ExactFiles) {
+		return filepath.Base(filepath.Dir(relPath)), true
+	}
+
+	// Check path patterns with file extensions (medium priority)
+	if len(pattern.PathPatterns) > 0 && len(pattern.FileExtensions) > 0 {
+		if rd.matchesPathPattern(relPath, pattern.PathPatterns) && rd.matchesFileExtension(fileName, pattern.FileExtensions) {
+			return strings.TrimSuffix(fileName, filepath.Ext(fileName)), true
+		}
+	}
+
+	// Check just path patterns (lower priority)
+	if len(pattern.PathPatterns) > 0 && rd.matchesPathPattern(relPath, pattern.PathPatterns) {
+		return strings.TrimSuffix(fileName, filepath.Ext(fileName)), true
+	}
+
+	return "", false
+}
+
 func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]DetectedComponent, error) {
 	var components []DetectedComponent
 	seenComponents := make(map[string]bool) // Prevent duplicates
@@ -350,96 +551,26 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 			return err
 		}
 
-		// Detect skill components
-		if fileName == "SKILL.md" {
-			componentName := filepath.Base(parentDir)
-			if componentName == "" || componentName == "." {
-				componentName = "root-skill"
-			}
-			componentKey := fmt.Sprintf("skill-%s", componentName)
-			if !seenComponents[componentKey] {
-				components = append(components, DetectedComponent{
-					Type:       ComponentSkill,
-					Name:       componentName,
-					Path:       relPath,
-					SourceFile: fileName,
-				})
-				seenComponents[componentKey] = true
-			}
-		}
+		// Check each component type using its detection pattern
+		for componentTypeStr, pattern := range rd.detectionConfig.Components {
+			componentType := ComponentType(componentTypeStr)
 
-		// Detect agent components
-		if fileName == "AGENT.md" {
-			componentName := filepath.Base(parentDir)
-			if componentName == "" || componentName == "." {
-				componentName = "root-agent"
-			}
-			componentKey := fmt.Sprintf("agent-%s", componentName)
-			if !seenComponents[componentKey] {
-				components = append(components, DetectedComponent{
-					Type:       ComponentAgent,
-					Name:       componentName,
-					Path:       relPath,
-					SourceFile: fileName,
-				})
-				seenComponents[componentKey] = true
-			}
-		}
+			if componentName, matched := rd.detectComponentForPattern(fileName, relPath, pattern, componentType); matched {
+				// Handle default component names
+				if componentName == "" || componentName == "." {
+					componentName = fmt.Sprintf("root-%s", pattern.Name)
+				}
 
-		// Additional agent detection for .md files in /agents/ paths
-		if strings.HasSuffix(fileName, ".md") && (strings.Contains(relPath, "/agents/") || strings.HasSuffix(relPath, "agents")) {
-			componentName := strings.TrimSuffix(fileName, ".md")
-			if componentName == "" || componentName == "." {
-				componentName = "root-agent"
-			}
-			componentKey := fmt.Sprintf("agent-%s", componentName)
-			if !seenComponents[componentKey] {
-				components = append(components, DetectedComponent{
-					Type:       ComponentAgent,
-					Name:       componentName,
-					Path:       relPath,
-					SourceFile: fileName,
-				})
-				seenComponents[componentKey] = true
-			} else {
-			}
-		}
-
-		// Detect command components
-		if fileName == "COMMAND.md" {
-			componentName := filepath.Base(parentDir)
-			if componentName == "" || componentName == "." {
-				componentName = "root-command"
-			}
-			componentKey := fmt.Sprintf("command-%s", componentName)
-			if !seenComponents[componentKey] {
-				components = append(components, DetectedComponent{
-					Type:       ComponentCommand,
-					Name:       componentName,
-					Path:       relPath,
-					SourceFile: fileName,
-				})
-				seenComponents[componentKey] = true
-			}
-		}
-
-		// Additional command detection for .md files in /commands/ paths
-		if strings.HasSuffix(fileName, ".md") && strings.Contains(relPath, "/commands/") || strings.HasSuffix(relPath, "commands") {
-			componentName := strings.TrimSuffix(fileName, ".md")
-			if componentName == "" || componentName == "." {
-				componentName = "root-command"
-			}
-			componentKey := fmt.Sprintf("command-%s", componentName)
-			if !seenComponents[componentKey] {
-
-				components = append(components, DetectedComponent{
-					Type:       ComponentCommand,
-					Name:       componentName,
-					Path:       relPath,
-					SourceFile: fileName,
-				})
-				seenComponents[componentKey] = true
-			} else {
+				componentKey := fmt.Sprintf("%s-%s", pattern.Name, componentName)
+				if !seenComponents[componentKey] {
+					components = append(components, DetectedComponent{
+						Type:       componentType,
+						Name:       componentName,
+						Path:       relPath,
+						SourceFile: fileName,
+					})
+					seenComponents[componentKey] = true
+				}
 			}
 		}
 
