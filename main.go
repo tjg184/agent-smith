@@ -551,6 +551,12 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 			return err
 		}
 
+		// Full relative path including filename for path-based detection
+		fullRelPath, err := filepath.Rel(repoPath, path)
+		if err != nil {
+			return err
+		}
+
 		// Check each component type using its detection pattern
 		for componentTypeStr, pattern := range rd.detectionConfig.Components {
 			componentType := ComponentType(componentTypeStr)
@@ -575,7 +581,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 		}
 
 		// Additional agent detection for .md files in /agents/ paths
-		if strings.HasSuffix(fileName, ".md") && strings.Contains(relPath, "/agents/") {
+		if strings.HasSuffix(fileName, ".md") && strings.Contains(fullRelPath, "/agents/") {
 			componentName := strings.TrimSuffix(fileName, ".md")
 			if componentName == "" || componentName == "." {
 				componentName = "root-agent"
@@ -593,7 +599,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 		}
 
 		// Additional command detection for .md files in /commands/ paths
-		if strings.HasSuffix(fileName, ".md") && strings.Contains(relPath, "/commands/") {
+		if strings.HasSuffix(fileName, ".md") && strings.Contains(fullRelPath, "/commands/") {
 			componentName := strings.TrimSuffix(fileName, ".md")
 			if componentName == "" || componentName == "." {
 				componentName = "root-command"
