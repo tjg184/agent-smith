@@ -2605,11 +2605,118 @@ func (cl *ComponentLinker) linkAllComponents() error {
 
 		for _, entry := range entries {
 			if entry.IsDir() {
-				if err := cl.linkComponent(componentType, entry.Name()); err != nil {
-					fmt.Printf("Warning: failed to link %s/%s: %v\n", componentType, entry.Name(), err)
+				componentName := entry.Name()
+
+				// Skip monorepo containers - they shouldn't be linked as individual components
+				if cl.isMonorepoContainer(componentType, componentName) {
+					continue
+				}
+
+				// Link as a regular single component
+				if err := cl.linkComponent(componentType, componentName); err != nil {
+					fmt.Printf("Warning: failed to link %s/%s: %v\n", componentType, componentName, err)
 				}
 			}
 		}
+	}
+
+	return nil
+}
+
+// isMonorepoContainer checks if a component directory contains other component directories
+// and should not be linked as a single component
+func (cl *ComponentLinker) isMonorepoContainer(componentType, componentName string) bool {
+	componentDir := filepath.Join(cl.agentsDir, componentType, componentName)
+
+	// Check if this directory contains other component directories
+	entries, err := os.ReadDir(componentDir)
+	if err != nil {
+		return false
+	}
+
+	var markerFile string
+	switch componentType {
+	case "skills":
+		markerFile = "SKILL.md"
+	case "agents":
+		markerFile = "AGENT.md"
+	case "commands":
+		markerFile = "COMMAND.md"
+	default:
+		return false
+	}
+
+	// Count how many subdirectories contain the marker file
+	subComponentCount := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			subDir := filepath.Join(componentDir, entry.Name())
+			if _, err := os.Stat(filepath.Join(subDir, markerFile)); err == nil {
+				subComponentCount++
+			}
+		}
+	}
+
+	// If there are multiple sub-components, this is a monorepo container
+	return subComponentCount > 1
+}
+
+// linkMonorepoComponents links individual components from a monorepo container
+func (cl *ComponentLinker) linkMonorepoComponents(componentType, repoName string) error {
+	repoDir := filepath.Join(cl.agentsDir, componentType, repoName)
+
+	entries, err := os.ReadDir(repoDir)
+	if err != nil {
+		return fmt.Errorf("failed to read monorepo directory: %w", err)
+	}
+
+	var markerFile string
+	switch componentType {
+	case "skills":
+		markerFile = "SKILL.md"
+	case "agents":
+		markerFile = "AGENT.md"
+	case "commands":
+		markerFile = "COMMAND.md"
+	default:
+		return fmt.Errorf("unknown component type: %s", componentType)
+	}
+
+	linkedCount := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			subComponentName := entry.Name()
+			subComponentDir := filepath.Join(repoDir, subComponentName)
+
+			// Check if this subdirectory contains the marker file
+			if _, err := os.Stat(filepath.Join(subComponentDir, markerFile)); err == nil {
+				// Link this sub-component using a unique name that includes the repo name
+				linkName := fmt.Sprintf("%s-%s", repoName, subComponentName)
+
+				// Create the link from the sub-component directory
+				srcDir := subComponentDir
+				dstDir := filepath.Join(cl.opencodeDir, componentType, linkName)
+
+				// Create destination directory
+				if err := createDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
+					fmt.Printf("Warning: failed to create destination directory for %s: %v\n", linkName, err)
+					continue
+				}
+
+				// Create symlink
+				if err := cl.createSymlink(srcDir, dstDir); err != nil {
+					fmt.Printf("Warning: failed to link monorepo component %s: %v\n", linkName, err)
+					continue
+				}
+
+				fmt.Printf("Successfully linked monorepo component %s from %s\n", linkName, repoName)
+				linkedCount++
+			}
+		}
+	}
+
+	if linkedCount > 0 {
+		fmt.Printf("Linked %d components from monorepo %s\n", linkedCount, repoName)
 	}
 
 	return nil
