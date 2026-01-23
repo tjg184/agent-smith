@@ -3001,16 +3001,109 @@ func (bd *BulkDownloader) AddAll(repoURL string) error {
 		return fmt.Errorf("failed to clone repository for bulk detection: %w", err)
 	}
 
-	// Detect all components in the repository
-	components, err := bd.detector.detectComponentsInRepo(tempDir)
+	// Detect all plugin directories in the repository
+	pluginDirs, err := bd.detectPluginDirectories(tempDir)
 	if err != nil {
-		return fmt.Errorf("failed to detect components: %w", err)
+		return fmt.Errorf("failed to detect plugin directories: %w", err)
 	}
 
-	if len(components) == 0 {
-		return fmt.Errorf("no components (skills, agents, or commands) detected in repository")
+	if len(pluginDirs) == 0 {
+		// Fall back to detecting components in the entire repository (for non-plugin repositories)
+		components, err := bd.detector.detectComponentsInRepo(tempDir)
+		if err != nil {
+			return fmt.Errorf("failed to detect components: %w", err)
+		}
+
+		if len(components) == 0 {
+			return fmt.Errorf("no components (skills, agents, or commands) detected in repository")
+		}
+
+		return bd.processComponents(components, fullURL, repoURL, tempDir)
 	}
 
+	// Process each plugin independently to prevent cross-plugin contamination
+	totalSkills := 0
+	totalAgents := 0
+	totalCommands := 0
+
+	for _, pluginDir := range pluginDirs {
+		fmt.Printf("Processing plugin: %s\n", pluginDir)
+
+		pluginPath := filepath.Join(tempDir, pluginDir)
+		components, err := bd.detector.detectComponentsInRepo(pluginPath)
+		if err != nil {
+			fmt.Printf("Warning: failed to detect components in plugin %s: %v\n", pluginDir, err)
+			continue
+		}
+
+		if len(components) == 0 {
+			fmt.Printf("No components found in plugin: %s\n", pluginDir)
+			continue
+		}
+
+		// Process components for this plugin
+		skillCount, agentCount, commandCount, err := bd.processPluginComponents(components, fullURL, repoURL, tempDir, pluginDir)
+		if err != nil {
+			fmt.Printf("Warning: failed to process components for plugin %s: %v\n", pluginDir, err)
+			continue
+		}
+
+		totalSkills += skillCount
+		totalAgents += agentCount
+		totalCommands += commandCount
+
+		fmt.Printf("Plugin %s completed: %d skills, %d agents, %d commands\n", pluginDir, skillCount, agentCount, commandCount)
+	}
+
+	fmt.Printf("Bulk download completed. Processed %d components across %d plugins:\n", totalSkills+totalAgents+totalCommands, len(pluginDirs))
+	fmt.Printf("  Skills: %d\n", totalSkills)
+	fmt.Printf("  Agents: %d\n", totalAgents)
+	fmt.Printf("  Commands: %d\n", totalCommands)
+
+	return nil
+}
+
+// detectPluginDirectories finds all plugin directories in the repository
+func (bd *BulkDownloader) detectPluginDirectories(repoPath string) ([]string, error) {
+	pluginsDir := filepath.Join(repoPath, "plugins")
+	if _, err := os.Stat(pluginsDir); os.IsNotExist(err) {
+		// No plugins directory, return empty list
+		return []string{}, nil
+	}
+
+	var pluginDirs []string
+	err := filepath.Walk(pluginsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() {
+			return nil
+		}
+
+		// Check if this is a plugin directory (immediate subdirectory of plugins/)
+		relPath, err := filepath.Rel(pluginsDir, path)
+		if err != nil {
+			return err
+		}
+
+		// Only include immediate subdirectories of plugins/ (not nested deeper)
+		if relPath != "." && !strings.Contains(relPath, string(filepath.Separator)) {
+			pluginDirs = append(pluginDirs, filepath.Join("plugins", relPath))
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to walk plugins directory: %w", err)
+	}
+
+	return pluginDirs, nil
+}
+
+// processComponents handles downloading components for non-plugin repositories (fallback)
+func (bd *BulkDownloader) processComponents(components []DetectedComponent, fullURL, repoURL, tempDir string) error {
 	// Group components by type
 	skillComponents := []DetectedComponent{}
 	agentComponents := []DetectedComponent{}
@@ -3064,6 +3157,57 @@ func (bd *BulkDownloader) AddAll(repoURL string) error {
 	fmt.Printf("  Commands: %d\n", len(commandComponents))
 
 	return nil
+}
+
+// processPluginComponents handles downloading components for a specific plugin
+func (bd *BulkDownloader) processPluginComponents(components []DetectedComponent, fullURL, repoURL, tempDir, pluginDir string) (int, int, int, error) {
+	// Group components by type for this plugin
+	skillComponents := []DetectedComponent{}
+	agentComponents := []DetectedComponent{}
+	commandComponents := []DetectedComponent{}
+
+	for _, comp := range components {
+		switch comp.Type {
+		case ComponentSkill:
+			skillComponents = append(skillComponents, comp)
+		case ComponentAgent:
+			agentComponents = append(agentComponents, comp)
+		case ComponentCommand:
+			commandComponents = append(commandComponents, comp)
+		}
+	}
+
+	// Download skills using optimized method with shared repository
+	for _, comp := range skillComponents {
+		fmt.Printf("  Downloading skill: %s\n", comp.Name)
+		if err := bd.skillDownloader.downloadSkillWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
+			fmt.Printf("  Warning: failed to download skill %s: %v\n", comp.Name, err)
+		} else {
+			fmt.Printf("  Successfully downloaded skill: %s\n", comp.Name)
+		}
+	}
+
+	// Download agents using optimized method with shared repository
+	for _, comp := range agentComponents {
+		fmt.Printf("  Downloading agent: %s\n", comp.Name)
+		if err := bd.agentDownloader.downloadAgentWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
+			fmt.Printf("  Warning: failed to download agent %s: %v\n", comp.Name, err)
+		} else {
+			fmt.Printf("  Successfully downloaded agent: %s\n", comp.Name)
+		}
+	}
+
+	// Download commands using optimized method with shared repository
+	for _, comp := range commandComponents {
+		fmt.Printf("  Downloading command: %s\n", comp.Name)
+		if err := bd.commandDownloader.downloadCommandWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
+			fmt.Printf("  Warning: failed to download command %s: %v\n", comp.Name, err)
+		} else {
+			fmt.Printf("  Successfully downloaded command: %s\n", comp.Name)
+		}
+	}
+
+	return len(skillComponents), len(agentComponents), len(commandComponents), nil
 }
 
 // ComponentExecutor handles npx-like execution of components

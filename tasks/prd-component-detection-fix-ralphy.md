@@ -12,11 +12,11 @@ Fix Agent Smith component detection logic that incorrectly returns parent direct
 
 ## User Stories
 
-- [ ] Story-001: As a user running bulk download, I want each skill directory to contain only its own skills so that my storage isn't wasted with duplicate files. - When detecting plugins/X/skills/Y/SKILL.md, return plugins/X/skills/Y/ instead of plugins/X/skills/, This prevents copying all sibling skills into each skill directory, Add logic to split path and get immediate parent directory.
+- [x] Story-001: As a user running bulk download, I want each skill directory to contain only its own skills so that my storage isn't wasted with duplicate files. - When detecting plugins/X/skills/Y/SKILL.md, return plugins/X/skills/Y/ instead of plugins/X/skills/, This prevents copying all sibling skills into each skill directory, Add logic to split path and get immediate parent directory.
 
-- [ ] Story-002: As a user downloading accessibility-compliance plugin, I want only 2 skills downloaded so that I get clean, isolated skill directories. - Test accessibility-compliance plugin download specifically, Verify only its own skills are copied, Check directory structure matches expected output, Validate metadata shows correct component count (2 skills).
+- [x] Story-002: As a user downloading accessibility-compliance plugin, I want only 2 skills downloaded so that I get clean, isolated skill directories. - Test accessibility-compliance plugin download specifically, Verify only its own skills are copied, Check directory structure matches expected output, Validate metadata shows correct component count (2 skills).
 
-- [ ] Story-003: As a developer maintaining Agent Smith, I want bulk download to process plugins independently so that the system works reliably across different repository structures. - Ensure each plugin is processed separately during bulk download, Prevent cross-plugin contamination, Confirm total skill count matches repository (127 across all plugins).
+- [x] Story-003: As a developer maintaining Agent Smith, I want bulk download to process plugins independently so that the system works reliably across different repository structures. - Ensure each plugin is processed separately during bulk download, Prevent cross-plugin contamination, Confirm total skill count matches repository (127 across all plugins).
 
 ## Functional Requirements
 
