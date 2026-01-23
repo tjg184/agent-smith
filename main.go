@@ -504,7 +504,7 @@ func (rd *RepositoryDetector) matchesFileExtension(fileName string, fileExtensio
 }
 
 // detectComponentForPattern checks if a file matches a component detection pattern
-func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath string, pattern ComponentDetectionPattern, componentType ComponentType) (string, bool) {
+func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullRelPath string, pattern ComponentDetectionPattern, componentType ComponentType) (string, bool) {
 	// Check if path should be ignored
 	if rd.shouldIgnorePath(relPath, pattern.IgnorePaths) {
 		return "", false
@@ -512,7 +512,12 @@ func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath string
 
 	// Check exact file matches first (highest priority)
 	if rd.matchesExactFile(fileName, pattern.ExactFiles) {
-		return filepath.Base(filepath.Dir(relPath)), true
+		// Use fullRelPath to get the correct directory containing the SKILL.md file
+		componentDir := filepath.Dir(fullRelPath)
+		if componentDir == "." {
+			return "root-" + pattern.Name, true
+		}
+		return filepath.Base(componentDir), true
 	}
 
 	// Check path patterns with file extensions (medium priority)
@@ -561,7 +566,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 		for componentTypeStr, pattern := range rd.detectionConfig.Components {
 			componentType := ComponentType(componentTypeStr)
 
-			if componentName, matched := rd.detectComponentForPattern(fileName, relPath, pattern, componentType); matched {
+			if componentName, matched := rd.detectComponentForPattern(fileName, relPath, fullRelPath, pattern, componentType); matched {
 				// Handle default component names
 				if componentName == "" || componentName == "." {
 					componentName = fmt.Sprintf("root-%s", pattern.Name)
