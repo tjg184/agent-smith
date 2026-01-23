@@ -131,7 +131,31 @@ The command will be available for execution with 'agent-smith npx' or 'agent-smi
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "add-all <repository-url>",
 		Short: "Download all components from a git repository",
-		Args:  cobra.ExactArgs(1),
+		Long: `Download and install all components (skills, agents, and commands) from a git repository.
+
+This command fetches a repository and automatically detects all AI components
+within it, then downloads them to their respective directories. Components are
+detected based on the presence of SKILL.md, AGENT.md, or COMMAND.md files.
+
+REPOSITORY URL FORMATS:
+  GitHub shorthand:     owner/repo
+  Full GitHub URL:      https://github.com/owner/repo
+  GitLab URL:           https://gitlab.com/owner/repo
+  SSH URL:              git@github.com:owner/repo.git
+  Local path:           /path/to/local/repo
+
+EXAMPLES:
+  # Download all components from GitHub using shorthand
+  agent-smith add-all openai/cookbook
+
+  # Download using full URL
+  agent-smith add-all https://github.com/example/monorepo
+
+  # Download from local repository
+  agent-smith add-all /path/to/local/repo
+
+All detected components will be downloaded to ~/.agents/{skills,agents,commands}/`,
+		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleAddAll(args[0])
 		},
