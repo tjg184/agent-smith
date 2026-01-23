@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/go-git/go-git/v5"
@@ -16,6 +17,7 @@ const (
 	skillsDir    = agentsDir + "/skills"
 	agentsSubDir = agentsDir + "/agents"
 	commandsDir  = agentsDir + "/commands"
+	opencodeDir  = "~/.config/opencode"
 )
 
 type SkillDownloader struct {
@@ -28,6 +30,11 @@ type AgentDownloader struct {
 
 type CommandDownloader struct {
 	baseDir string
+}
+
+type ComponentLinker struct {
+	agentsDir   string
+	opencodeDir string
 }
 
 func NewSkillDownloader() *SkillDownloader {
@@ -76,6 +83,26 @@ func NewCommandDownloader() *CommandDownloader {
 	}
 
 	return &CommandDownloader{baseDir: baseDir}
+}
+
+func NewComponentLinker() *ComponentLinker {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal("Failed to get user home directory:", err)
+	}
+
+	agentsDir := filepath.Join(home, ".agents")
+	opencodeDir := filepath.Join(home, ".config", "opencode")
+
+	// Create opencode directory if it doesn't exist
+	if err := os.MkdirAll(opencodeDir, 0755); err != nil {
+		log.Fatal("Failed to create opencode directory:", err)
+	}
+
+	return &ComponentLinker{
+		agentsDir:   agentsDir,
+		opencodeDir: opencodeDir,
+	}
 }
 
 func (sd *SkillDownloader) parseRepoURL(repoURL string) (string, error) {
@@ -417,13 +444,128 @@ Add usage instructions here.
 	return os.WriteFile(filePath, []byte(content), 0644)
 }
 
+func (cl *ComponentLinker) createSymlink(src, dst string) error {
+	// Remove existing destination if it exists
+	if _, err := os.Lstat(dst); err == nil {
+		os.Remove(dst)
+	}
+
+	// Create relative path for the symlink
+	relPath, err := filepath.Rel(filepath.Dir(dst), src)
+	if err != nil {
+		return fmt.Errorf("failed to create relative path: %w", err)
+	}
+
+	// Create the symbolic link
+	if err := os.Symlink(relPath, dst); err != nil {
+		// Try fallback to junction on Windows
+		if runtime.GOOS == "windows" {
+			return cl.createJunction(src, dst)
+		}
+		return fmt.Errorf("failed to create symlink: %w", err)
+	}
+
+	return nil
+}
+
+func (cl *ComponentLinker) createJunction(src, dst string) error {
+	// For Windows, we would need to use Windows API calls
+	// For now, fall back to copying the directory
+	return cl.copyDirectory(src, dst)
+}
+
+func (cl *ComponentLinker) copyDirectory(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+
+		dstPath := filepath.Join(dst, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, info.Mode())
+		}
+
+		return cl.copyFile(path, dstPath)
+	})
+}
+
+func (cl *ComponentLinker) copyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(dst, data, 0644)
+}
+
+func (cl *ComponentLinker) linkComponent(componentType, componentName string) error {
+	srcDir := filepath.Join(cl.agentsDir, componentType, componentName)
+	dstDir := filepath.Join(cl.opencodeDir, componentType, componentName)
+
+	// Check if source component exists
+	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+		return fmt.Errorf("component %s/%s does not exist in %s", componentType, componentName, cl.agentsDir)
+	}
+
+	// Create destination directory
+	if err := os.MkdirAll(filepath.Dir(dstDir), 0755); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	// Create symlink or copy
+	if err := cl.createSymlink(srcDir, dstDir); err != nil {
+		return fmt.Errorf("failed to link component: %w", err)
+	}
+
+	fmt.Printf("Successfully linked %s '%s' to opencode\n", componentType, componentName)
+	fmt.Printf("Source: %s\n", srcDir)
+	fmt.Printf("Target: %s\n", dstDir)
+
+	return nil
+}
+
+func (cl *ComponentLinker) linkAllComponents() error {
+	componentTypes := []string{"skills", "agents", "commands"}
+
+	for _, componentType := range componentTypes {
+		typeDir := filepath.Join(cl.agentsDir, componentType)
+		if _, err := os.Stat(typeDir); os.IsNotExist(err) {
+			continue
+		}
+
+		entries, err := os.ReadDir(typeDir)
+		if err != nil {
+			fmt.Printf("Warning: failed to read %s directory: %v\n", componentType, err)
+			continue
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() {
+				if err := cl.linkComponent(componentType, entry.Name()); err != nil {
+					fmt.Printf("Warning: failed to link %s/%s: %v\n", componentType, entry.Name(), err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func main() {
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: agent-smith <command> <repository-url> <name>")
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: agent-smith <command> [args...]")
 		fmt.Println("Commands:")
 		fmt.Println("  add-skill   <repository-url> <skill-name>   Download a skill from a git repository")
 		fmt.Println("  add-agent   <repository-url> <agent-name>   Download an agent from a git repository")
 		fmt.Println("  add-command <repository-url> <command-name> Download a command from a git repository")
+		fmt.Println("  link        <type> <name>                   Link a downloaded component to opencode")
+		fmt.Println("  link-all                                     Link all downloaded components to opencode")
 		fmt.Println()
 		fmt.Println("Examples:")
 		fmt.Println("  agent-smith add-skill owner/repo my-skill")
@@ -432,32 +574,69 @@ func main() {
 		fmt.Println("  agent-smith add-agent https://github.com/owner/repo my-agent")
 		fmt.Println("  agent-smith add-command owner/repo my-command")
 		fmt.Println("  agent-smith add-command https://github.com/owner/repo my-command")
+		fmt.Println("  agent-smith link skills my-skill")
+		fmt.Println("  agent-smith link agents my-agent")
+		fmt.Println("  agent-smith link commands my-command")
+		fmt.Println("  agent-smith link-all")
 		os.Exit(1)
 	}
 
 	command := os.Args[1]
-	repoURL := os.Args[2]
-	name := os.Args[3]
 
 	switch command {
 	case "add-skill":
+		if len(os.Args) < 4 {
+			fmt.Println("Usage: agent-smith add-skill <repository-url> <skill-name>")
+			os.Exit(1)
+		}
+		repoURL := os.Args[2]
+		name := os.Args[3]
 		downloader := NewSkillDownloader()
 		if err := downloader.downloadSkill(repoURL, name); err != nil {
 			log.Fatal("Failed to download skill:", err)
 		}
 	case "add-agent":
+		if len(os.Args) < 4 {
+			fmt.Println("Usage: agent-smith add-agent <repository-url> <agent-name>")
+			os.Exit(1)
+		}
+		repoURL := os.Args[2]
+		name := os.Args[3]
 		downloader := NewAgentDownloader()
 		if err := downloader.downloadAgent(repoURL, name); err != nil {
 			log.Fatal("Failed to download agent:", err)
 		}
 	case "add-command":
+		if len(os.Args) < 4 {
+			fmt.Println("Usage: agent-smith add-command <repository-url> <command-name>")
+			os.Exit(1)
+		}
+		repoURL := os.Args[2]
+		name := os.Args[3]
 		downloader := NewCommandDownloader()
 		if err := downloader.downloadCommand(repoURL, name); err != nil {
 			log.Fatal("Failed to download command:", err)
 		}
+	case "link":
+		if len(os.Args) < 4 {
+			fmt.Println("Usage: agent-smith link <type> <name>")
+			fmt.Println("Types: skills, agents, commands")
+			os.Exit(1)
+		}
+		componentType := os.Args[2]
+		componentName := os.Args[3]
+		linker := NewComponentLinker()
+		if err := linker.linkComponent(componentType, componentName); err != nil {
+			log.Fatal("Failed to link component:", err)
+		}
+	case "link-all":
+		linker := NewComponentLinker()
+		if err := linker.linkAllComponents(); err != nil {
+			log.Fatal("Failed to link all components:", err)
+		}
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
-		fmt.Println("Supported commands: add-skill, add-agent, add-command")
+		fmt.Println("Supported commands: add-skill, add-agent, add-command, link, link-all")
 		os.Exit(1)
 	}
 }

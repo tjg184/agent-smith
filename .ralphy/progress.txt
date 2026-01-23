@@ -1,2 +1,5 @@
 # Ralphy Progress Log
 
+- [✓] 2026-01-23 12:54 - Story-001: As a developer, I want to download skills from git repositories so I can have a centralized component library.
+- [✓] 2026-01-23 13:03 - Story-002: As a developer, I want to download agents from git repositories so I can manage agent definitions centrally.
+- [✓] 2026-01-23 13:07 - Story-003: As a developer, I want to download commands from git repositories so I can maintain a command library.

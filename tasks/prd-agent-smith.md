@@ -19,7 +19,7 @@ Agent Smith is a universal component manager for AI coding environments that pro
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want to download skills from git repositories so I can have a centralized component library.
+- [x] Story-001: As a developer, I want to download skills from git repositories so I can have a centralized component library.
 
   **Acceptance Criteria:**
   - Download skill directories (not entire repos) from GitHub, GitLab, and direct URLs with automatic source type detection
@@ -27,7 +27,7 @@ Agent Smith is a universal component manager for AI coding environments that pro
   - Store skill directories in ~/.agents/skills/[skill-name]/ with metadata tracking
   - Create SKILL.md files in proper format for opencode compatibility
 
-- [ ] Story-002: As a developer, I want to download agents from git repositories so I can manage agent definitions centrally.
+- [x] Story-002: As a developer, I want to download agents from git repositories so I can manage agent definitions centrally.
 
   **Acceptance Criteria:**
   - Download agent directories (not individual .md files) with source tracking
@@ -35,7 +35,7 @@ Agent Smith is a universal component manager for AI coding environments that pro
   - Support multiple source formats (GitHub shorthand, full URLs, local paths)
   - Support opencode agent format with frontmatter and proper directory structure
 
-- [ ] Story-003: As a developer, I want to download commands from git repositories so I can maintain a command library.
+- [x] Story-003: As a developer, I want to download commands from git repositories so I can maintain a command library.
 
   **Acceptance Criteria:**
   - Download command directories (not individual .md files) with metadata tracking
