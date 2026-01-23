@@ -1027,6 +1027,152 @@ Add usage instructions here.
 	return createFileWithPermissions(filePath, []byte(content))
 }
 
+func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL string, repoPath string, components []DetectedComponent) error {
+	// Filter for skill components from provided components
+	var skillComponents []DetectedComponent
+	for _, comp := range components {
+		if comp.Type == ComponentSkill {
+			skillComponents = append(skillComponents, comp)
+		}
+	}
+
+	if len(skillComponents) == 0 {
+		// No skill components detected, fall back to original behavior
+		return sd.downloadSkillDirect(fullURL, skillName, repoURL)
+	}
+
+	// Create skill directory
+	skillDir := filepath.Join(sd.baseDir, skillName)
+	if err := createDirectoryWithPermissions(skillDir); err != nil {
+		return fmt.Errorf("failed to create skill directory: %w", err)
+	}
+
+	// If only one skill component found, copy its contents
+	if len(skillComponents) == 1 {
+		component := skillComponents[0]
+		componentPath := filepath.Join(repoPath, component.Path)
+
+		// Copy component contents to skill directory
+		err := sd.copyDirectoryContents(componentPath, skillDir)
+		if err != nil {
+			os.RemoveAll(skillDir)
+			return fmt.Errorf("failed to copy skill contents: %w", err)
+		}
+	} else {
+		// Multiple skills found, create a monorepo structure
+		for _, component := range skillComponents {
+			componentDir := filepath.Join(skillDir, component.Name)
+			componentPath := filepath.Join(repoPath, component.Path)
+
+			err := createDirectoryWithPermissions(componentDir)
+			if err != nil {
+				continue
+			}
+
+			err = sd.copyDirectoryContents(componentPath, componentDir)
+			if err != nil {
+				log.Printf("Warning: failed to copy skill %s: %v", component.Name, err)
+			}
+		}
+	}
+
+	var commitHash string
+	var repo *git.Repository
+
+	// Handle metadata differently for local vs remote repositories
+	if sd.detector.detectProvider(repoURL) == "local" {
+		// For local repositories, open the repository directly
+		var err error
+		repo, err = git.PlainOpen(fullURL)
+		if err != nil {
+			// Non-fatal, continue without git metadata
+			log.Printf("Warning: failed to open local repository for metadata: %v", err)
+		}
+	} else {
+		// For remote repositories, clone to get git history for metadata
+		var err error
+		repo, err = git.PlainClone(skillDir+".git", true, &git.CloneOptions{
+			URL:           fullURL,
+			Depth:         1,
+			ReferenceName: plumbing.HEAD,
+			SingleBranch:  true,
+		})
+		if err != nil {
+			// Non-fatal, continue without git metadata
+			log.Printf("Warning: failed to clone repository for metadata: %v", err)
+		}
+	}
+
+	if repo != nil {
+		if ref, err := repo.Head(); err == nil {
+			commitHash = ref.Hash().String()
+		}
+	}
+
+	// Create metadata
+	metadata := map[string]interface{}{
+		"name":       skillName,
+		"source":     fullURL,
+		"commit":     commitHash,
+		"downloaded": "now",
+		"components": len(skillComponents),
+		"detection":  "recursive",
+	}
+
+	// Save legacy metadata file for backward compatibility
+	metadataFile := filepath.Join(skillDir, ".skill-metadata.json")
+	if err := sd.saveMetadata(metadataFile, metadata); err != nil {
+		log.Printf("Warning: failed to save metadata: %v", err)
+	}
+
+	// Save to npx add-skill compatible lock file
+	var sourceType string
+	if sd.detector.detectProvider(repoURL) == "local" {
+		sourceType = "local"
+	} else if strings.Contains(fullURL, "gitlab") {
+		sourceType = "gitlab"
+	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
+		sourceType = "git"
+	} else {
+		sourceType = "github"
+	}
+
+	// Compute folder hash if it's a GitHub repo
+	var folderHash string
+	if sourceType == "github" {
+		// Extract owner/repo from URL
+		if strings.HasPrefix(fullURL, "https://github.com/") {
+			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
+			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
+			if hash, err := computeGitHubTreeSHA(ownerRepo, "SKILL.md"); err == nil {
+				folderHash = hash
+			}
+		}
+	} else {
+		// For non-GitHub repos, compute local hash
+		if hash, err := computeLocalFolderHash(skillDir); err == nil {
+			folderHash = hash
+		}
+	}
+
+	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, len(skillComponents), "recursive"); err != nil {
+		log.Printf("Warning: failed to save lock file: %v", err)
+	}
+
+	// Clean up git clone only for remote repositories
+	if sd.detector.detectProvider(repoURL) != "local" {
+		if _, err := os.Stat(skillDir + ".git"); err == nil {
+			os.RemoveAll(skillDir + ".git")
+		}
+	}
+
+	fmt.Printf("Successfully downloaded skill '%s' from %s\n", skillName, fullURL)
+	fmt.Printf("Skill stored in: %s\n", skillDir)
+	fmt.Printf("Components detected: %d\n", len(skillComponents))
+
+	return nil
+}
+
 func (cd *CommandDownloader) parseRepoURL(repoURL string) (string, error) {
 	// Normalize URL first (handles GitHub shorthand, etc.)
 	normalizedURL, err := cd.detector.normalizeURL(repoURL)
@@ -1403,6 +1549,133 @@ Add usage instructions here.
 	return createFileWithPermissions(filePath, []byte(content))
 }
 
+func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoURL string, repoPath string, components []DetectedComponent) error {
+	// Filter for command components from provided components
+	var commandComponents []DetectedComponent
+	for _, comp := range components {
+		if comp.Type == ComponentCommand {
+			commandComponents = append(commandComponents, comp)
+		}
+	}
+
+	if len(commandComponents) == 0 {
+		// No command components detected, fall back to original behavior
+		return cd.downloadCommandDirect(fullURL, commandName)
+	}
+
+	// Create command directory
+	commandDir := filepath.Join(cd.baseDir, commandName)
+	if err := createDirectoryWithPermissions(commandDir); err != nil {
+		return fmt.Errorf("failed to create command directory: %w", err)
+	}
+
+	// If only one command component found, copy its contents
+	if len(commandComponents) == 1 {
+		component := commandComponents[0]
+		componentPath := filepath.Join(repoPath, component.Path)
+
+		// Copy component contents to command directory
+		err := cd.copyDirectoryContents(componentPath, commandDir)
+		if err != nil {
+			os.RemoveAll(commandDir)
+			return fmt.Errorf("failed to copy command contents: %w", err)
+		}
+	} else {
+		// Multiple commands found, create a monorepo structure
+		for _, component := range commandComponents {
+			componentDir := filepath.Join(commandDir, component.Name)
+			componentPath := filepath.Join(repoPath, component.Path)
+
+			err := createDirectoryWithPermissions(componentDir)
+			if err != nil {
+				continue
+			}
+
+			err = cd.copyDirectoryContents(componentPath, componentDir)
+			if err != nil {
+				log.Printf("Warning: failed to copy command %s: %v", component.Name, err)
+			}
+		}
+	}
+
+	var commitHash string
+	var repo *git.Repository
+
+	// For remote repositories, clone to get proper git history for metadata
+	var err error
+	repo, err = git.PlainClone(commandDir+".git", true, &git.CloneOptions{
+		URL:           fullURL,
+		Depth:         1,
+		ReferenceName: plumbing.HEAD,
+		SingleBranch:  true,
+	})
+	if err != nil {
+		// Non-fatal, continue without git metadata
+		log.Printf("Warning: failed to clone repository for metadata: %v", err)
+	}
+
+	if repo != nil {
+		if ref, err := repo.Head(); err == nil {
+			commitHash = ref.Hash().String()
+		}
+	}
+
+	// Create metadata
+	metadata := map[string]interface{}{
+		"name":       commandName,
+		"source":     fullURL,
+		"commit":     commitHash,
+		"downloaded": "now",
+		"components": len(commandComponents),
+		"detection":  "recursive",
+	}
+
+	// Save legacy metadata file for backward compatibility
+	legacyMetadataFile := filepath.Join(commandDir, ".command-metadata.json")
+	if err := cd.saveMetadata(legacyMetadataFile, metadata); err != nil {
+		log.Printf("Warning: failed to save legacy metadata: %v", err)
+	}
+
+	// Save to npx add-skill compatible lock file
+	sourceType := "github"
+	if strings.Contains(fullURL, "gitlab") {
+		sourceType = "gitlab"
+	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
+		sourceType = "git"
+	}
+
+	// Compute folder hash if it's a GitHub repo
+	var folderHash string
+	if sourceType == "github" {
+		if strings.HasPrefix(fullURL, "https://github.com/") {
+			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
+			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
+			if hash, err := computeGitHubTreeSHA(ownerRepo, "COMMAND.md"); err == nil {
+				folderHash = hash
+			}
+		}
+	} else {
+		if hash, err := computeLocalFolderHash(commandDir); err == nil {
+			folderHash = hash
+		}
+	}
+
+	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, len(commandComponents), "recursive"); err != nil {
+		log.Printf("Warning: failed to save lock file: %v", err)
+	}
+
+	// Clean up git clone if it exists
+	if _, err := os.Stat(commandDir + ".git"); err == nil {
+		os.RemoveAll(commandDir + ".git")
+	}
+
+	fmt.Printf("Successfully downloaded command '%s' from %s\n", commandName, fullURL)
+	fmt.Printf("Command stored in: %s\n", commandDir)
+	fmt.Printf("Components detected: %d\n", len(commandComponents))
+
+	return nil
+}
+
 func (ad *AgentDownloader) parseRepoURL(repoURL string) (string, error) {
 	// Normalize URL first (handles GitHub shorthand, etc.)
 	normalizedURL, err := ad.detector.normalizeURL(repoURL)
@@ -1777,6 +2050,144 @@ Add usage instructions here.
 `, agentName, source)
 
 	return createFileWithPermissions(filePath, []byte(content))
+}
+
+func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL string, repoPath string, components []DetectedComponent) error {
+	// Filter for agent components from provided components
+	var agentComponents []DetectedComponent
+	for _, comp := range components {
+		if comp.Type == ComponentAgent {
+			agentComponents = append(agentComponents, comp)
+		}
+	}
+
+	if len(agentComponents) == 0 {
+		// No agent components detected, fall back to original behavior
+		return ad.downloadAgentDirect(fullURL, agentName)
+	}
+
+	// Create agent directory
+	agentDir := filepath.Join(ad.baseDir, agentName)
+	if err := createDirectoryWithPermissions(agentDir); err != nil {
+		return fmt.Errorf("failed to create agent directory: %w", err)
+	}
+
+	// If only one agent component found, copy its contents
+	if len(agentComponents) == 1 {
+		component := agentComponents[0]
+		componentPath := filepath.Join(repoPath, component.Path)
+
+		// Copy component contents to agent directory
+		err := ad.copyDirectoryContents(componentPath, agentDir)
+		if err != nil {
+			os.RemoveAll(agentDir)
+			return fmt.Errorf("failed to copy agent contents: %w", err)
+		}
+	} else {
+		// Multiple agents found, create a monorepo structure
+		for _, component := range agentComponents {
+			componentDir := filepath.Join(agentDir, component.Name)
+			componentPath := filepath.Join(repoPath, component.Path)
+
+			err := createDirectoryWithPermissions(componentDir)
+			if err != nil {
+				continue
+			}
+
+			err = ad.copyDirectoryContents(componentPath, componentDir)
+			if err != nil {
+				log.Printf("Warning: failed to copy agent %s: %v", component.Name, err)
+			}
+		}
+	}
+
+	var commitHash string
+	var repo *git.Repository
+
+	// Handle metadata differently for local vs remote repositories
+	if ad.detector.detectProvider(repoURL) == "local" {
+		// For local repositories, open repository directly
+		var err error
+		repo, err = git.PlainOpen(fullURL)
+		if err != nil {
+			// Non-fatal, continue without git metadata
+			log.Printf("Warning: failed to open local repository for metadata: %v", err)
+		}
+	} else {
+		// For remote repositories, clone to get git history for metadata
+		var err error
+		repo, err = git.PlainClone(agentDir+".git", true, &git.CloneOptions{
+			URL:           fullURL,
+			Depth:         1,
+			ReferenceName: plumbing.HEAD,
+			SingleBranch:  true,
+		})
+		if err != nil {
+			// Non-fatal, continue without git metadata
+			log.Printf("Warning: failed to clone repository for metadata: %v", err)
+		}
+	}
+
+	if repo != nil {
+		if ref, err := repo.Head(); err == nil {
+			commitHash = ref.Hash().String()
+		}
+	}
+
+	// Create metadata
+	metadata := map[string]interface{}{
+		"name":       agentName,
+		"source":     fullURL,
+		"commit":     commitHash,
+		"downloaded": "now",
+		"components": len(agentComponents),
+		"detection":  "recursive",
+	}
+
+	// Save legacy metadata file for backward compatibility
+	legacyMetadataFile := filepath.Join(agentDir, ".agent-metadata.json")
+	if err := ad.saveMetadata(legacyMetadataFile, metadata); err != nil {
+		log.Printf("Warning: failed to save legacy metadata: %v", err)
+	}
+
+	// Save to npx add-skill compatible lock file
+	sourceType := "github"
+	if strings.Contains(fullURL, "gitlab") {
+		sourceType = "gitlab"
+	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
+		sourceType = "git"
+	}
+
+	// Compute folder hash if it's a GitHub repo
+	var folderHash string
+	if sourceType == "github" {
+		if strings.HasPrefix(fullURL, "https://github.com/") {
+			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
+			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
+			if hash, err := computeGitHubTreeSHA(ownerRepo, "AGENT.md"); err == nil {
+				folderHash = hash
+			}
+		}
+	} else {
+		if hash, err := computeLocalFolderHash(agentDir); err == nil {
+			folderHash = hash
+		}
+	}
+
+	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, len(agentComponents), "recursive"); err != nil {
+		log.Printf("Warning: failed to save lock file: %v", err)
+	}
+
+	// Clean up git clone if it exists
+	if _, err := os.Stat(agentDir + ".git"); err == nil {
+		os.RemoveAll(agentDir + ".git")
+	}
+
+	fmt.Printf("Successfully downloaded agent '%s' from %s\n", agentName, fullURL)
+	fmt.Printf("Agent stored in: %s\n", agentDir)
+	fmt.Printf("Components detected: %d\n", len(agentComponents))
+
+	return nil
 }
 
 func (cl *ComponentLinker) createSymlink(src, dst string) error {
@@ -2197,30 +2608,30 @@ func (bd *BulkDownloader) AddAll(repoURL string) error {
 		}
 	}
 
-	// Download skills
+	// Download skills using optimized method
 	for _, comp := range skillComponents {
 		fmt.Printf("Downloading skill: %s\n", comp.Name)
-		if err := bd.skillDownloader.downloadSkill(fullURL, comp.Name); err != nil {
+		if err := bd.skillDownloader.downloadSkillWithRepo(fullURL, comp.Name, fullURL, tempDir, components); err != nil {
 			fmt.Printf("Warning: failed to download skill %s: %v\n", comp.Name, err)
 		} else {
 			fmt.Printf("Successfully downloaded skill: %s\n", comp.Name)
 		}
 	}
 
-	// Download agents
+	// Download agents using optimized method
 	for _, comp := range agentComponents {
 		fmt.Printf("Downloading agent: %s\n", comp.Name)
-		if err := bd.agentDownloader.downloadAgent(fullURL, comp.Name); err != nil {
+		if err := bd.agentDownloader.downloadAgentWithRepo(fullURL, comp.Name, fullURL, tempDir, components); err != nil {
 			fmt.Printf("Warning: failed to download agent %s: %v\n", comp.Name, err)
 		} else {
 			fmt.Printf("Successfully downloaded agent: %s\n", comp.Name)
 		}
 	}
 
-	// Download commands
+	// Download commands using optimized method
 	for _, comp := range commandComponents {
 		fmt.Printf("Downloading command: %s\n", comp.Name)
-		if err := bd.commandDownloader.downloadCommand(fullURL, comp.Name); err != nil {
+		if err := bd.commandDownloader.downloadCommandWithRepo(fullURL, comp.Name, fullURL, tempDir, components); err != nil {
 			fmt.Printf("Warning: failed to download command %s: %v\n", comp.Name, err)
 		} else {
 			fmt.Printf("Successfully downloaded command: %s\n", comp.Name)
