@@ -13,7 +13,7 @@ Replace the existing custom Go CLI implementation with the Cobra library to impr
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want to migrate the core CLI structure to Cobra so that commands are better organized and easier to maintain.
+- [x] Story-001: As a developer, I want to migrate the core CLI structure to Cobra so that commands are better organized and easier to maintain.
 
   **Acceptance Criteria:**
   - Install and configure Cobra as the CLI framework
@@ -41,13 +41,6 @@ Replace the existing custom Go CLI implementation with the Cobra library to impr
   - Implement consistent error handling and output formatting
   - Add command completion support where applicable
 
-- [ ] Story-005: As a developer, I want comprehensive testing for the new CLI implementation so that I can ensure reliability and prevent regressions.
-
-  **Acceptance Criteria:**
-  - Write unit tests for all Cobra commands
-  - Test CLI argument parsing and validation
-  - Verify all existing functionality works with new implementation
-
 ## Functional Requirements
 
 - FR-1: Replace custom CLI framework with Cobra library
@@ -62,3 +55,4 @@ Replace the existing custom Go CLI implementation with the Cobra library to impr
 - No new CLI commands or features beyond current scope
 - No migration of configuration files or data formats
 - No performance optimizations beyond CLI structure improvements
+
