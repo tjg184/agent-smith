@@ -13,7 +13,7 @@ The current component detection system in Agent Smith only recognizes specific f
 
 ## User Stories
 
-- [ ] Story-001: As a user, I want the add-all command to detect all components in a repository so that I can bulk download skills, agents, and commands regardless of how they're organized.
+- [x] Story-001: As a user, I want the add-all command to detect all components in a repository so that I can bulk download skills, agents, and commands regardless of how they're organized.
 
   **Acceptance Criteria:**
   - System detects SKILL.md files in skills directories (existing behavior preserved)
