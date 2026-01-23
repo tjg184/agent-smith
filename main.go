@@ -66,6 +66,13 @@ type ComponentLinker struct {
 	opencodeDir string
 }
 
+type BulkDownloader struct {
+	skillDownloader   *SkillDownloader
+	agentDownloader   *AgentDownloader
+	commandDownloader *CommandDownloader
+	detector          *RepositoryDetector
+}
+
 type UpdateDetector struct {
 	baseDir  string
 	detector *RepositoryDetector
@@ -303,6 +310,15 @@ func NewUpdateDetector() *UpdateDetector {
 	return &UpdateDetector{
 		baseDir:  baseDir,
 		detector: NewRepositoryDetector(),
+	}
+}
+
+func NewBulkDownloader() *BulkDownloader {
+	return &BulkDownloader{
+		skillDownloader:   NewSkillDownloader(),
+		agentDownloader:   NewAgentDownloader(),
+		commandDownloader: NewCommandDownloader(),
+		detector:          NewRepositoryDetector(),
 	}
 }
 
@@ -1813,6 +1829,95 @@ func (ud *UpdateDetector) UpdateAll() error {
 	return nil
 }
 
+func (bd *BulkDownloader) AddAll(repoURL string) error {
+	fullURL, err := bd.detector.normalizeURL(repoURL)
+	if err != nil {
+		return fmt.Errorf("failed to normalize repository URL: %w", err)
+	}
+
+	// Create temporary directory for repository detection
+	tempDir, err := os.MkdirTemp("", "agent-smith-bulk-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Clone repository to temporary location for detection
+	_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
+		URL:           fullURL,
+		Depth:         1,
+		ReferenceName: plumbing.HEAD,
+		SingleBranch:  true,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to clone repository for bulk detection: %w", err)
+	}
+
+	// Detect all components in the repository
+	components, err := bd.detector.detectComponentsInRepo(tempDir)
+	if err != nil {
+		return fmt.Errorf("failed to detect components: %w", err)
+	}
+
+	if len(components) == 0 {
+		return fmt.Errorf("no components (skills, agents, or commands) detected in repository")
+	}
+
+	// Group components by type
+	skillComponents := []DetectedComponent{}
+	agentComponents := []DetectedComponent{}
+	commandComponents := []DetectedComponent{}
+
+	for _, comp := range components {
+		switch comp.Type {
+		case ComponentSkill:
+			skillComponents = append(skillComponents, comp)
+		case ComponentAgent:
+			agentComponents = append(agentComponents, comp)
+		case ComponentCommand:
+			commandComponents = append(commandComponents, comp)
+		}
+	}
+
+	// Download skills
+	for _, comp := range skillComponents {
+		fmt.Printf("Downloading skill: %s\n", comp.Name)
+		if err := bd.skillDownloader.downloadSkill(fullURL, comp.Name); err != nil {
+			fmt.Printf("Warning: failed to download skill %s: %v\n", comp.Name, err)
+		} else {
+			fmt.Printf("Successfully downloaded skill: %s\n", comp.Name)
+		}
+	}
+
+	// Download agents
+	for _, comp := range agentComponents {
+		fmt.Printf("Downloading agent: %s\n", comp.Name)
+		if err := bd.agentDownloader.downloadAgent(fullURL, comp.Name); err != nil {
+			fmt.Printf("Warning: failed to download agent %s: %v\n", comp.Name, err)
+		} else {
+			fmt.Printf("Successfully downloaded agent: %s\n", comp.Name)
+		}
+	}
+
+	// Download commands
+	for _, comp := range commandComponents {
+		fmt.Printf("Downloading command: %s\n", comp.Name)
+		if err := bd.commandDownloader.downloadCommand(fullURL, comp.Name); err != nil {
+			fmt.Printf("Warning: failed to download command %s: %v\n", comp.Name, err)
+		} else {
+			fmt.Printf("Successfully downloaded command: %s\n", comp.Name)
+		}
+	}
+
+	totalComponents := len(skillComponents) + len(agentComponents) + len(commandComponents)
+	fmt.Printf("Bulk download completed. Processed %d components:\n", totalComponents)
+	fmt.Printf("  Skills: %d\n", len(skillComponents))
+	fmt.Printf("  Agents: %d\n", len(agentComponents))
+	fmt.Printf("  Commands: %d\n", len(commandComponents))
+
+	return nil
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: agent-smith <command> [args...]")
@@ -1820,6 +1925,7 @@ func main() {
 		fmt.Println("  add-skill   <repository-url> <skill-name>   Download a skill from a git repository")
 		fmt.Println("  add-agent   <repository-url> <agent-name>   Download an agent from a git repository")
 		fmt.Println("  add-command <repository-url> <command-name> Download a command from a git repository")
+		fmt.Println("  add-all     <repository-url>               Download all components from a git repository")
 		fmt.Println("  update      <type> <name>                  Check and update a specific component")
 		fmt.Println("  update-all                                  Check and update all downloaded components")
 		fmt.Println("  link        <type> <name>                   Link a downloaded component to opencode")
@@ -1832,6 +1938,8 @@ func main() {
 		fmt.Println("  agent-smith add-agent https://github.com/owner/repo my-agent")
 		fmt.Println("  agent-smith add-command owner/repo my-command")
 		fmt.Println("  agent-smith add-command https://github.com/owner/repo my-command")
+		fmt.Println("  agent-smith add-all owner/repo")
+		fmt.Println("  agent-smith add-all https://github.com/owner/repo")
 		fmt.Println("  agent-smith update skills my-skill")
 		fmt.Println("  agent-smith update agents my-agent")
 		fmt.Println("  agent-smith update commands my-command")
@@ -1878,6 +1986,16 @@ func main() {
 		downloader := NewCommandDownloader()
 		if err := downloader.downloadCommand(repoURL, name); err != nil {
 			log.Fatal("Failed to download command:", err)
+		}
+	case "add-all":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: agent-smith add-all <repository-url>")
+			os.Exit(1)
+		}
+		repoURL := os.Args[2]
+		bulkDownloader := NewBulkDownloader()
+		if err := bulkDownloader.AddAll(repoURL); err != nil {
+			log.Fatal("Failed to bulk download components:", err)
 		}
 	case "link":
 		if len(os.Args) < 4 {
@@ -1929,7 +2047,7 @@ func main() {
 		}
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
-		fmt.Println("Supported commands: add-skill, add-agent, add-command, update, update-all, link, link-all")
+		fmt.Println("Supported commands: add-skill, add-agent, add-command, add-all, update, update-all, link, link-all")
 		os.Exit(1)
 	}
 }
