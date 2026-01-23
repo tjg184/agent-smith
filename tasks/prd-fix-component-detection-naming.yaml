@@ -1,0 +1,7 @@
+tasks:
+  - title: "Story-001: As a user running add-all on a repository with multiple skills, I want all skills to be detected and downloaded so that I can access all available components from the repository - Component detection correctly identifies all SKILL.md files in nested directories, Name extraction handles paths like plugins/python-development/SKILL.md correctly, Component deduplication only prevents actual duplicates, not legitimate different components, All detected skills are processed and downloaded by add-all command, Debug information is available to troubleshoot detection issues"
+    completed: false
+    parallel_group: 0
+  - title: "Story-002: As a developer maintaining component detection, I want clear and predictable naming logic so that component names are extracted consistently and reliably - Name extraction removes directory path quotes and handles nested structures correctly, Component names are consistent regardless of directory depth, Debug logging shows component detection process and decisions, Path processing works correctly for both root and nested components, Error handling provides clear information about detection failures"
+    completed: false
+    parallel_group: 1
