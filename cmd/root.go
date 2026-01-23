@@ -31,7 +31,31 @@ func init() {
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "add-skill <repository-url> <skill-name>",
 		Short: "Download a skill from a git repository",
-		Args:  cobra.ExactArgs(2),
+		Long: `Download and install a skill from a git repository to your local agents directory.
+
+This command fetches a skill from any git repository (GitHub, GitLab, Bitbucket, or private)
+and installs it to ~/.agents/skills/<skill-name>. The skill can include multiple components
+and will be automatically detected if it contains a SKILL.md file.
+
+REPOSITORY URL FORMATS:
+  GitHub shorthand:     owner/repo
+  Full GitHub URL:      https://github.com/owner/repo
+  GitLab URL:           https://gitlab.com/owner/repo
+  SSH URL:              git@github.com:owner/repo.git
+  Local path:           /path/to/local/repo
+
+EXAMPLES:
+  # Download from GitHub using shorthand
+  agent-smith add-skill openai/cookbook gpt-skill
+
+  # Download using full URL
+  agent-smith add-skill https://github.com/example/repo my-skill
+
+  # Download from local repository
+  agent-smith add-skill /path/to/local/skill local-skill
+
+The skill will be available for execution with 'agent-smith npx' or 'agent-smith run'.`,
+		Args: cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			// Call the existing main function logic
 			handleAddSkill(args[0], args[1])
@@ -41,7 +65,31 @@ func init() {
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "add-agent <repository-url> <agent-name>",
 		Short: "Download an agent from a git repository",
-		Args:  cobra.ExactArgs(2),
+		Long: `Download and install an AI agent from a git repository to your local agents directory.
+
+This command fetches an agent from any git repository (GitHub, GitLab, Bitbucket, or private)
+and installs it to ~/.agents/agents/<agent-name>. The agent can include multiple components
+and will be automatically detected if it contains an AGENT.md file.
+
+REPOSITORY URL FORMATS:
+  GitHub shorthand:     owner/repo
+  Full GitHub URL:      https://github.com/owner/repo
+  GitLab URL:           https://gitlab.com/owner/repo
+  SSH URL:              git@github.com:owner/repo.git
+  Local path:           /path/to/local/repo
+
+EXAMPLES:
+  # Download from GitHub using shorthand
+  agent-smith add-agent openai/assistant coding-agent
+
+  # Download using full URL
+  agent-smith add-agent https://github.com/example/agent my-agent
+
+  # Download from local repository
+  agent-smith add-agent /path/to/local/agent local-agent
+
+The agent will be available for execution with 'agent-smith npx' or 'agent-smith run'.`,
+		Args: cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleAddAgent(args[0], args[1])
 		},
@@ -50,7 +98,31 @@ func init() {
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "add-command <repository-url> <command-name>",
 		Short: "Download a command from a git repository",
-		Args:  cobra.ExactArgs(2),
+		Long: `Download and install a command-line tool from a git repository to your local agents directory.
+
+This command fetches a command from any git repository (GitHub, GitLab, Bitbucket, or private)
+and installs it to ~/.agents/commands/<command-name>. The command can include multiple components
+and will be automatically detected if it contains a COMMAND.md file.
+
+REPOSITORY URL FORMATS:
+  GitHub shorthand:     owner/repo
+  Full GitHub URL:      https://github.com/owner/repo
+  GitLab URL:           https://gitlab.com/owner/repo
+  SSH URL:              git@github.com:owner/repo.git
+  Local path:           /path/to/local/repo
+
+EXAMPLES:
+  # Download from GitHub using shorthand
+  agent-smith add-command cli-tools/formatter json-formatter
+
+  # Download using full URL
+  agent-smith add-command https://github.com/example/tool my-tool
+
+  # Download from local repository
+  agent-smith add-command /path/to/local/command local-cmd
+
+The command will be available for execution with 'agent-smith npx' or 'agent-smith run'.`,
+		Args: cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleAddCommand(args[0], args[1])
 		},
