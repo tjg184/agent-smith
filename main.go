@@ -609,17 +609,20 @@ func (sd *SkillDownloader) parseRepoURL(repoURL string) (string, error) {
 	return normalizedURL, nil
 }
 
-func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
+func (sd *SkillDownloader) downloadSkill(repoURL, skillName string, providedRepoPath ...string) error {
 	fullURL, err := sd.parseRepoURL(repoURL)
 	if err != nil {
 		return err
 	}
 
 	var repoPath string
+	hasProvidedPath := len(providedRepoPath) > 0 && providedRepoPath[0] != ""
 
-	// Handle local repositories differently
-	if sd.detector.detectProvider(repoURL) == "local" {
-		// For local repositories, use the path directly
+	// Use provided repo path if available, otherwise clone for detection
+	if hasProvidedPath {
+		repoPath = providedRepoPath[0]
+	} else if sd.detector.detectProvider(repoURL) == "local" {
+		// For local repositories, use path directly
 		repoPath = fullURL
 	} else {
 		// For remote repositories, create temporary directory for repository detection
@@ -627,6 +630,19 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string) error {
 		if err != nil {
 			return fmt.Errorf("failed to create temporary directory: %w", err)
 		}
+		defer os.RemoveAll(tempDir)
+
+		// Clone repository to temporary location for detection
+		_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
+			URL:           fullURL,
+			Depth:         1,
+			ReferenceName: plumbing.HEAD,
+			SingleBranch:  true,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to clone repository for detection: %w", err)
+		}
+		repoPath = tempDir
 		defer os.RemoveAll(tempDir)
 
 		// Clone repository to temporary location for detection
@@ -1188,32 +1204,44 @@ func (cd *CommandDownloader) parseRepoURL(repoURL string) (string, error) {
 	return normalizedURL, nil
 }
 
-func (cd *CommandDownloader) downloadCommand(repoURL, commandName string) error {
+func (cd *CommandDownloader) downloadCommand(repoURL, commandName string, providedRepoPath ...string) error {
 	fullURL, err := cd.parseRepoURL(repoURL)
 	if err != nil {
 		return err
 	}
 
-	// Create temporary directory for repository detection
-	tempDir, err := os.MkdirTemp("", "agent-smith-detect-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temporary directory: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
+	var repoPath string
+	hasProvidedPath := len(providedRepoPath) > 0 && providedRepoPath[0] != ""
 
-	// Clone repository to temporary location for detection
-	_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
-		URL:           fullURL,
-		Depth:         1,
-		ReferenceName: plumbing.HEAD,
-		SingleBranch:  true,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to clone repository for detection: %w", err)
+	// Use provided repo path if available, otherwise clone for detection
+	if hasProvidedPath {
+		repoPath = providedRepoPath[0]
+	} else if cd.detector.detectProvider(repoURL) == "local" {
+		// For local repositories, use path directly
+		repoPath = fullURL
+	} else {
+		// For remote repositories, create temporary directory for repository detection
+		tempDir, err := os.MkdirTemp("", "agent-smith-detect-*")
+		if err != nil {
+			return fmt.Errorf("failed to create temporary directory: %w", err)
+		}
+		defer os.RemoveAll(tempDir)
+
+		// Clone repository to temporary location for detection
+		_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
+			URL:           fullURL,
+			Depth:         1,
+			ReferenceName: plumbing.HEAD,
+			SingleBranch:  true,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to clone repository for detection: %w", err)
+		}
+		repoPath = tempDir
 	}
 
-	// Detect components in the repository
-	components, err := cd.detector.detectComponentsInRepo(tempDir)
+	// Detect components in repository
+	components, err := cd.detector.detectComponentsInRepo(repoPath)
 	if err != nil {
 		return fmt.Errorf("failed to detect components: %w", err)
 	}
@@ -1240,7 +1268,7 @@ func (cd *CommandDownloader) downloadCommand(repoURL, commandName string) error 
 	// If only one command component found, copy its contents
 	if len(commandComponents) == 1 {
 		component := commandComponents[0]
-		componentPath := filepath.Join(tempDir, component.Path)
+		componentPath := filepath.Join(repoPath, component.Path)
 
 		// Copy component contents to command directory
 		err = cd.copyDirectoryContents(componentPath, commandDir)
@@ -1252,7 +1280,7 @@ func (cd *CommandDownloader) downloadCommand(repoURL, commandName string) error 
 		// Multiple commands found, create a monorepo structure
 		for _, component := range commandComponents {
 			componentDir := filepath.Join(commandDir, component.Name)
-			componentPath := filepath.Join(tempDir, component.Path)
+			componentPath := filepath.Join(repoPath, component.Path)
 
 			err = createDirectoryWithPermissions(componentDir)
 			if err != nil {
@@ -1691,32 +1719,44 @@ func (ad *AgentDownloader) parseRepoURL(repoURL string) (string, error) {
 	return normalizedURL, nil
 }
 
-func (ad *AgentDownloader) downloadAgent(repoURL, agentName string) error {
+func (ad *AgentDownloader) downloadAgent(repoURL, agentName string, providedRepoPath ...string) error {
 	fullURL, err := ad.parseRepoURL(repoURL)
 	if err != nil {
 		return err
 	}
 
-	// Create temporary directory for repository detection
-	tempDir, err := os.MkdirTemp("", "agent-smith-detect-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temporary directory: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
+	var repoPath string
+	hasProvidedPath := len(providedRepoPath) > 0 && providedRepoPath[0] != ""
 
-	// Clone repository to temporary location for detection
-	_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
-		URL:           fullURL,
-		Depth:         1,
-		ReferenceName: plumbing.HEAD,
-		SingleBranch:  true,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to clone repository for detection: %w", err)
+	// Use provided repo path if available, otherwise clone for detection
+	if hasProvidedPath {
+		repoPath = providedRepoPath[0]
+	} else if ad.detector.detectProvider(repoURL) == "local" {
+		// For local repositories, use path directly
+		repoPath = fullURL
+	} else {
+		// For remote repositories, create temporary directory for repository detection
+		tempDir, err := os.MkdirTemp("", "agent-smith-detect-*")
+		if err != nil {
+			return fmt.Errorf("failed to create temporary directory: %w", err)
+		}
+		defer os.RemoveAll(tempDir)
+
+		// Clone repository to temporary location for detection
+		_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
+			URL:           fullURL,
+			Depth:         1,
+			ReferenceName: plumbing.HEAD,
+			SingleBranch:  true,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to clone repository for detection: %w", err)
+		}
+		repoPath = tempDir
 	}
 
 	// Detect components in the repository
-	components, err := ad.detector.detectComponentsInRepo(tempDir)
+	components, err := ad.detector.detectComponentsInRepo(repoPath)
 	if err != nil {
 		return fmt.Errorf("failed to detect components: %w", err)
 	}
@@ -1743,7 +1783,7 @@ func (ad *AgentDownloader) downloadAgent(repoURL, agentName string) error {
 	// If only one agent component found, copy its contents
 	if len(agentComponents) == 1 {
 		component := agentComponents[0]
-		componentPath := filepath.Join(tempDir, component.Path)
+		componentPath := filepath.Join(repoPath, component.Path)
 
 		// Copy component contents to agent directory
 		err = ad.copyDirectoryContents(componentPath, agentDir)
@@ -1755,7 +1795,7 @@ func (ad *AgentDownloader) downloadAgent(repoURL, agentName string) error {
 		// Multiple agents found, create a monorepo structure
 		for _, component := range agentComponents {
 			componentDir := filepath.Join(agentDir, component.Name)
-			componentPath := filepath.Join(tempDir, component.Path)
+			componentPath := filepath.Join(repoPath, component.Path)
 
 			err = createDirectoryWithPermissions(componentDir)
 			if err != nil {
@@ -2611,7 +2651,7 @@ func (bd *BulkDownloader) AddAll(repoURL string) error {
 	// Download skills using optimized method
 	for _, comp := range skillComponents {
 		fmt.Printf("Downloading skill: %s\n", comp.Name)
-		if err := bd.skillDownloader.downloadSkillWithRepo(fullURL, comp.Name, fullURL, tempDir, components); err != nil {
+		if err := bd.skillDownloader.downloadSkill(fullURL, comp.Name, tempDir); err != nil {
 			fmt.Printf("Warning: failed to download skill %s: %v\n", comp.Name, err)
 		} else {
 			fmt.Printf("Successfully downloaded skill: %s\n", comp.Name)
@@ -2621,7 +2661,7 @@ func (bd *BulkDownloader) AddAll(repoURL string) error {
 	// Download agents using optimized method
 	for _, comp := range agentComponents {
 		fmt.Printf("Downloading agent: %s\n", comp.Name)
-		if err := bd.agentDownloader.downloadAgentWithRepo(fullURL, comp.Name, fullURL, tempDir, components); err != nil {
+		if err := bd.agentDownloader.downloadAgent(fullURL, comp.Name, tempDir); err != nil {
 			fmt.Printf("Warning: failed to download agent %s: %v\n", comp.Name, err)
 		} else {
 			fmt.Printf("Successfully downloaded agent: %s\n", comp.Name)
@@ -2631,7 +2671,7 @@ func (bd *BulkDownloader) AddAll(repoURL string) error {
 	// Download commands using optimized method
 	for _, comp := range commandComponents {
 		fmt.Printf("Downloading command: %s\n", comp.Name)
-		if err := bd.commandDownloader.downloadCommandWithRepo(fullURL, comp.Name, fullURL, tempDir, components); err != nil {
+		if err := bd.commandDownloader.downloadCommand(fullURL, comp.Name, tempDir); err != nil {
 			fmt.Printf("Warning: failed to download command %s: %v\n", comp.Name, err)
 		} else {
 			fmt.Printf("Successfully downloaded command: %s\n", comp.Name)

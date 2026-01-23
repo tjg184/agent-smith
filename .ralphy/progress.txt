@@ -14,3 +14,4 @@
 - [✓] 2026-01-23 14:08 - Story-011: As a developer, I want comprehensive source type support so I can download from anywhere.
 - [✓] 2026-01-23 14:12 - Story-012: As a developer, I want automatic repository detection so linking is effortless.
 - [✓] 2026-01-23 15:41 - Story-001: As a developer, I want to migrate the core CLI structure to Cobra so that commands are better organized and easier to maintain.
+- [✓] 2026-01-23 16:06 - Story-001: As a user running `add-all`, I want the repository to be cloned only once so that the command completes faster and uses less bandwidth.
