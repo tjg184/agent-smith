@@ -1,0 +1,28 @@
+tasks:
+  - title: "Story-001: As a user, I want add-all command to detect all component types so that I can bulk download skills, agents, and commands from any repository structure - System detects SKILL.md files (existing behavior), System detects .md files in /agents/ directories, System detects .md files in /commands/ directories, Bulk download processes all detected component types successfully"
+    completed: false
+    parallel_group: 0
+  
+  - title: "Story-002: As a user, I want correct component names so that downloaded components are properly labeled and organized - Skills use directory name as component name, Agents use filename (without .md) as component name, Commands use filename (without .md) as component name"
+    completed: false
+    parallel_group: 1
+  
+  - title: "Story-003: As a developer, I want maintainable code so that future component types can be added easily - Detection logic separated by component type, Clear path-based patterns, Comments explaining detection approach, No hard-coded assumptions about file naming"
+    completed: false
+    parallel_group: 1
+  
+  - title: "Add agent detection logic in detectComponentsInRepo function - Add path-based detection for .md files in /agents/ directories, Extract component name from filename without .md extension, Use same error handling as existing skill detection"
+    completed: false
+    parallel_group: 0
+  
+  - title: "Add command detection logic in detectComponentsInRepo function - Add path-based detection for .md files in /commands/ directories, Extract component name from filename without .md extension, Use same error handling as existing skill detection"
+    completed: false
+    parallel_group: 0
+  
+  - title: "Test enhanced detection with wshobson/agents repository - Verify agents are detected from .md files in /agents/ paths, Verify commands are detected from .md files in /commands/ paths, Confirm SKILL.md detection still works unchanged, Run add-all command to test complete bulk download"
+    completed: false
+    parallel_group: 2
+  
+  - title: "Verify component name extraction and organization - Check skills use directory names (existing behavior), Check agents use filenames without .md extension, Check commands use filenames without .md extension, Confirm downloaded components have correct names in ~/.agents/ directory"
+    completed: false
+    parallel_group: 2
