@@ -24,7 +24,7 @@ This optimization will eliminate redundant repository cloning while maintaining 
   - No breaking changes to existing CLI interface
   - Performance improvement measurable through timing
 
-- [ ] Story-002: As a developer, I want the optimization to maintain backward compatibility so that existing code continues to work without changes.
+- [x] Story-002: As a developer, I want the optimization to maintain backward compatibility so that existing code continues to work without changes.
 
   **Acceptance Criteria:**
   - Individual download methods (`downloadSkill`, `downloadAgent`, `downloadCommand`) maintain existing signatures
@@ -32,7 +32,7 @@ This optimization will eliminate redundant repository cloning while maintaining 
   - Existing error handling and logging behaviors preserved
   - All existing unit tests continue to pass
 
-- [ ] Story-003: As a user, I want consistent behavior between `add-all` and individual download commands so that the user experience remains predictable.
+- [x] Story-003: As a user, I want consistent behavior between `add-all` and individual download commands so that the user experience remains predictable.
 
   **Acceptance Criteria:**
   - Metadata creation and lock file generation unchanged
