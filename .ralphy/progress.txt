@@ -7,3 +7,9 @@
 - [✓] 2026-01-23 13:12 - Story-004: As a developer, I want to link downloaded components to my opencode repository so I can use them in projects.
 - [✓] 2026-01-23 13:19 - Story-005: As a developer, I want the tool to work with any repository format so I'm not limited to standard structure.
 - [✓] 2026-01-23 13:23 - Story-006: As a developer, I want intelligent update detection so I know when components change.
+- [✓] 2026-01-23 13:35 - Story-007: As a developer, I want npx add-skill compatibility so I can use both tools together.
+- [✓] 2026-01-23 13:38 - Story-008: As a developer, I want bulk operations so I can manage many components efficiently.
+- [✓] 2026-01-23 13:43 - Story-009: As a developer, I want cross-platform support so I can work on any OS.
+- [✓] 2026-01-23 13:47 - Story-010: As a developer, I want a CLI interface similar to npx so I have a familiar experience.
+- [✓] 2026-01-23 14:08 - Story-011: As a developer, I want comprehensive source type support so I can download from anywhere.
+- [✓] 2026-01-23 14:12 - Story-012: As a developer, I want automatic repository detection so linking is effortless.
