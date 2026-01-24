@@ -587,7 +587,7 @@ func (rd *RepositoryDetector) matchesFileExtension(fileName string, fileExtensio
 }
 
 // detectComponentForPattern checks if a file matches a component detection pattern
-func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullRelPath string, pattern ComponentDetectionPattern, componentType ComponentType) (string, string, bool) {
+func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullRelPath, repoPath string, pattern ComponentDetectionPattern, componentType ComponentType) (string, string, bool) {
 	// Debug logging for component detection process
 	log.Printf("DEBUG: Processing file: %s, relPath: %s, fileName: %s", fullRelPath, relPath, fileName)
 	log.Printf("DEBUG: Component pattern: %s, exactFiles: %v", pattern.Name, pattern.ExactFiles)
@@ -596,6 +596,19 @@ func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullR
 	if rd.shouldIgnorePath(relPath, pattern.IgnorePaths) {
 		log.Printf("DEBUG: Path ignored: %s", relPath)
 		return "", "", false
+	}
+
+	// Parse frontmatter if the file is markdown
+	var frontmatter *ComponentFrontmatter
+	if strings.HasSuffix(fileName, ".md") {
+		fullFilePath := filepath.Join(repoPath, fullRelPath)
+		parsedFrontmatter, err := parseFrontmatter(fullFilePath)
+		if err != nil {
+			log.Printf("DEBUG: Failed to parse frontmatter from %s: %v", fullFilePath, err)
+		} else if parsedFrontmatter != nil {
+			frontmatter = parsedFrontmatter
+			log.Printf("DEBUG: Parsed frontmatter from %s: name=%s", fullFilePath, frontmatter.Name)
+		}
 	}
 
 	// Check exact file matches first (highest priority)
@@ -610,9 +623,15 @@ func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullR
 			return componentName, componentDir, true
 		}
 
-		// Fixed: extract clean directory name without quotes
-		componentName := filepath.Base(componentDir)
-		log.Printf("DEBUG: Extracted component name: %s from directory: %s", componentName, componentDir)
+		// For exact file matches, use frontmatter name if available, otherwise use directory name
+		var componentName string
+		if frontmatter != nil && strings.TrimSpace(frontmatter.Name) != "" {
+			componentName = strings.TrimSpace(frontmatter.Name)
+		} else {
+			componentName = filepath.Base(componentDir)
+		}
+
+		log.Printf("DEBUG: Extracted component name: %s from directory: %s (frontmatter: %v)", componentName, componentDir, frontmatter != nil)
 		log.Printf("DEBUG: Component name: '%s', componentKey: '%s-%s'", componentName, pattern.Name, componentName)
 		return componentName, componentDir, true
 	}
@@ -620,9 +639,16 @@ func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullR
 	// Check path patterns with file extensions (medium priority)
 	if len(pattern.PathPatterns) > 0 && len(pattern.FileExtensions) > 0 {
 		if rd.matchesPathPattern(relPath, pattern.PathPatterns) && rd.matchesFileExtension(fileName, pattern.FileExtensions) {
-			// Extract component name from filename (without extension) for better uniqueness
-			componentName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-			log.Printf("DEBUG: Path pattern + extension match, name: %s", componentName)
+			// Use determineComponentName with frontmatter priority
+			componentName := determineComponentName(frontmatter, fileName)
+
+			// Skip if determineComponentName returns empty (special files like README.md)
+			if componentName == "" {
+				log.Printf("DEBUG: Path pattern + extension match, but component name is empty (special file), skipping")
+				return "", "", false
+			}
+
+			log.Printf("DEBUG: Path pattern + extension match, name: %s (frontmatter: %v)", componentName, frontmatter != nil)
 			return componentName, relPath, true
 		}
 		log.Printf("DEBUG: Path pattern + extension check failed")
@@ -630,8 +656,16 @@ func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullR
 
 	// Check just path patterns (lower priority)
 	if len(pattern.PathPatterns) > 0 && rd.matchesPathPattern(relPath, pattern.PathPatterns) {
-		componentName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-		log.Printf("DEBUG: Path pattern match, name: %s", componentName)
+		// Use determineComponentName with frontmatter priority
+		componentName := determineComponentName(frontmatter, fileName)
+
+		// Skip if determineComponentName returns empty (special files like README.md)
+		if componentName == "" {
+			log.Printf("DEBUG: Path pattern match, but component name is empty (special file), skipping")
+			return "", "", false
+		}
+
+		log.Printf("DEBUG: Path pattern match, name: %s (frontmatter: %v)", componentName, frontmatter != nil)
 		return componentName, relPath, true
 	}
 	log.Printf("DEBUG: Path pattern check failed")
@@ -671,7 +705,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 		for componentTypeStr, pattern := range rd.detectionConfig.Components {
 			componentType := ComponentType(componentTypeStr)
 
-			if componentName, componentPath, matched := rd.detectComponentForPattern(fileName, relPath, fullRelPath, pattern, componentType); matched {
+			if componentName, componentPath, matched := rd.detectComponentForPattern(fileName, relPath, fullRelPath, repoPath, pattern, componentType); matched {
 				log.Printf("DEBUG: Match result: true for componentType: %s", componentTypeStr)
 
 				// Handle default component names
