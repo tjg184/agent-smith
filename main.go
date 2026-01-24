@@ -725,10 +725,10 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 				if existing, exists := seenComponents[componentKey]; exists {
 					// Duplicate detected - log warning immediately
 					duplicatesFound = true
-					log.Printf("Warning: Duplicate component name detected!")
-					log.Printf("  Component: %s (%s)", componentName, pattern.Name)
-					log.Printf("  First occurrence: %s", existing[0].path)
-					log.Printf("  Duplicate at: %s", fullRelPath)
+					log.Printf("⚠️  WARNING: Duplicate component name detected!")
+					log.Printf("    Component: %s (%s)", componentName, pattern.Name)
+					log.Printf("    First occurrence: %s", existing[0].path)
+					log.Printf("    Duplicate at: %s (WILL BE SKIPPED)", fullRelPath)
 
 					// Track this duplicate occurrence
 					seenComponents[componentKey] = append(seenComponents[componentKey], ComponentOccurrence{
@@ -773,10 +773,10 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 			if existing, exists := seenComponents[componentKey]; exists {
 				// Duplicate detected
 				duplicatesFound = true
-				log.Printf("Warning: Duplicate agent name detected!")
-				log.Printf("  Agent: %s", componentName)
-				log.Printf("  First occurrence: %s", existing[0].path)
-				log.Printf("  Duplicate at: %s", fullRelPath)
+				log.Printf("⚠️  WARNING: Duplicate agent name detected!")
+				log.Printf("    Agent: %s", componentName)
+				log.Printf("    First occurrence: %s", existing[0].path)
+				log.Printf("    Duplicate at: %s (WILL BE SKIPPED)", fullRelPath)
 
 				seenComponents[componentKey] = append(seenComponents[componentKey], ComponentOccurrence{
 					component: DetectedComponent{
@@ -818,10 +818,10 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 			if existing, exists := seenComponents[componentKey]; exists {
 				// Duplicate detected
 				duplicatesFound = true
-				log.Printf("Warning: Duplicate command name detected!")
-				log.Printf("  Command: %s", componentName)
-				log.Printf("  First occurrence: %s", existing[0].path)
-				log.Printf("  Duplicate at: %s", fullRelPath)
+				log.Printf("⚠️  WARNING: Duplicate command name detected!")
+				log.Printf("    Command: %s", componentName)
+				log.Printf("    First occurrence: %s", existing[0].path)
+				log.Printf("    Duplicate at: %s (WILL BE SKIPPED)", fullRelPath)
 
 				seenComponents[componentKey] = append(seenComponents[componentKey], ComponentOccurrence{
 					component: DetectedComponent{
@@ -871,25 +871,40 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 
 	// Display duplicate warnings summary if any duplicates were found
 	if duplicatesFound {
-		fmt.Printf("\n=== WARNING: Duplicate Component Names Detected ===\n\n")
+		fmt.Printf("\n")
+		fmt.Printf("╔════════════════════════════════════════════════════════════════════╗\n")
+		fmt.Printf("║  ⚠️  WARNING: Duplicate Component Names Detected                  ║\n")
+		fmt.Printf("╚════════════════════════════════════════════════════════════════════╝\n\n")
+
+		duplicateCount := 0
 		for _, occurrences := range seenComponents {
 			if len(occurrences) > 1 {
+				duplicateCount++
 				// Parse component type from key
 				componentType := "component"
 				if len(occurrences) > 0 {
 					componentType = string(occurrences[0].component.Type)
 				}
 
-				fmt.Printf("  %s '%s' found %d times:\n", componentType, occurrences[0].component.Name, len(occurrences))
+				fmt.Printf("  [%d] %s '%s' found in %d locations:\n", duplicateCount, componentType, occurrences[0].component.Name, len(occurrences))
 				for i, occ := range occurrences {
-					fmt.Printf("    %d. %s\n", i+1, occ.path)
+					if i == 0 {
+						fmt.Printf("      ✓ %s (USED - first occurrence)\n", occ.path)
+					} else {
+						fmt.Printf("      ✗ %s (SKIPPED - duplicate #%d)\n", occ.path, i)
+					}
 				}
 				fmt.Printf("\n")
 			}
 		}
-		fmt.Printf("Only the first occurrence of each component was included.\n")
-		fmt.Printf("Consider renaming duplicates to avoid conflicts.\n")
-		fmt.Printf("====================================================\n\n")
+
+		fmt.Printf("  Resolution Required:\n")
+		fmt.Printf("  • Only the FIRST occurrence of each component will be used\n")
+		fmt.Printf("  • Subsequent duplicates have been SKIPPED\n")
+		fmt.Printf("  • To resolve: Rename or remove duplicate components\n")
+		fmt.Printf("\n")
+		fmt.Printf("  Total duplicates found: %d\n", duplicateCount)
+		fmt.Printf("════════════════════════════════════════════════════════════════════\n\n")
 	}
 
 	return components, err
