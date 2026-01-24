@@ -92,7 +92,7 @@ Implement a flexible, frontmatter-based detection system for AI agents and comma
   - Directory structure verification
   - Resource preservation validation
 
-- [ ] Story-005: As a developer, I want clear warnings when duplicate component names are detected so that I can resolve conflicts.
+- [x] Story-005: As a developer, I want clear warnings when duplicate component names are detected so that I can resolve conflicts.
 
   **Acceptance Criteria:**
   - Detect duplicate names during detection phase
@@ -109,7 +109,7 @@ Implement a flexible, frontmatter-based detection system for AI agents and comma
   - End-to-end with duplicate components
   - First occurrence selection verification
 
-- [ ] Story-006: As a developer, I want the old AGENT.md/COMMAND.md marker detection removed so that the codebase is simpler.
+- [x] Story-006: As a developer, I want the old AGENT.md/COMMAND.md marker detection removed so that the codebase is simpler.
 
   **Acceptance Criteria:**
   - Remove `ExactFiles` from agent detection config
@@ -143,7 +143,7 @@ Implement a flexible, frontmatter-based detection system for AI agents and comma
   - Resource file preservation verification
   - Nested directory handling
 
-- [ ] Story-008: As a developer, I want the update-all command to re-clone repositories so that updates are reliable and simple.
+- [x] Story-008: As a developer, I want the update-all command to re-clone repositories so that updates are reliable and simple.
 
   **Acceptance Criteria:**
   - Update command removes old component directory
