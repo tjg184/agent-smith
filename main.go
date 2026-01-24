@@ -3163,6 +3163,15 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 
 	fmt.Printf("Updates detected for %s/%s, downloading new version...\n", componentType, componentName)
 
+	// Remove old component directory to ensure clean re-clone
+	componentDir := filepath.Join(ud.baseDir, componentType, componentName)
+	if _, err := os.Stat(componentDir); err == nil {
+		fmt.Printf("Removing old %s/%s directory...\n", componentType, componentName)
+		if err := os.RemoveAll(componentDir); err != nil {
+			return fmt.Errorf("failed to remove old component directory: %w", err)
+		}
+	}
+
 	// Re-download the component with the latest changes
 	switch componentType {
 	case "skills":
