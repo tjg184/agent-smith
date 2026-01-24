@@ -676,7 +676,14 @@ func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullR
 
 func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]DetectedComponent, error) {
 	var components []DetectedComponent
-	seenComponents := make(map[string]bool) // Prevent duplicates
+
+	// Track all component occurrences for duplicate detection
+	type ComponentOccurrence struct {
+		component DetectedComponent
+		path      string
+	}
+	seenComponents := make(map[string][]ComponentOccurrence) // Track all occurrences
+	duplicatesFound := false
 
 	// Walk the repository to detect components
 	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
@@ -717,17 +724,38 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 				componentKey := fmt.Sprintf("%s-%s", pattern.Name, componentName)
 				log.Printf("DEBUG: Component key: %s", componentKey)
 
-				if !seenComponents[componentKey] {
-					components = append(components, DetectedComponent{
+				if existing, exists := seenComponents[componentKey]; exists {
+					// Duplicate detected - log warning immediately
+					duplicatesFound = true
+					log.Printf("Warning: Duplicate component name detected!")
+					log.Printf("  Component: %s (%s)", componentName, pattern.Name)
+					log.Printf("  First occurrence: %s", existing[0].path)
+					log.Printf("  Duplicate at: %s", fullRelPath)
+
+					// Track this duplicate occurrence
+					seenComponents[componentKey] = append(seenComponents[componentKey], ComponentOccurrence{
+						component: DetectedComponent{
+							Type:       componentType,
+							Name:       componentName,
+							Path:       componentPath,
+							SourceFile: fileName,
+						},
+						path: fullRelPath,
+					})
+				} else {
+					// First occurrence - add to components list
+					component := DetectedComponent{
 						Type:       componentType,
 						Name:       componentName,
 						Path:       componentPath,
 						SourceFile: fileName,
-					})
-					seenComponents[componentKey] = true
+					}
+					components = append(components, component)
+					seenComponents[componentKey] = []ComponentOccurrence{{
+						component: component,
+						path:      fullRelPath,
+					}}
 					log.Printf("DEBUG: Added component: %s (key: %s)", componentName, componentKey)
-				} else {
-					log.Printf("DEBUG: Duplicate component skipped: %s (key: %s)", componentName, componentKey)
 				}
 			}
 		}
@@ -743,17 +771,37 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 			}
 			componentKey := fmt.Sprintf("agent-%s", componentName)
 			log.Printf("DEBUG: Agent component key: %s", componentKey)
-			if !seenComponents[componentKey] {
-				components = append(components, DetectedComponent{
+
+			if existing, exists := seenComponents[componentKey]; exists {
+				// Duplicate detected
+				duplicatesFound = true
+				log.Printf("Warning: Duplicate agent name detected!")
+				log.Printf("  Agent: %s", componentName)
+				log.Printf("  First occurrence: %s", existing[0].path)
+				log.Printf("  Duplicate at: %s", fullRelPath)
+
+				seenComponents[componentKey] = append(seenComponents[componentKey], ComponentOccurrence{
+					component: DetectedComponent{
+						Type:       ComponentAgent,
+						Name:       componentName,
+						Path:       relPath,
+						SourceFile: fileName,
+					},
+					path: fullRelPath,
+				})
+			} else {
+				component := DetectedComponent{
 					Type:       ComponentAgent,
 					Name:       componentName,
 					Path:       relPath,
 					SourceFile: fileName,
-				})
-				seenComponents[componentKey] = true
+				}
+				components = append(components, component)
+				seenComponents[componentKey] = []ComponentOccurrence{{
+					component: component,
+					path:      fullRelPath,
+				}}
 				log.Printf("DEBUG: Added additional agent: %s", componentName)
-			} else {
-				log.Printf("DEBUG: Duplicate additional agent skipped: %s", componentName)
 			}
 		}
 
@@ -768,17 +816,37 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 			}
 			componentKey := fmt.Sprintf("command-%s", componentName)
 			log.Printf("DEBUG: Command component key: %s", componentKey)
-			if !seenComponents[componentKey] {
-				components = append(components, DetectedComponent{
+
+			if existing, exists := seenComponents[componentKey]; exists {
+				// Duplicate detected
+				duplicatesFound = true
+				log.Printf("Warning: Duplicate command name detected!")
+				log.Printf("  Command: %s", componentName)
+				log.Printf("  First occurrence: %s", existing[0].path)
+				log.Printf("  Duplicate at: %s", fullRelPath)
+
+				seenComponents[componentKey] = append(seenComponents[componentKey], ComponentOccurrence{
+					component: DetectedComponent{
+						Type:       ComponentCommand,
+						Name:       componentName,
+						Path:       relPath,
+						SourceFile: fileName,
+					},
+					path: fullRelPath,
+				})
+			} else {
+				component := DetectedComponent{
 					Type:       ComponentCommand,
 					Name:       componentName,
 					Path:       relPath,
 					SourceFile: fileName,
-				})
-				seenComponents[componentKey] = true
+				}
+				components = append(components, component)
+				seenComponents[componentKey] = []ComponentOccurrence{{
+					component: component,
+					path:      fullRelPath,
+				}}
 				log.Printf("DEBUG: Added additional command: %s", componentName)
-			} else {
-				log.Printf("DEBUG: Duplicate additional command skipped: %s", componentName)
 			}
 		}
 
@@ -802,6 +870,29 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 		}
 	}
 	log.Printf("DEBUG: Component breakdown - Skills: %d, Agents: %d, Commands: %d", skillCount, agentCount, commandCount)
+
+	// Display duplicate warnings summary if any duplicates were found
+	if duplicatesFound {
+		fmt.Printf("\n=== WARNING: Duplicate Component Names Detected ===\n\n")
+		for _, occurrences := range seenComponents {
+			if len(occurrences) > 1 {
+				// Parse component type from key
+				componentType := "component"
+				if len(occurrences) > 0 {
+					componentType = string(occurrences[0].component.Type)
+				}
+
+				fmt.Printf("  %s '%s' found %d times:\n", componentType, occurrences[0].component.Name, len(occurrences))
+				for i, occ := range occurrences {
+					fmt.Printf("    %d. %s\n", i+1, occ.path)
+				}
+				fmt.Printf("\n")
+			}
+		}
+		fmt.Printf("Only the first occurrence of each component was included.\n")
+		fmt.Printf("Consider renaming duplicates to avoid conflicts.\n")
+		fmt.Printf("====================================================\n\n")
+	}
 
 	return components, err
 }
