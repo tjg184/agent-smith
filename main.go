@@ -69,7 +69,6 @@ func createDefaultDetectionConfig() *DetectionConfig {
 			},
 			string(ComponentAgent): {
 				Name:           "agent",
-				ExactFiles:     []string{"AGENT.md"},
 				PathPatterns:   []string{"/agents/", "agents"},
 				FileExtensions: []string{".md"},
 				IgnorePaths: []string{
@@ -84,7 +83,6 @@ func createDefaultDetectionConfig() *DetectionConfig {
 			},
 			string(ComponentCommand): {
 				Name:           "command",
-				ExactFiles:     []string{"COMMAND.md"},
 				PathPatterns:   []string{"/commands/", "commands"},
 				FileExtensions: []string{".md"},
 				IgnorePaths: []string{
@@ -2893,9 +2891,9 @@ func (cl *ComponentLinker) isMonorepoContainer(componentType, componentName stri
 	case "skills":
 		markerFiles = []string{"SKILL.md"}
 	case "agents":
-		markerFiles = []string{"AGENT.md", componentName + ".md"}
+		markerFiles = []string{componentName + ".md"}
 	case "commands":
-		markerFiles = []string{"COMMAND.md", componentName + ".md"}
+		markerFiles = []string{componentName + ".md"}
 	default:
 		return false
 	}
@@ -2933,9 +2931,9 @@ func (cl *ComponentLinker) linkMonorepoComponents(componentType, repoName string
 	case "skills":
 		markerFiles = []string{"SKILL.md"}
 	case "agents":
-		markerFiles = []string{"AGENT.md"}
+		markerFiles = []string{}
 	case "commands":
-		markerFiles = []string{"COMMAND.md"}
+		markerFiles = []string{}
 	default:
 		return fmt.Errorf("unknown component type: %s", componentType)
 	}
