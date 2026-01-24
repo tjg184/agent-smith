@@ -44,24 +44,7 @@ func TestComponentNameExtraction(t *testing.T) {
 			expectedNames: []string{}, // Skills only detect via exact SKILL.md files, not path patterns
 			description:   "Skills only detect via exact SKILL.md files, not path patterns",
 		},
-		{
-			name:          "agent-exact-file",
-			componentType: ComponentAgent,
-			filesToCreate: map[string]string{
-				"AGENT.md": "# Test Agent",
-			},
-			expectedNames: []string{"root-agent"},
-			description:   "Agent detected via exact AGENT.md file match",
-		},
-		{
-			name:          "agent-directory-named",
-			componentType: ComponentAgent,
-			filesToCreate: map[string]string{
-				"myagent/AGENT.md": "# My Agent",
-			},
-			expectedNames: []string{"myagent"}, // Extracts directory name containing AGENT.md
-			description:   "Agent name extracted from parent directory containing AGENT.md",
-		},
+
 		{
 			name:          "agent-path-pattern",
 			componentType: ComponentAgent,
@@ -71,24 +54,7 @@ func TestComponentNameExtraction(t *testing.T) {
 			expectedNames: []string{"coding"},
 			description:   "Agent detected via /agents/ path pattern and file extension",
 		},
-		{
-			name:          "command-exact-file",
-			componentType: ComponentCommand,
-			filesToCreate: map[string]string{
-				"COMMAND.md": "# Test Command",
-			},
-			expectedNames: []string{"root-command"},
-			description:   "Command detected via exact COMMAND.md file match",
-		},
-		{
-			name:          "command-directory-named",
-			componentType: ComponentCommand,
-			filesToCreate: map[string]string{
-				"mycommand/COMMAND.md": "# My Command",
-			},
-			expectedNames: []string{"mycommand"}, // Extracts directory name containing COMMAND.md
-			description:   "Command name extracted from parent directory containing COMMAND.md",
-		},
+
 		{
 			name:          "command-path-pattern",
 			componentType: ComponentCommand,
@@ -114,25 +80,21 @@ func TestComponentNameExtraction(t *testing.T) {
 			name:          "multiple-agents-different-locations",
 			componentType: ComponentAgent,
 			filesToCreate: map[string]string{
-				"AGENT.md":          "# Root Agent",
-				"ai/AGENT.md":       "# AI Agent",
 				"agents/chatbot.md": "# Chatbot Agent",
-				"bots/helper.md":    "# Helper Agent",
+				"agents/helper.md":  "# Helper Agent",
 			},
-			expectedNames: []string{"root-agent", "ai", "chatbot"}, // Root + ai directory + chatbot from agents/ path
-			description:   "Multiple agents detected in different locations",
+			expectedNames: []string{"chatbot", "helper"}, // Both from agents/ path
+			description:   "Multiple agents detected via path patterns",
 		},
 		{
 			name:          "multiple-commands-different-locations",
 			componentType: ComponentCommand,
 			filesToCreate: map[string]string{
-				"COMMAND.md":        "# Root Command",
-				"cli/COMMAND.md":    "# CLI Command",
-				"commands/build.md": "# Build Command",
-				"tools/deploy.md":   "# Deploy Command",
+				"commands/build.md":  "# Build Command",
+				"commands/deploy.md": "# Deploy Command",
 			},
-			expectedNames: []string{"root-command", "cli", "build"}, // Root + cli directory + build from commands/ path
-			description:   "Multiple commands detected in different locations",
+			expectedNames: []string{"build", "deploy"}, // Both from commands/ path
+			description:   "Multiple commands detected via path patterns",
 		},
 		{
 			name:          "mixed-component-types",
@@ -140,9 +102,7 @@ func TestComponentNameExtraction(t *testing.T) {
 			filesToCreate: map[string]string{
 				"SKILL.md":          "# Root Skill",
 				"myskill/SKILL.md":  "# My Skill",
-				"AGENT.md":          "# Root Agent",
 				"agents/helper.md":  "# Helper Agent",
-				"COMMAND.md":        "# Root Command",
 				"commands/build.md": "# Build Command",
 			},
 			expectedNames: []string{"root-skill", "myskill"}, // Both skills detected with their names
@@ -340,10 +300,9 @@ func TestComponentNameExtractionEdgeCases(t *testing.T) {
 			name:          "case-sensitive-paths",
 			componentType: ComponentAgent,
 			filesToCreate: map[string]string{
-				"AGENT.md":          "# Root Agent",
 				"agents/chatbot.md": "# Lowercase agents",
 			},
-			expectedNames: []string{"root-agent", "chatbot"}, // Simplified to match working patterns
+			expectedNames: []string{"chatbot"},
 			description:   "Path detection should be case sensitive",
 			expectError:   false,
 		},
@@ -477,10 +436,10 @@ func TestComponentNameValidation(t *testing.T) {
 			name:          "unicode-characters",
 			componentType: ComponentAgent,
 			filesToCreate: map[string]string{
-				"агент/AGENT.md":  "# Unicode Agent Name",
-				"エージェント/AGENT.md": "# Japanese Agent",
+				"agents/агент.md":  "# Unicode Agent Name",
+				"agents/エージェント.md": "# Japanese Agent",
 			},
-			expectedNames: []string{"агент", "エージェント"}, // Unicode directory names preserved
+			expectedNames: []string{"агент", "エージェント"}, // Unicode file names preserved
 			description:   "Unicode characters in component names should be preserved",
 		},
 		{

@@ -68,8 +68,8 @@ The skill will be available for execution with 'agent-smith npx' or 'agent-smith
 		Long: `Download and install an AI agent from a git repository to your local agents directory.
 
 This command fetches an agent from any git repository (GitHub, GitLab, Bitbucket, or private)
-and installs it to ~/.agents/agents/<agent-name>. The agent can include multiple components
-and will be automatically detected if it contains an AGENT.md file.
+and installs it to ~/.agents/agents/<agent-name>. The agent will be automatically detected
+based on path patterns and file extensions.
 
 REPOSITORY URL FORMATS:
   GitHub shorthand:     owner/repo
@@ -101,8 +101,8 @@ The agent will be available for execution with 'agent-smith npx' or 'agent-smith
 		Long: `Download and install a command-line tool from a git repository to your local agents directory.
 
 This command fetches a command from any git repository (GitHub, GitLab, Bitbucket, or private)
-and installs it to ~/.agents/commands/<command-name>. The command can include multiple components
-and will be automatically detected if it contains a COMMAND.md file.
+and installs it to ~/.agents/commands/<command-name>. The command will be automatically detected
+based on path patterns and file extensions.
 
 REPOSITORY URL FORMATS:
   GitHub shorthand:     owner/repo
@@ -135,7 +135,7 @@ The command will be available for execution with 'agent-smith npx' or 'agent-smi
 
 This command fetches a repository and automatically detects all AI components
 within it, then downloads them to their respective directories. Components are
-detected based on the presence of SKILL.md, AGENT.md, or COMMAND.md files.
+detected based on the presence of SKILL.md files or path patterns.
 
 REPOSITORY URL FORMATS:
   GitHub shorthand:     owner/repo
