@@ -1838,11 +1838,11 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
-	// Create COMMAND.md if it doesn't exist
-	commandFile := filepath.Join(commandDir, "COMMAND.md")
+	// Create {name}.md if it doesn't exist
+	commandFile := filepath.Join(commandDir, commandName+".md")
 	if _, err := os.Stat(commandFile); os.IsNotExist(err) {
 		if err := cd.createCommandFile(commandFile, commandName, fullURL); err != nil {
-			log.Printf("Warning: failed to create COMMAND.md: %v", err)
+			log.Printf("Warning: failed to create %s.md: %v", commandName, err)
 		}
 	}
 
@@ -2391,11 +2391,11 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
-	// Create AGENT.md if it doesn't exist
-	agentFile := filepath.Join(agentDir, "AGENT.md")
+	// Create {name}.md if it doesn't exist
+	agentFile := filepath.Join(agentDir, agentName+".md")
 	if _, err := os.Stat(agentFile); os.IsNotExist(err) {
 		if err := ad.createAgentFile(agentFile, agentName, fullURL); err != nil {
-			log.Printf("Warning: failed to create AGENT.md: %v", err)
+			log.Printf("Warning: failed to create %s.md: %v", agentName, err)
 		}
 	}
 
@@ -2796,25 +2796,29 @@ func (cl *ComponentLinker) isMonorepoContainer(componentType, componentName stri
 		return false
 	}
 
-	var markerFile string
+	// Determine possible marker files for this component type
+	var markerFiles []string
 	switch componentType {
 	case "skills":
-		markerFile = "SKILL.md"
+		markerFiles = []string{"SKILL.md"}
 	case "agents":
-		markerFile = "AGENT.md"
+		markerFiles = []string{"AGENT.md", componentName + ".md"}
 	case "commands":
-		markerFile = "COMMAND.md"
+		markerFiles = []string{"COMMAND.md", componentName + ".md"}
 	default:
 		return false
 	}
 
-	// Count how many subdirectories contain the marker file
+	// Count how many subdirectories contain a marker file
 	subComponentCount := 0
 	for _, entry := range entries {
 		if entry.IsDir() {
 			subDir := filepath.Join(componentDir, entry.Name())
-			if _, err := os.Stat(filepath.Join(subDir, markerFile)); err == nil {
-				subComponentCount++
+			for _, markerFile := range markerFiles {
+				if _, err := os.Stat(filepath.Join(subDir, markerFile)); err == nil {
+					subComponentCount++
+					break
+				}
 			}
 		}
 	}
@@ -2832,14 +2836,15 @@ func (cl *ComponentLinker) linkMonorepoComponents(componentType, repoName string
 		return fmt.Errorf("failed to read monorepo directory: %w", err)
 	}
 
-	var markerFile string
+	// Determine possible marker files for this component type
+	var markerFiles []string
 	switch componentType {
 	case "skills":
-		markerFile = "SKILL.md"
+		markerFiles = []string{"SKILL.md"}
 	case "agents":
-		markerFile = "AGENT.md"
+		markerFiles = []string{"AGENT.md"}
 	case "commands":
-		markerFile = "COMMAND.md"
+		markerFiles = []string{"COMMAND.md"}
 	default:
 		return fmt.Errorf("unknown component type: %s", componentType)
 	}
@@ -2850,8 +2855,23 @@ func (cl *ComponentLinker) linkMonorepoComponents(componentType, repoName string
 			subComponentName := entry.Name()
 			subComponentDir := filepath.Join(repoDir, subComponentName)
 
-			// Check if this subdirectory contains the marker file
-			if _, err := os.Stat(filepath.Join(subComponentDir, markerFile)); err == nil {
+			// Check if this subdirectory contains any marker file or a {name}.md file
+			hasMarker := false
+			for _, markerFile := range markerFiles {
+				if _, err := os.Stat(filepath.Join(subComponentDir, markerFile)); err == nil {
+					hasMarker = true
+					break
+				}
+			}
+
+			// Also check for {name}.md pattern
+			if !hasMarker {
+				if _, err := os.Stat(filepath.Join(subComponentDir, subComponentName+".md")); err == nil {
+					hasMarker = true
+				}
+			}
+
+			if hasMarker {
 				// Link this sub-component using a unique name that includes the repo name
 				linkName := fmt.Sprintf("%s-%s", repoName, subComponentName)
 
