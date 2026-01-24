@@ -59,7 +59,7 @@ func TestComponentNameExtraction(t *testing.T) {
 			filesToCreate: map[string]string{
 				"myagent/AGENT.md": "# My Agent",
 			},
-			expectedNames: []string{"root-agent"}, // Same logic as skills
+			expectedNames: []string{"myagent"}, // Extracts directory name containing AGENT.md
 			description:   "Agent name extracted from parent directory containing AGENT.md",
 		},
 		{
@@ -86,7 +86,7 @@ func TestComponentNameExtraction(t *testing.T) {
 			filesToCreate: map[string]string{
 				"mycommand/COMMAND.md": "# My Command",
 			},
-			expectedNames: []string{"root-command"}, // Same logic as skills and agents
+			expectedNames: []string{"mycommand"}, // Extracts directory name containing COMMAND.md
 			description:   "Command name extracted from parent directory containing COMMAND.md",
 		},
 		{
@@ -107,7 +107,7 @@ func TestComponentNameExtraction(t *testing.T) {
 				"backend/SKILL.md":     "# Backend Skill",
 				"nested/deep/SKILL.md": "# Deep Skill",
 			},
-			expectedNames: []string{"root-skill", "nested"}, // Multiple root-skill entries get deduplicated to one
+			expectedNames: []string{"root-skill", "frontend", "backend", "deep"}, // Each directory gets its own name
 			description:   "Multiple skills detected in different locations",
 		},
 		{
@@ -119,7 +119,7 @@ func TestComponentNameExtraction(t *testing.T) {
 				"agents/chatbot.md": "# Chatbot Agent",
 				"bots/helper.md":    "# Helper Agent",
 			},
-			expectedNames: []string{"root-agent", "chatbot"}, // Only one root-agent detected due to deduplication
+			expectedNames: []string{"root-agent", "ai", "chatbot"}, // Root + ai directory + chatbot from agents/ path
 			description:   "Multiple agents detected in different locations",
 		},
 		{
@@ -131,7 +131,7 @@ func TestComponentNameExtraction(t *testing.T) {
 				"commands/build.md": "# Build Command",
 				"tools/deploy.md":   "# Deploy Command",
 			},
-			expectedNames: []string{"root-command", "build"}, // Only one root-command detected due to deduplication, tools/deploy.md is not detected
+			expectedNames: []string{"root-command", "cli", "build"}, // Root + cli directory + build from commands/ path
 			description:   "Multiple commands detected in different locations",
 		},
 		{
@@ -145,7 +145,7 @@ func TestComponentNameExtraction(t *testing.T) {
 				"COMMAND.md":        "# Root Command",
 				"commands/build.md": "# Build Command",
 			},
-			expectedNames: []string{"root-skill"}, // myskill/SKILL.md also becomes root-skill but gets deduplicated
+			expectedNames: []string{"root-skill", "myskill"}, // Both skills detected with their names
 			description:   "Mixed component types - testing skill extraction",
 		},
 		{
@@ -157,7 +157,7 @@ func TestComponentNameExtraction(t *testing.T) {
 				"packages/tools/dev/SKILL.md":    "# Dev Skill",
 				"src/skills/testing.md":          "# Testing Skill",
 			},
-			expectedNames: []string{"skills", "tools"}, // Based on actual output: skills from lib/ai/skills/nlp/SKILL.md, tools from packages/tools/dev/SKILL.md
+			expectedNames: []string{"web", "nlp", "dev"}, // Each extracts the directory name containing SKILL.md
 			description:   "Skills in deeply nested directory structures",
 		},
 		{
@@ -169,7 +169,7 @@ func TestComponentNameExtraction(t *testing.T) {
 				"skill123/SKILL.md":        "# Skill with numbers",
 				"complex.name-v2/SKILL.md": "# Complex skill name",
 			},
-			expectedNames: []string{"root-skill"}, // All become root-skill due to directory name logic, but get deduplicated
+			expectedNames: []string{"my-skill", "my_skill", "skill123", "complex.name-v2"}, // Each directory name is used as-is
 			description:   "Component names with special characters",
 		},
 		{
@@ -181,7 +181,7 @@ func TestComponentNameExtraction(t *testing.T) {
 				"build/skills/production.md":  "# Should be ignored",
 				"skills/SKILL.md":             "# Should be detected",
 			},
-			expectedNames: []string{"root-skill"}, // skills/SKILL.md should be detected (skills is not ignored)
+			expectedNames: []string{"skills"}, // Only skills/SKILL.md should be detected
 			description:   "Paths that should be ignored during detection",
 		},
 	}
@@ -230,7 +230,7 @@ func TestComponentNameExtraction(t *testing.T) {
 				actualNames[i] = comp.Name
 			}
 
-			// Compare with expected names
+			// Compare with expected names using set-based comparison (order doesn't matter)
 			if len(actualNames) != len(tt.expectedNames) {
 				t.Errorf("Expected %d components, got %d", len(tt.expectedNames), len(actualNames))
 				t.Logf("Expected: %v", tt.expectedNames)
@@ -238,13 +238,28 @@ func TestComponentNameExtraction(t *testing.T) {
 				return
 			}
 
-			for i, expected := range tt.expectedNames {
-				if i >= len(actualNames) {
+			// Create maps for comparison to handle order differences
+			expectedMap := make(map[string]bool)
+			for _, name := range tt.expectedNames {
+				expectedMap[name] = true
+			}
+
+			actualMap := make(map[string]bool)
+			for _, name := range actualNames {
+				actualMap[name] = true
+			}
+
+			// Check for missing expected names
+			for expected := range expectedMap {
+				if !actualMap[expected] {
 					t.Errorf("Missing expected component: %s", expected)
-					continue
 				}
-				if actualNames[i] != expected {
-					t.Errorf("Component %d: expected name %s, got %s", i, expected, actualNames[i])
+			}
+
+			// Check for unexpected names
+			for actual := range actualMap {
+				if !expectedMap[actual] {
+					t.Errorf("Unexpected component detected: %s", actual)
 				}
 			}
 
@@ -317,7 +332,7 @@ func TestComponentNameExtractionEdgeCases(t *testing.T) {
 				"skill2/SKILL.md":        "# Second Skill",
 				"skill1/nested/SKILL.md": "# Nested Skill",
 			},
-			expectedNames: []string{"root-skill", "skill1"}, // skill1/SKILL.md and skill2/SKILL.md both become root-skill but deduplicate, skill1/nested/SKILL.md becomes skill1
+			expectedNames: []string{"skill1", "skill2", "nested"}, // skill1, skill2, and nested are all detected
 			description:   "Duplicate component names should be handled",
 			expectError:   false,
 		},
@@ -397,7 +412,7 @@ func TestComponentNameExtractionEdgeCases(t *testing.T) {
 				actualNames[i] = comp.Name
 			}
 
-			// Compare with expected names
+			// Compare with expected names using set-based comparison (order doesn't matter)
 			if len(actualNames) != len(tt.expectedNames) {
 				t.Errorf("Expected %d components, got %d", len(tt.expectedNames), len(actualNames))
 				t.Logf("Expected: %v", tt.expectedNames)
@@ -405,13 +420,28 @@ func TestComponentNameExtractionEdgeCases(t *testing.T) {
 				return
 			}
 
-			for i, expected := range tt.expectedNames {
-				if i >= len(actualNames) {
+			// Create maps for comparison to handle order differences
+			expectedMap := make(map[string]bool)
+			for _, name := range tt.expectedNames {
+				expectedMap[name] = true
+			}
+
+			actualMap := make(map[string]bool)
+			for _, name := range actualNames {
+				actualMap[name] = true
+			}
+
+			// Check for missing expected names
+			for expected := range expectedMap {
+				if !actualMap[expected] {
 					t.Errorf("Missing expected component: %s", expected)
-					continue
 				}
-				if actualNames[i] != expected {
-					t.Errorf("Component %d: expected name %s, got %s", i, expected, actualNames[i])
+			}
+
+			// Check for unexpected names
+			for actual := range actualMap {
+				if !expectedMap[actual] {
+					t.Errorf("Unexpected component detected: %s", actual)
 				}
 			}
 
@@ -440,7 +470,7 @@ func TestComponentNameValidation(t *testing.T) {
 			filesToCreate: map[string]string{
 				"  spaced  /SKILL.md": "# Spaced Directory",
 			},
-			expectedNames: []string{"root-skill"}, // Current logic gives root-skill for any directory with SKILL.md
+			expectedNames: []string{"  spaced  "}, // Directory name with spaces preserved
 			description:   "Whitespace in paths should be preserved",
 		},
 		{
@@ -450,7 +480,7 @@ func TestComponentNameValidation(t *testing.T) {
 				"агент/AGENT.md":  "# Unicode Agent Name",
 				"エージェント/AGENT.md": "# Japanese Agent",
 			},
-			expectedNames: []string{"root-agent"}, // Both unicode directories become root-agent due to current logic
+			expectedNames: []string{"агент", "エージェント"}, // Unicode directory names preserved
 			description:   "Unicode characters in component names should be preserved",
 		},
 		{
@@ -470,7 +500,7 @@ func TestComponentNameValidation(t *testing.T) {
 				"a/SKILL.md": "# Single letter skill",
 				"b/SKILL.md": "# Another single letter",
 			},
-			expectedNames: []string{"root-skill"}, // Both single-character directories become root-skill
+			expectedNames: []string{"a", "b"}, // Single-character directory names preserved
 			description:   "Single character component names should work",
 		},
 	}
