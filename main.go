@@ -19,6 +19,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/tgaines/agent-smith/cmd"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -115,6 +116,14 @@ type DetectedComponent struct {
 	SourceFile string
 }
 
+// ComponentFrontmatter represents YAML frontmatter metadata for agents/commands
+type ComponentFrontmatter struct {
+	Name        string `yaml:"name"`
+	Description string `yaml:"description"`
+	Model       string `yaml:"model"`
+	Mode        string `yaml:"mode"`
+}
+
 type SkillDownloader struct {
 	baseDir  string
 	detector *RepositoryDetector
@@ -201,6 +210,80 @@ func createDirectoryWithPermissions(path string) error {
 func createFileWithPermissions(path string, data []byte) error {
 	perm := getCrossPlatformFilePermissions()
 	return os.WriteFile(path, data, perm)
+}
+
+// parseFrontmatter extracts YAML frontmatter from a markdown file
+// Frontmatter must be delimited by "---" at the start of the file
+// Returns nil if no frontmatter is found (not an error)
+func parseFrontmatter(filePath string) (*ComponentFrontmatter, error) {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", filePath, err)
+	}
+
+	contentStr := string(content)
+
+	// Check if file starts with frontmatter delimiter
+	if !strings.HasPrefix(contentStr, "---\n") && !strings.HasPrefix(contentStr, "---\r\n") {
+		// No frontmatter found, return nil (not an error)
+		return nil, nil
+	}
+
+	// Find the closing delimiter
+	lines := strings.Split(contentStr, "\n")
+	var frontmatterLines []string
+	foundClosing := false
+
+	for i := 1; i < len(lines); i++ {
+		line := strings.TrimRight(lines[i], "\r")
+		if line == "---" {
+			foundClosing = true
+			break
+		}
+		frontmatterLines = append(frontmatterLines, lines[i])
+	}
+
+	if !foundClosing {
+		log.Printf("Warning: Malformed frontmatter in %s (missing closing delimiter)", filePath)
+		return nil, nil
+	}
+
+	// Parse YAML
+	frontmatterStr := strings.Join(frontmatterLines, "\n")
+	var frontmatter ComponentFrontmatter
+
+	if err := yaml.Unmarshal([]byte(frontmatterStr), &frontmatter); err != nil {
+		log.Printf("Warning: Failed to parse YAML frontmatter in %s: %v", filePath, err)
+		return nil, nil
+	}
+
+	return &frontmatter, nil
+}
+
+// determineComponentName determines the component name using frontmatter or filename
+// Priority: frontmatter.name > filename (without extension)
+// Special files (README.md, index.md, main.md) are skipped
+func determineComponentName(frontmatter *ComponentFrontmatter, fileName string) string {
+	// Skip special files
+	lowerFileName := strings.ToLower(fileName)
+	if lowerFileName == "readme.md" || lowerFileName == "index.md" || lowerFileName == "main.md" {
+		return ""
+	}
+
+	// Use frontmatter name if available
+	if frontmatter != nil && strings.TrimSpace(frontmatter.Name) != "" {
+		return strings.TrimSpace(frontmatter.Name)
+	}
+
+	// Fall back to filename without extension
+	name := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+
+	// Handle edge case: no extension or empty name
+	if name == "" || name == "." {
+		return ""
+	}
+
+	return name
 }
 
 // loadDetectionConfig loads detection configuration from a JSON file
