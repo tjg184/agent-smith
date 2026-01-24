@@ -110,8 +110,9 @@ const (
 type DetectedComponent struct {
 	Type       ComponentType
 	Name       string
-	Path       string
-	SourceFile string
+	Path       string // Relative path to component directory
+	SourceFile string // Source file name
+	FilePath   string // Full relative path from repo root (including filename)
 }
 
 // ComponentFrontmatter represents YAML frontmatter metadata for agents/commands
@@ -160,6 +161,7 @@ type ComponentLockEntry struct {
 	SourceType      string `json:"sourceType"`
 	SourceUrl       string `json:"sourceUrl"`
 	SkillPath       string `json:"skillPath,omitempty"`
+	PluginPath      string `json:"pluginPath,omitempty"` // Path to plugin directory (e.g., "plugins/ui-design")
 	SkillFolderHash string `json:"skillFolderHash"`
 	InstalledAt     string `json:"installedAt"`
 	UpdatedAt       string `json:"updatedAt"`
@@ -183,6 +185,7 @@ type ComponentMetadata struct {
 	Downloaded string `json:"downloaded"`
 	Components int    `json:"components,omitempty"`
 	Detection  string `json:"detection,omitempty"`
+	PluginPath string `json:"pluginPath,omitempty"` // Path to plugin directory
 }
 
 // Cross-platform helper functions
@@ -737,6 +740,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 							Name:       componentName,
 							Path:       componentPath,
 							SourceFile: fileName,
+							FilePath:   fullRelPath, // Track full path from repo root
 						},
 						path: fullRelPath,
 					})
@@ -747,6 +751,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 						Name:       componentName,
 						Path:       componentPath,
 						SourceFile: fileName,
+						FilePath:   fullRelPath, // Track full path from repo root
 					}
 					components = append(components, component)
 					seenComponents[componentKey] = []ComponentOccurrence{{
@@ -784,6 +789,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 						Name:       componentName,
 						Path:       relPath,
 						SourceFile: fileName,
+						FilePath:   fullRelPath, // Track full path from repo root
 					},
 					path: fullRelPath,
 				})
@@ -793,6 +799,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 					Name:       componentName,
 					Path:       relPath,
 					SourceFile: fileName,
+					FilePath:   fullRelPath, // Track full path from repo root
 				}
 				components = append(components, component)
 				seenComponents[componentKey] = []ComponentOccurrence{{
@@ -829,6 +836,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 						Name:       componentName,
 						Path:       relPath,
 						SourceFile: fileName,
+						FilePath:   fullRelPath, // Track full path from repo root
 					},
 					path: fullRelPath,
 				})
@@ -838,6 +846,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 					Name:       componentName,
 					Path:       relPath,
 					SourceFile: fileName,
+					FilePath:   fullRelPath, // Track full path from repo root
 				}
 				components = append(components, component)
 				seenComponents[componentKey] = []ComponentOccurrence{{
@@ -1289,7 +1298,7 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string, providedRepo
 		}
 	}
 
-	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, len(skillComponents), "recursive"); err != nil {
+	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, len(skillComponents), "recursive", ""); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -1394,7 +1403,7 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 		}
 	}
 
-	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, 1, "direct"); err != nil {
+	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, 1, "direct", ""); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -1451,7 +1460,7 @@ func (sd *SkillDownloader) saveMetadata(filePath string, metadata map[string]int
 }
 
 // Save component lock entry in npx add-skill compatible format
-func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string) error {
+func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, pluginPath string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get user home directory: %w", err)
@@ -1506,6 +1515,7 @@ func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceT
 		Source:          source,
 		SourceType:      sourceType,
 		SourceUrl:       sourceUrl,
+		PluginPath:      pluginPath, // Track plugin directory path
 		SkillFolderHash: skillFolderHash,
 		InstalledAt:     existingEntry.InstalledAt,
 		UpdatedAt:       now,
@@ -1644,7 +1654,7 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 		}
 	}
 
-	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, 1, "single"); err != nil {
+	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, 1, "single", ""); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -1850,7 +1860,7 @@ func (cd *CommandDownloader) downloadCommand(repoURL, commandName string, provid
 		}
 	}
 
-	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, len(commandComponents), "recursive"); err != nil {
+	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, len(commandComponents), "recursive", ""); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -1922,7 +1932,7 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		}
 	}
 
-	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, 1, "direct"); err != nil {
+	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, 1, "direct", ""); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -1979,7 +1989,7 @@ func (cd *CommandDownloader) saveMetadata(filePath string, metadata map[string]i
 }
 
 // Save command lock entry in npx add-skill compatible format
-func (cd *CommandDownloader) saveLockFile(commandName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string) error {
+func (cd *CommandDownloader) saveLockFile(commandName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, pluginPath string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get user home directory: %w", err)
@@ -2030,6 +2040,7 @@ func (cd *CommandDownloader) saveLockFile(commandName string, source string, sou
 		Source:          source,
 		SourceType:      sourceType,
 		SourceUrl:       sourceUrl,
+		PluginPath:      pluginPath, // Track plugin directory path
 		SkillFolderHash: skillFolderHash,
 		InstalledAt:     existingEntry.InstalledAt,
 		UpdatedAt:       now,
@@ -2175,7 +2186,7 @@ func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoU
 		}
 	}
 
-	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, len(commandComponents), "recursive"); err != nil {
+	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, len(commandComponents), "recursive", ""); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -2379,7 +2390,7 @@ func (ad *AgentDownloader) downloadAgent(repoURL, agentName string, providedRepo
 		}
 	}
 
-	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, len(agentComponents), "recursive"); err != nil {
+	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, len(agentComponents), "recursive", ""); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -2451,7 +2462,7 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 		}
 	}
 
-	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, 1, "direct"); err != nil {
+	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, 1, "direct", ""); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -2508,7 +2519,7 @@ func (ad *AgentDownloader) saveMetadata(filePath string, metadata map[string]int
 }
 
 // Save agent lock entry in npx add-skill compatible format
-func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string) error {
+func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, pluginPath string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get user home directory: %w", err)
@@ -2559,6 +2570,7 @@ func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceT
 		Source:          source,
 		SourceType:      sourceType,
 		SourceUrl:       sourceUrl,
+		PluginPath:      pluginPath, // Track plugin directory path
 		SkillFolderHash: skillFolderHash,
 		InstalledAt:     existingEntry.InstalledAt,
 		UpdatedAt:       now,
@@ -2704,7 +2716,7 @@ func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL str
 		}
 	}
 
-	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, len(agentComponents), "recursive"); err != nil {
+	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, len(agentComponents), "recursive", ""); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
