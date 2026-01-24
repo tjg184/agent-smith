@@ -33,3 +33,15 @@
 - [✓] 2026-01-23 20:27 - Story-002: As a user downloading accessibility-compliance plugin, I want only 2 skills downloaded so that I get clean, isolated skill directories. - Test accessibility-compliance plugin download specifically, Verify only its own skills are copied, Check directory structure matches expected output, Validate metadata shows correct component count (2 skills).
 - [✓] 2026-01-23 20:51 - Story-003: As a developer maintaining Agent Smith, I want bulk download to process plugins independently so that the system works reliably across different repository structures. - Ensure each plugin is processed separately during bulk download, Prevent cross-plugin contamination, Confirm total skill count matches repository (127 across all plugins).
 - [✓] 2026-01-23 20:54 - Story-003: As a developer maintaining Agent Smith, I want bulk download to process plugins independently so that the system works reliably across different repository structures. - Ensure each plugin is processed separately during bulk download, Prevent cross-plugin contamination, Confirm total skill count matches repository (127 across all plugins).
+- [✓] 2026-01-24 21:50 - Story-001: As a developer, I want to download agents from repositories with various structures so that I can use agents regardless of how they're organized.
+- [✓] 2026-01-24 21:54 - Story-002: As a developer, I want agents/commands to use YAML frontmatter for metadata so that I can specify custom names and configuration.
+- [✗] 2026-01-24 21:58 - config
+- [✗] 2026-01-24 21:58 - config
+- [✓] 2026-01-24 21:58 - Story-003: As a developer, I want component names determined by priority (frontmatter > filename) so that I have flexibility in naming.
+- [✓] 2026-01-24 22:01 - Story-004: As a developer, I want agents/commands stored in flat directory structure so that linking to OpenCode is straightforward.
+- [✓] 2026-01-24 22:05 - Story-005: As a developer, I want clear warnings when duplicate component names are detected so that I can resolve conflicts.
+- [✓] 2026-01-24 22:09 - Story-006: As a developer, I want the old AGENT.md/COMMAND.md marker detection removed so that the codebase is simpler.
+- [✓] 2026-01-24 22:13 - Story-007: As a developer, I want components downloaded by copying entire directories so that support files and resources are preserved.
+- [✓] 2026-01-24 22:17 - Story-005: As a developer, I want clear warnings when duplicate component names are detected so that I can resolve conflicts.
+- [✓] 2026-01-24 22:23 - Story-006: As a developer, I want the old AGENT.md/COMMAND.md marker detection removed so that the codebase is simpler.
+- [✓] 2026-01-24 22:25 - Story-008: As a developer, I want the update-all command to re-clone repositories so that updates are reliable and simple.

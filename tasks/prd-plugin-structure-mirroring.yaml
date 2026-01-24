@@ -1,0 +1,28 @@
+tasks:
+  - title: "Story-001: As an agent-smith developer, I want to extend data structures to track plugin information so that the system can preserve repository structure throughout the download pipeline - Add FilePath field to DetectedComponent, Add PluginPath field to ComponentMetadata and ComponentLockEntry, Ensure backward compatibility with existing lock file format"
+    completed: false
+    parallel_group: 0
+  
+  - title: "Story-002: As an agent-smith developer, I want to update component detection to capture full file paths so that the download logic can copy only relevant files instead of entire directories - Update detectComponentForPattern() signature to return filePath, Update all callers to capture filePath, Store FilePath in DetectedComponent for all detection paths"
+    completed: false
+    parallel_group: 0
+  
+  - title: "Story-003: As an agent-smith developer, I want to add plugin detection helper functions so that the system can identify and extract plugin paths from component paths - Create extractPluginPath() function, Create detectCommonPluginPath() function, Handle edge cases and cross-platform paths"
+    completed: false
+    parallel_group: 1
+  
+  - title: "Story-004: As an agent-smith user, I want the download logic to mirror plugin structures so that I can see the exact repository organization in my local .agents directory without file duplication - Rewrite downloadAgentWithRepo() with plugin detection, Copy entire plugin directory once when detected, Save metadata with pluginPath, Maintain backward compatibility for non-plugin structures"
+    completed: false
+    parallel_group: 1
+  
+  - title: "Story-005: As an agent-smith developer, I want to apply identical plugin mirroring logic to skills and commands so that all component types benefit from structure preservation - Apply same logic to downloadSkillWithRepo(), Apply same logic to downloadCommandWithRepo(), Ensure consistent behavior across all component types"
+    completed: false
+    parallel_group: 1
+  
+  - title: "Story-006: As an agent-smith user, I want proper symlinks created to plugin-based components so that I can use agents/commands/skills installed from plugin structures - Update linking logic to check for pluginPath, Create symlinks to specific files in plugin directories, Update isMonorepoContainer() to recognize plugin structures"
+    completed: false
+    parallel_group: 2
+  
+  - title: "Story-007: As an agent-smith user, I want comprehensive integration testing so that the plugin mirroring system works correctly for real-world repositories - Test wshobson/agents downloads create proper plugin structure, Test multi-component non-plugin repos maintain existing behavior, Test flat repos maintain existing behavior, Verify no duplicate files in any scenario"
+    completed: false
+    parallel_group: 2
