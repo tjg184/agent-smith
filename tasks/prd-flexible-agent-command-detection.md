@@ -16,7 +16,7 @@ Implement a flexible, frontmatter-based detection system for AI agents and comma
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want to download agents from repositories with various structures so that I can use agents regardless of how they're organized.
+- [x] Story-001: As a developer, I want to download agents from repositories with various structures so that I can use agents regardless of how they're organized.
 
   **Acceptance Criteria:**
   - System detects any `/agents/` directory anywhere in repository tree
@@ -35,7 +35,7 @@ Implement a flexible, frontmatter-based detection system for AI agents and comma
   - Multiple structure format validation
   - Ignore path effectiveness verification
 
-- [ ] Story-002: As a developer, I want agents/commands to use YAML frontmatter for metadata so that I can specify custom names and configuration.
+- [x] Story-002: As a developer, I want agents/commands to use YAML frontmatter for metadata so that I can specify custom names and configuration.
 
   **Acceptance Criteria:**
   - Parse YAML frontmatter delimited by `---`
@@ -55,7 +55,7 @@ Implement a flexible, frontmatter-based detection system for AI agents and comma
   - End-to-end with various frontmatter formats
   - Fallback behavior validation
 
-- [ ] Story-003: As a developer, I want component names determined by priority (frontmatter > filename) so that I have flexibility in naming.
+- [x] Story-003: As a developer, I want component names determined by priority (frontmatter > filename) so that I have flexibility in naming.
 
   **Acceptance Criteria:**
   - Use frontmatter `name` field if present
@@ -74,7 +74,7 @@ Implement a flexible, frontmatter-based detection system for AI agents and comma
   - End-to-end naming validation
   - Component uniqueness verification
 
-- [ ] Story-004: As a developer, I want agents/commands stored in flat directory structure so that linking to OpenCode is straightforward.
+- [x] Story-004: As a developer, I want agents/commands stored in flat directory structure so that linking to OpenCode is straightforward.
 
   **Acceptance Criteria:**
   - Store agents in `~/.agents/agents/{name}/{name}.md`
