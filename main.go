@@ -1844,15 +1844,7 @@ func (cd *CommandDownloader) downloadCommand(repoURL, commandName string, provid
 
 	// Compute folder hash if it's a GitHub repo
 	var folderHash string
-	if sourceType == "github" {
-		if strings.HasPrefix(fullURL, "https://github.com/") {
-			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
-			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
-			if hash, err := computeGitHubTreeSHA(ownerRepo, "COMMAND.md"); err == nil {
-				folderHash = hash
-			}
-		}
-	} else {
+	if sourceType != "github" {
 		if hash, err := computeLocalFolderHash(commandDir); err == nil {
 			folderHash = hash
 		}
@@ -1924,15 +1916,7 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 
 	// Compute folder hash if it's a GitHub repo
 	var folderHash string
-	if sourceType == "github" {
-		if strings.HasPrefix(fullURL, "https://github.com/") {
-			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
-			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
-			if hash, err := computeGitHubTreeSHA(ownerRepo, "COMMAND.md"); err == nil {
-				folderHash = hash
-			}
-		}
-	} else {
+	if sourceType != "github" {
 		if hash, err := computeLocalFolderHash(commandDir); err == nil {
 			folderHash = hash
 		}
@@ -2185,15 +2169,7 @@ func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoU
 
 	// Compute folder hash if it's a GitHub repo
 	var folderHash string
-	if sourceType == "github" {
-		if strings.HasPrefix(fullURL, "https://github.com/") {
-			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
-			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
-			if hash, err := computeGitHubTreeSHA(ownerRepo, "COMMAND.md"); err == nil {
-				folderHash = hash
-			}
-		}
-	} else {
+	if sourceType != "github" {
 		if hash, err := computeLocalFolderHash(commandDir); err == nil {
 			folderHash = hash
 		}
@@ -2397,15 +2373,7 @@ func (ad *AgentDownloader) downloadAgent(repoURL, agentName string, providedRepo
 
 	// Compute folder hash if it's a GitHub repo
 	var folderHash string
-	if sourceType == "github" {
-		if strings.HasPrefix(fullURL, "https://github.com/") {
-			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
-			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
-			if hash, err := computeGitHubTreeSHA(ownerRepo, "AGENT.md"); err == nil {
-				folderHash = hash
-			}
-		}
-	} else {
+	if sourceType != "github" {
 		if hash, err := computeLocalFolderHash(agentDir); err == nil {
 			folderHash = hash
 		}
@@ -2477,15 +2445,7 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 
 	// Compute folder hash if it's a GitHub repo
 	var folderHash string
-	if sourceType == "github" {
-		if strings.HasPrefix(fullURL, "https://github.com/") {
-			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
-			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
-			if hash, err := computeGitHubTreeSHA(ownerRepo, "AGENT.md"); err == nil {
-				folderHash = hash
-			}
-		}
-	} else {
+	if sourceType != "github" {
 		if hash, err := computeLocalFolderHash(agentDir); err == nil {
 			folderHash = hash
 		}
@@ -2738,15 +2698,7 @@ func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL str
 
 	// Compute folder hash if it's a GitHub repo
 	var folderHash string
-	if sourceType == "github" {
-		if strings.HasPrefix(fullURL, "https://github.com/") {
-			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
-			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
-			if hash, err := computeGitHubTreeSHA(ownerRepo, "AGENT.md"); err == nil {
-				folderHash = hash
-			}
-		}
-	} else {
+	if sourceType != "github" {
 		if hash, err := computeLocalFolderHash(agentDir); err == nil {
 			folderHash = hash
 		}
