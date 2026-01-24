@@ -537,7 +537,8 @@ func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullR
 	// Check path patterns with file extensions (medium priority)
 	if len(pattern.PathPatterns) > 0 && len(pattern.FileExtensions) > 0 {
 		if rd.matchesPathPattern(relPath, pattern.PathPatterns) && rd.matchesFileExtension(fileName, pattern.FileExtensions) {
-			componentName := filepath.Base(relPath)
+			// Extract component name from filename (without extension) for better uniqueness
+			componentName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 			log.Printf("DEBUG: Path pattern + extension match, name: %s", componentName)
 			return componentName, relPath, true
 		}
@@ -616,7 +617,8 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 
 		// Additional agent detection for .md files in /agents/ paths
 		if strings.HasSuffix(fileName, ".md") && strings.Contains(fullRelPath, "/agents/") {
-			componentName := filepath.Base(relPath)
+			// Extract component name from filename (without extension) for better uniqueness
+			componentName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 			log.Printf("DEBUG: Additional agent detection in /agents/ path: %s", componentName)
 			if componentName == "" || componentName == "." {
 				componentName = "root-agent"
@@ -640,7 +642,8 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 
 		// Additional command detection for .md files in /commands/ paths
 		if strings.HasSuffix(fileName, ".md") && strings.Contains(fullRelPath, "/commands/") {
-			componentName := filepath.Base(relPath)
+			// Extract component name from filename (without extension) for better uniqueness
+			componentName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 			log.Printf("DEBUG: Additional command detection in /commands/ path: %s", componentName)
 			if componentName == "" || componentName == "." {
 				componentName = "root-command"
@@ -1514,10 +1517,42 @@ func (cd *CommandDownloader) downloadCommand(repoURL, commandName string, provid
 		return fmt.Errorf("failed to create command directory: %w", err)
 	}
 
+	// Check if the requested commandName matches one of the detected components
+	var matchingComponent *DetectedComponent
+	for _, comp := range commandComponents {
+		if comp.Name == commandName {
+			matchingComponent = &comp
+			break
+		}
+	}
+
+	// Additional check: if we found a matching component but it's part of a larger directory structure,
+	// prefer components that have their own directory (more specific)
+	if matchingComponent != nil && len(commandComponents) > 1 {
+		for _, comp := range commandComponents {
+			if comp.Name == commandName && comp.Path != matchingComponent.Path {
+				// Found a more specific version (different path)
+				matchingComponent = &comp
+				break
+			}
+		}
+	}
+
 	// If only one command component found, copy its contents
 	if len(commandComponents) == 1 {
 		component := commandComponents[0]
 		componentPath := filepath.Join(repoPath, component.Path)
+
+		// Copy component contents to command directory
+		err = cd.copyDirectoryContents(componentPath, commandDir)
+		if err != nil {
+			os.RemoveAll(commandDir)
+			return fmt.Errorf("failed to copy command contents: %w", err)
+		}
+	} else if matchingComponent != nil {
+		// Downloading a specific component from a multi-component directory
+		// Use direct copy to avoid double nesting
+		componentPath := filepath.Join(repoPath, matchingComponent.Path)
 
 		// Copy component contents to command directory
 		err = cd.copyDirectoryContents(componentPath, commandDir)
@@ -2035,10 +2070,42 @@ func (ad *AgentDownloader) downloadAgent(repoURL, agentName string, providedRepo
 		return fmt.Errorf("failed to create agent directory: %w", err)
 	}
 
+	// Check if the requested agentName matches one of the detected components
+	var matchingComponent *DetectedComponent
+	for _, comp := range agentComponents {
+		if comp.Name == agentName {
+			matchingComponent = &comp
+			break
+		}
+	}
+
+	// Additional check: if we found a matching component but it's part of a larger directory structure,
+	// prefer components that have their own directory (more specific)
+	if matchingComponent != nil && len(agentComponents) > 1 {
+		for _, comp := range agentComponents {
+			if comp.Name == agentName && comp.Path != matchingComponent.Path {
+				// Found a more specific version (different path)
+				matchingComponent = &comp
+				break
+			}
+		}
+	}
+
 	// If only one agent component found, copy its contents
 	if len(agentComponents) == 1 {
 		component := agentComponents[0]
 		componentPath := filepath.Join(repoPath, component.Path)
+
+		// Copy component contents to agent directory
+		err = ad.copyDirectoryContents(componentPath, agentDir)
+		if err != nil {
+			os.RemoveAll(agentDir)
+			return fmt.Errorf("failed to copy agent contents: %w", err)
+		}
+	} else if matchingComponent != nil {
+		// Downloading a specific component from a multi-component directory
+		// Use direct copy to avoid double nesting
+		componentPath := filepath.Join(repoPath, matchingComponent.Path)
 
 		// Copy component contents to agent directory
 		err = ad.copyDirectoryContents(componentPath, agentDir)
