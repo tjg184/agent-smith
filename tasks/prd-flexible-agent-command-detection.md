@@ -126,7 +126,7 @@ Implement a flexible, frontmatter-based detection system for AI agents and comma
   - End-to-end without marker files
   - Backward compatibility with skills
 
-- [ ] Story-007: As a developer, I want components downloaded by copying entire directories so that support files and resources are preserved.
+- [x] Story-007: As a developer, I want components downloaded by copying entire directories so that support files and resources are preserved.
 
   **Acceptance Criteria:**
   - Copy entire parent directory containing component file
