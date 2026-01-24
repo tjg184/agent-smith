@@ -834,8 +834,6 @@ func BenchmarkComponentDetection(b *testing.B) {
 		count  int
 	}{
 		{"skills", "SKILL.md", 100},
-		{"agents", "AGENT.md", 50},
-		{"commands", "COMMAND.md", 75},
 	}
 
 	for _, ct := range componentTypes {
