@@ -912,3 +912,265 @@ func BenchmarkComponentDetection(b *testing.B) {
 		_ = components
 	}
 }
+
+// TestParseFrontmatter tests YAML frontmatter parsing
+func TestParseFrontmatter(t *testing.T) {
+	tests := []struct {
+		name          string
+		content       string
+		expectedName  string
+		expectedDesc  string
+		expectedModel string
+		expectedMode  string
+		shouldBeNil   bool
+		description   string
+	}{
+		{
+			name: "valid-frontmatter",
+			content: `---
+name: my-agent
+description: A helpful agent
+model: gpt-4
+mode: autonomous
+---
+
+# Agent Content
+
+This is the agent description.`,
+			expectedName:  "my-agent",
+			expectedDesc:  "A helpful agent",
+			expectedModel: "gpt-4",
+			expectedMode:  "autonomous",
+			shouldBeNil:   false,
+			description:   "Valid frontmatter with all fields",
+		},
+		{
+			name: "frontmatter-with-only-name",
+			content: `---
+name: simple-agent
+---
+
+# Simple Agent`,
+			expectedName: "simple-agent",
+			shouldBeNil:  false,
+			description:  "Frontmatter with only name field",
+		},
+		{
+			name: "no-frontmatter",
+			content: `# Agent Without Frontmatter
+
+This is a regular markdown file.`,
+			shouldBeNil: true,
+			description: "File without frontmatter returns nil",
+		},
+		{
+			name: "malformed-frontmatter-no-closing",
+			content: `---
+name: broken-agent
+
+# Agent Content`,
+			shouldBeNil: true,
+			description: "Malformed frontmatter (no closing delimiter) returns nil",
+		},
+		{
+			name: "malformed-yaml",
+			content: `---
+name: broken-agent
+description: [invalid yaml
+---
+
+# Agent Content`,
+			shouldBeNil: true,
+			description: "Invalid YAML returns nil with warning",
+		},
+		{
+			name: "empty-frontmatter",
+			content: `---
+---
+
+# Agent Content`,
+			shouldBeNil:  false,
+			expectedName: "",
+			description:  "Empty frontmatter is valid but returns empty fields",
+		},
+		{
+			name: "frontmatter-with-extra-fields",
+			content: `---
+name: future-agent
+description: Agent with unknown fields
+customField: someValue
+anotherField: 123
+---
+
+# Future Agent`,
+			expectedName: "future-agent",
+			expectedDesc: "Agent with unknown fields",
+			shouldBeNil:  false,
+			description:  "Frontmatter with unknown fields is ignored (forward compatible)",
+		},
+		{
+			name:         "windows-line-endings",
+			content:      "---\r\nname: windows-agent\r\ndescription: Agent with CRLF\r\n---\r\n\r\n# Windows Agent",
+			expectedName: "windows-agent",
+			expectedDesc: "Agent with CRLF",
+			shouldBeNil:  false,
+			description:  "Handles Windows CRLF line endings",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary file
+			tempDir := t.TempDir()
+			testFile := filepath.Join(tempDir, "test.md")
+
+			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
+				t.Fatalf("Failed to create test file: %v", err)
+			}
+
+			// Parse frontmatter
+			frontmatter, err := parseFrontmatter(testFile)
+
+			if err != nil {
+				t.Fatalf("parseFrontmatter returned error: %v", err)
+			}
+
+			if tt.shouldBeNil {
+				if frontmatter != nil {
+					t.Errorf("Expected nil frontmatter, got: %+v", frontmatter)
+				}
+				return
+			}
+
+			if frontmatter == nil {
+				t.Fatalf("Expected frontmatter, got nil")
+			}
+
+			// Check fields
+			if frontmatter.Name != tt.expectedName {
+				t.Errorf("Expected name '%s', got '%s'", tt.expectedName, frontmatter.Name)
+			}
+
+			if tt.expectedDesc != "" && frontmatter.Description != tt.expectedDesc {
+				t.Errorf("Expected description '%s', got '%s'", tt.expectedDesc, frontmatter.Description)
+			}
+
+			if tt.expectedModel != "" && frontmatter.Model != tt.expectedModel {
+				t.Errorf("Expected model '%s', got '%s'", tt.expectedModel, frontmatter.Model)
+			}
+
+			if tt.expectedMode != "" && frontmatter.Mode != tt.expectedMode {
+				t.Errorf("Expected mode '%s', got '%s'", tt.expectedMode, frontmatter.Mode)
+			}
+		})
+	}
+}
+
+// TestDetermineComponentName tests component name determination logic
+func TestDetermineComponentName(t *testing.T) {
+	tests := []struct {
+		name         string
+		frontmatter  *ComponentFrontmatter
+		fileName     string
+		expectedName string
+		description  string
+	}{
+		{
+			name: "frontmatter-name-priority",
+			frontmatter: &ComponentFrontmatter{
+				Name: "custom-name",
+			},
+			fileName:     "agent-file.md",
+			expectedName: "custom-name",
+			description:  "Frontmatter name takes priority over filename",
+		},
+		{
+			name:         "filename-fallback",
+			frontmatter:  nil,
+			fileName:     "coding-agent.md",
+			expectedName: "coding-agent",
+			description:  "Falls back to filename without extension",
+		},
+		{
+			name: "empty-frontmatter-name",
+			frontmatter: &ComponentFrontmatter{
+				Name: "",
+			},
+			fileName:     "my-agent.md",
+			expectedName: "my-agent",
+			description:  "Empty frontmatter name falls back to filename",
+		},
+		{
+			name: "whitespace-frontmatter-name",
+			frontmatter: &ComponentFrontmatter{
+				Name: "  ",
+			},
+			fileName:     "my-agent.md",
+			expectedName: "my-agent",
+			description:  "Whitespace-only frontmatter name falls back to filename",
+		},
+		{
+			name:         "skip-readme",
+			frontmatter:  nil,
+			fileName:     "README.md",
+			expectedName: "",
+			description:  "README.md is skipped",
+		},
+		{
+			name:         "skip-index",
+			frontmatter:  nil,
+			fileName:     "index.md",
+			expectedName: "",
+			description:  "index.md is skipped",
+		},
+		{
+			name:         "skip-main",
+			frontmatter:  nil,
+			fileName:     "main.md",
+			expectedName: "",
+			description:  "main.md is skipped",
+		},
+		{
+			name: "readme-with-frontmatter",
+			frontmatter: &ComponentFrontmatter{
+				Name: "custom-agent",
+			},
+			fileName:     "README.md",
+			expectedName: "",
+			description:  "README.md is skipped even with frontmatter name",
+		},
+		{
+			name:         "no-extension",
+			frontmatter:  nil,
+			fileName:     "agent",
+			expectedName: "agent",
+			description:  "Handles filename without extension",
+		},
+		{
+			name:         "multiple-dots",
+			frontmatter:  nil,
+			fileName:     "my.agent.config.md",
+			expectedName: "my.agent.config",
+			description:  "Handles filename with multiple dots",
+		},
+		{
+			name: "frontmatter-with-spaces",
+			frontmatter: &ComponentFrontmatter{
+				Name: "  my agent  ",
+			},
+			fileName:     "agent.md",
+			expectedName: "my agent",
+			description:  "Trims whitespace from frontmatter name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := determineComponentName(tt.frontmatter, tt.fileName)
+
+			if result != tt.expectedName {
+				t.Errorf("Expected name '%s', got '%s'", tt.expectedName, result)
+			}
+		})
+	}
+}
