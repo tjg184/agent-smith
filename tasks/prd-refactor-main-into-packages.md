@@ -22,17 +22,17 @@ Refactor the monolithic `main.go` file (~4200 lines) into a well-organized, stan
 
 - [x] **Story-004**: As a developer maintaining detection logic, I want component detection isolated in its own package so that I can test and extend detection patterns independently. - Create `internal/detector/` package, Extract RepositoryDetector struct and methods, Separate pattern matching into patterns.go, Separate component detection into components.go, Add interfaces for testability.
 
-- [ ] **Story-005**: As a developer fixing download bugs, I want downloader implementations separated by type so that I can modify skill downloads without affecting agent downloads. - Create `internal/downloader/` package, Extract SkillDownloader to skill.go, Extract AgentDownloader to agent.go, Extract CommandDownloader to command.go, Extract BulkDownloader to bulk.go, Create common.go for shared utilities.
+- [x] **Story-005**: As a developer fixing download bugs, I want downloader implementations separated by type so that I can modify skill downloads without affecting agent downloads. - Create `internal/downloader/` package, Extract SkillDownloader to skill.go, Extract AgentDownloader to agent.go, Extract CommandDownloader to command.go, Extract BulkDownloader to bulk.go, Create common.go for shared utilities.
 
-- [ ] **Story-006**: As a developer maintaining git operations, I want git functionality isolated so that I can mock it in tests. - Create `internal/git/` package, Extract clone operations to clone.go, Extract repository info to info.go, Create clean interfaces for testing.
+- [x] **Story-006**: As a developer maintaining git operations, I want git functionality isolated so that I can mock it in tests. - Create `internal/git/` package, Extract clone operations to clone.go, Extract repository info to info.go, Create clean interfaces for testing.
 
-- [ ] **Story-007**: As a developer working on metadata, I want lock file and metadata operations in a dedicated package so that I can ensure consistency. - Create `internal/metadata/` package, Extract lock file operations to lock.go, Extract legacy metadata handling to legacy.go, Extract hash computation to hash.go.
+- [x] **Story-007**: As a developer working on metadata, I want lock file and metadata operations in a dedicated package so that I can ensure consistency. - Create `internal/metadata/` package, Extract lock file operations to lock.go, Extract legacy metadata handling to legacy.go, Extract hash computation to hash.go.
 
-- [ ] **Story-008**: As a developer maintaining linking functionality, I want component linking isolated so that I can extend it without touching other code. - Create `internal/linker/` package, Extract ComponentLinker to linker.go, Extract link status analysis to status.go, Implement dependency injection.
+- [x] **Story-008**: As a developer maintaining linking functionality, I want component linking isolated so that I can extend it without touching other code. - Create `internal/linker/` package, Extract ComponentLinker to linker.go, Extract link status analysis to status.go, Implement dependency injection.
 
-- [ ] **Story-009**: As a developer maintaining update functionality, I want update detection in its own package so that I can improve it independently. - Create `internal/updater/` package, Extract UpdateDetector to updater.go, Implement clean interfaces.
+- [x] **Story-009**: As a developer maintaining update functionality, I want update detection in its own package so that I can improve it independently. - Create `internal/updater/` package, Extract UpdateDetector to updater.go, Implement clean interfaces.
 
-- [ ] **Story-010**: As a developer maintaining npx-like execution, I want executor functionality isolated so that I can extend execution without affecting downloads. - Create `internal/executor/` package, Extract ComponentExecutor to executor.go, Wire up to CLI handlers.
+- [x] **Story-010**: As a developer maintaining npx-like execution, I want executor functionality isolated so that I can extend execution without affecting downloads. - Create `internal/executor/` package, Extract ComponentExecutor to executor.go, Wire up to CLI handlers.
 
 - [ ] **Story-011**: As a developer reviewing code, I want main.go to be minimal so that I can quickly understand the application entry point. - Refactor main.go to contain only handler implementations, Move all business logic to appropriate packages, Ensure main.go is < 200 lines, Add clear comments for each handler.
 
