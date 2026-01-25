@@ -224,6 +224,89 @@ All detected components will be downloaded to ~/.agents/{skills,agents,commands}
 		},
 	})
 
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "list-links",
+		Short: "List all components linked to opencode",
+		Long: `List all components (skills, agents, and commands) currently linked to opencode.
+
+This command shows the status of each linked component, including whether it's
+a symlink or copied directory, and whether the link is valid or broken.
+
+EXAMPLES:
+  # List all linked components
+  agent-smith list-links
+
+The output shows:
+  ✓ - Valid symlink
+  ◆ - Copied directory
+  ✗ - Broken link`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			handleListLinks()
+		},
+	})
+
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "unlink <type> <name>",
+		Short: "Remove a linked component from opencode",
+		Long: `Remove a specific linked component from opencode without deleting the source.
+
+This command removes the link at ~/.config/opencode/<type>/<name> but leaves
+the original component in ~/.agents/<type>/<name> untouched.
+
+COMPONENT TYPES:
+  skills    - Remove a linked skill
+  agents    - Remove a linked agent
+  commands  - Remove a linked command
+
+SAFETY:
+  - Symlinks are removed immediately
+  - Copied directories require confirmation before deletion
+  - Source files in ~/.agents/ are never touched
+
+EXAMPLES:
+  # Unlink a skill
+  agent-smith unlink skills mcp-builder
+
+  # Unlink a command
+  agent-smith unlink commands pr-review
+
+  # Unlink an agent
+  agent-smith unlink agents code-reviewer`,
+		Args: cobra.ExactArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleUnlink(args[0], args[1])
+		},
+	})
+
+	unlinkAllCmd := &cobra.Command{
+		Use:   "unlink-all",
+		Short: "Remove all linked components from opencode",
+		Long: `Remove all linked components from opencode without deleting sources.
+
+This command removes all links from ~/.config/opencode/ but leaves the
+original components in ~/.agents/ untouched.
+
+SAFETY:
+  - Without --force: Prompts for confirmation before removing
+  - With --force: Removes all links immediately
+  - Warns about copied directories that will be permanently deleted
+
+EXAMPLES:
+  # Unlink all components with confirmation prompt
+  agent-smith unlink-all
+
+  # Unlink all components without confirmation
+  agent-smith unlink-all --force`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			force, _ := cmd.Flags().GetBool("force")
+			handleUnlinkAll(force)
+		},
+	}
+	unlinkAllCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
+	rootCmd.AddCommand(unlinkAllCmd)
+
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
 }
 
@@ -239,6 +322,9 @@ var (
 	handleLink       func(componentType, componentName string)
 	handleLinkAll    func()
 	handleAutoLink   func()
+	handleListLinks  func()
+	handleUnlink     func(componentType, componentName string)
+	handleUnlinkAll  func(force bool)
 )
 
 func SetHandlers(
@@ -252,6 +338,9 @@ func SetHandlers(
 	link func(componentType, componentName string),
 	linkAll func(),
 	autoLink func(),
+	listLinks func(),
+	unlink func(componentType, componentName string),
+	unlinkAll func(force bool),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
@@ -263,4 +352,7 @@ func SetHandlers(
 	handleLink = link
 	handleLinkAll = linkAll
 	handleAutoLink = autoLink
+	handleListLinks = listLinks
+	handleUnlink = unlink
+	handleUnlinkAll = unlinkAll
 }

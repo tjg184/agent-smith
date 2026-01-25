@@ -3195,6 +3195,325 @@ func (cl *ComponentLinker) detectAndLinkLocalRepositories() error {
 	return nil
 }
 
+// LinkStatus represents the status of a linked component
+type LinkStatus struct {
+	Name       string
+	Type       string
+	LinkType   string // "symlink", "copied", "broken", "missing"
+	Target     string
+	Valid      bool
+	TargetPath string
+}
+
+// listLinkedComponents lists all components linked to opencode
+func (cl *ComponentLinker) listLinkedComponents() error {
+	componentTypes := []string{"skills", "agents", "commands"}
+
+	allLinks := make(map[string][]LinkStatus)
+	totalCount := 0
+	validCount := 0
+	brokenCount := 0
+
+	for _, componentType := range componentTypes {
+		typeDir := filepath.Join(cl.opencodeDir, componentType)
+
+		// Check if directory exists
+		if _, err := os.Stat(typeDir); os.IsNotExist(err) {
+			allLinks[componentType] = []LinkStatus{}
+			continue
+		}
+
+		// Read directory entries
+		entries, err := os.ReadDir(typeDir)
+		if err != nil {
+			return fmt.Errorf("failed to read %s directory: %w", componentType, err)
+		}
+
+		links := []LinkStatus{}
+		for _, entry := range entries {
+			// Skip hidden files
+			if strings.HasPrefix(entry.Name(), ".") {
+				continue
+			}
+
+			fullPath := filepath.Join(typeDir, entry.Name())
+			linkType, target, valid := cl.analyzeLinkStatus(fullPath)
+
+			status := LinkStatus{
+				Name:       entry.Name(),
+				Type:       componentType,
+				LinkType:   linkType,
+				Target:     target,
+				Valid:      valid,
+				TargetPath: fullPath,
+			}
+
+			links = append(links, status)
+			totalCount++
+
+			if valid {
+				validCount++
+			} else if linkType == "broken" {
+				brokenCount++
+			}
+		}
+
+		allLinks[componentType] = links
+	}
+
+	// Display results
+	if totalCount == 0 {
+		fmt.Println("No components are currently linked to opencode.")
+		fmt.Printf("Link location: %s\n", cl.opencodeDir)
+		return nil
+	}
+
+	// Display by type
+	for _, componentType := range componentTypes {
+		links := allLinks[componentType]
+		if len(links) == 0 {
+			continue
+		}
+
+		// Capitalize first letter for display
+		displayType := strings.Title(componentType)
+		fmt.Printf("\n%s (%d):\n", displayType, len(links))
+
+		for _, link := range links {
+			var symbol, statusMsg string
+
+			switch link.LinkType {
+			case "symlink":
+				if link.Valid {
+					symbol = "✓"
+					statusMsg = fmt.Sprintf("→ %s", link.Target)
+				} else {
+					symbol = "✗"
+					statusMsg = "[broken link]"
+				}
+			case "copied":
+				symbol = "◆"
+				statusMsg = "[copied directory]"
+			case "broken":
+				symbol = "✗"
+				statusMsg = "[broken link]"
+			case "missing":
+				symbol = "?"
+				statusMsg = "[unknown state]"
+			default:
+				symbol = "?"
+				statusMsg = "[unknown]"
+			}
+
+			fmt.Printf("  %s %s %s\n", symbol, link.Name, statusMsg)
+		}
+	}
+
+	// Summary
+	fmt.Printf("\nTotal: %d components", totalCount)
+	if brokenCount > 0 {
+		fmt.Printf(" (%d valid, %d broken)", validCount, brokenCount)
+	}
+	fmt.Println()
+
+	return nil
+}
+
+// analyzeLinkStatus analyzes the status of a link/directory
+func (cl *ComponentLinker) analyzeLinkStatus(path string) (linkType string, target string, valid bool) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return "missing", "", false
+	}
+
+	// Check if it's a symlink
+	if info.Mode()&os.ModeSymlink != 0 {
+		target, err := os.Readlink(path)
+		if err != nil {
+			return "broken", "", false
+		}
+
+		// Resolve relative paths
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(filepath.Dir(path), target)
+		}
+
+		// Check if target exists
+		if _, err := os.Stat(target); err == nil {
+			return "symlink", target, true
+		}
+		return "broken", target, false
+	}
+
+	// If it's a directory, it's a copied component
+	if info.IsDir() {
+		return "copied", path, true
+	}
+
+	return "unknown", "", false
+}
+
+// unlinkComponent removes a linked component from opencode
+func (cl *ComponentLinker) unlinkComponent(componentType, componentName string) error {
+	// Validate component type
+	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
+		return fmt.Errorf("invalid component type: %s (must be skills, agents, or commands)", componentType)
+	}
+
+	linkPath := filepath.Join(cl.opencodeDir, componentType, componentName)
+
+	// Check if link exists
+	if _, err := os.Lstat(linkPath); os.IsNotExist(err) {
+		return fmt.Errorf("component %s/%s is not linked to opencode", componentType, componentName)
+	}
+
+	// Analyze what we're removing
+	linkType, target, _ := cl.analyzeLinkStatus(linkPath)
+
+	// For copied directories, ask for confirmation
+	if linkType == "copied" {
+		fmt.Printf("Warning: '%s' is a copied directory, not a symlink.\n", componentName)
+		fmt.Printf("This will permanently delete: %s\n", linkPath)
+		fmt.Print("Continue? [y/N]: ")
+
+		var response string
+		fmt.Scanln(&response)
+
+		if strings.ToLower(strings.TrimSpace(response)) != "y" {
+			fmt.Println("Unlink cancelled.")
+			return nil
+		}
+	}
+
+	// Remove the link or directory
+	if linkType == "copied" {
+		if err := os.RemoveAll(linkPath); err != nil {
+			return fmt.Errorf("failed to remove copied directory: %w", err)
+		}
+	} else {
+		// For symlinks and broken links
+		if err := os.Remove(linkPath); err != nil {
+			return fmt.Errorf("failed to remove link: %w", err)
+		}
+	}
+
+	fmt.Printf("Successfully unlinked %s '%s' from opencode\n", componentType, componentName)
+
+	if linkType == "symlink" && target != "" {
+		fmt.Printf("Source still available at: %s\n", target)
+	}
+
+	return nil
+}
+
+// unlinkAllComponents removes all linked components from opencode
+func (cl *ComponentLinker) unlinkAllComponents(force bool) error {
+	componentTypes := []string{"skills", "agents", "commands"}
+
+	// First, collect all links
+	totalLinks := 0
+	copiedDirs := 0
+
+	for _, componentType := range componentTypes {
+		typeDir := filepath.Join(cl.opencodeDir, componentType)
+
+		if _, err := os.Stat(typeDir); os.IsNotExist(err) {
+			continue
+		}
+
+		entries, err := os.ReadDir(typeDir)
+		if err != nil {
+			return fmt.Errorf("failed to read %s directory: %w", componentType, err)
+		}
+
+		for _, entry := range entries {
+			if strings.HasPrefix(entry.Name(), ".") {
+				continue
+			}
+
+			fullPath := filepath.Join(typeDir, entry.Name())
+			linkType, _, _ := cl.analyzeLinkStatus(fullPath)
+
+			totalLinks++
+			if linkType == "copied" {
+				copiedDirs++
+			}
+		}
+	}
+
+	if totalLinks == 0 {
+		fmt.Println("No linked components found.")
+		return nil
+	}
+
+	// Require force flag or confirmation
+	if !force {
+		fmt.Printf("This will unlink %d components from opencode", totalLinks)
+		if copiedDirs > 0 {
+			fmt.Printf(" (%d are copied directories and will be permanently deleted)", copiedDirs)
+		}
+		fmt.Println()
+		fmt.Print("Continue? [y/N]: ")
+
+		var response string
+		fmt.Scanln(&response)
+
+		if strings.ToLower(strings.TrimSpace(response)) != "y" {
+			fmt.Println("Unlink cancelled.")
+			return nil
+		}
+	}
+
+	// Remove all links
+	removedCount := 0
+	errorCount := 0
+
+	for _, componentType := range componentTypes {
+		typeDir := filepath.Join(cl.opencodeDir, componentType)
+
+		if _, err := os.Stat(typeDir); os.IsNotExist(err) {
+			continue
+		}
+
+		entries, err := os.ReadDir(typeDir)
+		if err != nil {
+			fmt.Printf("Warning: failed to read %s directory: %v\n", componentType, err)
+			continue
+		}
+
+		for _, entry := range entries {
+			if strings.HasPrefix(entry.Name(), ".") {
+				continue
+			}
+
+			fullPath := filepath.Join(typeDir, entry.Name())
+			linkType, _, _ := cl.analyzeLinkStatus(fullPath)
+
+			var err error
+			if linkType == "copied" {
+				err = os.RemoveAll(fullPath)
+			} else {
+				err = os.Remove(fullPath)
+			}
+
+			if err != nil {
+				fmt.Printf("Warning: failed to unlink %s/%s: %v\n", componentType, entry.Name(), err)
+				errorCount++
+			} else {
+				removedCount++
+			}
+		}
+	}
+
+	fmt.Printf("\nSuccessfully unlinked %d components", removedCount)
+	if errorCount > 0 {
+		fmt.Printf(" (%d errors)", errorCount)
+	}
+	fmt.Println()
+
+	return nil
+}
+
 func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*ComponentMetadata, error) {
 	// First try to load from npx add-skill compatible lock files
 	if metadata, err := ud.loadFromLockFile(componentType, componentName); err == nil {
@@ -3851,6 +4170,24 @@ func main() {
 			linker := NewComponentLinker()
 			if err := linker.detectAndLinkLocalRepositories(); err != nil {
 				log.Fatal("Failed to auto-link repositories:", err)
+			}
+		},
+		func() {
+			linker := NewComponentLinker()
+			if err := linker.listLinkedComponents(); err != nil {
+				log.Fatal("Failed to list linked components:", err)
+			}
+		},
+		func(componentType, componentName string) {
+			linker := NewComponentLinker()
+			if err := linker.unlinkComponent(componentType, componentName); err != nil {
+				log.Fatal("Failed to unlink component:", err)
+			}
+		},
+		func(force bool) {
+			linker := NewComponentLinker()
+			if err := linker.unlinkAllComponents(force); err != nil {
+				log.Fatal("Failed to unlink all components:", err)
 			}
 		},
 	)
