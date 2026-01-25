@@ -2987,6 +2987,13 @@ func (cl *ComponentLinker) linkComponent(componentType, componentName string) er
 		return fmt.Errorf("component %s/%s does not exist in %s", componentType, componentName, cl.agentsDir)
 	}
 
+	// Check if this component is part of a plugin structure
+	metadata := cl.loadComponentMetadata(componentType, componentName)
+	if metadata != nil && metadata.PluginPath != "" {
+		// This is a plugin-based component, link individual component files
+		return cl.linkPluginComponent(componentType, componentName, metadata.PluginPath)
+	}
+
 	// Create destination directory
 	if err := createDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
@@ -2999,6 +3006,132 @@ func (cl *ComponentLinker) linkComponent(componentType, componentName string) er
 
 	fmt.Printf("Successfully linked %s '%s' to opencode\n", componentType, componentName)
 	fmt.Printf("Source: %s\n", srcDir)
+	fmt.Printf("Target: %s\n", dstDir)
+
+	return nil
+}
+
+// loadComponentMetadata loads metadata for a component from lock files or metadata files
+func (cl *ComponentLinker) loadComponentMetadata(componentType, componentName string) *ComponentMetadata {
+	// Try lock file first
+	if metadata := cl.loadFromLockFile(componentType, componentName); metadata != nil {
+		return metadata
+	}
+
+	// Try legacy metadata file
+	var metadataFile string
+	switch componentType {
+	case "skills":
+		metadataFile = filepath.Join(cl.agentsDir, "skills", componentName, ".skill-metadata.json")
+	case "agents":
+		metadataFile = filepath.Join(cl.agentsDir, "agents", componentName, ".agent-metadata.json")
+	case "commands":
+		metadataFile = filepath.Join(cl.agentsDir, "commands", componentName, ".command-metadata.json")
+	default:
+		return nil
+	}
+
+	data, err := os.ReadFile(metadataFile)
+	if err != nil {
+		return nil
+	}
+
+	var metadata ComponentMetadata
+	if err := json.Unmarshal(data, &metadata); err != nil {
+		return nil
+	}
+
+	return &metadata
+}
+
+// loadFromLockFile loads metadata from lock file
+func (cl *ComponentLinker) loadFromLockFile(componentType, componentName string) *ComponentMetadata {
+	var lockFilePath string
+	var entries map[string]ComponentLockEntry
+
+	switch componentType {
+	case "skills":
+		lockFilePath = filepath.Join(cl.agentsDir, ".skill-lock.json")
+	case "agents":
+		lockFilePath = filepath.Join(cl.agentsDir, ".agent-lock.json")
+	case "commands":
+		lockFilePath = filepath.Join(cl.agentsDir, ".command-lock.json")
+	default:
+		return nil
+	}
+
+	lockData, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		return nil
+	}
+
+	var lockFile ComponentLockFile
+	if err := json.Unmarshal(lockData, &lockFile); err != nil {
+		return nil
+	}
+
+	switch componentType {
+	case "skills":
+		entries = lockFile.Skills
+	case "agents":
+		entries = lockFile.Agents
+	case "commands":
+		entries = lockFile.Commands
+	}
+
+	entry, exists := entries[componentName]
+	if !exists {
+		return nil
+	}
+
+	// Convert lock entry to metadata
+	return &ComponentMetadata{
+		Name:       componentName,
+		Source:     entry.SourceUrl,
+		Commit:     entry.SkillFolderHash,
+		PluginPath: entry.PluginPath,
+		Components: entry.Components,
+		Detection:  entry.Detection,
+	}
+}
+
+// linkPluginComponent creates symlinks for individual components within a plugin structure
+func (cl *ComponentLinker) linkPluginComponent(componentType, componentName, pluginPath string) error {
+	// The component is stored at: ~/.agents/{type}/{name}/plugins/{plugin-name}/{type}/{component-name}/
+	// We need to find the actual component files within this structure
+
+	srcBaseDir := filepath.Join(cl.agentsDir, componentType, componentName)
+	pluginDir := filepath.Join(srcBaseDir, pluginPath)
+
+	// Look for the component directory within the plugin structure
+	// Plugin structure: plugins/{plugin-name}/{agents|skills|commands}/{component-name}/
+	componentDir := filepath.Join(pluginDir, componentType, componentName)
+
+	// Check if the component directory exists
+	if _, err := os.Stat(componentDir); os.IsNotExist(err) {
+		// Try alternative: component might be directly in the plugin type directory
+		// e.g., plugins/ui-design/agents/accessibility-expert.md (file, not directory)
+		componentFile := componentDir + ".md"
+		if _, err := os.Stat(componentFile); os.IsNotExist(err) {
+			return fmt.Errorf("plugin component %s not found in %s", componentName, pluginDir)
+		}
+		// Component is a single file, link the parent directory containing the file
+		componentDir = filepath.Join(pluginDir, componentType)
+	}
+
+	// Create destination directory
+	dstDir := filepath.Join(cl.opencodeDir, componentType, componentName)
+	if err := createDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	// Create symlink to the component directory within the plugin
+	if err := cl.createSymlink(componentDir, dstDir); err != nil {
+		return fmt.Errorf("failed to link plugin component: %w", err)
+	}
+
+	fmt.Printf("Successfully linked plugin-based %s '%s' to opencode\n", componentType, componentName)
+	fmt.Printf("Source: %s\n", componentDir)
 	fmt.Printf("Target: %s\n", dstDir)
 
 	return nil
@@ -3048,6 +3181,15 @@ func (cl *ComponentLinker) isMonorepoContainer(componentType, componentName stri
 	entries, err := os.ReadDir(componentDir)
 	if err != nil {
 		return false
+	}
+
+	// Check if this is a plugin structure by looking for a "plugins" subdirectory
+	// Plugin structure: ~/.agents/{type}/{name}/plugins/{plugin-name}/{agents|skills|commands}/
+	for _, entry := range entries {
+		if entry.IsDir() && entry.Name() == "plugins" {
+			// This is a plugin container, should not be linked directly
+			return true
+		}
 	}
 
 	// Determine possible marker files for this component type
