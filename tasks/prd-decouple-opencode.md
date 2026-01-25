@@ -13,7 +13,7 @@ Refactor the Agent Smith CLI to abstract the target environment. Currently, `ope
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want to abstract the hardcoded `opencode` paths into a configuration interface so that the CLI can support multiple targets in the future.
+- [x] Story-001: As a developer, I want to abstract the hardcoded `opencode` paths into a configuration interface so that the CLI can support multiple targets in the future.
 
   **Acceptance Criteria:**
   - `pkg/paths` no longer contains hardcoded `~/.config/opencode` global constants exposed directly
@@ -29,7 +29,7 @@ Refactor the Agent Smith CLI to abstract the target environment. Currently, `ope
   **Integration Tests:**
   - Verify application startup initializes correct paths without flags
 
-- [ ] Story-002: As a developer, I want to refactor the Linker to use a generic Target interface so that linking logic is not coupled to `opencode` directory structures.
+- [x] Story-002: As a developer, I want to refactor the Linker to use a generic Target interface so that linking logic is not coupled to `opencode` directory structures.
 
   **Acceptance Criteria:**
   - `ComponentLinker` struct accepts a `Target` interface instead of a raw `opencodeDir` string
@@ -44,7 +44,7 @@ Refactor the Agent Smith CLI to abstract the target environment. Currently, `ope
   **Integration Tests:**
   - Link a component and verify it still lands in `~/.config/opencode` via the new abstraction
 
-- [ ] Story-003: As a user, I want the CLI to default to `opencode` behavior without extra configuration so that my existing workflows remain unchanged.
+- [x] Story-003: As a user, I want the CLI to default to `opencode` behavior without extra configuration so that my existing workflows remain unchanged.
 
   **Acceptance Criteria:**
   - Running `agent-smith link` without arguments uses the Opencode target
