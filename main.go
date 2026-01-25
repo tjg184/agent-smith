@@ -19,8 +19,8 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/tgaines/agent-smith/cmd"
+	"github.com/tgaines/agent-smith/internal/fileutil"
 	"github.com/tgaines/agent-smith/internal/models"
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -119,101 +119,33 @@ type ComponentLockFile struct {
 
 // Cross-platform helper functions
 func getCrossPlatformPermissions() os.FileMode {
-	if runtime.GOOS == "windows" {
-		return 0666 // Windows has less granular permissions
-	}
-	return 0755 // Unix-like systems
+	return fileutil.GetCrossPlatformPermissions()
 }
 
 func getCrossPlatformFilePermissions() os.FileMode {
-	if runtime.GOOS == "windows" {
-		return 0644 // Windows has less granular permissions
-	}
-	return 0644 // Unix-like systems
+	return fileutil.GetCrossPlatformFilePermissions()
 }
 
 func createDirectoryWithPermissions(path string) error {
-	perm := getCrossPlatformPermissions()
-	return os.MkdirAll(path, perm)
+	return fileutil.CreateDirectoryWithPermissions(path)
 }
 
 func createFileWithPermissions(path string, data []byte) error {
-	perm := getCrossPlatformFilePermissions()
-	return os.WriteFile(path, data, perm)
+	return fileutil.CreateFileWithPermissions(path, data)
 }
 
 // parseFrontmatter extracts YAML frontmatter from a markdown file
 // Frontmatter must be delimited by "---" at the start of the file
 // Returns nil if no frontmatter is found (not an error)
 func parseFrontmatter(filePath string) (*models.ComponentFrontmatter, error) {
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", filePath, err)
-	}
-
-	contentStr := string(content)
-
-	// Check if file starts with frontmatter delimiter
-	if !strings.HasPrefix(contentStr, "---\n") && !strings.HasPrefix(contentStr, "---\r\n") {
-		// No frontmatter found, return nil (not an error)
-		return nil, nil
-	}
-
-	// Find the closing delimiter
-	lines := strings.Split(contentStr, "\n")
-	var frontmatterLines []string
-	foundClosing := false
-
-	for i := 1; i < len(lines); i++ {
-		line := strings.TrimRight(lines[i], "\r")
-		if line == "---" {
-			foundClosing = true
-			break
-		}
-		frontmatterLines = append(frontmatterLines, lines[i])
-	}
-
-	if !foundClosing {
-		log.Printf("Warning: Malformed frontmatter in %s (missing closing delimiter)", filePath)
-		return nil, nil
-	}
-
-	// Parse YAML
-	frontmatterStr := strings.Join(frontmatterLines, "\n")
-	var frontmatter models.ComponentFrontmatter
-
-	if err := yaml.Unmarshal([]byte(frontmatterStr), &frontmatter); err != nil {
-		log.Printf("Warning: Failed to parse YAML frontmatter in %s: %v", filePath, err)
-		return nil, nil
-	}
-
-	return &frontmatter, nil
+	return fileutil.ParseFrontmatter(filePath)
 }
 
 // determineComponentName determines the component name using frontmatter or filename
 // Priority: frontmatter.name > filename (without extension)
 // Special files (README.md, index.md, main.md) are skipped
 func determineComponentName(frontmatter *models.ComponentFrontmatter, fileName string) string {
-	// Skip special files
-	lowerFileName := strings.ToLower(fileName)
-	if lowerFileName == "readme.md" || lowerFileName == "index.md" || lowerFileName == "main.md" {
-		return ""
-	}
-
-	// Use frontmatter name if available
-	if frontmatter != nil && strings.TrimSpace(frontmatter.Name) != "" {
-		return strings.TrimSpace(frontmatter.Name)
-	}
-
-	// Fall back to filename without extension
-	name := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-
-	// Handle edge case: no extension or empty name
-	if name == "" || name == "." {
-		return ""
-	}
-
-	return name
+	return fileutil.DetermineComponentName(frontmatter, fileName)
 }
 
 // determineDestinationFolderName determines the destination folder name using hierarchy heuristic
@@ -1409,51 +1341,17 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 }
 
 func (sd *SkillDownloader) copyDirectoryContents(src, dst string) error {
-	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-
-		dstPath := filepath.Join(dst, relPath)
-
-		if info.IsDir() {
-			return createDirectoryWithPermissions(dstPath)
-		}
-
-		return sd.copyFile(path, dstPath)
-	})
+	return fileutil.CopyDirectoryContents(src, dst)
 }
 
 // copyComponentFiles copies the entire directory containing the component file (recursive)
 // Uses FilePath to determine the component's directory and copies all contents recursively
 func (sd *SkillDownloader) copyComponentFiles(repoPath string, component models.DetectedComponent, dst string) error {
-	componentPath := filepath.Join(repoPath, component.FilePath)
-	componentDir := filepath.Dir(componentPath)
-
-	// Skills are typically directory-based with SKILL.md, but check anyway
-	// If the component file is a single .md file (not SKILL.md), only copy that file
-	if filepath.Ext(component.FilePath) == ".md" && filepath.Base(component.FilePath) != "SKILL.md" {
-		// Single file component - copy just this file
-		fileName := filepath.Base(component.FilePath)
-		return sd.copyFile(componentPath, filepath.Join(dst, fileName))
-	}
-
-	// Directory-based component - copy entire directory recursively
-	return sd.copyDirectoryContents(componentDir, dst)
+	return fileutil.CopyComponentFiles(repoPath, component, dst)
 }
 
 func (sd *SkillDownloader) copyFile(src, dst string) error {
-	data, err := os.ReadFile(src)
-	if err != nil {
-		return err
-	}
-
-	return createFileWithPermissions(dst, data)
+	return fileutil.CopyFile(src, dst)
 }
 
 func (sd *SkillDownloader) saveMetadata(filePath string, metadata map[string]interface{}) error {
@@ -1956,54 +1854,17 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 }
 
 func (cd *CommandDownloader) copyDirectoryContents(src, dst string) error {
-	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-
-		dstPath := filepath.Join(dst, relPath)
-
-		if info.IsDir() {
-			return createDirectoryWithPermissions(dstPath)
-		}
-
-		return cd.copyFile(path, dstPath)
-	})
+	return fileutil.CopyDirectoryContents(src, dst)
 }
 
 // copyComponentFiles copies the entire directory containing the component file (recursive)
 // Uses FilePath to determine the component's directory and copies all contents recursively
 func (cd *CommandDownloader) copyComponentFiles(repoPath string, component models.DetectedComponent, dst string) error {
-	componentPath := filepath.Join(repoPath, component.FilePath)
-	componentDir := filepath.Dir(componentPath)
-
-	// Check if this is a single-file component or directory-based component
-	// Single file: commands/foo.md
-	// Directory-based: commands/foo/COMMAND.md (rare but possible)
-
-	// If the component file is a single .md file (not SKILL.md), only copy that file
-	if filepath.Ext(component.FilePath) == ".md" && filepath.Base(component.FilePath) != "SKILL.md" {
-		// Single file component - copy just this file
-		fileName := filepath.Base(component.FilePath)
-		return cd.copyFile(componentPath, filepath.Join(dst, fileName))
-	}
-
-	// Directory-based component - copy entire directory recursively
-	return cd.copyDirectoryContents(componentDir, dst)
+	return fileutil.CopyComponentFiles(repoPath, component, dst)
 }
 
 func (cd *CommandDownloader) copyFile(src, dst string) error {
-	data, err := os.ReadFile(src)
-	if err != nil {
-		return err
-	}
-
-	return createFileWithPermissions(dst, data)
+	return fileutil.CopyFile(src, dst)
 }
 
 func (cd *CommandDownloader) saveMetadata(filePath string, metadata map[string]interface{}) error {
@@ -2487,54 +2348,17 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 }
 
 func (ad *AgentDownloader) copyDirectoryContents(src, dst string) error {
-	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-
-		dstPath := filepath.Join(dst, relPath)
-
-		if info.IsDir() {
-			return createDirectoryWithPermissions(dstPath)
-		}
-
-		return ad.copyFile(path, dstPath)
-	})
+	return fileutil.CopyDirectoryContents(src, dst)
 }
 
 // copyComponentFiles copies the entire directory containing the component file (recursive)
 // Uses FilePath to determine the component's directory and copies all contents recursively
 func (ad *AgentDownloader) copyComponentFiles(repoPath string, component models.DetectedComponent, dst string) error {
-	componentPath := filepath.Join(repoPath, component.FilePath)
-	componentDir := filepath.Dir(componentPath)
-
-	// Check if this is a single-file component or directory-based component
-	// Single file: agents/foo.md or commands/bar.md
-	// Directory-based: skills/foo/SKILL.md (handled by Path field)
-
-	// If the component file is a single .md file (not SKILL.md), only copy that file
-	if filepath.Ext(component.FilePath) == ".md" && filepath.Base(component.FilePath) != "SKILL.md" {
-		// Single file component - copy just this file
-		fileName := filepath.Base(component.FilePath)
-		return ad.copyFile(componentPath, filepath.Join(dst, fileName))
-	}
-
-	// Directory-based component - copy entire directory recursively
-	return ad.copyDirectoryContents(componentDir, dst)
+	return fileutil.CopyComponentFiles(repoPath, component, dst)
 }
 
 func (ad *AgentDownloader) copyFile(src, dst string) error {
-	data, err := os.ReadFile(src)
-	if err != nil {
-		return err
-	}
-
-	return createFileWithPermissions(dst, data)
+	return fileutil.CopyFile(src, dst)
 }
 
 func (ad *AgentDownloader) saveMetadata(filePath string, metadata map[string]interface{}) error {
@@ -2775,33 +2599,11 @@ func (cl *ComponentLinker) createJunction(src, dst string) error {
 }
 
 func (cl *ComponentLinker) copyDirectory(src, dst string) error {
-	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-
-		dstPath := filepath.Join(dst, relPath)
-
-		if info.IsDir() {
-			return createDirectoryWithPermissions(dstPath)
-		}
-
-		return cl.copyFile(path, dstPath)
-	})
+	return fileutil.CopyDirectoryContents(src, dst)
 }
 
 func (cl *ComponentLinker) copyFile(src, dst string) error {
-	data, err := os.ReadFile(src)
-	if err != nil {
-		return err
-	}
-
-	return createFileWithPermissions(dst, data)
+	return fileutil.CopyFile(src, dst)
 }
 
 func (cl *ComponentLinker) linkComponent(componentType, componentName string) error {
