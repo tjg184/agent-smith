@@ -45,3 +45,4 @@
 - [✓] 2026-01-24 22:17 - Story-005: As a developer, I want clear warnings when duplicate component names are detected so that I can resolve conflicts.
 - [✓] 2026-01-24 22:23 - Story-006: As a developer, I want the old AGENT.md/COMMAND.md marker detection removed so that the codebase is simpler.
 - [✓] 2026-01-24 22:25 - Story-008: As a developer, I want the update-all command to re-clone repositories so that updates are reliable and simple.
+- [✓] 2026-01-24 23:58 - Story-001: As an agent-smith developer, I want to extend data structures to track plugin information so that the system can preserve repository structure throughout the download pipeline.
