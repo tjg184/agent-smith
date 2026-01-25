@@ -1,4 +1,5 @@
 package main
+import "github.com/tgaines/agent-smith/internal/models"
 
 import (
 	"os"
@@ -150,9 +151,9 @@ func TestComponentDownloadPreservesResources(t *testing.T) {
 	}
 
 	// Filter for skills
-	var skillComponents []DetectedComponent
+	var skillComponents []models.DetectedComponent
 	for _, comp := range components {
-		if comp.Type == ComponentSkill {
+		if comp.Type == models.ComponentSkill {
 			skillComponents = append(skillComponents, comp)
 		}
 	}
@@ -255,9 +256,9 @@ func TestMultipleComponentsWithResources(t *testing.T) {
 	}
 
 	// Filter for skills
-	var skillComponents []DetectedComponent
+	var skillComponents []models.DetectedComponent
 	for _, comp := range components {
-		if comp.Type == ComponentSkill {
+		if comp.Type == models.ComponentSkill {
 			skillComponents = append(skillComponents, comp)
 		}
 	}

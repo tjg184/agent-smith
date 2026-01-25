@@ -19,6 +19,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/tgaines/agent-smith/cmd"
+	"github.com/tgaines/agent-smith/internal/models"
 	"gopkg.in/yaml.v3"
 )
 
@@ -30,31 +31,17 @@ const (
 	opencodeDir  = "~/.config" + string(filepath.Separator) + "opencode"
 )
 
-// ComponentDetectionPattern defines how to detect a component type
-type ComponentDetectionPattern struct {
-	Name           string   `json:"name"`
-	ExactFiles     []string `json:"exactFiles"`     // Files that must match exactly (e.g., "SKILL.md")
-	PathPatterns   []string `json:"pathPatterns"`   // Path patterns (e.g., "/agents/", "*/docs/*")
-	FileExtensions []string `json:"fileExtensions"` // File extensions to match (e.g., ".md")
-	IgnorePaths    []string `json:"ignorePaths"`    // Paths to ignore during detection
-}
-
-// DetectionConfig holds all component detection patterns
-type DetectionConfig struct {
-	Components map[string]ComponentDetectionPattern `json:"components"`
-}
-
 // RepositoryDetector maintains repository patterns and component detection
 type RepositoryDetector struct {
 	patterns        map[string]string
-	detectionConfig *DetectionConfig
+	detectionConfig *models.DetectionConfig
 }
 
 // createDefaultDetectionConfig returns the default component detection patterns
-func createDefaultDetectionConfig() *DetectionConfig {
-	return &DetectionConfig{
-		Components: map[string]ComponentDetectionPattern{
-			string(ComponentSkill): {
+func createDefaultDetectionConfig() *models.DetectionConfig {
+	return &models.DetectionConfig{
+		Components: map[string]models.ComponentDetectionPattern{
+			string(models.ComponentSkill): {
 				Name:       "skill",
 				ExactFiles: []string{"SKILL.md"},
 				IgnorePaths: []string{
@@ -64,7 +51,7 @@ func createDefaultDetectionConfig() *DetectionConfig {
 					".idea",
 				},
 			},
-			string(ComponentAgent): {
+			string(models.ComponentAgent): {
 				Name:           "agent",
 				PathPatterns:   []string{"/agents/", "agents"},
 				FileExtensions: []string{".md"},
@@ -75,7 +62,7 @@ func createDefaultDetectionConfig() *DetectionConfig {
 					".idea",
 				},
 			},
-			string(ComponentCommand): {
+			string(models.ComponentCommand): {
 				Name:           "command",
 				PathPatterns:   []string{"/commands/", "commands"},
 				FileExtensions: []string{".md"},
@@ -88,30 +75,6 @@ func createDefaultDetectionConfig() *DetectionConfig {
 			},
 		},
 	}
-}
-
-type ComponentType string
-
-const (
-	ComponentSkill   ComponentType = "skill"
-	ComponentAgent   ComponentType = "agent"
-	ComponentCommand ComponentType = "command"
-)
-
-type DetectedComponent struct {
-	Type       ComponentType
-	Name       string
-	Path       string // Relative path to component directory
-	SourceFile string // Source file name
-	FilePath   string // Full relative path from repo root (including filename)
-}
-
-// ComponentFrontmatter represents YAML frontmatter metadata for agents/commands
-type ComponentFrontmatter struct {
-	Name        string `yaml:"name"`
-	Description string `yaml:"description"`
-	Model       string `yaml:"model"`
-	Mode        string `yaml:"mode"`
 }
 
 type SkillDownloader struct {
@@ -147,36 +110,11 @@ type UpdateDetector struct {
 	detector *RepositoryDetector
 }
 
-type ComponentLockEntry struct {
-	Source          string `json:"source"`
-	SourceType      string `json:"sourceType"`
-	SourceUrl       string `json:"sourceUrl"`
-	SkillPath       string `json:"skillPath,omitempty"`
-	OriginalPath    string `json:"originalPath,omitempty"` // Original path in repo (e.g., "plugins/ui-design/agents/expert.md")
-	SkillFolderHash string `json:"skillFolderHash"`
-	InstalledAt     string `json:"installedAt"`
-	UpdatedAt       string `json:"updatedAt"`
-	Version         int    `json:"version"`
-	Components      int    `json:"components,omitempty"`
-	Detection       string `json:"detection,omitempty"`
-}
-
 type ComponentLockFile struct {
-	Version  int                           `json:"version"`
-	Skills   map[string]ComponentLockEntry `json:"skills"`
-	Agents   map[string]ComponentLockEntry `json:"agents,omitempty"`
-	Commands map[string]ComponentLockEntry `json:"commands,omitempty"`
-}
-
-// Legacy metadata structure for backward compatibility
-type ComponentMetadata struct {
-	Name         string `json:"name"`
-	Source       string `json:"source"`
-	Commit       string `json:"commit"`
-	Downloaded   string `json:"downloaded"`
-	Components   int    `json:"components,omitempty"`
-	Detection    string `json:"detection,omitempty"`
-	OriginalPath string `json:"originalPath,omitempty"` // Original path in repo
+	Version  int                                  `json:"version"`
+	Skills   map[string]models.ComponentLockEntry `json:"skills"`
+	Agents   map[string]models.ComponentLockEntry `json:"agents,omitempty"`
+	Commands map[string]models.ComponentLockEntry `json:"commands,omitempty"`
 }
 
 // Cross-platform helper functions
@@ -207,7 +145,7 @@ func createFileWithPermissions(path string, data []byte) error {
 // parseFrontmatter extracts YAML frontmatter from a markdown file
 // Frontmatter must be delimited by "---" at the start of the file
 // Returns nil if no frontmatter is found (not an error)
-func parseFrontmatter(filePath string) (*ComponentFrontmatter, error) {
+func parseFrontmatter(filePath string) (*models.ComponentFrontmatter, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %s: %w", filePath, err)
@@ -242,7 +180,7 @@ func parseFrontmatter(filePath string) (*ComponentFrontmatter, error) {
 
 	// Parse YAML
 	frontmatterStr := strings.Join(frontmatterLines, "\n")
-	var frontmatter ComponentFrontmatter
+	var frontmatter models.ComponentFrontmatter
 
 	if err := yaml.Unmarshal([]byte(frontmatterStr), &frontmatter); err != nil {
 		log.Printf("Warning: Failed to parse YAML frontmatter in %s: %v", filePath, err)
@@ -255,7 +193,7 @@ func parseFrontmatter(filePath string) (*ComponentFrontmatter, error) {
 // determineComponentName determines the component name using frontmatter or filename
 // Priority: frontmatter.name > filename (without extension)
 // Special files (README.md, index.md, main.md) are skipped
-func determineComponentName(frontmatter *ComponentFrontmatter, fileName string) string {
+func determineComponentName(frontmatter *models.ComponentFrontmatter, fileName string) string {
 	// Skip special files
 	lowerFileName := strings.ToLower(fileName)
 	if lowerFileName == "readme.md" || lowerFileName == "index.md" || lowerFileName == "main.md" {
@@ -331,7 +269,7 @@ func (rd *RepositoryDetector) loadDetectionConfig(configPath string) error {
 		return fmt.Errorf("failed to read detection config file %s: %v", configPath, err)
 	}
 
-	var config DetectionConfig
+	var config models.DetectionConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		return fmt.Errorf("failed to parse detection config file %s: %v", configPath, err)
 	}
@@ -641,7 +579,7 @@ func (rd *RepositoryDetector) matchesFileExtension(fileName string, fileExtensio
 }
 
 // detectComponentForPattern checks if a file matches a component detection pattern
-func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullRelPath, repoPath string, pattern ComponentDetectionPattern, componentType ComponentType) (string, string, bool) {
+func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullRelPath, repoPath string, pattern models.ComponentDetectionPattern, componentType models.ComponentType) (string, string, bool) {
 	// Debug logging for component detection process
 	log.Printf("DEBUG: Processing file: %s, relPath: %s, fileName: %s", fullRelPath, relPath, fileName)
 	log.Printf("DEBUG: Component pattern: %s, exactFiles: %v", pattern.Name, pattern.ExactFiles)
@@ -653,7 +591,7 @@ func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullR
 	}
 
 	// Parse frontmatter if the file is markdown
-	var frontmatter *ComponentFrontmatter
+	var frontmatter *models.ComponentFrontmatter
 	if strings.HasSuffix(fileName, ".md") {
 		fullFilePath := filepath.Join(repoPath, fullRelPath)
 		parsedFrontmatter, err := parseFrontmatter(fullFilePath)
@@ -728,12 +666,12 @@ func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullR
 	return "", "", false
 }
 
-func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]DetectedComponent, error) {
-	var components []DetectedComponent
+func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]models.DetectedComponent, error) {
+	var components []models.DetectedComponent
 
 	// Track all component occurrences for duplicate detection
 	type ComponentOccurrence struct {
-		component DetectedComponent
+		component models.DetectedComponent
 		path      string
 	}
 	seenComponents := make(map[string][]ComponentOccurrence) // Track all occurrences
@@ -764,7 +702,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 
 		// Check each component type using its detection pattern
 		for componentTypeStr, pattern := range rd.detectionConfig.Components {
-			componentType := ComponentType(componentTypeStr)
+			componentType := models.ComponentType(componentTypeStr)
 
 			if componentName, componentPath, matched := rd.detectComponentForPattern(fileName, relPath, fullRelPath, repoPath, pattern, componentType); matched {
 				log.Printf("DEBUG: Match result: true for componentType: %s", componentTypeStr)
@@ -788,7 +726,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 
 					// Track this duplicate occurrence
 					seenComponents[componentKey] = append(seenComponents[componentKey], ComponentOccurrence{
-						component: DetectedComponent{
+						component: models.DetectedComponent{
 							Type:       componentType,
 							Name:       componentName,
 							Path:       componentPath,
@@ -799,7 +737,7 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 					})
 				} else {
 					// First occurrence - add to components list
-					component := DetectedComponent{
+					component := models.DetectedComponent{
 						Type:       componentType,
 						Name:       componentName,
 						Path:       componentPath,
@@ -837,8 +775,8 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 				log.Printf("    Duplicate at: %s (WILL BE SKIPPED)", fullRelPath)
 
 				seenComponents[componentKey] = append(seenComponents[componentKey], ComponentOccurrence{
-					component: DetectedComponent{
-						Type:       ComponentAgent,
+					component: models.DetectedComponent{
+						Type:       models.ComponentAgent,
 						Name:       componentName,
 						Path:       relPath,
 						SourceFile: fileName,
@@ -847,8 +785,8 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 					path: fullRelPath,
 				})
 			} else {
-				component := DetectedComponent{
-					Type:       ComponentAgent,
+				component := models.DetectedComponent{
+					Type:       models.ComponentAgent,
 					Name:       componentName,
 					Path:       relPath,
 					SourceFile: fileName,
@@ -884,8 +822,8 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 				log.Printf("    Duplicate at: %s (WILL BE SKIPPED)", fullRelPath)
 
 				seenComponents[componentKey] = append(seenComponents[componentKey], ComponentOccurrence{
-					component: DetectedComponent{
-						Type:       ComponentCommand,
+					component: models.DetectedComponent{
+						Type:       models.ComponentCommand,
 						Name:       componentName,
 						Path:       relPath,
 						SourceFile: fileName,
@@ -894,8 +832,8 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 					path: fullRelPath,
 				})
 			} else {
-				component := DetectedComponent{
-					Type:       ComponentCommand,
+				component := models.DetectedComponent{
+					Type:       models.ComponentCommand,
 					Name:       componentName,
 					Path:       relPath,
 					SourceFile: fileName,
@@ -921,11 +859,11 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]Detecte
 	commandCount := 0
 	for _, comp := range components {
 		switch comp.Type {
-		case ComponentSkill:
+		case models.ComponentSkill:
 			skillCount++
-		case ComponentAgent:
+		case models.ComponentAgent:
 			agentCount++
-		case ComponentCommand:
+		case models.ComponentCommand:
 			commandCount++
 		}
 	}
@@ -1227,9 +1165,9 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string, providedRepo
 	}
 
 	// Filter for skill components
-	var skillComponents []DetectedComponent
+	var skillComponents []models.DetectedComponent
 	for _, comp := range components {
-		if comp.Type == ComponentSkill {
+		if comp.Type == models.ComponentSkill {
 			skillComponents = append(skillComponents, comp)
 		}
 	}
@@ -1493,7 +1431,7 @@ func (sd *SkillDownloader) copyDirectoryContents(src, dst string) error {
 
 // copyComponentFiles copies the entire directory containing the component file (recursive)
 // Uses FilePath to determine the component's directory and copies all contents recursively
-func (sd *SkillDownloader) copyComponentFiles(repoPath string, component DetectedComponent, dst string) error {
+func (sd *SkillDownloader) copyComponentFiles(repoPath string, component models.DetectedComponent, dst string) error {
 	componentPath := filepath.Join(repoPath, component.FilePath)
 	componentDir := filepath.Dir(componentPath)
 
@@ -1550,7 +1488,7 @@ func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceT
 		if os.IsNotExist(err) {
 			lockFile = ComponentLockFile{
 				Version: 3, // Current version matching npx add-skill
-				Skills:  make(map[string]ComponentLockEntry),
+				Skills:  make(map[string]models.ComponentLockEntry),
 			}
 		} else {
 			return fmt.Errorf("failed to read lock file: %w", err)
@@ -1560,14 +1498,14 @@ func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceT
 			// If lock file is corrupted, create new one
 			lockFile = ComponentLockFile{
 				Version: 3,
-				Skills:  make(map[string]ComponentLockEntry),
+				Skills:  make(map[string]models.ComponentLockEntry),
 			}
 		}
 		// Ensure version is current
 		if lockFile.Version < 3 {
 			lockFile.Version = 3
 			if lockFile.Skills == nil {
-				lockFile.Skills = make(map[string]ComponentLockEntry)
+				lockFile.Skills = make(map[string]models.ComponentLockEntry)
 			}
 		}
 	}
@@ -1581,7 +1519,7 @@ func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceT
 	}
 
 	// Update or add the skill entry
-	lockFile.Skills[skillName] = ComponentLockEntry{
+	lockFile.Skills[skillName] = models.ComponentLockEntry{
 		Source:          source,
 		SourceType:      sourceType,
 		SourceUrl:       sourceUrl,
@@ -1623,11 +1561,11 @@ Add usage instructions here.
 	return createFileWithPermissions(filePath, []byte(content))
 }
 
-func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL string, repoPath string, components []DetectedComponent) error {
+func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL string, repoPath string, components []models.DetectedComponent) error {
 	// Find the specific skill component with matching name
-	var targetComponent *DetectedComponent
+	var targetComponent *models.DetectedComponent
 	for _, comp := range components {
-		if comp.Type == ComponentSkill && comp.Name == skillName {
+		if comp.Type == models.ComponentSkill && comp.Name == skillName {
 			targetComponent = &comp
 			break
 		}
@@ -1802,9 +1740,9 @@ func (cd *CommandDownloader) downloadCommand(repoURL, commandName string, provid
 	}
 
 	// Filter for command components
-	var commandComponents []DetectedComponent
+	var commandComponents []models.DetectedComponent
 	for _, comp := range components {
-		if comp.Type == ComponentCommand {
+		if comp.Type == models.ComponentCommand {
 			commandComponents = append(commandComponents, comp)
 		}
 	}
@@ -1821,7 +1759,7 @@ func (cd *CommandDownloader) downloadCommand(repoURL, commandName string, provid
 	}
 
 	// Check if the requested commandName matches one of the detected components
-	var matchingComponent *DetectedComponent
+	var matchingComponent *models.DetectedComponent
 	for _, comp := range commandComponents {
 		if comp.Name == commandName {
 			matchingComponent = &comp
@@ -2040,7 +1978,7 @@ func (cd *CommandDownloader) copyDirectoryContents(src, dst string) error {
 
 // copyComponentFiles copies the entire directory containing the component file (recursive)
 // Uses FilePath to determine the component's directory and copies all contents recursively
-func (cd *CommandDownloader) copyComponentFiles(repoPath string, component DetectedComponent, dst string) error {
+func (cd *CommandDownloader) copyComponentFiles(repoPath string, component models.DetectedComponent, dst string) error {
 	componentPath := filepath.Join(repoPath, component.FilePath)
 	componentDir := filepath.Dir(componentPath)
 
@@ -2100,7 +2038,7 @@ func (cd *CommandDownloader) saveLockFile(commandName string, source string, sou
 		if os.IsNotExist(err) {
 			lockFile = ComponentLockFile{
 				Version:  3,
-				Commands: make(map[string]ComponentLockEntry),
+				Commands: make(map[string]models.ComponentLockEntry),
 			}
 		} else {
 			return fmt.Errorf("failed to read lock file: %w", err)
@@ -2109,13 +2047,13 @@ func (cd *CommandDownloader) saveLockFile(commandName string, source string, sou
 		if err := json.Unmarshal(lockData, &lockFile); err != nil {
 			lockFile = ComponentLockFile{
 				Version:  3,
-				Commands: make(map[string]ComponentLockEntry),
+				Commands: make(map[string]models.ComponentLockEntry),
 			}
 		}
 		if lockFile.Version < 3 {
 			lockFile.Version = 3
 			if lockFile.Commands == nil {
-				lockFile.Commands = make(map[string]ComponentLockEntry)
+				lockFile.Commands = make(map[string]models.ComponentLockEntry)
 			}
 		}
 	}
@@ -2127,7 +2065,7 @@ func (cd *CommandDownloader) saveLockFile(commandName string, source string, sou
 		existingEntry.InstalledAt = now
 	}
 
-	lockFile.Commands[commandName] = ComponentLockEntry{
+	lockFile.Commands[commandName] = models.ComponentLockEntry{
 		Source:          source,
 		SourceType:      sourceType,
 		SourceUrl:       sourceUrl,
@@ -2168,11 +2106,11 @@ Add usage instructions here.
 	return createFileWithPermissions(filePath, []byte(content))
 }
 
-func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoURL string, repoPath string, components []DetectedComponent) error {
+func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoURL string, repoPath string, components []models.DetectedComponent) error {
 	// Find the specific command component with matching name
-	var targetComponent *DetectedComponent
+	var targetComponent *models.DetectedComponent
 	for _, comp := range components {
-		if comp.Type == ComponentCommand && comp.Name == commandName {
+		if comp.Type == models.ComponentCommand && comp.Name == commandName {
 			targetComponent = &comp
 			break
 		}
@@ -2333,9 +2271,9 @@ func (ad *AgentDownloader) downloadAgent(repoURL, agentName string, providedRepo
 	}
 
 	// Filter for agent components
-	var agentComponents []DetectedComponent
+	var agentComponents []models.DetectedComponent
 	for _, comp := range components {
-		if comp.Type == ComponentAgent {
+		if comp.Type == models.ComponentAgent {
 			agentComponents = append(agentComponents, comp)
 		}
 	}
@@ -2352,7 +2290,7 @@ func (ad *AgentDownloader) downloadAgent(repoURL, agentName string, providedRepo
 	}
 
 	// Check if the requested agentName matches one of the detected components
-	var matchingComponent *DetectedComponent
+	var matchingComponent *models.DetectedComponent
 	for _, comp := range agentComponents {
 		if comp.Name == agentName {
 			matchingComponent = &comp
@@ -2571,7 +2509,7 @@ func (ad *AgentDownloader) copyDirectoryContents(src, dst string) error {
 
 // copyComponentFiles copies the entire directory containing the component file (recursive)
 // Uses FilePath to determine the component's directory and copies all contents recursively
-func (ad *AgentDownloader) copyComponentFiles(repoPath string, component DetectedComponent, dst string) error {
+func (ad *AgentDownloader) copyComponentFiles(repoPath string, component models.DetectedComponent, dst string) error {
 	componentPath := filepath.Join(repoPath, component.FilePath)
 	componentDir := filepath.Dir(componentPath)
 
@@ -2631,7 +2569,7 @@ func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceT
 		if os.IsNotExist(err) {
 			lockFile = ComponentLockFile{
 				Version: 3,
-				Agents:  make(map[string]ComponentLockEntry),
+				Agents:  make(map[string]models.ComponentLockEntry),
 			}
 		} else {
 			return fmt.Errorf("failed to read lock file: %w", err)
@@ -2640,13 +2578,13 @@ func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceT
 		if err := json.Unmarshal(lockData, &lockFile); err != nil {
 			lockFile = ComponentLockFile{
 				Version: 3,
-				Agents:  make(map[string]ComponentLockEntry),
+				Agents:  make(map[string]models.ComponentLockEntry),
 			}
 		}
 		if lockFile.Version < 3 {
 			lockFile.Version = 3
 			if lockFile.Agents == nil {
-				lockFile.Agents = make(map[string]ComponentLockEntry)
+				lockFile.Agents = make(map[string]models.ComponentLockEntry)
 			}
 		}
 	}
@@ -2658,7 +2596,7 @@ func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceT
 		existingEntry.InstalledAt = now
 	}
 
-	lockFile.Agents[agentName] = ComponentLockEntry{
+	lockFile.Agents[agentName] = models.ComponentLockEntry{
 		Source:          source,
 		SourceType:      sourceType,
 		SourceUrl:       sourceUrl,
@@ -2699,11 +2637,11 @@ Add usage instructions here.
 	return createFileWithPermissions(filePath, []byte(content))
 }
 
-func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL string, repoPath string, components []DetectedComponent) error {
+func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL string, repoPath string, components []models.DetectedComponent) error {
 	// Find the specific agent component with matching name
-	var targetComponent *DetectedComponent
+	var targetComponent *models.DetectedComponent
 	for _, comp := range components {
-		if comp.Type == ComponentAgent && comp.Name == agentName {
+		if comp.Type == models.ComponentAgent && comp.Name == agentName {
 			targetComponent = &comp
 			break
 		}
@@ -2897,7 +2835,7 @@ func (cl *ComponentLinker) linkComponent(componentType, componentName string) er
 }
 
 // loadComponentMetadata loads metadata for a component from lock files or metadata files
-func (cl *ComponentLinker) loadComponentMetadata(componentType, componentName string) *ComponentMetadata {
+func (cl *ComponentLinker) loadComponentMetadata(componentType, componentName string) *models.ComponentMetadata {
 	// Try lock file first
 	if metadata := cl.loadFromLockFile(componentType, componentName); metadata != nil {
 		return metadata
@@ -2921,7 +2859,7 @@ func (cl *ComponentLinker) loadComponentMetadata(componentType, componentName st
 		return nil
 	}
 
-	var metadata ComponentMetadata
+	var metadata models.ComponentMetadata
 	if err := json.Unmarshal(data, &metadata); err != nil {
 		return nil
 	}
@@ -2930,9 +2868,9 @@ func (cl *ComponentLinker) loadComponentMetadata(componentType, componentName st
 }
 
 // loadFromLockFile loads metadata from lock file
-func (cl *ComponentLinker) loadFromLockFile(componentType, componentName string) *ComponentMetadata {
+func (cl *ComponentLinker) loadFromLockFile(componentType, componentName string) *models.ComponentMetadata {
 	var lockFilePath string
-	var entries map[string]ComponentLockEntry
+	var entries map[string]models.ComponentLockEntry
 
 	switch componentType {
 	case "skills":
@@ -2970,7 +2908,7 @@ func (cl *ComponentLinker) loadFromLockFile(componentType, componentName string)
 	}
 
 	// Convert lock entry to metadata
-	return &ComponentMetadata{
+	return &models.ComponentMetadata{
 		Name:         componentName,
 		Source:       entry.SourceUrl,
 		Commit:       entry.SkillFolderHash,
@@ -3528,11 +3466,11 @@ func (cl *ComponentLinker) unlinkAllComponents(force bool) error {
 	return nil
 }
 
-func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*ComponentMetadata, error) {
+func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*models.ComponentMetadata, error) {
 	// First try to load from npx add-skill compatible lock files
 	if metadata, err := ud.loadFromLockFile(componentType, componentName); err == nil {
 		// Convert to legacy format for compatibility
-		return &ComponentMetadata{
+		return &models.ComponentMetadata{
 			Name:   componentName,
 			Source: metadata.SourceUrl,
 			Commit: metadata.SkillFolderHash,
@@ -3557,7 +3495,7 @@ func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*Co
 		return nil, fmt.Errorf("failed to read metadata file: %w", err)
 	}
 
-	var metadata ComponentMetadata
+	var metadata models.ComponentMetadata
 	if err := json.Unmarshal(data, &metadata); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 	}
@@ -3565,9 +3503,9 @@ func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*Co
 	return &metadata, nil
 }
 
-func (ud *UpdateDetector) loadFromLockFile(componentType, componentName string) (*ComponentLockEntry, error) {
+func (ud *UpdateDetector) loadFromLockFile(componentType, componentName string) (*models.ComponentLockEntry, error) {
 	var lockFilePath string
-	var entries map[string]ComponentLockEntry
+	var entries map[string]models.ComponentLockEntry
 
 	switch componentType {
 	case "skills":
@@ -3769,19 +3707,19 @@ func (bd *BulkDownloader) AddAll(repoURL string) error {
 }
 
 // processComponents handles downloading components from the repository
-func (bd *BulkDownloader) processComponents(components []DetectedComponent, fullURL, repoURL, tempDir string) error {
+func (bd *BulkDownloader) processComponents(components []models.DetectedComponent, fullURL, repoURL, tempDir string) error {
 	// Group components by type
-	skillComponents := []DetectedComponent{}
-	agentComponents := []DetectedComponent{}
-	commandComponents := []DetectedComponent{}
+	skillComponents := []models.DetectedComponent{}
+	agentComponents := []models.DetectedComponent{}
+	commandComponents := []models.DetectedComponent{}
 
 	for _, comp := range components {
 		switch comp.Type {
-		case ComponentSkill:
+		case models.ComponentSkill:
 			skillComponents = append(skillComponents, comp)
-		case ComponentAgent:
+		case models.ComponentAgent:
 			agentComponents = append(agentComponents, comp)
-		case ComponentCommand:
+		case models.ComponentCommand:
 			commandComponents = append(commandComponents, comp)
 		}
 	}
@@ -4065,7 +4003,7 @@ func (ce *ComponentExecutor) runFromRepository(repoURL string, args []string) er
 	}
 
 	// Find the main/root component or use the first one
-	var mainComponent *DetectedComponent
+	var mainComponent *models.DetectedComponent
 	for _, comp := range components {
 		if comp.Name == "root-skill" || comp.Name == "root-agent" || comp.Name == "root-command" {
 			mainComponent = &comp
@@ -4082,11 +4020,11 @@ func (ce *ComponentExecutor) runFromRepository(repoURL string, args []string) er
 
 	// Run the component
 	switch mainComponent.Type {
-	case ComponentSkill:
+	case models.ComponentSkill:
 		return ce.runLocalComponent(componentPath, "skill", args)
-	case ComponentAgent:
+	case models.ComponentAgent:
 		return ce.runLocalComponent(componentPath, "agent", args)
-	case ComponentCommand:
+	case models.ComponentCommand:
 		return ce.runLocalComponent(componentPath, "command", args)
 	default:
 		return fmt.Errorf("unknown component type: %s", mainComponent.Type)
