@@ -15,7 +15,7 @@ The agent-smith repository currently has test files scattered at the root level 
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want unit tests colocated with the detector package so that detector functionality is easier to test and maintain.
+- [x] Story-001: As a developer, I want unit tests colocated with the detector package so that detector functionality is easier to test and maintain.
 
   **Acceptance Criteria:**
   - `component_extraction_test.go` moved to `internal/detector/component_extraction_test.go`
@@ -36,7 +36,7 @@ The agent-smith repository currently has test files scattered at the root level 
   **Component Browser Tests:**
   - N/A (backend Go tests)
 
-- [ ] Story-002: As a developer, I want unit tests colocated with the fileutil package so that file utility functions are easier to test and maintain.
+- [x] Story-002: As a developer, I want unit tests colocated with the fileutil package so that file utility functions are easier to test and maintain.
 
   **Acceptance Criteria:**
   - `directory_copy_test.go` moved to `internal/fileutil/directory_copy_test.go`
@@ -56,7 +56,7 @@ The agent-smith repository currently has test files scattered at the root level 
   **Component Browser Tests:**
   - N/A (backend Go tests)
 
-- [ ] Story-003: As a developer, I want integration tests organized in a dedicated directory so I can easily distinguish them from unit tests.
+- [x] Story-003: As a developer, I want integration tests organized in a dedicated directory so I can easily distinguish them from unit tests.
 
   **Acceptance Criteria:**
   - Create `tests/` directory at repository root
@@ -77,7 +77,7 @@ The agent-smith repository currently has test files scattered at the root level 
   **Component Browser Tests:**
   - N/A (backend Go tests)
 
-- [ ] Story-004: As a developer, I want obsolete skipped test files removed so the repository stays clean and maintainable.
+- [x] Story-004: As a developer, I want obsolete skipped test files removed so the repository stays clean and maintainable.
 
   **Acceptance Criteria:**
   - Delete `plugin_path_helpers_test.go.skip` from repository root
@@ -94,7 +94,7 @@ The agent-smith repository currently has test files scattered at the root level 
   **Component Browser Tests:**
   - N/A (backend Go tests)
 
-- [ ] Story-005: As a developer, I want to verify all tests pass after reorganization so I can be confident nothing broke during the move.
+- [x] Story-005: As a developer, I want to verify all tests pass after reorganization so I can be confident nothing broke during the move.
 
   **Acceptance Criteria:**
   - Run `go test ./...` to execute all tests in repository
