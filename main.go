@@ -15,6 +15,7 @@ import (
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/internal/updater"
+	"github.com/tgaines/agent-smith/pkg/config"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
 
@@ -110,14 +111,15 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
-	opencodeDir, err := paths.GetOpencodeDir()
+	// Create the default opencode target
+	target, err := config.NewOpencodeTarget()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get opencode directory: %w", err)
+		return nil, fmt.Errorf("failed to create opencode target: %w", err)
 	}
 
 	det := detector.NewRepositoryDetector()
 
-	return linker.NewComponentLinker(agentsDir, opencodeDir, det)
+	return linker.NewComponentLinker(agentsDir, target, det)
 }
 
 // executeComponent provides npx-like functionality to run components without explicit installation
