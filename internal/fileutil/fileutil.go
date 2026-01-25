@@ -87,7 +87,7 @@ func CopyDirectoryContents(src, dst string) error {
 // CopyComponentFiles copies files for a detected component from a repository.
 // For single-file components (non-SKILL.md, non-AGENT.md, non-COMMAND.md .md files),
 // copies only the component file.
-// For directory-based components, copies the entire directory recursively.
+// For directory-based components, copies only files in the component directory (non-recursive).
 func CopyComponentFiles(repoPath string, component models.DetectedComponent, dst string) error {
 	componentPath := filepath.Join(repoPath, component.FilePath)
 	componentDir := filepath.Dir(componentPath)
@@ -104,8 +104,27 @@ func CopyComponentFiles(repoPath string, component models.DetectedComponent, dst
 		return CopyFile(componentPath, filepath.Join(dst, fileName))
 	}
 
-	// Directory-based component - copy entire directory recursively
-	return CopyDirectoryContents(componentDir, dst)
+	// Directory-based component - copy only files in component directory (non-recursive)
+	entries, err := os.ReadDir(componentDir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		// Skip subdirectories - only copy files at the root level
+		if entry.IsDir() {
+			continue
+		}
+
+		srcPath := filepath.Join(componentDir, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if err := CopyFile(srcPath, dstPath); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ParseFrontmatter extracts YAML frontmatter from a markdown file.
