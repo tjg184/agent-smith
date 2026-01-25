@@ -3440,6 +3440,81 @@ func (bd *BulkDownloader) detectPluginDirectories(repoPath string) ([]string, er
 	return pluginDirs, nil
 }
 
+// extractPluginPath extracts the plugin directory path from a component path.
+// Returns the plugin path (e.g., "plugins/ui-design") if the component is in a plugin,
+// or an empty string if not in a plugin structure.
+// Uses filepath.ToSlash for cross-platform compatibility.
+func extractPluginPath(componentPath string) string {
+	// Normalize path separators for cross-platform compatibility
+	// Replace backslashes with forward slashes for consistent parsing
+	normalizedPath := strings.ReplaceAll(componentPath, "\\", "/")
+
+	// Trim trailing slash
+	normalizedPath = strings.TrimSuffix(normalizedPath, "/")
+
+	// Check if path contains "plugins/"
+	if !strings.Contains(normalizedPath, "plugins/") {
+		return ""
+	}
+
+	// Split path into parts
+	parts := strings.Split(normalizedPath, "/")
+
+	// Find "plugins" in the path
+	pluginIndex := -1
+	for i, part := range parts {
+		if part == "plugins" {
+			pluginIndex = i
+			break
+		}
+	}
+
+	// If "plugins" is not found or is the last part, no plugin path
+	if pluginIndex == -1 || pluginIndex >= len(parts)-1 {
+		return ""
+	}
+
+	// Extract plugin name (the directory immediately after "plugins")
+	pluginName := parts[pluginIndex+1]
+
+	// Plugin name should not be empty
+	if pluginName == "" {
+		return ""
+	}
+
+	// Return the plugin path using the platform-specific separator
+	return filepath.Join("plugins", pluginName)
+}
+
+// detectCommonPluginPath detects if all components share a common plugin path.
+// Returns the common plugin path if all components are from the same plugin,
+// or an empty string if components are from different plugins or not in plugin structures.
+func detectCommonPluginPath(components []DetectedComponent) string {
+	if len(components) == 0 {
+		return ""
+	}
+
+	// Extract plugin path from first component
+	firstPluginPath := extractPluginPath(components[0].Path)
+
+	// If first component is not in a plugin, return empty
+	if firstPluginPath == "" {
+		return ""
+	}
+
+	// Check if all components share the same plugin path
+	for _, comp := range components[1:] {
+		pluginPath := extractPluginPath(comp.Path)
+		if pluginPath != firstPluginPath {
+			// Components from different plugins or mixed structures
+			return ""
+		}
+	}
+
+	// All components share the same plugin path
+	return firstPluginPath
+}
+
 // processComponents handles downloading components for non-plugin repositories (fallback)
 func (bd *BulkDownloader) processComponents(components []DetectedComponent, fullURL, repoURL, tempDir string) error {
 	// Group components by type
