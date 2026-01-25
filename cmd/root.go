@@ -180,38 +180,60 @@ All detected components will be downloaded to ~/.agents/{skills,agents,commands}
 	})
 
 	rootCmd.AddCommand(&cobra.Command{
-		Use:   "update <type> <name>",
-		Short: "Check and update a specific component",
-		Args:  cobra.ExactArgs(2),
+		Use:   "update <type|all> [name]",
+		Short: "Check and update a component or all components",
+		Long: `Check and update a specific component or all downloaded components.
+
+USAGE:
+  agent-smith update <type> <name>  - Update a specific component
+  agent-smith update all            - Update all downloaded components
+
+EXAMPLES:
+  # Update a specific skill
+  agent-smith update skills mcp-builder
+
+  # Update all components
+  agent-smith update all`,
+		Args: cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
-			handleUpdate(args[0], args[1])
+			if args[0] == "all" {
+				handleUpdateAll()
+			} else {
+				if len(args) != 2 {
+					cmd.PrintErrln("Error: update requires both type and name (or use 'update all')")
+					os.Exit(1)
+				}
+				handleUpdate(args[0], args[1])
+			}
 		},
 	})
 
 	rootCmd.AddCommand(&cobra.Command{
-		Use:   "update-all",
-		Short: "Check and update all downloaded components",
-		Args:  cobra.NoArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			handleUpdateAll()
-		},
-	})
+		Use:   "link <type|all> [name]",
+		Short: "Link a component or all components to opencode",
+		Long: `Link a specific component or all downloaded components to opencode.
 
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "link <type> <name>",
-		Short: "Link a downloaded component to opencode",
-		Args:  cobra.ExactArgs(2),
-		Run: func(cmd *cobra.Command, args []string) {
-			handleLink(args[0], args[1])
-		},
-	})
+USAGE:
+  agent-smith link <type> <name>  - Link a specific component
+  agent-smith link all            - Link all downloaded components
 
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "link-all",
-		Short: "Link all downloaded components to opencode",
-		Args:  cobra.NoArgs,
+EXAMPLES:
+  # Link a specific skill
+  agent-smith link skills mcp-builder
+
+  # Link all components
+  agent-smith link all`,
+		Args: cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
-			handleLinkAll()
+			if args[0] == "all" {
+				handleLinkAll()
+			} else {
+				if len(args) != 2 {
+					cmd.PrintErrln("Error: link requires both type and name (or use 'link all')")
+					os.Exit(1)
+				}
+				handleLink(args[0], args[1])
+			}
 		},
 	})
 
@@ -246,13 +268,14 @@ The output shows:
 		},
 	})
 
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "unlink <type> <name>",
-		Short: "Remove a linked component from opencode",
-		Long: `Remove a specific linked component from opencode without deleting the source.
+	unlinkCmd := &cobra.Command{
+		Use:   "unlink <type|all> [name]",
+		Short: "Remove a linked component or all components from opencode",
+		Long: `Remove a specific linked component or all linked components from opencode.
 
-This command removes the link at ~/.config/opencode/<type>/<name> but leaves
-the original component in ~/.agents/<type>/<name> untouched.
+USAGE:
+  agent-smith unlink <type> <name>  - Unlink a specific component
+  agent-smith unlink all            - Unlink all components (with --force to skip confirmation)
 
 COMPONENT TYPES:
   skills    - Remove a linked skill
@@ -263,49 +286,33 @@ SAFETY:
   - Symlinks are removed immediately
   - Copied directories require confirmation before deletion
   - Source files in ~/.agents/ are never touched
+  - 'unlink all' prompts for confirmation unless --force is used
 
 EXAMPLES:
   # Unlink a skill
   agent-smith unlink skills mcp-builder
 
-  # Unlink a command
-  agent-smith unlink commands pr-review
-
-  # Unlink an agent
-  agent-smith unlink agents code-reviewer`,
-		Args: cobra.ExactArgs(2),
-		Run: func(cmd *cobra.Command, args []string) {
-			handleUnlink(args[0], args[1])
-		},
-	})
-
-	unlinkAllCmd := &cobra.Command{
-		Use:   "unlink-all",
-		Short: "Remove all linked components from opencode",
-		Long: `Remove all linked components from opencode without deleting sources.
-
-This command removes all links from ~/.config/opencode/ but leaves the
-original components in ~/.agents/ untouched.
-
-SAFETY:
-  - Without --force: Prompts for confirmation before removing
-  - With --force: Removes all links immediately
-  - Warns about copied directories that will be permanently deleted
-
-EXAMPLES:
-  # Unlink all components with confirmation prompt
-  agent-smith unlink-all
+  # Unlink all components with confirmation
+  agent-smith unlink all
 
   # Unlink all components without confirmation
-  agent-smith unlink-all --force`,
-		Args: cobra.NoArgs,
+  agent-smith unlink all --force`,
+		Args: cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
-			force, _ := cmd.Flags().GetBool("force")
-			handleUnlinkAll(force)
+			if args[0] == "all" {
+				force, _ := cmd.Flags().GetBool("force")
+				handleUnlinkAll(force)
+			} else {
+				if len(args) != 2 {
+					cmd.PrintErrln("Error: unlink requires both type and name (or use 'unlink all')")
+					os.Exit(1)
+				}
+				handleUnlink(args[0], args[1])
+			}
 		},
 	}
-	unlinkAllCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
-	rootCmd.AddCommand(unlinkAllCmd)
+	unlinkCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt (only for 'unlink all')")
+	rootCmd.AddCommand(unlinkCmd)
 
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
 }
