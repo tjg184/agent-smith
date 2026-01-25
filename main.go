@@ -1596,17 +1596,44 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 		return sd.downloadSkillDirect(fullURL, skillName, repoURL)
 	}
 
-	// Create skill directory
-	skillDir := filepath.Join(sd.baseDir, skillName)
-	if err := createDirectoryWithPermissions(skillDir); err != nil {
-		return fmt.Errorf("failed to create skill directory: %w", err)
-	}
+	// Detect if this component is part of a plugin structure
+	pluginPath := extractPluginPath(targetComponent.Path)
 
-	// Copy the specific skill component files (non-recursive) using FilePath
-	err := sd.copyComponentFiles(repoPath, *targetComponent, skillDir)
-	if err != nil {
-		os.RemoveAll(skillDir)
-		return fmt.Errorf("failed to copy skill files: %w", err)
+	var skillDir string
+	var err error
+
+	if pluginPath != "" {
+		// Plugin structure detected - copy entire plugin directory once
+		pluginDir := filepath.Join(filepath.Dir(sd.baseDir), pluginPath)
+
+		// Create plugin directory structure
+		if err := createDirectoryWithPermissions(pluginDir); err != nil {
+			return fmt.Errorf("failed to create plugin directory: %w", err)
+		}
+
+		// Copy entire plugin directory from repository
+		pluginSourcePath := filepath.Join(repoPath, pluginPath)
+		err = sd.copyDirectoryContents(pluginSourcePath, pluginDir)
+		if err != nil {
+			os.RemoveAll(pluginDir)
+			return fmt.Errorf("failed to copy plugin directory: %w", err)
+		}
+
+		// Set skillDir to the plugin directory for metadata storage
+		skillDir = pluginDir
+	} else {
+		// Non-plugin structure - use existing behavior
+		skillDir = filepath.Join(sd.baseDir, skillName)
+		if err := createDirectoryWithPermissions(skillDir); err != nil {
+			return fmt.Errorf("failed to create skill directory: %w", err)
+		}
+
+		// Copy the specific skill component files (non-recursive) using FilePath
+		err = sd.copyComponentFiles(repoPath, *targetComponent, skillDir)
+		if err != nil {
+			os.RemoveAll(skillDir)
+			return fmt.Errorf("failed to copy skill files: %w", err)
+		}
 	}
 
 	var commitHash string
@@ -1645,6 +1672,11 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 		"detection":  "single",
 	}
 
+	// Add plugin path to metadata if present
+	if pluginPath != "" {
+		metadata["pluginPath"] = pluginPath
+	}
+
 	// Save legacy metadata file for backward compatibility
 	metadataFile := filepath.Join(skillDir, ".skill-metadata.json")
 	if err := sd.saveMetadata(metadataFile, metadata); err != nil {
@@ -1681,7 +1713,7 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 		}
 	}
 
-	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, 1, "single", ""); err != nil {
+	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, 1, "single", pluginPath); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -1693,6 +1725,9 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 	}
 
 	fmt.Printf("Successfully downloaded skill '%s' from %s\n", skillName, fullURL)
+	if pluginPath != "" {
+		fmt.Printf("Plugin structure detected: %s\n", pluginPath)
+	}
 	fmt.Printf("Skill stored in: %s\n", skillDir)
 	fmt.Printf("Components detected: %d\n", 1)
 
@@ -2145,36 +2180,63 @@ func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoU
 		return cd.downloadCommandDirect(fullURL, commandName)
 	}
 
-	// Create command directory
-	commandDir := filepath.Join(cd.baseDir, commandName)
-	if err := createDirectoryWithPermissions(commandDir); err != nil {
-		return fmt.Errorf("failed to create command directory: %w", err)
-	}
+	// Detect if components are part of a plugin structure
+	pluginPath := detectCommonPluginPath(commandComponents)
 
-	// If only one command component found, copy its contents
-	if len(commandComponents) == 1 {
-		component := commandComponents[0]
+	var commandDir string
+	var err error
 
-		// Copy component files (non-recursive) using FilePath to command directory
-		err := cd.copyComponentFiles(repoPath, component, commandDir)
-		if err != nil {
-			os.RemoveAll(commandDir)
-			return fmt.Errorf("failed to copy command files: %w", err)
+	if pluginPath != "" {
+		// Plugin structure detected - copy entire plugin directory once
+		pluginDir := filepath.Join(filepath.Dir(cd.baseDir), pluginPath)
+
+		// Create plugin directory structure
+		if err := createDirectoryWithPermissions(pluginDir); err != nil {
+			return fmt.Errorf("failed to create plugin directory: %w", err)
 		}
+
+		// Copy entire plugin directory from repository
+		pluginSourcePath := filepath.Join(repoPath, pluginPath)
+		err = cd.copyDirectoryContents(pluginSourcePath, pluginDir)
+		if err != nil {
+			os.RemoveAll(pluginDir)
+			return fmt.Errorf("failed to copy plugin directory: %w", err)
+		}
+
+		// Set commandDir to the plugin directory for metadata storage
+		commandDir = pluginDir
 	} else {
-		// Multiple commands found, create a monorepo structure
-		for _, component := range commandComponents {
-			componentDir := filepath.Join(commandDir, component.Name)
+		// Non-plugin structure - use existing behavior
+		commandDir = filepath.Join(cd.baseDir, commandName)
+		if err := createDirectoryWithPermissions(commandDir); err != nil {
+			return fmt.Errorf("failed to create command directory: %w", err)
+		}
 
-			err := createDirectoryWithPermissions(componentDir)
+		// If only one command component found, copy its contents
+		if len(commandComponents) == 1 {
+			component := commandComponents[0]
+
+			// Copy component files (non-recursive) using FilePath to command directory
+			err = cd.copyComponentFiles(repoPath, component, commandDir)
 			if err != nil {
-				continue
+				os.RemoveAll(commandDir)
+				return fmt.Errorf("failed to copy command files: %w", err)
 			}
+		} else {
+			// Multiple commands found, create a monorepo structure
+			for _, component := range commandComponents {
+				componentDir := filepath.Join(commandDir, component.Name)
 
-			// Copy component files (non-recursive) using FilePath
-			err = cd.copyComponentFiles(repoPath, component, componentDir)
-			if err != nil {
-				log.Printf("Warning: failed to copy command %s: %v", component.Name, err)
+				err := createDirectoryWithPermissions(componentDir)
+				if err != nil {
+					continue
+				}
+
+				// Copy component files (non-recursive) using FilePath
+				err = cd.copyComponentFiles(repoPath, component, componentDir)
+				if err != nil {
+					log.Printf("Warning: failed to copy command %s: %v", component.Name, err)
+				}
 			}
 		}
 	}
@@ -2217,6 +2279,11 @@ func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoU
 		"detection":  "recursive",
 	}
 
+	// Add plugin path to metadata if present
+	if pluginPath != "" {
+		metadata["pluginPath"] = pluginPath
+	}
+
 	// Save legacy metadata file for backward compatibility
 	legacyMetadataFile := filepath.Join(commandDir, ".command-metadata.json")
 	if err := cd.saveMetadata(legacyMetadataFile, metadata); err != nil {
@@ -2239,7 +2306,7 @@ func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoU
 		}
 	}
 
-	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, len(commandComponents), "recursive", ""); err != nil {
+	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, len(commandComponents), "recursive", pluginPath); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -2249,6 +2316,9 @@ func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoU
 	}
 
 	fmt.Printf("Successfully downloaded command '%s' from %s\n", commandName, fullURL)
+	if pluginPath != "" {
+		fmt.Printf("Plugin structure detected: %s\n", pluginPath)
+	}
 	fmt.Printf("Command stored in: %s\n", commandDir)
 	fmt.Printf("Components detected: %d\n", len(commandComponents))
 
@@ -2701,36 +2771,63 @@ func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL str
 		return ad.downloadAgentDirect(fullURL, agentName)
 	}
 
-	// Create agent directory
-	agentDir := filepath.Join(ad.baseDir, agentName)
-	if err := createDirectoryWithPermissions(agentDir); err != nil {
-		return fmt.Errorf("failed to create agent directory: %w", err)
-	}
+	// Detect if components are part of a plugin structure
+	pluginPath := detectCommonPluginPath(agentComponents)
 
-	// If only one agent component found, copy its contents
-	if len(agentComponents) == 1 {
-		component := agentComponents[0]
+	var agentDir string
+	var err error
 
-		// Copy component files (non-recursive) using FilePath to agent directory
-		err := ad.copyComponentFiles(repoPath, component, agentDir)
-		if err != nil {
-			os.RemoveAll(agentDir)
-			return fmt.Errorf("failed to copy agent files: %w", err)
+	if pluginPath != "" {
+		// Plugin structure detected - copy entire plugin directory once
+		pluginDir := filepath.Join(filepath.Dir(ad.baseDir), pluginPath)
+
+		// Create plugin directory structure
+		if err := createDirectoryWithPermissions(pluginDir); err != nil {
+			return fmt.Errorf("failed to create plugin directory: %w", err)
 		}
+
+		// Copy entire plugin directory from repository
+		pluginSourcePath := filepath.Join(repoPath, pluginPath)
+		err = ad.copyDirectoryContents(pluginSourcePath, pluginDir)
+		if err != nil {
+			os.RemoveAll(pluginDir)
+			return fmt.Errorf("failed to copy plugin directory: %w", err)
+		}
+
+		// Set agentDir to the plugin directory for metadata storage
+		agentDir = pluginDir
 	} else {
-		// Multiple agents found, create a monorepo structure
-		for _, component := range agentComponents {
-			componentDir := filepath.Join(agentDir, component.Name)
+		// Non-plugin structure - use existing behavior
+		agentDir = filepath.Join(ad.baseDir, agentName)
+		if err := createDirectoryWithPermissions(agentDir); err != nil {
+			return fmt.Errorf("failed to create agent directory: %w", err)
+		}
 
-			err := createDirectoryWithPermissions(componentDir)
+		// If only one agent component found, copy its contents
+		if len(agentComponents) == 1 {
+			component := agentComponents[0]
+
+			// Copy component files (non-recursive) using FilePath to agent directory
+			err = ad.copyComponentFiles(repoPath, component, agentDir)
 			if err != nil {
-				continue
+				os.RemoveAll(agentDir)
+				return fmt.Errorf("failed to copy agent files: %w", err)
 			}
+		} else {
+			// Multiple agents found, create a monorepo structure
+			for _, component := range agentComponents {
+				componentDir := filepath.Join(agentDir, component.Name)
 
-			// Copy component files (non-recursive) using FilePath
-			err = ad.copyComponentFiles(repoPath, component, componentDir)
-			if err != nil {
-				log.Printf("Warning: failed to copy agent %s: %v", component.Name, err)
+				err := createDirectoryWithPermissions(componentDir)
+				if err != nil {
+					continue
+				}
+
+				// Copy component files (non-recursive) using FilePath
+				err = ad.copyComponentFiles(repoPath, component, componentDir)
+				if err != nil {
+					log.Printf("Warning: failed to copy agent %s: %v", component.Name, err)
+				}
 			}
 		}
 	}
@@ -2773,6 +2870,11 @@ func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL str
 		"detection":  "recursive",
 	}
 
+	// Add plugin path to metadata if present
+	if pluginPath != "" {
+		metadata["pluginPath"] = pluginPath
+	}
+
 	// Save legacy metadata file for backward compatibility
 	legacyMetadataFile := filepath.Join(agentDir, ".agent-metadata.json")
 	if err := ad.saveMetadata(legacyMetadataFile, metadata); err != nil {
@@ -2795,7 +2897,7 @@ func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL str
 		}
 	}
 
-	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, len(agentComponents), "recursive", ""); err != nil {
+	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, len(agentComponents), "recursive", pluginPath); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -2805,6 +2907,9 @@ func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL str
 	}
 
 	fmt.Printf("Successfully downloaded agent '%s' from %s\n", agentName, fullURL)
+	if pluginPath != "" {
+		fmt.Printf("Plugin structure detected: %s\n", pluginPath)
+	}
 	fmt.Printf("Agent stored in: %s\n", agentDir)
 	fmt.Printf("Components detected: %d\n", len(agentComponents))
 
