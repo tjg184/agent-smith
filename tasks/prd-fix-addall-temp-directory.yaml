@@ -1,7 +1,0 @@
-tasks:
-  - title: "Story-001: As a user running add-all, I want the repository to be cloned only once so that the command completes faster and uses less bandwidth - Repository is cloned exactly once during add-all execution, All component types (skills, agents, commands) use the same temporary directory, No breaking changes to existing CLI interface, Performance improvement measurable through timing"
-    completed: false
-    parallel_group: 0
-  - title: "Story-002: As a developer maintaining the codebase, I want the temp directory parameter passing to work correctly so that optimization functions as designed - providedRepoPath parameter is correctly passed from AddAll to individual download methods, Individual download methods properly detect and use provided repository path, No redundant cloning occurs when valid temp directory is provided, Existing behavior preserved for direct download commands"
-    completed: false
-    parallel_group: 1
