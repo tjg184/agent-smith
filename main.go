@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -19,73 +18,43 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/tgaines/agent-smith/cmd"
+	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/fileutil"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
 
-// RepositoryDetector maintains repository patterns and component detection
-type RepositoryDetector struct {
-	patterns        map[string]string
-	detectionConfig *models.DetectionConfig
-}
-
-// createDefaultDetectionConfig returns the default component detection patterns
-func createDefaultDetectionConfig() *models.DetectionConfig {
-	return &models.DetectionConfig{
-		Components: map[string]models.ComponentDetectionPattern{
-			string(models.ComponentSkill): {
-				Name:        "skill",
-				ExactFiles:  []string{paths.SkillMarkdownFile},
-				IgnorePaths: paths.IgnoredPaths,
-			},
-			string(models.ComponentAgent): {
-				Name:           "agent",
-				PathPatterns:   []string{paths.AgentsPathPattern, paths.AgentsSubDir},
-				FileExtensions: []string{".md"},
-				IgnorePaths:    paths.IgnoredPaths,
-			},
-			string(models.ComponentCommand): {
-				Name:           "command",
-				PathPatterns:   []string{paths.CommandsPathPattern, paths.CommandsSubDir},
-				FileExtensions: []string{".md"},
-				IgnorePaths:    paths.IgnoredPaths,
-			},
-		},
-	}
-}
-
 type SkillDownloader struct {
 	baseDir  string
-	detector *RepositoryDetector
+	detector *detector.RepositoryDetector
 }
 
 type AgentDownloader struct {
 	baseDir  string
-	detector *RepositoryDetector
+	detector *detector.RepositoryDetector
 }
 
 type CommandDownloader struct {
 	baseDir  string
-	detector *RepositoryDetector
+	detector *detector.RepositoryDetector
 }
 
 type ComponentLinker struct {
 	agentsDir   string
 	opencodeDir string
-	detector    *RepositoryDetector
+	detector    *detector.RepositoryDetector
 }
 
 type BulkDownloader struct {
 	skillDownloader   *SkillDownloader
 	agentDownloader   *AgentDownloader
 	commandDownloader *CommandDownloader
-	detector          *RepositoryDetector
+	detector          *detector.RepositoryDetector
 }
 
 type UpdateDetector struct {
 	baseDir  string
-	detector *RepositoryDetector
+	detector *detector.RepositoryDetector
 }
 
 type ComponentLockFile struct {
@@ -166,660 +135,6 @@ func determineDestinationFolderName(componentFilePath string) string {
 	}
 }
 
-// loadDetectionConfig loads detection configuration from a JSON file
-func (rd *RepositoryDetector) loadDetectionConfig(configPath string) error {
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		// Config file doesn't exist, use defaults
-		rd.detectionConfig = createDefaultDetectionConfig()
-		return nil
-	}
-
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return fmt.Errorf("failed to read detection config file %s: %v", configPath, err)
-	}
-
-	var config models.DetectionConfig
-	if err := json.Unmarshal(data, &config); err != nil {
-		return fmt.Errorf("failed to parse detection config file %s: %v", configPath, err)
-	}
-
-	rd.detectionConfig = &config
-	return nil
-}
-
-// saveDetectionConfig saves detection configuration to a JSON file
-func (rd *RepositoryDetector) saveDetectionConfig(configPath string) error {
-	if rd.detectionConfig == nil {
-		return fmt.Errorf("no detection config to save")
-	}
-
-	data, err := json.MarshalIndent(rd.detectionConfig, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal detection config: %v", err)
-	}
-
-	// Ensure directory exists
-	dir := filepath.Dir(configPath)
-	if err := os.MkdirAll(dir, getCrossPlatformPermissions()); err != nil {
-		return fmt.Errorf("failed to create config directory: %v", err)
-	}
-
-	return createFileWithPermissions(configPath, data)
-}
-
-// getDetectionConfigPath returns the default path for the detection configuration file
-func getDetectionConfigPath() string {
-	configPath, err := paths.GetDetectionConfigPath()
-	if err != nil {
-		return "./detection-config.json"
-	}
-	return configPath
-}
-
-func NewRepositoryDetector() *RepositoryDetector {
-	return NewRepositoryDetectorWithConfig("")
-}
-
-func NewRepositoryDetectorWithConfig(configPath string) *RepositoryDetector {
-	rd := &RepositoryDetector{
-		patterns: map[string]string{
-			// GitHub patterns (most specific first)
-			"github":     `^https?://(?:www\.)?github\.com/[^/]+/[^/]+$`,
-			"github_git": `^(git@|ssh://)git@github\.com:[^/]+/[^/]+\.git$`,
-			"github_api": `^https?://api\.github\.com/repos/[^/]+/[^/]+$`,
-
-			// GitLab patterns
-			"gitlab":     `^https?://(?:www\.)?gitlab\.com/[^/]+/[^/]+$`,
-			"gitlab_git": `^(git@|ssh://)git@gitlab\.com:[^/]+/[^/]+\.git$`,
-			"gitlab_api": `^https?://gitlab\.com/api/v4/projects/[^/]+$`,
-
-			// Bitbucket patterns
-			"bitbucket":     `^https?://(?:www\.)?bitbucket\.org/[^/]+/[^/]+$`,
-			"bitbucket_git": `^(git@|ssh://)git@bitbucket\.org:[^/]+/[^/]+\.git$`,
-			"bitbucket_api": `^https?://api\.bitbucket\.org/2\.0/repositories/[^/]+/[^/]+$`,
-
-			// Generic git patterns (most generic last)
-			"git_http": `^https?://(?!.*(?:github\.com|gitlab\.com|bitbucket\.org)).+$`,
-			"git_ssh":  `^(ssh://|git@).+$`,
-			"git":      `^(https?://|git@|ssh://).+\.git$`,
-		},
-	}
-
-	// Load detection configuration
-	if configPath == "" {
-		configPath = getDetectionConfigPath()
-	}
-
-	if err := rd.loadDetectionConfig(configPath); err != nil {
-		// If loading fails, use default config
-		rd.detectionConfig = createDefaultDetectionConfig()
-	}
-
-	return rd
-}
-
-func (rd *RepositoryDetector) isLocalPath(path string) bool {
-	path = strings.TrimSpace(path)
-
-	// Check for absolute Unix paths
-	if strings.HasPrefix(path, "/") {
-		// Verify it looks like a valid path and exists
-		if _, err := os.Stat(path); err == nil {
-			return true
-		}
-	}
-
-	// Check for Windows paths
-	if len(path) > 1 && path[1] == ':' {
-		// C:\... or C:/... format
-		if _, err := os.Stat(path); err == nil {
-			return true
-		}
-	}
-
-	// Check for Windows UNC paths
-	if strings.HasPrefix(path, "\\\\") {
-		if _, err := os.Stat(path); err == nil {
-			return true
-		}
-	}
-
-	// Check for relative paths that might exist locally
-	if !strings.Contains(path, "://") && !strings.HasPrefix(path, "git@") {
-		// Try expanding to absolute path
-		if absPath, err := filepath.Abs(path); err == nil {
-			if _, err := os.Stat(absPath); err == nil {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-func (rd *RepositoryDetector) detectProvider(repoURL string) string {
-	repoURL = strings.TrimSpace(repoURL)
-
-	// Check for local paths first (most specific)
-	if rd.isLocalPath(repoURL) {
-		return "local"
-	}
-
-	// Check for specific providers in order of specificity
-	for provider, pattern := range rd.patterns {
-		if matched, _ := regexp.MatchString(pattern, repoURL); matched {
-			// Normalize provider names (remove suffixes like _git, _api)
-			if strings.HasSuffix(provider, "_git") {
-				return strings.TrimSuffix(provider, "_git")
-			}
-			if strings.HasSuffix(provider, "_api") {
-				return strings.TrimSuffix(provider, "_api")
-			}
-			if strings.Contains(provider, "_") {
-				parts := strings.Split(provider, "_")
-				return parts[0]
-			}
-			return provider
-		}
-	}
-
-	return "generic"
-}
-
-func (rd *RepositoryDetector) normalizeURL(repoURL string) (string, error) {
-	repoURL = strings.TrimSpace(repoURL)
-
-	// Handle local paths
-	if rd.isLocalPath(repoURL) {
-		absPath, err := filepath.Abs(repoURL)
-		if err != nil {
-			return "", fmt.Errorf("failed to get absolute path for local repository: %w", err)
-		}
-
-		// Verify it's a valid git repository
-		if _, err := os.Stat(filepath.Join(absPath, ".git")); os.IsNotExist(err) {
-			return "", fmt.Errorf("local path is not a git repository: %s", absPath)
-		}
-
-		return absPath, nil
-	}
-
-	// If it's already a full URL or SSH/Git format, validate and return as-is
-	if strings.HasPrefix(repoURL, "http://") || strings.HasPrefix(repoURL, "https://") ||
-		strings.HasPrefix(repoURL, "git@") || strings.HasPrefix(repoURL, "ssh://") {
-
-		// Basic URL validation
-		if strings.HasPrefix(repoURL, "http") {
-			if !strings.Contains(repoURL, "://") {
-				return "", fmt.Errorf("invalid URL format: %s", repoURL)
-			}
-		}
-
-		return repoURL, nil
-	}
-
-	// Handle GitHub shorthand (owner/repo)
-	if !strings.Contains(repoURL, "/") {
-		return "", fmt.Errorf("invalid repository format: %s", repoURL)
-	}
-
-	parts := strings.Split(repoURL, "/")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid repository format: %s", repoURL)
-	}
-
-	// Validate shorthand format
-	if parts[0] == "" || parts[1] == "" {
-		return "", fmt.Errorf("invalid repository format: %s", repoURL)
-	}
-
-	// Default to GitHub for shorthand notation
-	return fmt.Sprintf("https://github.com/%s", repoURL), nil
-}
-
-func (rd *RepositoryDetector) validateRepository(repoURL string) error {
-	provider := rd.detectProvider(repoURL)
-
-	switch provider {
-	case "local":
-		// For local paths, check if it's a valid git repository
-		absPath, err := filepath.Abs(repoURL)
-		if err != nil {
-			return fmt.Errorf("failed to get absolute path: %w", err)
-		}
-
-		if _, err := os.Stat(filepath.Join(absPath, ".git")); os.IsNotExist(err) {
-			return fmt.Errorf("local path is not a git repository: %s", absPath)
-		}
-
-		// Check if directory is accessible
-		if _, err := os.Stat(absPath); err != nil {
-			return fmt.Errorf("cannot access local repository: %w", err)
-		}
-
-	case "github", "gitlab", "bitbucket":
-		// For known providers, validate the URL format
-		if !strings.Contains(repoURL, "/") {
-			return fmt.Errorf("invalid repository URL format: %s", repoURL)
-		}
-
-		// Additional validation for HTTP/HTTPS URLs
-		if strings.HasPrefix(repoURL, "http") {
-			if !strings.HasPrefix(repoURL, "http://") && !strings.HasPrefix(repoURL, "https://") {
-				return fmt.Errorf("invalid protocol in URL: %s", repoURL)
-			}
-		}
-
-	case "generic", "git":
-		// For generic git URLs, do basic validation
-		if !strings.HasPrefix(repoURL, "http://") && !strings.HasPrefix(repoURL, "https://") &&
-			!strings.HasPrefix(repoURL, "git@") && !strings.HasPrefix(repoURL, "ssh://") &&
-			!strings.HasSuffix(repoURL, ".git") {
-			return fmt.Errorf("unrecognized repository format: %s", repoURL)
-		}
-
-	default:
-		return fmt.Errorf("unsupported repository type: %s", provider)
-	}
-
-	return nil
-}
-
-// shouldIgnorePath checks if a path should be ignored during detection
-func (rd *RepositoryDetector) shouldIgnorePath(relPath string, ignorePaths []string) bool {
-	// Normalize path to use forward slashes for consistent matching
-	normalizedPath := filepath.ToSlash(relPath)
-
-	for _, ignorePath := range ignorePaths {
-		// Check if ignore pattern matches as a whole path component
-		// Pattern matches if it appears as:
-		// 1. Exact match: "build"
-		// 2. At the start: "build/..."
-		// 3. After a separator: ".../build/..."
-		// 4. At the end: ".../build"
-
-		if normalizedPath == ignorePath {
-			return true // Exact match
-		}
-
-		if strings.HasPrefix(normalizedPath, ignorePath+"/") {
-			return true // Pattern at start: "build/..."
-		}
-
-		if strings.Contains(normalizedPath, "/"+ignorePath+"/") {
-			return true // Pattern in middle: ".../build/..."
-		}
-
-		if strings.HasSuffix(normalizedPath, "/"+ignorePath) {
-			return true // Pattern at end: ".../build"
-		}
-	}
-	return false
-}
-
-// matchesExactFile checks if the filename matches any exact file patterns
-func (rd *RepositoryDetector) matchesExactFile(fileName string, exactFiles []string) bool {
-	for _, exactFile := range exactFiles {
-		if fileName == exactFile {
-			return true
-		}
-	}
-	return false
-}
-
-// matchesPathPattern checks if the relative path matches any path patterns
-func (rd *RepositoryDetector) matchesPathPattern(relPath string, pathPatterns []string) bool {
-	for _, pattern := range pathPatterns {
-		if strings.Contains(relPath, pattern) || strings.HasSuffix(relPath, pattern) {
-			return true
-		}
-	}
-	return false
-}
-
-// matchesFileExtension checks if the file has any of the specified extensions
-func (rd *RepositoryDetector) matchesFileExtension(fileName string, fileExtensions []string) bool {
-	for _, ext := range fileExtensions {
-		if strings.HasSuffix(fileName, ext) {
-			return true
-		}
-	}
-	return false
-}
-
-// detectComponentForPattern checks if a file matches a component detection pattern
-func (rd *RepositoryDetector) detectComponentForPattern(fileName, relPath, fullRelPath, repoPath string, pattern models.ComponentDetectionPattern, componentType models.ComponentType) (string, string, bool) {
-	// Debug logging for component detection process
-	log.Printf("DEBUG: Processing file: %s, relPath: %s, fileName: %s", fullRelPath, relPath, fileName)
-	log.Printf("DEBUG: Component pattern: %s, exactFiles: %v", pattern.Name, pattern.ExactFiles)
-
-	// Check if path should be ignored
-	if rd.shouldIgnorePath(relPath, pattern.IgnorePaths) {
-		log.Printf("DEBUG: Path ignored: %s", relPath)
-		return "", "", false
-	}
-
-	// Parse frontmatter if the file is markdown
-	var frontmatter *models.ComponentFrontmatter
-	if strings.HasSuffix(fileName, ".md") {
-		fullFilePath := filepath.Join(repoPath, fullRelPath)
-		parsedFrontmatter, err := parseFrontmatter(fullFilePath)
-		if err != nil {
-			log.Printf("DEBUG: Failed to parse frontmatter from %s: %v", fullFilePath, err)
-		} else if parsedFrontmatter != nil {
-			frontmatter = parsedFrontmatter
-			log.Printf("DEBUG: Parsed frontmatter from %s: name=%s", fullFilePath, frontmatter.Name)
-		}
-	}
-
-	// Check exact file matches first (highest priority)
-	if rd.matchesExactFile(fileName, pattern.ExactFiles) {
-		// Use fullRelPath to get the correct directory containing the component file
-		componentDir := filepath.Dir(fullRelPath)
-		log.Printf("DEBUG: Exact file match, componentDir: %s", componentDir)
-
-		if componentDir == "." {
-			componentName := "root-" + pattern.Name
-			log.Printf("DEBUG: Root component, name: %s", componentName)
-			return componentName, componentDir, true
-		}
-
-		// For exact file matches, use frontmatter name if available, otherwise use directory name
-		var componentName string
-		if frontmatter != nil && strings.TrimSpace(frontmatter.Name) != "" {
-			componentName = strings.TrimSpace(frontmatter.Name)
-		} else {
-			componentName = filepath.Base(componentDir)
-		}
-
-		log.Printf("DEBUG: Extracted component name: %s from directory: %s (frontmatter: %v)", componentName, componentDir, frontmatter != nil)
-		log.Printf("DEBUG: Component name: '%s', componentKey: '%s-%s'", componentName, pattern.Name, componentName)
-		return componentName, componentDir, true
-	}
-
-	// Check path patterns with file extensions (medium priority)
-	if len(pattern.PathPatterns) > 0 && len(pattern.FileExtensions) > 0 {
-		if rd.matchesPathPattern(relPath, pattern.PathPatterns) && rd.matchesFileExtension(fileName, pattern.FileExtensions) {
-			// Use determineComponentName with frontmatter priority
-			componentName := determineComponentName(frontmatter, fileName)
-
-			// Skip if determineComponentName returns empty (special files like README.md)
-			if componentName == "" {
-				log.Printf("DEBUG: Path pattern + extension match, but component name is empty (special file), skipping")
-				return "", "", false
-			}
-
-			log.Printf("DEBUG: Path pattern + extension match, name: %s (frontmatter: %v)", componentName, frontmatter != nil)
-			return componentName, relPath, true
-		}
-		log.Printf("DEBUG: Path pattern + extension check failed")
-	}
-
-	// Check just path patterns (lower priority)
-	if len(pattern.PathPatterns) > 0 && rd.matchesPathPattern(relPath, pattern.PathPatterns) {
-		// Use determineComponentName with frontmatter priority
-		componentName := determineComponentName(frontmatter, fileName)
-
-		// Skip if determineComponentName returns empty (special files like README.md)
-		if componentName == "" {
-			log.Printf("DEBUG: Path pattern match, but component name is empty (special file), skipping")
-			return "", "", false
-		}
-
-		log.Printf("DEBUG: Path pattern match, name: %s (frontmatter: %v)", componentName, frontmatter != nil)
-		return componentName, relPath, true
-	}
-	log.Printf("DEBUG: Path pattern check failed")
-
-	log.Printf("DEBUG: No pattern matched for file: %s", fileName)
-	return "", "", false
-}
-
-func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]models.DetectedComponent, error) {
-	var components []models.DetectedComponent
-
-	// Track all component occurrences for duplicate detection
-	type ComponentOccurrence struct {
-		component models.DetectedComponent
-		path      string
-	}
-	seenComponents := make(map[string][]ComponentOccurrence) // Track all occurrences
-	duplicatesFound := false
-
-	// Walk the repository to detect components
-	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		fileName := filepath.Base(path)
-		parentDir := filepath.Dir(path)
-		relPath, err := filepath.Rel(repoPath, parentDir)
-		if err != nil {
-			return err
-		}
-
-		// Full relative path including filename for path-based detection
-		fullRelPath, err := filepath.Rel(repoPath, path)
-		if err != nil {
-			return err
-		}
-
-		// Check each component type using its detection pattern
-		for componentTypeStr, pattern := range rd.detectionConfig.Components {
-			componentType := models.ComponentType(componentTypeStr)
-
-			if componentName, componentPath, matched := rd.detectComponentForPattern(fileName, relPath, fullRelPath, repoPath, pattern, componentType); matched {
-				log.Printf("DEBUG: Match result: true for componentType: %s", componentTypeStr)
-
-				// Handle default component names
-				if componentName == "" || componentName == "." {
-					componentName = fmt.Sprintf("root-%s", pattern.Name)
-					log.Printf("DEBUG: Applied default component name: %s", componentName)
-				}
-
-				componentKey := fmt.Sprintf("%s-%s", pattern.Name, componentName)
-				log.Printf("DEBUG: Component key: %s", componentKey)
-
-				if existing, exists := seenComponents[componentKey]; exists {
-					// Duplicate detected - log warning immediately
-					duplicatesFound = true
-					log.Printf("⚠️  WARNING: Duplicate component name detected!")
-					log.Printf("    Component: %s (%s)", componentName, pattern.Name)
-					log.Printf("    First occurrence: %s", existing[0].path)
-					log.Printf("    Duplicate at: %s (WILL BE SKIPPED)", fullRelPath)
-
-					// Track this duplicate occurrence
-					seenComponents[componentKey] = append(seenComponents[componentKey], ComponentOccurrence{
-						component: models.DetectedComponent{
-							Type:       componentType,
-							Name:       componentName,
-							Path:       componentPath,
-							SourceFile: fileName,
-							FilePath:   fullRelPath, // Track full path from repo root
-						},
-						path: fullRelPath,
-					})
-				} else {
-					// First occurrence - add to components list
-					component := models.DetectedComponent{
-						Type:       componentType,
-						Name:       componentName,
-						Path:       componentPath,
-						SourceFile: fileName,
-						FilePath:   fullRelPath, // Track full path from repo root
-					}
-					components = append(components, component)
-					seenComponents[componentKey] = []ComponentOccurrence{{
-						component: component,
-						path:      fullRelPath,
-					}}
-					log.Printf("DEBUG: Added component: %s (key: %s)", componentName, componentKey)
-				}
-			}
-		}
-
-		// Additional agent detection for .md files in /agents/ paths
-		if strings.HasSuffix(fileName, ".md") && strings.Contains(fullRelPath, "/agents/") {
-			// Extract component name from filename (without extension) for better uniqueness
-			componentName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-			log.Printf("DEBUG: Additional agent detection in /agents/ path: %s", componentName)
-			if componentName == "" || componentName == "." {
-				componentName = "root-agent"
-				log.Printf("DEBUG: Applied default agent name: %s", componentName)
-			}
-			componentKey := fmt.Sprintf("agent-%s", componentName)
-			log.Printf("DEBUG: Agent component key: %s", componentKey)
-
-			if existing, exists := seenComponents[componentKey]; exists {
-				// Duplicate detected
-				duplicatesFound = true
-				log.Printf("⚠️  WARNING: Duplicate agent name detected!")
-				log.Printf("    Agent: %s", componentName)
-				log.Printf("    First occurrence: %s", existing[0].path)
-				log.Printf("    Duplicate at: %s (WILL BE SKIPPED)", fullRelPath)
-
-				seenComponents[componentKey] = append(seenComponents[componentKey], ComponentOccurrence{
-					component: models.DetectedComponent{
-						Type:       models.ComponentAgent,
-						Name:       componentName,
-						Path:       relPath,
-						SourceFile: fileName,
-						FilePath:   fullRelPath, // Track full path from repo root
-					},
-					path: fullRelPath,
-				})
-			} else {
-				component := models.DetectedComponent{
-					Type:       models.ComponentAgent,
-					Name:       componentName,
-					Path:       relPath,
-					SourceFile: fileName,
-					FilePath:   fullRelPath, // Track full path from repo root
-				}
-				components = append(components, component)
-				seenComponents[componentKey] = []ComponentOccurrence{{
-					component: component,
-					path:      fullRelPath,
-				}}
-				log.Printf("DEBUG: Added additional agent: %s", componentName)
-			}
-		}
-
-		// Additional command detection for .md files in /commands/ paths
-		if strings.HasSuffix(fileName, ".md") && strings.Contains(fullRelPath, "/commands/") {
-			// Extract component name from filename (without extension) for better uniqueness
-			componentName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-			log.Printf("DEBUG: Additional command detection in /commands/ path: %s", componentName)
-			if componentName == "" || componentName == "." {
-				componentName = "root-command"
-				log.Printf("DEBUG: Applied default command name: %s", componentName)
-			}
-			componentKey := fmt.Sprintf("command-%s", componentName)
-			log.Printf("DEBUG: Command component key: %s", componentKey)
-
-			if existing, exists := seenComponents[componentKey]; exists {
-				// Duplicate detected
-				duplicatesFound = true
-				log.Printf("⚠️  WARNING: Duplicate command name detected!")
-				log.Printf("    Command: %s", componentName)
-				log.Printf("    First occurrence: %s", existing[0].path)
-				log.Printf("    Duplicate at: %s (WILL BE SKIPPED)", fullRelPath)
-
-				seenComponents[componentKey] = append(seenComponents[componentKey], ComponentOccurrence{
-					component: models.DetectedComponent{
-						Type:       models.ComponentCommand,
-						Name:       componentName,
-						Path:       relPath,
-						SourceFile: fileName,
-						FilePath:   fullRelPath, // Track full path from repo root
-					},
-					path: fullRelPath,
-				})
-			} else {
-				component := models.DetectedComponent{
-					Type:       models.ComponentCommand,
-					Name:       componentName,
-					Path:       relPath,
-					SourceFile: fileName,
-					FilePath:   fullRelPath, // Track full path from repo root
-				}
-				components = append(components, component)
-				seenComponents[componentKey] = []ComponentOccurrence{{
-					component: component,
-					path:      fullRelPath,
-				}}
-				log.Printf("DEBUG: Added additional command: %s", componentName)
-			}
-		}
-
-		return nil
-	})
-
-	log.Printf("DEBUG: Total components detected: %d", len(components))
-
-	// Count components by type for debugging
-	skillCount := 0
-	agentCount := 0
-	commandCount := 0
-	for _, comp := range components {
-		switch comp.Type {
-		case models.ComponentSkill:
-			skillCount++
-		case models.ComponentAgent:
-			agentCount++
-		case models.ComponentCommand:
-			commandCount++
-		}
-	}
-	log.Printf("DEBUG: Component breakdown - Skills: %d, Agents: %d, Commands: %d", skillCount, agentCount, commandCount)
-
-	// Display duplicate warnings summary if any duplicates were found
-	if duplicatesFound {
-		fmt.Printf("\n")
-		fmt.Printf("╔════════════════════════════════════════════════════════════════════╗\n")
-		fmt.Printf("║  ⚠️  WARNING: Duplicate Component Names Detected                  ║\n")
-		fmt.Printf("╚════════════════════════════════════════════════════════════════════╝\n\n")
-
-		duplicateCount := 0
-		for _, occurrences := range seenComponents {
-			if len(occurrences) > 1 {
-				duplicateCount++
-				// Parse component type from key
-				componentType := "component"
-				if len(occurrences) > 0 {
-					componentType = string(occurrences[0].component.Type)
-				}
-
-				fmt.Printf("  [%d] %s '%s' found in %d locations:\n", duplicateCount, componentType, occurrences[0].component.Name, len(occurrences))
-				for i, occ := range occurrences {
-					if i == 0 {
-						fmt.Printf("      ✓ %s (USED - first occurrence)\n", occ.path)
-					} else {
-						fmt.Printf("      ✗ %s (SKIPPED - duplicate #%d)\n", occ.path, i)
-					}
-				}
-				fmt.Printf("\n")
-			}
-		}
-
-		fmt.Printf("  Resolution Required:\n")
-		fmt.Printf("  • Only the FIRST occurrence of each component will be used\n")
-		fmt.Printf("  • Subsequent duplicates have been SKIPPED\n")
-		fmt.Printf("  • To resolve: Rename or remove duplicate components\n")
-		fmt.Printf("\n")
-		fmt.Printf("  Total duplicates found: %d\n", duplicateCount)
-		fmt.Printf("════════════════════════════════════════════════════════════════════\n\n")
-	}
-
-	return components, err
-}
-
 func NewSkillDownloader() *SkillDownloader {
 	baseDir, err := paths.GetSkillsDir()
 	if err != nil {
@@ -833,7 +148,7 @@ func NewSkillDownloader() *SkillDownloader {
 
 	return &SkillDownloader{
 		baseDir:  baseDir,
-		detector: NewRepositoryDetector(),
+		detector: detector.NewRepositoryDetector(),
 	}
 }
 
@@ -850,7 +165,7 @@ func NewAgentDownloader() *AgentDownloader {
 
 	return &AgentDownloader{
 		baseDir:  baseDir,
-		detector: NewRepositoryDetector(),
+		detector: detector.NewRepositoryDetector(),
 	}
 }
 
@@ -867,7 +182,7 @@ func NewCommandDownloader() *CommandDownloader {
 
 	return &CommandDownloader{
 		baseDir:  baseDir,
-		detector: NewRepositoryDetector(),
+		detector: detector.NewRepositoryDetector(),
 	}
 }
 
@@ -890,7 +205,7 @@ func NewComponentLinker() *ComponentLinker {
 	return &ComponentLinker{
 		agentsDir:   agentsDir,
 		opencodeDir: opencodeDir,
-		detector:    NewRepositoryDetector(),
+		detector:    detector.NewRepositoryDetector(),
 	}
 }
 
@@ -902,7 +217,7 @@ func NewUpdateDetector() *UpdateDetector {
 
 	return &UpdateDetector{
 		baseDir:  baseDir,
-		detector: NewRepositoryDetector(),
+		detector: detector.NewRepositoryDetector(),
 	}
 }
 
@@ -911,7 +226,7 @@ func NewBulkDownloader() *BulkDownloader {
 		skillDownloader:   NewSkillDownloader(),
 		agentDownloader:   NewAgentDownloader(),
 		commandDownloader: NewCommandDownloader(),
-		detector:          NewRepositoryDetector(),
+		detector:          detector.NewRepositoryDetector(),
 	}
 }
 
@@ -1013,13 +328,13 @@ func computeLocalFolderHash(folderPath string) (string, error) {
 
 func (sd *SkillDownloader) parseRepoURL(repoURL string) (string, error) {
 	// Normalize URL first (handles GitHub shorthand, etc.)
-	normalizedURL, err := sd.detector.normalizeURL(repoURL)
+	normalizedURL, err := sd.detector.NormalizeURL(repoURL)
 	if err != nil {
 		return "", err
 	}
 
 	// Validate the normalized repository
-	if err := sd.detector.validateRepository(normalizedURL); err != nil {
+	if err := sd.detector.ValidateRepository(normalizedURL); err != nil {
 		return "", fmt.Errorf("repository validation failed: %w", err)
 	}
 
@@ -1038,7 +353,7 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string, providedRepo
 	// Use provided repo path if available, otherwise clone for detection
 	if hasProvidedPath {
 		repoPath = providedRepoPath[0]
-	} else if sd.detector.detectProvider(repoURL) == "local" {
+	} else if sd.detector.DetectProvider(repoURL) == "local" {
 		// For local repositories, use path directly
 		repoPath = fullURL
 	} else {
@@ -1063,7 +378,7 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string, providedRepo
 	}
 
 	// Detect components in the repository
-	components, err := sd.detector.detectComponentsInRepo(repoPath)
+	components, err := sd.detector.DetectComponentsInRepo(repoPath)
 	if err != nil {
 		return fmt.Errorf("failed to detect components: %w", err)
 	}
@@ -1119,7 +434,7 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string, providedRepo
 	var repo *git.Repository
 
 	// Handle metadata differently for local vs remote repositories
-	if sd.detector.detectProvider(repoURL) == "local" {
+	if sd.detector.DetectProvider(repoURL) == "local" {
 		// For local repositories, open the repository directly
 		repo, err = git.PlainOpen(fullURL)
 		if err != nil {
@@ -1164,7 +479,7 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string, providedRepo
 
 	// Save to npx add-skill compatible lock file
 	var sourceType string
-	if sd.detector.detectProvider(repoURL) == "local" {
+	if sd.detector.DetectProvider(repoURL) == "local" {
 		sourceType = "local"
 	} else if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
@@ -1197,7 +512,7 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string, providedRepo
 	}
 
 	// Clean up git clone only for remote repositories
-	if sd.detector.detectProvider(repoURL) != "local" {
+	if sd.detector.DetectProvider(repoURL) != "local" {
 		if _, err := os.Stat(skillDir + ".git"); err == nil {
 			os.RemoveAll(skillDir + ".git")
 		}
@@ -1221,7 +536,7 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 	var err error
 
 	// Handle local vs remote repositories
-	if sd.detector.detectProvider(repoURL) == "local" {
+	if sd.detector.DetectProvider(repoURL) == "local" {
 		// For local repositories, copy directory contents directly
 		err = sd.copyDirectoryContents(fullURL, skillDir)
 		if err != nil {
@@ -1465,7 +780,7 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 	var repo *git.Repository
 
 	// Handle metadata differently for local vs remote repositories
-	if sd.detector.detectProvider(repoURL) == "local" {
+	if sd.detector.DetectProvider(repoURL) == "local" {
 		// For local repositories, open the repository directly
 		repo, err = git.PlainOpen(repoPath)
 		if err != nil {
@@ -1506,7 +821,7 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 
 	// Save to npx add-skill compatible lock file
 	var sourceType string
-	if sd.detector.detectProvider(repoURL) == "local" {
+	if sd.detector.DetectProvider(repoURL) == "local" {
 		sourceType = "local"
 	} else if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
@@ -1539,7 +854,7 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 	}
 
 	// Clean up git clone only for remote repositories
-	if sd.detector.detectProvider(repoURL) != "local" {
+	if sd.detector.DetectProvider(repoURL) != "local" {
 		if _, err := os.Stat(skillDir + ".git"); err == nil {
 			os.RemoveAll(skillDir + ".git")
 		}
@@ -1553,13 +868,13 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 
 func (cd *CommandDownloader) parseRepoURL(repoURL string) (string, error) {
 	// Normalize URL first (handles GitHub shorthand, etc.)
-	normalizedURL, err := cd.detector.normalizeURL(repoURL)
+	normalizedURL, err := cd.detector.NormalizeURL(repoURL)
 	if err != nil {
 		return "", err
 	}
 
 	// Validate normalized repository
-	if err := cd.detector.validateRepository(normalizedURL); err != nil {
+	if err := cd.detector.ValidateRepository(normalizedURL); err != nil {
 		return "", fmt.Errorf("repository validation failed: %w", err)
 	}
 
@@ -1578,7 +893,7 @@ func (cd *CommandDownloader) downloadCommand(repoURL, commandName string, provid
 	// Use provided repo path if available, otherwise clone for detection
 	if hasProvidedPath {
 		repoPath = providedRepoPath[0]
-	} else if cd.detector.detectProvider(repoURL) == "local" {
+	} else if cd.detector.DetectProvider(repoURL) == "local" {
 		// For local repositories, use path directly
 		repoPath = fullURL
 	} else {
@@ -1603,7 +918,7 @@ func (cd *CommandDownloader) downloadCommand(repoURL, commandName string, provid
 	}
 
 	// Detect components in repository
-	components, err := cd.detector.detectComponentsInRepo(repoPath)
+	components, err := cd.detector.DetectComponentsInRepo(repoPath)
 	if err != nil {
 		return fmt.Errorf("failed to detect components: %w", err)
 	}
@@ -1972,7 +1287,7 @@ func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoU
 	var repo *git.Repository
 
 	// Handle metadata differently for local vs remote repositories
-	if cd.detector.detectProvider(repoURL) == "local" {
+	if cd.detector.DetectProvider(repoURL) == "local" {
 		// For local repositories, open the repository directly
 		var err error
 		repo, err = git.PlainOpen(fullURL)
@@ -2046,13 +1361,13 @@ func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoU
 
 func (ad *AgentDownloader) parseRepoURL(repoURL string) (string, error) {
 	// Normalize URL first (handles GitHub shorthand, etc.)
-	normalizedURL, err := ad.detector.normalizeURL(repoURL)
+	normalizedURL, err := ad.detector.NormalizeURL(repoURL)
 	if err != nil {
 		return "", err
 	}
 
 	// Validate normalized repository
-	if err := ad.detector.validateRepository(normalizedURL); err != nil {
+	if err := ad.detector.ValidateRepository(normalizedURL); err != nil {
 		return "", fmt.Errorf("repository validation failed: %w", err)
 	}
 
@@ -2071,7 +1386,7 @@ func (ad *AgentDownloader) downloadAgent(repoURL, agentName string, providedRepo
 	// Use provided repo path if available, otherwise clone for detection
 	if hasProvidedPath {
 		repoPath = providedRepoPath[0]
-	} else if ad.detector.detectProvider(repoURL) == "local" {
+	} else if ad.detector.DetectProvider(repoURL) == "local" {
 		// For local repositories, use path directly
 		repoPath = fullURL
 	} else {
@@ -2096,7 +1411,7 @@ func (ad *AgentDownloader) downloadAgent(repoURL, agentName string, providedRepo
 	}
 
 	// Detect components in the repository
-	components, err := ad.detector.detectComponentsInRepo(repoPath)
+	components, err := ad.detector.DetectComponentsInRepo(repoPath)
 	if err != nil {
 		return fmt.Errorf("failed to detect components: %w", err)
 	}
@@ -2465,7 +1780,7 @@ func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL str
 	var repo *git.Repository
 
 	// Handle metadata differently for local vs remote repositories
-	if ad.detector.detectProvider(repoURL) == "local" {
+	if ad.detector.DetectProvider(repoURL) == "local" {
 		// For local repositories, open repository directly
 		var err error
 		repo, err = git.PlainOpen(fullURL)
@@ -2851,12 +2166,12 @@ func (cl *ComponentLinker) detectAndLinkLocalRepositories() error {
 	}
 
 	// Check if current directory is a git repository
-	if !cl.detector.isLocalPath(cwd) {
+	if !cl.detector.IsLocalPath(cwd) {
 		return fmt.Errorf("current directory is not a git repository")
 	}
 
 	// Detect components in the current repository
-	components, err := cl.detector.detectComponentsInRepo(cwd)
+	components, err := cl.detector.DetectComponentsInRepo(cwd)
 	if err != nil {
 		return fmt.Errorf("failed to detect components in repository: %w", err)
 	}
@@ -3317,7 +2632,7 @@ func (ud *UpdateDetector) loadFromLockFile(componentType, componentName string) 
 }
 
 func (ud *UpdateDetector) getCurrentRepoSHA(repoURL string) (string, error) {
-	fullURL, err := ud.detector.normalizeURL(repoURL)
+	fullURL, err := ud.detector.NormalizeURL(repoURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to normalize URL: %w", err)
 	}
@@ -3441,7 +2756,7 @@ func (ud *UpdateDetector) UpdateAll() error {
 }
 
 func (bd *BulkDownloader) AddAll(repoURL string) error {
-	fullURL, err := bd.detector.normalizeURL(repoURL)
+	fullURL, err := bd.detector.NormalizeURL(repoURL)
 	if err != nil {
 		return fmt.Errorf("failed to normalize repository URL: %w", err)
 	}
@@ -3465,7 +2780,7 @@ func (bd *BulkDownloader) AddAll(repoURL string) error {
 	}
 
 	// Detect all components in the repository from root
-	components, err := bd.detector.detectComponentsInRepo(tempDir)
+	components, err := bd.detector.DetectComponentsInRepo(tempDir)
 	if err != nil {
 		return fmt.Errorf("failed to detect components: %w", err)
 	}
@@ -3536,7 +2851,7 @@ func (bd *BulkDownloader) processComponents(components []models.DetectedComponen
 
 // ComponentExecutor handles npx-like execution of components
 type ComponentExecutor struct {
-	detector   *RepositoryDetector
+	detector   *detector.RepositoryDetector
 	skillDir   string
 	agentDir   string
 	commandDir string
@@ -3559,7 +2874,7 @@ func NewComponentExecutor() *ComponentExecutor {
 	}
 
 	return &ComponentExecutor{
-		detector:   NewRepositoryDetector(),
+		detector:   detector.NewRepositoryDetector(),
 		skillDir:   skillDir,
 		agentDir:   agentDir,
 		commandDir: commandDir,
@@ -3750,7 +3065,7 @@ func (ce *ComponentExecutor) runCommand(name string, args ...string) error {
 
 func (ce *ComponentExecutor) runFromRepository(repoURL string, args []string) error {
 	// Normalize repository URL
-	fullURL, err := ce.detector.normalizeURL(repoURL)
+	fullURL, err := ce.detector.NormalizeURL(repoURL)
 	if err != nil {
 		return fmt.Errorf("invalid repository URL: %w", err)
 	}
@@ -3774,7 +3089,7 @@ func (ce *ComponentExecutor) runFromRepository(repoURL string, args []string) er
 	}
 
 	// Detect components in the repository
-	components, err := ce.detector.detectComponentsInRepo(tempDir)
+	components, err := ce.detector.DetectComponentsInRepo(tempDir)
 	if err != nil {
 		return fmt.Errorf("failed to detect components: %w", err)
 	}
