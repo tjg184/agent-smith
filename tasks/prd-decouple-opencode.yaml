@@ -1,0 +1,10 @@
+tasks:
+  - title: "Story-001: As a developer, I want to abstract the hardcoded `opencode` paths into a configuration interface so that the CLI can support multiple targets in the future. - `pkg/paths` no longer contains hardcoded constants exposed directly, New `Target`/`Configuration` interface defined, `OpencodeConfiguration` struct implements interface, Application initializes with default config"
+    completed: false
+    parallel_group: 0
+  - title: "Story-002: As a developer, I want to refactor the Linker to use a generic Target interface so that linking logic is not coupled to `opencode` directory structures. - `ComponentLinker` struct accepts `Target` interface, Opencode-specific logic moved to implementation, Linker calls `target.GetLinkPath`"
+    completed: false
+    parallel_group: 1
+  - title: "Story-003: As a user, I want the CLI to default to `opencode` behavior without extra configuration so that my existing workflows remain unchanged. - `agent-smith link` works without args, Existing CLI flags work identically, No manual config required for default"
+    completed: false
+    parallel_group: 2
