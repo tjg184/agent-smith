@@ -3410,7 +3410,7 @@ func (cl *ComponentLinker) unlinkComponent(componentType, componentName string) 
 func (cl *ComponentLinker) unlinkAllComponents(force bool) error {
 	componentTypes := []string{"skills", "agents", "commands"}
 
-	// First, collect all links
+	// First, collect all symlinks (skip copied directories)
 	totalLinks := 0
 	copiedDirs := 0
 
@@ -3434,25 +3434,32 @@ func (cl *ComponentLinker) unlinkAllComponents(force bool) error {
 			fullPath := filepath.Join(typeDir, entry.Name())
 			linkType, _, _ := cl.analyzeLinkStatus(fullPath)
 
-			totalLinks++
 			if linkType == "copied" {
 				copiedDirs++
+				continue // Skip copied directories
 			}
+			totalLinks++
 		}
 	}
 
-	if totalLinks == 0 {
+	if totalLinks == 0 && copiedDirs == 0 {
 		fmt.Println("No linked components found.")
 		return nil
 	}
 
 	// Require force flag or confirmation
 	if !force {
-		fmt.Printf("This will unlink %d components from opencode", totalLinks)
-		if copiedDirs > 0 {
-			fmt.Printf(" (%d are copied directories and will be permanently deleted)", copiedDirs)
+		if totalLinks > 0 {
+			fmt.Printf("This will unlink %d symlinked components from opencode", totalLinks)
+			fmt.Println()
 		}
-		fmt.Println()
+		if copiedDirs > 0 {
+			fmt.Printf("Note: %d copied directories will be skipped (not deleted)\n", copiedDirs)
+		}
+		if totalLinks == 0 {
+			fmt.Println("No symlinked components to unlink (only copied directories found).")
+			return nil
+		}
 		fmt.Print("Continue? [y/N]: ")
 
 		var response string
@@ -3464,8 +3471,9 @@ func (cl *ComponentLinker) unlinkAllComponents(force bool) error {
 		}
 	}
 
-	// Remove all links
+	// Remove all symlinks (skip copied directories)
 	removedCount := 0
+	skippedCount := 0
 	errorCount := 0
 
 	for _, componentType := range componentTypes {
@@ -3489,12 +3497,15 @@ func (cl *ComponentLinker) unlinkAllComponents(force bool) error {
 			fullPath := filepath.Join(typeDir, entry.Name())
 			linkType, _, _ := cl.analyzeLinkStatus(fullPath)
 
-			var err error
+			// Skip copied directories - don't delete them
 			if linkType == "copied" {
-				err = os.RemoveAll(fullPath)
-			} else {
-				err = os.Remove(fullPath)
+				skippedCount++
+				continue
 			}
+
+			// Remove symlinks and broken links
+			var err error
+			err = os.Remove(fullPath)
 
 			if err != nil {
 				fmt.Printf("Warning: failed to unlink %s/%s: %v\n", componentType, entry.Name(), err)
@@ -3506,6 +3517,9 @@ func (cl *ComponentLinker) unlinkAllComponents(force bool) error {
 	}
 
 	fmt.Printf("\nSuccessfully unlinked %d components", removedCount)
+	if skippedCount > 0 {
+		fmt.Printf(" (%d copied directories skipped)", skippedCount)
+	}
 	if errorCount > 0 {
 		fmt.Printf(" (%d errors)", errorCount)
 	}
