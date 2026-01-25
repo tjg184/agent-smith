@@ -1,4 +1,4 @@
-package main
+package detector_test
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/tgaines/agent-smith/internal/detector"
+	"github.com/tgaines/agent-smith/internal/fileutil"
 	"github.com/tgaines/agent-smith/internal/models"
 )
 
@@ -989,7 +990,7 @@ anotherField: 123
 			}
 
 			// Parse frontmatter
-			frontmatter, err := parseFrontmatter(testFile)
+			frontmatter, err := fileutil.ParseFrontmatter(testFile)
 
 			if err != nil {
 				t.Fatalf("parseFrontmatter returned error: %v", err)
@@ -1126,7 +1127,7 @@ func TestDetermineComponentName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := determineComponentName(tt.frontmatter, tt.fileName)
+			result := fileutil.DetermineComponentName(tt.frontmatter, tt.fileName)
 
 			if result != tt.expectedName {
 				t.Errorf("Expected name '%s', got '%s'", tt.expectedName, result)

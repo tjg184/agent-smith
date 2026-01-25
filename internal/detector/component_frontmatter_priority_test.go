@@ -1,11 +1,12 @@
-package main
-import "github.com/tgaines/agent-smith/internal/models"
+package detector_test
 
 import (
-	"github.com/tgaines/agent-smith/internal/detector"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/tgaines/agent-smith/internal/detector"
+	"github.com/tgaines/agent-smith/internal/models"
 )
 
 // TestFrontmatterNamePriority tests that frontmatter name takes priority over directory/filename
