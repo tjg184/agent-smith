@@ -9,10 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/fileutil"
+	gitpkg "github.com/tgaines/agent-smith/internal/git"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
@@ -21,6 +20,7 @@ import (
 type SkillDownloader struct {
 	baseDir  string
 	detector *detector.RepositoryDetector
+	cloner   gitpkg.Cloner
 }
 
 // NewSkillDownloader creates a new SkillDownloader instance
@@ -38,6 +38,7 @@ func NewSkillDownloader() *SkillDownloader {
 	return &SkillDownloader{
 		baseDir:  baseDir,
 		detector: detector.NewRepositoryDetector(),
+		cloner:   gitpkg.NewDefaultCloner(),
 	}
 }
 
@@ -81,12 +82,7 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		defer os.RemoveAll(tempDir)
 
 		// Clone repository to temporary location for detection
-		_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
-			URL:           fullURL,
-			Depth:         1,
-			ReferenceName: plumbing.HEAD,
-			SingleBranch:  true,
-		})
+		_, err = gitpkg.CloneShallow(sd.cloner, tempDir, fullURL)
 		if err != nil {
 			return fmt.Errorf("failed to clone repository for detection: %w", err)
 		}
@@ -147,24 +143,19 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 	}
 
 	var commitHash string
-	var repo *git.Repository
+	var repo gitpkg.Repository
 
 	// Handle metadata differently for local vs remote repositories
 	if sd.detector.DetectProvider(repoURL) == "local" {
 		// For local repositories, open the repository directly
-		repo, err = git.PlainOpen(fullURL)
+		repo, err = gitpkg.OpenRepository(sd.cloner, fullURL)
 		if err != nil {
 			// Non-fatal, continue without git metadata
 			log.Printf("Warning: failed to open local repository for metadata: %v", err)
 		}
 	} else {
 		// For remote repositories, clone to get git history for metadata
-		repo, err = git.PlainClone(skillDir+".git", true, &git.CloneOptions{
-			URL:           fullURL,
-			Depth:         1,
-			ReferenceName: plumbing.HEAD,
-			SingleBranch:  true,
-		})
+		repo, err = gitpkg.CloneBareShallow(sd.cloner, skillDir+".git", fullURL)
 		if err != nil {
 			// Non-fatal, continue without git metadata
 			log.Printf("Warning: failed to clone repository for metadata: %v", err)
@@ -172,8 +163,8 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 	}
 
 	if repo != nil {
-		if ref, err := repo.Head(); err == nil {
-			commitHash = ref.Hash().String()
+		if hash, err := gitpkg.GetCommitHash(repo); err == nil {
+			commitHash = hash
 		}
 	}
 
@@ -248,7 +239,7 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
-	var repo *git.Repository
+	var repo gitpkg.Repository
 	var err error
 
 	// Handle local vs remote repositories
@@ -261,18 +252,13 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 		}
 
 		// Open local repository for metadata
-		repo, err = git.PlainOpen(fullURL)
+		repo, err = gitpkg.OpenRepository(sd.cloner, fullURL)
 		if err != nil {
 			log.Printf("Warning: failed to open local repository for metadata: %v", err)
 		}
 	} else {
 		// For remote repositories, clone directly
-		repo, err = git.PlainClone(skillDir, false, &git.CloneOptions{
-			URL:           fullURL,
-			Depth:         1,
-			ReferenceName: plumbing.HEAD,
-			SingleBranch:  true,
-		})
+		repo, err = gitpkg.CloneShallow(sd.cloner, skillDir, fullURL)
 		if err != nil {
 			os.RemoveAll(skillDir)
 			return fmt.Errorf("failed to clone repository: %w", err)
@@ -282,8 +268,8 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 	// Get repository info for metadata
 	var commitHash string
 	if repo != nil {
-		if ref, err := repo.Head(); err == nil {
-			commitHash = ref.Hash().String()
+		if hash, err := gitpkg.GetCommitHash(repo); err == nil {
+			commitHash = hash
 		}
 	}
 
@@ -480,19 +466,19 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 	}
 
 	var commitHash string
-	var repo *git.Repository
+	var repo gitpkg.Repository
 
 	// Handle metadata differently for local vs remote repositories
 	if sd.detector.DetectProvider(repoURL) == "local" {
 		// For local repositories, open the repository directly
-		repo, err = git.PlainOpen(repoPath)
+		repo, err = gitpkg.OpenRepository(sd.cloner, repoPath)
 		if err != nil {
 			// Non-fatal, continue without git metadata
 			log.Printf("Warning: failed to open local repository for metadata: %v", err)
 		}
 	} else {
 		// For remote repositories, use the already-cloned repository at repoPath
-		repo, err = git.PlainOpen(repoPath)
+		repo, err = gitpkg.OpenRepository(sd.cloner, repoPath)
 		if err != nil {
 			// Non-fatal, continue without git metadata
 			log.Printf("Warning: failed to open repository for metadata: %v", err)
@@ -500,8 +486,8 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 	}
 
 	if repo != nil {
-		if ref, err := repo.Head(); err == nil {
-			commitHash = ref.Hash().String()
+		if hash, err := gitpkg.GetCommitHash(repo); err == nil {
+			commitHash = hash
 		}
 	}
 
