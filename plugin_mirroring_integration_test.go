@@ -1,9 +1,9 @@
 package main
 
-import "github.com/tgaines/agent-smith/internal/models"
-
 import (
 	"github.com/tgaines/agent-smith/internal/detector"
+	"github.com/tgaines/agent-smith/internal/downloader"
+	"github.com/tgaines/agent-smith/internal/models"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -233,20 +233,17 @@ func TestPluginMirroringEndToEnd(t *testing.T) {
 	agentsDir := filepath.Join(installDir, "agents")
 
 	// Create downloader
-	detector := detector.NewRepositoryDetector()
-	downloader := &AgentDownloader{
-		detector: detector,
-		baseDir:  agentsDir,
-	}
+	detect := detector.NewRepositoryDetector()
+	dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
 
 	// Detect components first
-	components, err := detector.DetectComponentsInRepo(repoPath)
+	components, err := detect.DetectComponentsInRepo(repoPath)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
 
 	// Download first agent from plugin
-	err = downloader.downloadAgentWithRepo(
+	err = dl.DownloadAgentWithRepo(
 		"file://"+repoPath,
 		"accessibility-expert",
 		"file://"+repoPath,
@@ -303,20 +300,17 @@ func TestPluginStructureReuse(t *testing.T) {
 	agentsDir := filepath.Join(installDir, "agents")
 
 	// Create downloader
-	detector := detector.NewRepositoryDetector()
-	downloader := &AgentDownloader{
-		detector: detector,
-		baseDir:  agentsDir,
-	}
+	detect := detector.NewRepositoryDetector()
+	dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
 
 	// Detect components first
-	components, err := detector.DetectComponentsInRepo(repoPath)
+	components, err := detect.DetectComponentsInRepo(repoPath)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
 
 	// Download first agent
-	err = downloader.downloadAgentWithRepo(
+	err = dl.DownloadAgentWithRepo(
 		"file://"+repoPath,
 		"accessibility-expert",
 		"file://"+repoPath,
@@ -333,7 +327,7 @@ func TestPluginStructureReuse(t *testing.T) {
 	filesBefore := helper.CountFilesInDir(filepath.Join(pluginDir, "agents"))
 
 	// Download second agent from same plugin
-	err = downloader.downloadAgentWithRepo(
+	err = dl.DownloadAgentWithRepo(
 		"file://"+repoPath,
 		"design-system-architect",
 		"file://"+repoPath,
@@ -368,20 +362,17 @@ func TestBackwardCompatibilityFlatStructure(t *testing.T) {
 	agentsDir := filepath.Join(installDir, "agents")
 
 	// Create downloader
-	detector := detector.NewRepositoryDetector()
-	downloader := &AgentDownloader{
-		detector: detector,
-		baseDir:  agentsDir,
-	}
+	detect := detector.NewRepositoryDetector()
+	dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
 
 	// Detect components first
-	components, err := detector.DetectComponentsInRepo(repoPath)
+	components, err := detect.DetectComponentsInRepo(repoPath)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
 
 	// Download agent from flat repository
-	err = downloader.downloadAgentWithRepo(
+	err = dl.DownloadAgentWithRepo(
 		"file://"+repoPath,
 		"chatbot",
 		"file://"+repoPath,
@@ -439,19 +430,16 @@ func TestLinkingPluginComponents(t *testing.T) {
 	configDir := filepath.Join(installDir, "config", "opencode", "agents")
 
 	// Create downloader and download agent
-	detector := detector.NewRepositoryDetector()
-	downloader := &AgentDownloader{
-		detector: detector,
-		baseDir:  agentsDir,
-	}
+	detect := detector.NewRepositoryDetector()
+	dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
 
 	// Detect components first
-	components, err := detector.DetectComponentsInRepo(repoPath)
+	components, err := detect.DetectComponentsInRepo(repoPath)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
 
-	err = downloader.downloadAgentWithRepo(
+	err = dl.DownloadAgentWithRepo(
 		"file://"+repoPath,
 		"accessibility-expert",
 		"file://"+repoPath,
@@ -504,20 +492,17 @@ func TestCrossPlatformPathHandling(t *testing.T) {
 	agentsDir := filepath.Join(installDir, "agents")
 
 	// Create downloader
-	detector := detector.NewRepositoryDetector()
-	downloader := &AgentDownloader{
-		detector: detector,
-		baseDir:  agentsDir,
-	}
+	detect := detector.NewRepositoryDetector()
+	dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
 
 	// Detect components first
-	components, err := detector.DetectComponentsInRepo(repoPath)
+	components, err := detect.DetectComponentsInRepo(repoPath)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
 
 	// Download agent
-	err = downloader.downloadAgentWithRepo(
+	err = dl.DownloadAgentWithRepo(
 		"file://"+repoPath,
 		"accessibility-expert",
 		"file://"+repoPath,
@@ -560,20 +545,17 @@ func TestErrorHandlingMissingPlugin(t *testing.T) {
 	agentsDir := filepath.Join(installDir, "agents")
 
 	// Create downloader
-	detector := detector.NewRepositoryDetector()
-	downloader := &AgentDownloader{
-		detector: detector,
-		baseDir:  agentsDir,
-	}
+	detect := detector.NewRepositoryDetector()
+	dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
 
 	// Detect components first
-	components, err := detector.DetectComponentsInRepo(repoPath)
+	components, err := detect.DetectComponentsInRepo(repoPath)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
 
 	// Attempt to download non-existent agent
-	err = downloader.downloadAgentWithRepo(
+	err = dl.DownloadAgentWithRepo(
 		"file://"+repoPath,
 		"non-existent-agent",
 		"file://"+repoPath,
@@ -608,8 +590,8 @@ name: standalone-agent
 	repoPath := helper.CreateMockRepo("mixed-repo", files)
 
 	// Detect components
-	detector := detector.NewRepositoryDetector()
-	components, err := detector.DetectComponentsInRepo(repoPath)
+	detect := detector.NewRepositoryDetector()
+	components, err := detect.DetectComponentsInRepo(repoPath)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
@@ -685,19 +667,16 @@ func BenchmarkPluginDownload(b *testing.B) {
 		installDir := filepath.Join(tempDir, "install", "run"+string(rune(i)))
 		agentsDir := filepath.Join(installDir, "agents")
 
-		detector := detector.NewRepositoryDetector()
-		downloader := &AgentDownloader{
-			detector: detector,
-			baseDir:  agentsDir,
-		}
+		detect := detector.NewRepositoryDetector()
+		dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
 
 		// Detect components first
-		components, err := detector.DetectComponentsInRepo(repoPath)
+		components, err := detect.DetectComponentsInRepo(repoPath)
 		if err != nil {
 			b.Fatalf("Failed to detect components: %v", err)
 		}
 
-		err = downloader.downloadAgentWithRepo(
+		err = dl.DownloadAgentWithRepo(
 			"file://"+repoPath,
 			"accessibility-expert",
 			"file://"+repoPath,
@@ -726,19 +705,16 @@ func TestGitOperations(t *testing.T) {
 	agentsDir := filepath.Join(installDir, "agents")
 
 	// Download agent
-	detector := detector.NewRepositoryDetector()
-	downloader := &AgentDownloader{
-		detector: detector,
-		baseDir:  agentsDir,
-	}
+	detect := detector.NewRepositoryDetector()
+	dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
 
 	// Detect components first
-	components, err := detector.DetectComponentsInRepo(repoPath)
+	components, err := detect.DetectComponentsInRepo(repoPath)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
 
-	err = downloader.downloadAgentWithRepo(
+	err = dl.DownloadAgentWithRepo(
 		"file://"+repoPath,
 		"accessibility-expert",
 		"file://"+repoPath,

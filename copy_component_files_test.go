@@ -1,8 +1,8 @@
 package main
-import "github.com/tgaines/agent-smith/internal/models"
 
 import (
-	"github.com/tgaines/agent-smith/internal/detector"
+	"github.com/tgaines/agent-smith/internal/fileutil"
+	"github.com/tgaines/agent-smith/internal/models"
 	"os"
 	"path/filepath"
 	"testing"
@@ -71,14 +71,8 @@ func TestCopyComponentFilesNonRecursive(t *testing.T) {
 		FilePath:   "SKILL.md",
 	}
 
-	// Use SkillDownloader to test copyComponentFiles
-	sd := &SkillDownloader{
-		baseDir:  "/tmp",
-		detector: detector.NewRepositoryDetector(),
-	}
-
-	// Copy component files
-	err = sd.copyComponentFiles(srcDir, component, dstDir)
+	// Copy component files using fileutil directly
+	err = fileutil.CopyComponentFiles(srcDir, component, dstDir)
 	if err != nil {
 		t.Fatalf("copyComponentFiles failed: %v", err)
 	}

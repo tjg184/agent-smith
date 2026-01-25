@@ -1,8 +1,9 @@
 package main
-import "github.com/tgaines/agent-smith/internal/models"
 
 import (
 	"github.com/tgaines/agent-smith/internal/detector"
+	"github.com/tgaines/agent-smith/internal/fileutil"
+	"github.com/tgaines/agent-smith/internal/models"
 	"os"
 	"path/filepath"
 	"testing"
@@ -52,15 +53,10 @@ func TestDirectoryCopyingWithResources(t *testing.T) {
 		}
 	}
 
-	// Create a SkillDownloader instance
-	sd := &SkillDownloader{
-		baseDir: filepath.Join(os.TempDir(), "skills"),
-	}
-
 	// Copy directory contents
-	err = sd.copyDirectoryContents(srcDir, dstDir)
+	err = fileutil.CopyDirectoryContents(srcDir, dstDir)
 	if err != nil {
-		t.Fatalf("copyDirectoryContents failed: %v", err)
+		t.Fatalf("CopyDirectoryContents failed: %v", err)
 	}
 
 	// Verify all files were copied
@@ -178,12 +174,7 @@ func TestComponentDownloadPreservesResources(t *testing.T) {
 	}
 	defer os.RemoveAll(dstDir)
 
-	// Create a SkillDownloader and copy the component
-	sd := &SkillDownloader{
-		baseDir:  dstDir,
-		detector: detector,
-	}
-
+	// Copy the component
 	componentSrcPath := filepath.Join(repoDir, component.Path)
 	componentDstPath := filepath.Join(dstDir, component.Name)
 
@@ -192,7 +183,7 @@ func TestComponentDownloadPreservesResources(t *testing.T) {
 		t.Fatalf("Failed to create component dst directory: %v", err)
 	}
 
-	err = sd.copyDirectoryContents(componentSrcPath, componentDstPath)
+	err = fileutil.CopyDirectoryContents(componentSrcPath, componentDstPath)
 	if err != nil {
 		t.Fatalf("Failed to copy component: %v", err)
 	}
@@ -276,11 +267,6 @@ func TestMultipleComponentsWithResources(t *testing.T) {
 	defer os.RemoveAll(dstDir)
 
 	// Copy each component
-	sd := &SkillDownloader{
-		baseDir:  dstDir,
-		detector: detector,
-	}
-
 	for _, component := range skillComponents {
 		componentSrcPath := filepath.Join(repoDir, component.Path)
 		componentDstPath := filepath.Join(dstDir, component.Name)
@@ -290,7 +276,7 @@ func TestMultipleComponentsWithResources(t *testing.T) {
 			t.Fatalf("Failed to create component dst directory: %v", err)
 		}
 
-		err = sd.copyDirectoryContents(componentSrcPath, componentDstPath)
+		err = fileutil.CopyDirectoryContents(componentSrcPath, componentDstPath)
 		if err != nil {
 			t.Fatalf("Failed to copy component %s: %v", component.Name, err)
 		}

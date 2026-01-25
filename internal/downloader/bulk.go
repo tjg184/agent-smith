@@ -1,0 +1,124 @@
+package downloader
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/tgaines/agent-smith/internal/detector"
+	"github.com/tgaines/agent-smith/internal/models"
+)
+
+// BulkDownloader handles bulk downloading of all components from a repository
+type BulkDownloader struct {
+	skillDownloader   *SkillDownloader
+	agentDownloader   *AgentDownloader
+	commandDownloader *CommandDownloader
+	detector          *detector.RepositoryDetector
+}
+
+// NewBulkDownloader creates a new BulkDownloader instance
+func NewBulkDownloader() *BulkDownloader {
+	return &BulkDownloader{
+		skillDownloader:   NewSkillDownloader(),
+		agentDownloader:   NewAgentDownloader(),
+		commandDownloader: NewCommandDownloader(),
+		detector:          detector.NewRepositoryDetector(),
+	}
+}
+
+// AddAll downloads all components from a repository
+func (bd *BulkDownloader) AddAll(repoURL string) error {
+	fullURL, err := bd.detector.NormalizeURL(repoURL)
+	if err != nil {
+		return fmt.Errorf("failed to normalize repository URL: %w", err)
+	}
+
+	// Create temporary directory for repository detection
+	tempDir, err := os.MkdirTemp("", "agent-smith-bulk-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Clone repository to temporary location for detection
+	_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
+		URL:           fullURL,
+		Depth:         1,
+		ReferenceName: plumbing.HEAD,
+		SingleBranch:  true,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to clone repository for bulk detection: %w", err)
+	}
+
+	// Detect all components in the repository from root
+	components, err := bd.detector.DetectComponentsInRepo(tempDir)
+	if err != nil {
+		return fmt.Errorf("failed to detect components: %w", err)
+	}
+
+	if len(components) == 0 {
+		return fmt.Errorf("no components (skills, agents, or commands) detected in repository")
+	}
+
+	return bd.processComponents(components, fullURL, repoURL, tempDir)
+}
+
+// processComponents handles downloading components from the repository
+func (bd *BulkDownloader) processComponents(components []models.DetectedComponent, fullURL, repoURL, tempDir string) error {
+	// Group components by type
+	skillComponents := []models.DetectedComponent{}
+	agentComponents := []models.DetectedComponent{}
+	commandComponents := []models.DetectedComponent{}
+
+	for _, comp := range components {
+		switch comp.Type {
+		case models.ComponentSkill:
+			skillComponents = append(skillComponents, comp)
+		case models.ComponentAgent:
+			agentComponents = append(agentComponents, comp)
+		case models.ComponentCommand:
+			commandComponents = append(commandComponents, comp)
+		}
+	}
+
+	// Download skills using optimized method with shared repository
+	for _, comp := range skillComponents {
+		fmt.Printf("Downloading: %s\n", comp.Name)
+		if err := bd.skillDownloader.DownloadSkillWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
+			fmt.Printf("Warning: failed to download skill %s: %v\n", comp.Name, err)
+		} else {
+			fmt.Printf("Successfully downloaded skill: %s\n", comp.Name)
+		}
+	}
+
+	// Download agents using optimized method with shared repository
+	for _, comp := range agentComponents {
+		fmt.Printf("Downloading: %s\n", comp.Name)
+		if err := bd.agentDownloader.DownloadAgentWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
+			fmt.Printf("Warning: failed to download agent %s: %v\n", comp.Name, err)
+		} else {
+			fmt.Printf("Successfully downloaded agent: %s\n", comp.Name)
+		}
+	}
+
+	// Download commands using optimized method with shared repository
+	for _, comp := range commandComponents {
+		fmt.Printf("Downloading: %s\n", comp.Name)
+		if err := bd.commandDownloader.DownloadCommandWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
+			fmt.Printf("Warning: failed to download command %s: %v\n", comp.Name, err)
+		} else {
+			fmt.Printf("Successfully downloaded command: %s\n", comp.Name)
+		}
+	}
+
+	totalComponents := len(skillComponents) + len(agentComponents) + len(commandComponents)
+	fmt.Printf("Bulk download completed. Processed %d components:\n", totalComponents)
+	fmt.Printf("  Skills: %d\n", len(skillComponents))
+	fmt.Printf("  Agents: %d\n", len(agentComponents))
+	fmt.Printf("  Commands: %d\n", len(commandComponents))
+
+	return nil
+}
