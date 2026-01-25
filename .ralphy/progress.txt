@@ -61,3 +61,6 @@
 - [✓] 2026-01-25 15:25 - Story-003: As a developer, I want integration tests organized in a dedicated directory so I can easily distinguish them from unit tests.
 - [✓] 2026-01-25 15:26 - Story-004: As a developer, I want obsolete skipped test files removed so the repository stays clean and maintainable.
 - [✓] 2026-01-25 15:28 - Story-005: As a developer, I want to verify all tests pass after reorganization so I can be confident nothing broke during the move.
+- [✓] 2026-01-25 16:06 - Story-001: As a developer, I want to abstract the hardcoded `opencode` paths into a configuration interface so that the CLI can support multiple targets in the future.
+- [✓] 2026-01-25 16:07 - Story-002: As a developer, I want to refactor the Linker to use a generic Target interface so that linking logic is not coupled to `opencode` directory structures.
+- [✓] 2026-01-25 16:11 - Story-003: As a user, I want the CLI to default to `opencode` behavior without extra configuration so that my existing workflows remain unchanged.
