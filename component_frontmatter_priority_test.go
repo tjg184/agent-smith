@@ -1,4 +1,5 @@
 package main
+import "github.com/tgaines/agent-smith/internal/models"
 
 import (
 	"os"
@@ -10,14 +11,14 @@ import (
 func TestFrontmatterNamePriority(t *testing.T) {
 	tests := []struct {
 		name          string
-		componentType ComponentType
+		componentType models.ComponentType
 		filesToCreate map[string]string
 		expectedNames []string
 		description   string
 	}{
 		{
 			name:          "skill-with-frontmatter-name",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"myskill/SKILL.md": `---
 name: custom-skill-name
@@ -31,7 +32,7 @@ description: A custom skill
 		},
 		{
 			name:          "agent-with-frontmatter-name",
-			componentType: ComponentAgent,
+			componentType: models.ComponentAgent,
 			filesToCreate: map[string]string{
 				"agents/coding.md": `---
 name: advanced-coder
@@ -45,7 +46,7 @@ description: An advanced coding agent
 		},
 		{
 			name:          "command-with-frontmatter-name",
-			componentType: ComponentCommand,
+			componentType: models.ComponentCommand,
 			filesToCreate: map[string]string{
 				"commands/deploy.md": `---
 name: super-deploy
@@ -59,7 +60,7 @@ description: A deployment command
 		},
 		{
 			name:          "skill-without-frontmatter",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"python-dev/SKILL.md": "# Python Dev Skill\n\nNo frontmatter here.",
 			},
@@ -68,7 +69,7 @@ description: A deployment command
 		},
 		{
 			name:          "agent-without-frontmatter",
-			componentType: ComponentAgent,
+			componentType: models.ComponentAgent,
 			filesToCreate: map[string]string{
 				"agents/helper.md": "# Helper Agent\n\nNo frontmatter here.",
 			},
@@ -108,7 +109,7 @@ description: A deployment command
 			}
 
 			// Filter components by type
-			var filteredComponents []DetectedComponent
+			var filteredComponents []models.DetectedComponent
 			for _, comp := range components {
 				if comp.Type == tt.componentType {
 					filteredComponents = append(filteredComponents, comp)

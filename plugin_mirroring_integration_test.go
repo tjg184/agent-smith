@@ -1,4 +1,5 @@
 package main
+import "github.com/tgaines/agent-smith/internal/models"
 
 import (
 	"os"
@@ -612,9 +613,9 @@ name: standalone-agent
 	}
 
 	// Filter for agents
-	var agentComponents []DetectedComponent
+	var agentComponents []models.DetectedComponent
 	for _, comp := range components {
-		if comp.Type == ComponentAgent {
+		if comp.Type == models.ComponentAgent {
 			agentComponents = append(agentComponents, comp)
 		}
 	}

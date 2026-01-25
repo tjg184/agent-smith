@@ -1,4 +1,5 @@
 package main
+import "github.com/tgaines/agent-smith/internal/models"
 
 import (
 	"path/filepath"
@@ -96,75 +97,75 @@ func TestExtractPluginPath(t *testing.T) {
 func TestDetectCommonPluginPath(t *testing.T) {
 	tests := []struct {
 		name         string
-		components   []DetectedComponent
+		components   []models.DetectedComponent
 		expectedPath string
 		description  string
 	}{
 		{
 			name: "same-plugin-multiple-components",
-			components: []DetectedComponent{
-				{Type: ComponentAgent, Name: "accessibility-expert", Path: "plugins/ui-design/agents/accessibility-expert.md"},
-				{Type: ComponentAgent, Name: "design-system-architect", Path: "plugins/ui-design/agents/design-system-architect.md"},
-				{Type: ComponentAgent, Name: "ux-researcher", Path: "plugins/ui-design/agents/ux-researcher.md"},
+			components: []models.DetectedComponent{
+				{Type: models.ComponentAgent, Name: "accessibility-expert", Path: "plugins/ui-design/agents/accessibility-expert.md"},
+				{Type: models.ComponentAgent, Name: "design-system-architect", Path: "plugins/ui-design/agents/design-system-architect.md"},
+				{Type: models.ComponentAgent, Name: "ux-researcher", Path: "plugins/ui-design/agents/ux-researcher.md"},
 			},
 			expectedPath: "plugins/ui-design",
 			description:  "All components from same plugin should return plugin path",
 		},
 		{
 			name: "same-plugin-mixed-types",
-			components: []DetectedComponent{
-				{Type: ComponentAgent, Name: "accessibility-expert", Path: "plugins/ui-design/agents/accessibility-expert.md"},
-				{Type: ComponentSkill, Name: "wcag-compliance", Path: "plugins/ui-design/skills/wcag-compliance/SKILL.md"},
-				{Type: ComponentCommand, Name: "contrast-check", Path: "plugins/ui-design/commands/contrast-check.md"},
+			components: []models.DetectedComponent{
+				{Type: models.ComponentAgent, Name: "accessibility-expert", Path: "plugins/ui-design/agents/accessibility-expert.md"},
+				{Type: models.ComponentSkill, Name: "wcag-compliance", Path: "plugins/ui-design/skills/wcag-compliance/SKILL.md"},
+				{Type: models.ComponentCommand, Name: "contrast-check", Path: "plugins/ui-design/commands/contrast-check.md"},
 			},
 			expectedPath: "plugins/ui-design",
 			description:  "Mixed component types from same plugin should return plugin path",
 		},
 		{
 			name: "different-plugins",
-			components: []DetectedComponent{
-				{Type: ComponentAgent, Name: "accessibility-expert", Path: "plugins/ui-design/agents/accessibility-expert.md"},
-				{Type: ComponentSkill, Name: "async-patterns", Path: "plugins/python-development/skills/async-patterns/SKILL.md"},
+			components: []models.DetectedComponent{
+				{Type: models.ComponentAgent, Name: "accessibility-expert", Path: "plugins/ui-design/agents/accessibility-expert.md"},
+				{Type: models.ComponentSkill, Name: "async-patterns", Path: "plugins/python-development/skills/async-patterns/SKILL.md"},
 			},
 			expectedPath: "",
 			description:  "Components from different plugins should return empty string",
 		},
 		{
 			name: "no-plugin-structure",
-			components: []DetectedComponent{
-				{Type: ComponentAgent, Name: "chatbot", Path: "agents/chatbot.md"},
-				{Type: ComponentAgent, Name: "helper", Path: "agents/helper.md"},
+			components: []models.DetectedComponent{
+				{Type: models.ComponentAgent, Name: "chatbot", Path: "agents/chatbot.md"},
+				{Type: models.ComponentAgent, Name: "helper", Path: "agents/helper.md"},
 			},
 			expectedPath: "",
 			description:  "Components not in plugin structure should return empty string",
 		},
 		{
 			name: "mixed-plugin-and-non-plugin",
-			components: []DetectedComponent{
-				{Type: ComponentAgent, Name: "accessibility-expert", Path: "plugins/ui-design/agents/accessibility-expert.md"},
-				{Type: ComponentAgent, Name: "chatbot", Path: "agents/chatbot.md"},
+			components: []models.DetectedComponent{
+				{Type: models.ComponentAgent, Name: "accessibility-expert", Path: "plugins/ui-design/agents/accessibility-expert.md"},
+				{Type: models.ComponentAgent, Name: "chatbot", Path: "agents/chatbot.md"},
 			},
 			expectedPath: "",
 			description:  "Mixed plugin and non-plugin components should return empty string",
 		},
 		{
 			name:         "empty-component-list",
-			components:   []DetectedComponent{},
+			components:   []models.DetectedComponent{},
 			expectedPath: "",
 			description:  "Empty component list should return empty string",
 		},
 		{
 			name: "single-plugin-component",
-			components: []DetectedComponent{
-				{Type: ComponentAgent, Name: "accessibility-expert", Path: "plugins/ui-design/agents/accessibility-expert.md"},
+			components: []models.DetectedComponent{
+				{Type: models.ComponentAgent, Name: "accessibility-expert", Path: "plugins/ui-design/agents/accessibility-expert.md"},
 			},
 			expectedPath: "plugins/ui-design",
 			description:  "Single component in plugin should return plugin path",
 		},
 		{
 			name: "single-non-plugin-component",
-			components: []DetectedComponent{
-				{Type: ComponentAgent, Name: "chatbot", Path: "agents/chatbot.md"},
+			components: []models.DetectedComponent{
+				{Type: models.ComponentAgent, Name: "chatbot", Path: "agents/chatbot.md"},
 			},
 			expectedPath: "",
 			description:  "Single component not in plugin should return empty string",

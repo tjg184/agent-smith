@@ -1,4 +1,5 @@
 package main
+import "github.com/tgaines/agent-smith/internal/models"
 
 import (
 	"fmt"
@@ -12,14 +13,14 @@ import (
 func TestComponentNameExtraction(t *testing.T) {
 	tests := []struct {
 		name          string
-		componentType ComponentType
+		componentType models.ComponentType
 		filesToCreate map[string]string
 		expectedNames []string
 		description   string
 	}{
 		{
 			name:          "skill-exact-file",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"SKILL.md": "# Test Skill",
 			},
@@ -28,7 +29,7 @@ func TestComponentNameExtraction(t *testing.T) {
 		},
 		{
 			name:          "skill-directory-named",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"myskill/SKILL.md": "# My Skill",
 			},
@@ -37,7 +38,7 @@ func TestComponentNameExtraction(t *testing.T) {
 		},
 		{
 			name:          "skill-path-pattern",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"skills/python.md": "# Python Skill",
 			},
@@ -47,7 +48,7 @@ func TestComponentNameExtraction(t *testing.T) {
 
 		{
 			name:          "agent-path-pattern",
-			componentType: ComponentAgent,
+			componentType: models.ComponentAgent,
 			filesToCreate: map[string]string{
 				"agents/coding.md": "# Coding Agent",
 			},
@@ -57,7 +58,7 @@ func TestComponentNameExtraction(t *testing.T) {
 
 		{
 			name:          "command-path-pattern",
-			componentType: ComponentCommand,
+			componentType: models.ComponentCommand,
 			filesToCreate: map[string]string{
 				"commands/deploy.md": "# Deploy Command",
 			},
@@ -66,7 +67,7 @@ func TestComponentNameExtraction(t *testing.T) {
 		},
 		{
 			name:          "multiple-skills-different-locations",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"SKILL.md":             "# Root Skill",
 				"frontend/SKILL.md":    "# Frontend Skill",
@@ -78,7 +79,7 @@ func TestComponentNameExtraction(t *testing.T) {
 		},
 		{
 			name:          "multiple-agents-different-locations",
-			componentType: ComponentAgent,
+			componentType: models.ComponentAgent,
 			filesToCreate: map[string]string{
 				"agents/chatbot.md": "# Chatbot Agent",
 				"agents/helper.md":  "# Helper Agent",
@@ -88,7 +89,7 @@ func TestComponentNameExtraction(t *testing.T) {
 		},
 		{
 			name:          "multiple-commands-different-locations",
-			componentType: ComponentCommand,
+			componentType: models.ComponentCommand,
 			filesToCreate: map[string]string{
 				"commands/build.md":  "# Build Command",
 				"commands/deploy.md": "# Deploy Command",
@@ -98,7 +99,7 @@ func TestComponentNameExtraction(t *testing.T) {
 		},
 		{
 			name:          "mixed-component-types",
-			componentType: ComponentSkill, // We'll test detection for each type separately
+			componentType: models.ComponentSkill, // We'll test detection for each type separately
 			filesToCreate: map[string]string{
 				"SKILL.md":          "# Root Skill",
 				"myskill/SKILL.md":  "# My Skill",
@@ -110,7 +111,7 @@ func TestComponentNameExtraction(t *testing.T) {
 		},
 		{
 			name:          "nested-component-structures",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"components/skills/web/SKILL.md": "# Web Skill",
 				"lib/ai/skills/nlp/SKILL.md":     "# NLP Skill",
@@ -122,7 +123,7 @@ func TestComponentNameExtraction(t *testing.T) {
 		},
 		{
 			name:          "special-characters-in-names",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"my-skill/SKILL.md":        "# Skill with dash",
 				"my_skill/SKILL.md":        "# Skill with underscore",
@@ -134,7 +135,7 @@ func TestComponentNameExtraction(t *testing.T) {
 		},
 		{
 			name:          "ignored-paths",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"node_modules/skill/SKILL.md": "# Should be ignored",
 				".git/skills/test.md":         "# Should be ignored",
@@ -177,7 +178,7 @@ func TestComponentNameExtraction(t *testing.T) {
 			}
 
 			// Filter components by type
-			var filteredComponents []DetectedComponent
+			var filteredComponents []models.DetectedComponent
 			for _, comp := range components {
 				if comp.Type == tt.componentType {
 					filteredComponents = append(filteredComponents, comp)
@@ -237,7 +238,7 @@ func TestComponentNameExtraction(t *testing.T) {
 func TestComponentNameExtractionEdgeCases(t *testing.T) {
 	tests := []struct {
 		name          string
-		componentType ComponentType
+		componentType models.ComponentType
 		filesToCreate map[string]string
 		expectedNames []string
 		description   string
@@ -245,7 +246,7 @@ func TestComponentNameExtractionEdgeCases(t *testing.T) {
 	}{
 		{
 			name:          "empty-directory",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{},
 			expectedNames: []string{},
 			description:   "Empty directory should return no components",
@@ -253,7 +254,7 @@ func TestComponentNameExtractionEdgeCases(t *testing.T) {
 		},
 		{
 			name:          "only-non-component-files",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"README.md":    "# README",
 				"package.json": "{}",
@@ -266,7 +267,7 @@ func TestComponentNameExtractionEdgeCases(t *testing.T) {
 		},
 		{
 			name:          "component-in-root-with-no-name",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"SKILL.md": "# Skill with no directory context",
 			},
@@ -276,7 +277,7 @@ func TestComponentNameExtractionEdgeCases(t *testing.T) {
 		},
 		{
 			name:          "component-with-only-file-extension",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"skills/.md": "# Skill with no proper name",
 			},
@@ -286,7 +287,7 @@ func TestComponentNameExtractionEdgeCases(t *testing.T) {
 		},
 		{
 			name:          "duplicate-component-names",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"skill1/SKILL.md":        "# First Skill",
 				"skill2/SKILL.md":        "# Second Skill",
@@ -298,7 +299,7 @@ func TestComponentNameExtractionEdgeCases(t *testing.T) {
 		},
 		{
 			name:          "case-sensitive-paths",
-			componentType: ComponentAgent,
+			componentType: models.ComponentAgent,
 			filesToCreate: map[string]string{
 				"agents/chatbot.md": "# Lowercase agents",
 			},
@@ -308,7 +309,7 @@ func TestComponentNameExtractionEdgeCases(t *testing.T) {
 		},
 		{
 			name:          "very-deep-nesting",
-			componentType: ComponentCommand,
+			componentType: models.ComponentCommand,
 			filesToCreate: map[string]string{
 				"a/b/c/d/e/f/commands/deep.md": "# Deep Command",
 			},
@@ -358,7 +359,7 @@ func TestComponentNameExtractionEdgeCases(t *testing.T) {
 			}
 
 			// Filter components by type
-			var filteredComponents []DetectedComponent
+			var filteredComponents []models.DetectedComponent
 			for _, comp := range components {
 				if comp.Type == tt.componentType {
 					filteredComponents = append(filteredComponents, comp)
@@ -418,14 +419,14 @@ func TestComponentNameExtractionEdgeCases(t *testing.T) {
 func TestComponentNameValidation(t *testing.T) {
 	tests := []struct {
 		name          string
-		componentType ComponentType
+		componentType models.ComponentType
 		filesToCreate map[string]string
 		expectedNames []string
 		description   string
 	}{
 		{
 			name:          "whitespace-handling",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"  spaced  /SKILL.md": "# Spaced Directory",
 			},
@@ -434,7 +435,7 @@ func TestComponentNameValidation(t *testing.T) {
 		},
 		{
 			name:          "unicode-characters",
-			componentType: ComponentAgent,
+			componentType: models.ComponentAgent,
 			filesToCreate: map[string]string{
 				"agents/агент.md":  "# Unicode Agent Name",
 				"agents/エージェント.md": "# Japanese Agent",
@@ -444,7 +445,7 @@ func TestComponentNameValidation(t *testing.T) {
 		},
 		{
 			name:          "dot-directories",
-			componentType: ComponentCommand,
+			componentType: models.ComponentCommand,
 			filesToCreate: map[string]string{
 				".hidden/commands/secret.md": "# Hidden Command",
 				".config/commands/setup.md":  "# Config Command",
@@ -454,7 +455,7 @@ func TestComponentNameValidation(t *testing.T) {
 		},
 		{
 			name:          "single-character-names",
-			componentType: ComponentSkill,
+			componentType: models.ComponentSkill,
 			filesToCreate: map[string]string{
 				"a/SKILL.md": "# Single letter skill",
 				"b/SKILL.md": "# Another single letter",
@@ -495,7 +496,7 @@ func TestComponentNameValidation(t *testing.T) {
 			}
 
 			// Filter components by type
-			var filteredComponents []DetectedComponent
+			var filteredComponents []models.DetectedComponent
 			for _, comp := range components {
 				if comp.Type == tt.componentType {
 					filteredComponents = append(filteredComponents, comp)
@@ -592,7 +593,7 @@ func TestPluginsSkillsPathIssue(t *testing.T) {
 	component := components[0]
 
 	// Verify it's a skill
-	if component.Type != ComponentSkill {
+	if component.Type != models.ComponentSkill {
 		t.Errorf("Expected component type to be skill, got %s", component.Type)
 	}
 
@@ -665,9 +666,9 @@ func TestAccessibilityCompliancePluginDownload(t *testing.T) {
 
 	// Should detect multiple skill components across all plugins
 	totalSkills := 0
-	var accessibilitySkills []DetectedComponent
+	var accessibilitySkills []models.DetectedComponent
 	for _, comp := range components {
-		if comp.Type == ComponentSkill {
+		if comp.Type == models.ComponentSkill {
 			totalSkills++
 			// Check if this skill belongs to accessibility-compliance plugin
 			if strings.Contains(comp.Path, "accessibility-compliance") {
@@ -723,7 +724,7 @@ func TestAccessibilityCompliancePluginDownload(t *testing.T) {
 	// Should detect exactly 2 skills in the plugin directory
 	pluginSkillCount := 0
 	for _, comp := range pluginComponents {
-		if comp.Type == ComponentSkill {
+		if comp.Type == models.ComponentSkill {
 			pluginSkillCount++
 		}
 	}
@@ -734,7 +735,7 @@ func TestAccessibilityCompliancePluginDownload(t *testing.T) {
 
 	// Verify no cross-contamination - skills from other plugins should not be in this list
 	for _, comp := range pluginComponents {
-		if comp.Type == ComponentSkill && !strings.Contains(comp.Path, "wcag-compliance") && !strings.Contains(comp.Path, "screen-reader-support") {
+		if comp.Type == models.ComponentSkill && !strings.Contains(comp.Path, "wcag-compliance") && !strings.Contains(comp.Path, "screen-reader-support") {
 			t.Errorf("Found unexpected skill in plugin directory: Name=%s, Path=%s", comp.Name, comp.Path)
 		}
 	}
@@ -787,7 +788,7 @@ func TestAccessibilityCompliancePluginMetadata(t *testing.T) {
 	// Should detect exactly 2 skills
 	skillCount := 0
 	for _, comp := range components {
-		if comp.Type == ComponentSkill {
+		if comp.Type == models.ComponentSkill {
 			skillCount++
 		}
 	}
@@ -1027,14 +1028,14 @@ anotherField: 123
 func TestDetermineComponentName(t *testing.T) {
 	tests := []struct {
 		name         string
-		frontmatter  *ComponentFrontmatter
+		frontmatter  *models.ComponentFrontmatter
 		fileName     string
 		expectedName string
 		description  string
 	}{
 		{
 			name: "frontmatter-name-priority",
-			frontmatter: &ComponentFrontmatter{
+			frontmatter: &models.ComponentFrontmatter{
 				Name: "custom-name",
 			},
 			fileName:     "agent-file.md",
@@ -1050,7 +1051,7 @@ func TestDetermineComponentName(t *testing.T) {
 		},
 		{
 			name: "empty-frontmatter-name",
-			frontmatter: &ComponentFrontmatter{
+			frontmatter: &models.ComponentFrontmatter{
 				Name: "",
 			},
 			fileName:     "my-agent.md",
@@ -1059,7 +1060,7 @@ func TestDetermineComponentName(t *testing.T) {
 		},
 		{
 			name: "whitespace-frontmatter-name",
-			frontmatter: &ComponentFrontmatter{
+			frontmatter: &models.ComponentFrontmatter{
 				Name: "  ",
 			},
 			fileName:     "my-agent.md",
@@ -1089,7 +1090,7 @@ func TestDetermineComponentName(t *testing.T) {
 		},
 		{
 			name: "readme-with-frontmatter",
-			frontmatter: &ComponentFrontmatter{
+			frontmatter: &models.ComponentFrontmatter{
 				Name: "custom-agent",
 			},
 			fileName:     "README.md",
@@ -1112,7 +1113,7 @@ func TestDetermineComponentName(t *testing.T) {
 		},
 		{
 			name: "frontmatter-with-spaces",
-			frontmatter: &ComponentFrontmatter{
+			frontmatter: &models.ComponentFrontmatter{
 				Name: "  my agent  ",
 			},
 			fileName:     "agent.md",

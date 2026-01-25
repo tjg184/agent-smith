@@ -1,4 +1,5 @@
 package main
+import "github.com/tgaines/agent-smith/internal/models"
 
 import (
 	"os"
@@ -60,9 +61,9 @@ func TestCopyComponentFilesNonRecursive(t *testing.T) {
 		t.Fatalf("Failed to create file.txt: %v", err)
 	}
 
-	// Create a DetectedComponent with FilePath pointing to SKILL.md
-	component := DetectedComponent{
-		Type:       ComponentSkill,
+	// Create a models.DetectedComponent with FilePath pointing to SKILL.md
+	component := models.DetectedComponent{
+		Type:       models.ComponentSkill,
 		Name:       "test-skill",
 		Path:       ".",
 		SourceFile: "SKILL.md",
