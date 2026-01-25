@@ -62,9 +62,6 @@ func createDefaultDetectionConfig() *DetectionConfig {
 					"node_modules",
 					".vscode",
 					".idea",
-					"target",
-					"build",
-					"dist",
 				},
 			},
 			string(ComponentAgent): {
@@ -76,9 +73,6 @@ func createDefaultDetectionConfig() *DetectionConfig {
 					"node_modules",
 					".vscode",
 					".idea",
-					"target",
-					"build",
-					"dist",
 				},
 			},
 			string(ComponentCommand): {
@@ -90,9 +84,6 @@ func createDefaultDetectionConfig() *DetectionConfig {
 					"node_modules",
 					".vscode",
 					".idea",
-					"target",
-					"build",
-					"dist",
 				},
 			},
 		},
@@ -589,9 +580,31 @@ func (rd *RepositoryDetector) validateRepository(repoURL string) error {
 
 // shouldIgnorePath checks if a path should be ignored during detection
 func (rd *RepositoryDetector) shouldIgnorePath(relPath string, ignorePaths []string) bool {
+	// Normalize path to use forward slashes for consistent matching
+	normalizedPath := filepath.ToSlash(relPath)
+
 	for _, ignorePath := range ignorePaths {
-		if strings.Contains(relPath, ignorePath) {
-			return true
+		// Check if ignore pattern matches as a whole path component
+		// Pattern matches if it appears as:
+		// 1. Exact match: "build"
+		// 2. At the start: "build/..."
+		// 3. After a separator: ".../build/..."
+		// 4. At the end: ".../build"
+
+		if normalizedPath == ignorePath {
+			return true // Exact match
+		}
+
+		if strings.HasPrefix(normalizedPath, ignorePath+"/") {
+			return true // Pattern at start: "build/..."
+		}
+
+		if strings.Contains(normalizedPath, "/"+ignorePath+"/") {
+			return true // Pattern in middle: ".../build/..."
+		}
+
+		if strings.HasSuffix(normalizedPath, "/"+ignorePath) {
+			return true // Pattern at end: ".../build"
 		}
 	}
 	return false
@@ -1481,10 +1494,18 @@ func (sd *SkillDownloader) copyDirectoryContents(src, dst string) error {
 // copyComponentFiles copies the entire directory containing the component file (recursive)
 // Uses FilePath to determine the component's directory and copies all contents recursively
 func (sd *SkillDownloader) copyComponentFiles(repoPath string, component DetectedComponent, dst string) error {
-	// Get the directory containing the component file
-	componentDir := filepath.Dir(filepath.Join(repoPath, component.FilePath))
+	componentPath := filepath.Join(repoPath, component.FilePath)
+	componentDir := filepath.Dir(componentPath)
 
-	// Copy entire directory recursively
+	// Skills are typically directory-based with SKILL.md, but check anyway
+	// If the component file is a single .md file (not SKILL.md), only copy that file
+	if filepath.Ext(component.FilePath) == ".md" && filepath.Base(component.FilePath) != "SKILL.md" {
+		// Single file component - copy just this file
+		fileName := filepath.Base(component.FilePath)
+		return sd.copyFile(componentPath, filepath.Join(dst, fileName))
+	}
+
+	// Directory-based component - copy entire directory recursively
 	return sd.copyDirectoryContents(componentDir, dst)
 }
 
@@ -2020,10 +2041,21 @@ func (cd *CommandDownloader) copyDirectoryContents(src, dst string) error {
 // copyComponentFiles copies the entire directory containing the component file (recursive)
 // Uses FilePath to determine the component's directory and copies all contents recursively
 func (cd *CommandDownloader) copyComponentFiles(repoPath string, component DetectedComponent, dst string) error {
-	// Get the directory containing the component file
-	componentDir := filepath.Dir(filepath.Join(repoPath, component.FilePath))
+	componentPath := filepath.Join(repoPath, component.FilePath)
+	componentDir := filepath.Dir(componentPath)
 
-	// Copy entire directory recursively
+	// Check if this is a single-file component or directory-based component
+	// Single file: commands/foo.md
+	// Directory-based: commands/foo/COMMAND.md (rare but possible)
+
+	// If the component file is a single .md file (not SKILL.md), only copy that file
+	if filepath.Ext(component.FilePath) == ".md" && filepath.Base(component.FilePath) != "SKILL.md" {
+		// Single file component - copy just this file
+		fileName := filepath.Base(component.FilePath)
+		return cd.copyFile(componentPath, filepath.Join(dst, fileName))
+	}
+
+	// Directory-based component - copy entire directory recursively
 	return cd.copyDirectoryContents(componentDir, dst)
 }
 
@@ -2540,10 +2572,21 @@ func (ad *AgentDownloader) copyDirectoryContents(src, dst string) error {
 // copyComponentFiles copies the entire directory containing the component file (recursive)
 // Uses FilePath to determine the component's directory and copies all contents recursively
 func (ad *AgentDownloader) copyComponentFiles(repoPath string, component DetectedComponent, dst string) error {
-	// Get the directory containing the component file
-	componentDir := filepath.Dir(filepath.Join(repoPath, component.FilePath))
+	componentPath := filepath.Join(repoPath, component.FilePath)
+	componentDir := filepath.Dir(componentPath)
 
-	// Copy entire directory recursively
+	// Check if this is a single-file component or directory-based component
+	// Single file: agents/foo.md or commands/bar.md
+	// Directory-based: skills/foo/SKILL.md (handled by Path field)
+
+	// If the component file is a single .md file (not SKILL.md), only copy that file
+	if filepath.Ext(component.FilePath) == ".md" && filepath.Base(component.FilePath) != "SKILL.md" {
+		// Single file component - copy just this file
+		fileName := filepath.Base(component.FilePath)
+		return ad.copyFile(componentPath, filepath.Join(dst, fileName))
+	}
+
+	// Directory-based component - copy entire directory recursively
 	return ad.copyDirectoryContents(componentDir, dst)
 }
 
