@@ -133,6 +133,51 @@ func (cl *ComponentLinker) loadFromLockFile(componentType, componentName string)
 	return metadata
 }
 
+// LinkComponentsByType links all components of a specific type to opencode
+func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
+	typeDir := filepath.Join(cl.agentsDir, componentType)
+
+	if _, err := os.Stat(typeDir); os.IsNotExist(err) {
+		fmt.Printf("No %s found in %s\n", componentType, cl.agentsDir)
+		return nil
+	}
+
+	entries, err := os.ReadDir(typeDir)
+	if err != nil {
+		return fmt.Errorf("failed to read %s directory: %w", componentType, err)
+	}
+
+	linkedCount := 0
+	errorCount := 0
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			componentName := entry.Name()
+
+			// Skip monorepo containers - they shouldn't be linked as individual components
+			if cl.isMonorepoContainer(componentType, componentName) {
+				continue
+			}
+
+			// Link as a regular single component
+			if err := cl.LinkComponent(componentType, componentName); err != nil {
+				fmt.Printf("Warning: failed to link %s/%s: %v\n", componentType, componentName, err)
+				errorCount++
+			} else {
+				linkedCount++
+			}
+		}
+	}
+
+	fmt.Printf("\nSuccessfully linked %d %s", linkedCount, componentType)
+	if errorCount > 0 {
+		fmt.Printf(" (%d errors)", errorCount)
+	}
+	fmt.Println()
+
+	return nil
+}
+
 // LinkAllComponents links all components to opencode
 func (cl *ComponentLinker) LinkAllComponents() error {
 	componentTypes := paths.GetComponentTypes()
@@ -513,6 +558,110 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName string) 
 	if linkType == "symlink" && target != "" {
 		fmt.Printf("Source still available at: %s\n", target)
 	}
+
+	return nil
+}
+
+// UnlinkComponentsByType removes all linked components of a specific type from opencode
+func (cl *ComponentLinker) UnlinkComponentsByType(componentType string, force bool) error {
+	typeDir := filepath.Join(cl.opencodeDir, componentType)
+
+	if _, err := os.Stat(typeDir); os.IsNotExist(err) {
+		fmt.Printf("No linked %s found.\n", componentType)
+		return nil
+	}
+
+	// First, collect all symlinks (skip copied directories)
+	totalLinks := 0
+	copiedDirs := 0
+
+	entries, err := os.ReadDir(typeDir)
+	if err != nil {
+		return fmt.Errorf("failed to read %s directory: %w", componentType, err)
+	}
+
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+
+		fullPath := filepath.Join(typeDir, entry.Name())
+		linkType, _, _ := cl.analyzeLinkStatus(fullPath)
+
+		if linkType == "copied" {
+			copiedDirs++
+			continue // Skip copied directories
+		}
+		totalLinks++
+	}
+
+	if totalLinks == 0 && copiedDirs == 0 {
+		fmt.Printf("No linked %s found.\n", componentType)
+		return nil
+	}
+
+	// Require force flag or confirmation
+	if !force {
+		if totalLinks > 0 {
+			fmt.Printf("This will unlink %d %s from opencode", totalLinks, componentType)
+			fmt.Println()
+		}
+		if copiedDirs > 0 {
+			fmt.Printf("Note: %d copied directories will be skipped (not deleted)\n", copiedDirs)
+		}
+		if totalLinks == 0 {
+			fmt.Printf("No symlinked %s to unlink (only copied directories found).\n", componentType)
+			return nil
+		}
+		fmt.Print("Continue? [y/N]: ")
+
+		var response string
+		fmt.Scanln(&response)
+
+		if strings.ToLower(strings.TrimSpace(response)) != "y" {
+			fmt.Println("Unlink cancelled.")
+			return nil
+		}
+	}
+
+	// Remove all symlinks (skip copied directories)
+	removedCount := 0
+	skippedCount := 0
+	errorCount := 0
+
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+
+		fullPath := filepath.Join(typeDir, entry.Name())
+		linkType, _, _ := cl.analyzeLinkStatus(fullPath)
+
+		// Skip copied directories - don't delete them
+		if linkType == "copied" {
+			skippedCount++
+			continue
+		}
+
+		// Remove symlinks and broken links
+		err := os.Remove(fullPath)
+
+		if err != nil {
+			fmt.Printf("Warning: failed to unlink %s/%s: %v\n", componentType, entry.Name(), err)
+			errorCount++
+		} else {
+			removedCount++
+		}
+	}
+
+	fmt.Printf("\nSuccessfully unlinked %d %s", removedCount, componentType)
+	if skippedCount > 0 {
+		fmt.Printf(" (%d copied directories skipped)", skippedCount)
+	}
+	if errorCount > 0 {
+		fmt.Printf(" (%d errors)", errorCount)
+	}
+	fmt.Println()
 
 	return nil
 }
