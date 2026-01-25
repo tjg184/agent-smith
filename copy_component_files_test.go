@@ -2,6 +2,7 @@ package main
 import "github.com/tgaines/agent-smith/internal/models"
 
 import (
+	"github.com/tgaines/agent-smith/internal/detector"
 	"os"
 	"path/filepath"
 	"testing"
@@ -73,7 +74,7 @@ func TestCopyComponentFilesNonRecursive(t *testing.T) {
 	// Use SkillDownloader to test copyComponentFiles
 	sd := &SkillDownloader{
 		baseDir:  "/tmp",
-		detector: NewRepositoryDetector(),
+		detector: detector.NewRepositoryDetector(),
 	}
 
 	// Copy component files

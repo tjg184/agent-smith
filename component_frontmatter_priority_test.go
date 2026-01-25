@@ -2,6 +2,7 @@ package main
 import "github.com/tgaines/agent-smith/internal/models"
 
 import (
+	"github.com/tgaines/agent-smith/internal/detector"
 	"os"
 	"path/filepath"
 	"testing"
@@ -102,8 +103,8 @@ description: A deployment command
 			}
 
 			// Create detector and find components
-			detector := NewRepositoryDetector()
-			components, err := detector.detectComponentsInRepo(tempDir)
+			detector := detector.NewRepositoryDetector()
+			components, err := detector.DetectComponentsInRepo(tempDir)
 			if err != nil {
 				t.Fatalf("Failed to detect components: %v", err)
 			}

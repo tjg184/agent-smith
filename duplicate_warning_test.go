@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/tgaines/agent-smith/internal/detector"
 )
 
 // TestDuplicateComponentWarnings tests Story-005: Clear warnings when duplicate component names are detected
@@ -127,8 +129,8 @@ func TestDuplicateComponentWarnings(t *testing.T) {
 			defer log.SetOutput(os.Stderr) // Restore default
 
 			// Create detector and find components
-			detector := NewRepositoryDetector()
-			components, err := detector.detectComponentsInRepo(tempDir)
+			detector := detector.NewRepositoryDetector()
+			components, err := detector.DetectComponentsInRepo(tempDir)
 			if err != nil {
 				t.Fatalf("Failed to detect components: %v", err)
 			}
@@ -226,8 +228,8 @@ func TestDuplicateWarningFormat(t *testing.T) {
 	}()
 
 	// Create detector and find components
-	detector := NewRepositoryDetector()
-	_, err = detector.detectComponentsInRepo(tempDir)
+	detector := detector.NewRepositoryDetector()
+	_, err = detector.DetectComponentsInRepo(tempDir)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
@@ -329,8 +331,8 @@ func TestDuplicateResolutionGuidance(t *testing.T) {
 	os.Stdout = w
 
 	// Create detector and find components
-	detector := NewRepositoryDetector()
-	components, err := detector.detectComponentsInRepo(tempDir)
+	detector := detector.NewRepositoryDetector()
+	components, err := detector.DetectComponentsInRepo(tempDir)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}

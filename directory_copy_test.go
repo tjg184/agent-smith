@@ -2,6 +2,7 @@ package main
 import "github.com/tgaines/agent-smith/internal/models"
 
 import (
+	"github.com/tgaines/agent-smith/internal/detector"
 	"os"
 	"path/filepath"
 	"testing"
@@ -144,8 +145,8 @@ func TestComponentDownloadPreservesResources(t *testing.T) {
 	}
 
 	// Detect components in the repository
-	detector := NewRepositoryDetector()
-	components, err := detector.detectComponentsInRepo(repoDir)
+	detector := detector.NewRepositoryDetector()
+	components, err := detector.DetectComponentsInRepo(repoDir)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
@@ -249,8 +250,8 @@ func TestMultipleComponentsWithResources(t *testing.T) {
 	}
 
 	// Detect components
-	detector := NewRepositoryDetector()
-	components, err := detector.detectComponentsInRepo(repoDir)
+	detector := detector.NewRepositoryDetector()
+	components, err := detector.DetectComponentsInRepo(repoDir)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}

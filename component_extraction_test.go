@@ -1,5 +1,4 @@
 package main
-import "github.com/tgaines/agent-smith/internal/models"
 
 import (
 	"fmt"
@@ -7,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/tgaines/agent-smith/internal/detector"
+	"github.com/tgaines/agent-smith/internal/models"
 )
 
 // TestComponentNameExtraction tests component name extraction for all component types
@@ -171,8 +173,8 @@ func TestComponentNameExtraction(t *testing.T) {
 			}
 
 			// Create detector and find components
-			detector := NewRepositoryDetector()
-			components, err := detector.detectComponentsInRepo(tempDir)
+			detector := detector.NewRepositoryDetector()
+			components, err := detector.DetectComponentsInRepo(tempDir)
 			if err != nil {
 				t.Fatalf("Failed to detect components: %v", err)
 			}
@@ -343,8 +345,8 @@ func TestComponentNameExtractionEdgeCases(t *testing.T) {
 			}
 
 			// Create detector and find components
-			detector := NewRepositoryDetector()
-			components, err := detector.detectComponentsInRepo(tempDir)
+			detector := detector.NewRepositoryDetector()
+			components, err := detector.DetectComponentsInRepo(tempDir)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error but got none")
@@ -489,8 +491,8 @@ func TestComponentNameValidation(t *testing.T) {
 			}
 
 			// Create detector and find components
-			detector := NewRepositoryDetector()
-			components, err := detector.detectComponentsInRepo(tempDir)
+			detector := detector.NewRepositoryDetector()
+			components, err := detector.DetectComponentsInRepo(tempDir)
 			if err != nil {
 				t.Fatalf("Failed to detect components: %v", err)
 			}
@@ -575,8 +577,8 @@ func TestPluginsSkillsPathIssue(t *testing.T) {
 	}
 
 	// Create detector and find components
-	detector := NewRepositoryDetector()
-	components, err := detector.detectComponentsInRepo(tempDir)
+	detector := detector.NewRepositoryDetector()
+	components, err := detector.DetectComponentsInRepo(tempDir)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
@@ -656,10 +658,10 @@ func TestAccessibilityCompliancePluginDownload(t *testing.T) {
 	}
 
 	// Create detector
-	detector := NewRepositoryDetector()
+	detector := detector.NewRepositoryDetector()
 
 	// Test component detection in the entire repository
-	components, err := detector.detectComponentsInRepo(tempDir)
+	components, err := detector.DetectComponentsInRepo(tempDir)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
@@ -716,7 +718,7 @@ func TestAccessibilityCompliancePluginDownload(t *testing.T) {
 	// Simulate downloading just the accessibility-compliance plugin
 	// This should copy only the accessibility skills, not all skills
 	pluginDir := filepath.Join(tempDir, "plugins", "accessibility-compliance")
-	pluginComponents, err := detector.detectComponentsInRepo(pluginDir)
+	pluginComponents, err := detector.DetectComponentsInRepo(pluginDir)
 	if err != nil {
 		t.Fatalf("Failed to detect components in plugin directory: %v", err)
 	}
@@ -776,11 +778,11 @@ func TestAccessibilityCompliancePluginMetadata(t *testing.T) {
 	}
 
 	// Create detector and test specific plugin path
-	detector := NewRepositoryDetector()
+	detector := detector.NewRepositoryDetector()
 
 	// Test detection specifically in the accessibility-compliance plugin directory
 	pluginDir := filepath.Join(tempDir, "plugins", "accessibility-compliance")
-	components, err := detector.detectComponentsInRepo(pluginDir)
+	components, err := detector.DetectComponentsInRepo(pluginDir)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
@@ -859,11 +861,11 @@ func BenchmarkComponentDetection(b *testing.B) {
 	}
 
 	// Benchmark detection
-	detector := NewRepositoryDetector()
+	detector := detector.NewRepositoryDetector()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		components, err := detector.detectComponentsInRepo(tempDir)
+		components, err := detector.DetectComponentsInRepo(tempDir)
 		if err != nil {
 			b.Fatalf("Detection failed: %v", err)
 		}
