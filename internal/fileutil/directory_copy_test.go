@@ -1,12 +1,13 @@
-package main
+package fileutil_test
 
 import (
-	"github.com/tgaines/agent-smith/internal/detector"
-	"github.com/tgaines/agent-smith/internal/fileutil"
-	"github.com/tgaines/agent-smith/internal/models"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/tgaines/agent-smith/internal/detector"
+	"github.com/tgaines/agent-smith/internal/fileutil"
+	"github.com/tgaines/agent-smith/internal/models"
 )
 
 // TestDirectoryCopyingWithResources tests that copyDirectoryContents preserves all files

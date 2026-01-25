@@ -1,4 +1,4 @@
-package main
+package detector_test
 
 import (
 	"bytes"
