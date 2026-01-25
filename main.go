@@ -1597,7 +1597,9 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 	}
 
 	// Detect if this component is part of a plugin structure
-	pluginPath := extractPluginPath(targetComponent.Path)
+	// Use detectCommonPluginPath for consistency with commands/agents downloaders
+	skillComponents := []DetectedComponent{*targetComponent}
+	pluginPath := detectCommonPluginPath(skillComponents)
 
 	var skillDir string
 	var err error

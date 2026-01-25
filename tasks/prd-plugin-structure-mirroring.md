@@ -34,7 +34,7 @@ Fix the multi-component agent download duplication issue in agent-smith by imple
   - End-to-end test verifying plugin path propagation through pipeline
   - Lock file compatibility tests with mixed old/new format entries
 
-- [ ] Story-002: As an agent-smith developer, I want to update component detection to capture full file paths so that the download logic can copy only relevant files instead of entire directories.
+- [x] Story-002: As an agent-smith developer, I want to update component detection to capture full file paths so that the download logic can copy only relevant files instead of entire directories.
 
   **Acceptance Criteria:**
   - Update `detectComponentForPattern()` function signature to return four values: `(string, string, string, bool)` with third return being filePath
@@ -55,7 +55,7 @@ Fix the multi-component agent download duplication issue in agent-smith by imple
   - Test component detection across plugin and flat repository structures
   - Verify FilePath accuracy for nested plugin paths like "plugins/ui-design/agents/accessibility-expert.md"
 
-- [ ] Story-003: As an agent-smith developer, I want to add plugin detection helper functions so that the system can identify and extract plugin paths from component paths.
+- [x] Story-003: As an agent-smith developer, I want to add plugin detection helper functions so that the system can identify and extract plugin paths from component paths.
 
   **Acceptance Criteria:**
   - Create `extractPluginPath()` function that takes componentPath and returns plugin directory path (e.g., "plugins/ui-design") or empty string
@@ -75,7 +75,7 @@ Fix the multi-component agent download duplication issue in agent-smith by imple
   - Test functions with real repository detection results
   - Verify correct plugin detection for wshobson/agents ui-design components
 
-- [ ] Story-004: As an agent-smith user, I want the download logic to mirror plugin structures so that I can see the exact repository organization in my local .agents directory without file duplication.
+- [x] Story-004: As an agent-smith user, I want the download logic to mirror plugin structures so that I can see the exact repository organization in my local .agents directory without file duplication.
 
   **Acceptance Criteria:**
   - Rewrite `downloadAgentWithRepo()` to detect plugin structures using `detectCommonPluginPath()`
@@ -101,7 +101,7 @@ Fix the multi-component agent download duplication issue in agent-smith by imple
   - Manual verification of directory structure in ~/.agents/plugins/
   - Verify no duplicate .md files exist in plugin structure
 
-- [ ] Story-005: As an agent-smith developer, I want to apply identical plugin mirroring logic to skills and commands so that all component types benefit from structure preservation.
+- [x] Story-005: As an agent-smith developer, I want to apply identical plugin mirroring logic to skills and commands so that all component types benefit from structure preservation.
 
   **Acceptance Criteria:**
   - Apply same rewrite pattern from Story-004 to `downloadSkillWithRepo()` function (around lines 1200-1300)
