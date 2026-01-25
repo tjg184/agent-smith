@@ -1,17 +1,16 @@
 package downloader
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/fileutil"
 	gitpkg "github.com/tgaines/agent-smith/internal/git"
+	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
@@ -330,14 +329,7 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 }
 
 func (sd *SkillDownloader) saveMetadata(filePath string, metadata map[string]interface{}) error {
-	metadata["downloaded"] = time.Now().Format(time.RFC3339)
-
-	jsonData, err := json.MarshalIndent(metadata, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal metadata: %w", err)
-	}
-
-	return fileutil.CreateFileWithPermissions(filePath, jsonData)
+	return metadataPkg.SaveLegacyMetadata(filePath, metadata)
 }
 
 // saveLockFile saves component lock entry in npx add-skill compatible format
@@ -351,66 +343,7 @@ func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceT
 		return fmt.Errorf("failed to create agents directory: %w", err)
 	}
 
-	lockFilePath := paths.GetComponentLockPath(agentsDir, "skills")
-
-	// Read existing lock file or create new one
-	var lockFile ComponentLockFile
-	lockData, err := os.ReadFile(lockFilePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			lockFile = ComponentLockFile{
-				Version: 3, // Current version matching npx add-skill
-				Skills:  make(map[string]ComponentLockEntry),
-			}
-		} else {
-			return fmt.Errorf("failed to read lock file: %w", err)
-		}
-	} else {
-		if err := json.Unmarshal(lockData, &lockFile); err != nil {
-			// If lock file is corrupted, create new one
-			lockFile = ComponentLockFile{
-				Version: 3,
-				Skills:  make(map[string]ComponentLockEntry),
-			}
-		}
-		// Ensure version is current
-		if lockFile.Version < 3 {
-			lockFile.Version = 3
-			if lockFile.Skills == nil {
-				lockFile.Skills = make(map[string]ComponentLockEntry)
-			}
-		}
-	}
-
-	now := time.Now().Format(time.RFC3339)
-
-	// Check if entry exists to preserve installedAt
-	existingEntry, exists := lockFile.Skills[skillName]
-	if !exists {
-		existingEntry.InstalledAt = now
-	}
-
-	// Update or add the skill entry
-	lockFile.Skills[skillName] = ComponentLockEntry{
-		Source:          source,
-		SourceType:      sourceType,
-		SourceUrl:       sourceUrl,
-		OriginalPath:    originalPath, // Track original path in repo
-		SkillFolderHash: skillFolderHash,
-		InstalledAt:     existingEntry.InstalledAt,
-		UpdatedAt:       now,
-		Version:         3,
-		Components:      components,
-		Detection:       detection,
-	}
-
-	// Write back to file
-	jsonData, err := json.MarshalIndent(lockFile, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal lock file: %w", err)
-	}
-
-	return os.WriteFile(lockFilePath, jsonData, 0644)
+	return metadataPkg.SaveLockFileEntry(agentsDir, "skills", skillName, source, sourceType, sourceUrl, skillFolderHash, components, detection, originalPath)
 }
 
 func (sd *SkillDownloader) createSkillFile(filePath, skillName, source string) error {
