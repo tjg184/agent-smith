@@ -11,38 +11,44 @@ import (
 	"github.com/tgaines/agent-smith/internal/fileutil"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tgaines/agent-smith/pkg/config"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
 
-// ComponentLinker handles linking components to the opencode directory
+// ComponentLinker handles linking components to a configured target
 type ComponentLinker struct {
-	agentsDir   string
-	opencodeDir string
-	detector    *detector.RepositoryDetector
+	agentsDir string
+	target    config.Target
+	detector  *detector.RepositoryDetector
 }
 
 // NewComponentLinker creates a new ComponentLinker with dependency injection
-func NewComponentLinker(agentsDir, opencodeDir string, det *detector.RepositoryDetector) (*ComponentLinker, error) {
+func NewComponentLinker(agentsDir string, target config.Target, det *detector.RepositoryDetector) (*ComponentLinker, error) {
 	// Validate inputs
 	if agentsDir == "" {
 		return nil, fmt.Errorf("agentsDir cannot be empty")
 	}
-	if opencodeDir == "" {
-		return nil, fmt.Errorf("opencodeDir cannot be empty")
+	if target == nil {
+		return nil, fmt.Errorf("target cannot be nil")
 	}
 	if det == nil {
 		return nil, fmt.Errorf("detector cannot be nil")
 	}
 
-	// Create opencode directory if it doesn't exist
-	if err := fileutil.CreateDirectoryWithPermissions(opencodeDir); err != nil {
-		return nil, fmt.Errorf("failed to create opencode directory: %w", err)
+	// Create target base directory if it doesn't exist
+	targetDir, err := target.GetBaseDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get target base directory: %w", err)
+	}
+
+	if err := fileutil.CreateDirectoryWithPermissions(targetDir); err != nil {
+		return nil, fmt.Errorf("failed to create target directory: %w", err)
 	}
 
 	return &ComponentLinker{
-		agentsDir:   agentsDir,
-		opencodeDir: opencodeDir,
-		detector:    det,
+		agentsDir: agentsDir,
+		target:    target,
+		detector:  det,
 	}, nil
 }
 
@@ -88,10 +94,16 @@ func (cl *ComponentLinker) copyFile(src, dst string) error {
 	return fileutil.CopyFile(src, dst)
 }
 
-// LinkComponent links a single component to opencode
+// LinkComponent links a single component to the configured target
 func (cl *ComponentLinker) LinkComponent(componentType, componentName string) error {
 	srcDir := filepath.Join(cl.agentsDir, componentType, componentName)
-	dstDir := filepath.Join(cl.opencodeDir, componentType, componentName)
+
+	// Get destination directory from target
+	componentDir, err := cl.target.GetComponentDir(componentType)
+	if err != nil {
+		return fmt.Errorf("failed to get target component directory: %w", err)
+	}
+	dstDir := filepath.Join(componentDir, componentName)
 
 	// Check if source component exists
 	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
@@ -112,7 +124,8 @@ func (cl *ComponentLinker) LinkComponent(componentType, componentName string) er
 		return fmt.Errorf("failed to link component: %w", err)
 	}
 
-	fmt.Printf("Successfully linked %s '%s' to opencode\n", componentType, componentName)
+	targetName := cl.target.GetName()
+	fmt.Printf("Successfully linked %s '%s' to %s\n", componentType, componentName, targetName)
 	fmt.Printf("Source: %s\n", srcDir)
 	fmt.Printf("Target: %s\n", dstDir)
 
@@ -306,7 +319,14 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 
 				// Create the link from the sub-component directory
 				srcDir := subComponentDir
-				dstDir := filepath.Join(cl.opencodeDir, componentType, linkName)
+
+				// Get destination directory from target
+				componentDir, err := cl.target.GetComponentDir(componentType)
+				if err != nil {
+					fmt.Printf("Warning: failed to get target component directory: %v\n", err)
+					continue
+				}
+				dstDir := filepath.Join(componentDir, linkName)
 
 				// Create destination directory
 				if err := fileutil.CreateDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
@@ -395,7 +415,7 @@ func (cl *ComponentLinker) DetectAndLinkLocalRepositories() error {
 	return nil
 }
 
-// ListLinkedComponents lists all components linked to opencode
+// ListLinkedComponents lists all components linked to the configured target
 func (cl *ComponentLinker) ListLinkedComponents() error {
 	componentTypes := paths.GetComponentTypes()
 
@@ -405,16 +425,19 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 	brokenCount := 0
 
 	for _, componentType := range componentTypes {
-		typeDir := filepath.Join(cl.opencodeDir, componentType)
+		componentDir, err := cl.target.GetComponentDir(componentType)
+		if err != nil {
+			return fmt.Errorf("failed to get target component directory: %w", err)
+		}
 
 		// Check if directory exists
-		if _, err := os.Stat(typeDir); os.IsNotExist(err) {
+		if _, err := os.Stat(componentDir); os.IsNotExist(err) {
 			allLinks[componentType] = []LinkStatus{}
 			continue
 		}
 
 		// Read directory entries
-		entries, err := os.ReadDir(typeDir)
+		entries, err := os.ReadDir(componentDir)
 		if err != nil {
 			return fmt.Errorf("failed to read %s directory: %w", componentType, err)
 		}
@@ -426,7 +449,7 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 				continue
 			}
 
-			fullPath := filepath.Join(typeDir, entry.Name())
+			fullPath := filepath.Join(componentDir, entry.Name())
 			linkType, target, valid := cl.analyzeLinkStatus(fullPath)
 
 			status := LinkStatus{
@@ -451,10 +474,14 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 		allLinks[componentType] = links
 	}
 
+	// Get target info for display
+	targetName := cl.target.GetName()
+	targetDir, _ := cl.target.GetBaseDir()
+
 	// Display results
 	if totalCount == 0 {
-		fmt.Println("No components are currently linked to opencode.")
-		fmt.Printf("Link location: %s\n", cl.opencodeDir)
+		fmt.Printf("No components are currently linked to %s.\n", targetName)
+		fmt.Printf("Link location: %s\n", targetDir)
 		return nil
 	}
 
@@ -509,18 +536,24 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 	return nil
 }
 
-// UnlinkComponent removes a linked component from opencode
+// UnlinkComponent removes a linked component from the configured target
 func (cl *ComponentLinker) UnlinkComponent(componentType, componentName string) error {
 	// Validate component type
 	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
 		return fmt.Errorf("invalid component type: %s (must be skills, agents, or commands)", componentType)
 	}
 
-	linkPath := filepath.Join(cl.opencodeDir, componentType, componentName)
+	componentDir, err := cl.target.GetComponentDir(componentType)
+	if err != nil {
+		return fmt.Errorf("failed to get target component directory: %w", err)
+	}
+	linkPath := filepath.Join(componentDir, componentName)
+
+	targetName := cl.target.GetName()
 
 	// Check if link exists
 	if _, err := os.Lstat(linkPath); os.IsNotExist(err) {
-		return fmt.Errorf("component %s/%s is not linked to opencode", componentType, componentName)
+		return fmt.Errorf("component %s/%s is not linked to %s", componentType, componentName, targetName)
 	}
 
 	// Analyze what we're removing
@@ -553,7 +586,7 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName string) 
 		}
 	}
 
-	fmt.Printf("Successfully unlinked %s '%s' from opencode\n", componentType, componentName)
+	fmt.Printf("Successfully unlinked %s '%s' from %s\n", componentType, componentName, targetName)
 
 	if linkType == "symlink" && target != "" {
 		fmt.Printf("Source still available at: %s\n", target)
@@ -562,11 +595,14 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName string) 
 	return nil
 }
 
-// UnlinkComponentsByType removes all linked components of a specific type from opencode
+// UnlinkComponentsByType removes all linked components of a specific type from the configured target
 func (cl *ComponentLinker) UnlinkComponentsByType(componentType string, force bool) error {
-	typeDir := filepath.Join(cl.opencodeDir, componentType)
+	componentDir, err := cl.target.GetComponentDir(componentType)
+	if err != nil {
+		return fmt.Errorf("failed to get target component directory: %w", err)
+	}
 
-	if _, err := os.Stat(typeDir); os.IsNotExist(err) {
+	if _, err := os.Stat(componentDir); os.IsNotExist(err) {
 		fmt.Printf("No linked %s found.\n", componentType)
 		return nil
 	}
@@ -575,7 +611,7 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType string, force bo
 	totalLinks := 0
 	copiedDirs := 0
 
-	entries, err := os.ReadDir(typeDir)
+	entries, err := os.ReadDir(componentDir)
 	if err != nil {
 		return fmt.Errorf("failed to read %s directory: %w", componentType, err)
 	}
@@ -585,7 +621,7 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType string, force bo
 			continue
 		}
 
-		fullPath := filepath.Join(typeDir, entry.Name())
+		fullPath := filepath.Join(componentDir, entry.Name())
 		linkType, _, _ := cl.analyzeLinkStatus(fullPath)
 
 		if linkType == "copied" {
@@ -600,10 +636,12 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType string, force bo
 		return nil
 	}
 
+	targetName := cl.target.GetName()
+
 	// Require force flag or confirmation
 	if !force {
 		if totalLinks > 0 {
-			fmt.Printf("This will unlink %d %s from opencode", totalLinks, componentType)
+			fmt.Printf("This will unlink %d %s from %s", totalLinks, componentType, targetName)
 			fmt.Println()
 		}
 		if copiedDirs > 0 {
@@ -634,7 +672,7 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType string, force bo
 			continue
 		}
 
-		fullPath := filepath.Join(typeDir, entry.Name())
+		fullPath := filepath.Join(componentDir, entry.Name())
 		linkType, _, _ := cl.analyzeLinkStatus(fullPath)
 
 		// Skip copied directories - don't delete them
@@ -666,7 +704,7 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType string, force bo
 	return nil
 }
 
-// UnlinkAllComponents removes all linked components from opencode
+// UnlinkAllComponents removes all linked components from the configured target
 func (cl *ComponentLinker) UnlinkAllComponents(force bool) error {
 	componentTypes := paths.GetComponentTypes()
 
@@ -675,13 +713,16 @@ func (cl *ComponentLinker) UnlinkAllComponents(force bool) error {
 	copiedDirs := 0
 
 	for _, componentType := range componentTypes {
-		typeDir := filepath.Join(cl.opencodeDir, componentType)
+		componentDir, err := cl.target.GetComponentDir(componentType)
+		if err != nil {
+			return fmt.Errorf("failed to get target component directory: %w", err)
+		}
 
-		if _, err := os.Stat(typeDir); os.IsNotExist(err) {
+		if _, err := os.Stat(componentDir); os.IsNotExist(err) {
 			continue
 		}
 
-		entries, err := os.ReadDir(typeDir)
+		entries, err := os.ReadDir(componentDir)
 		if err != nil {
 			return fmt.Errorf("failed to read %s directory: %w", componentType, err)
 		}
@@ -691,7 +732,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(force bool) error {
 				continue
 			}
 
-			fullPath := filepath.Join(typeDir, entry.Name())
+			fullPath := filepath.Join(componentDir, entry.Name())
 			linkType, _, _ := cl.analyzeLinkStatus(fullPath)
 
 			if linkType == "copied" {
@@ -707,10 +748,12 @@ func (cl *ComponentLinker) UnlinkAllComponents(force bool) error {
 		return nil
 	}
 
+	targetName := cl.target.GetName()
+
 	// Require force flag or confirmation
 	if !force {
 		if totalLinks > 0 {
-			fmt.Printf("This will unlink %d symlinked components from opencode", totalLinks)
+			fmt.Printf("This will unlink %d symlinked components from %s", totalLinks, targetName)
 			fmt.Println()
 		}
 		if copiedDirs > 0 {
@@ -737,13 +780,16 @@ func (cl *ComponentLinker) UnlinkAllComponents(force bool) error {
 	errorCount := 0
 
 	for _, componentType := range componentTypes {
-		typeDir := filepath.Join(cl.opencodeDir, componentType)
+		componentDir, err := cl.target.GetComponentDir(componentType)
+		if err != nil {
+			return fmt.Errorf("failed to get target component directory: %w", err)
+		}
 
-		if _, err := os.Stat(typeDir); os.IsNotExist(err) {
+		if _, err := os.Stat(componentDir); os.IsNotExist(err) {
 			continue
 		}
 
-		entries, err := os.ReadDir(typeDir)
+		entries, err := os.ReadDir(componentDir)
 		if err != nil {
 			fmt.Printf("Warning: failed to read %s directory: %v\n", componentType, err)
 			continue
@@ -754,7 +800,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(force bool) error {
 				continue
 			}
 
-			fullPath := filepath.Join(typeDir, entry.Name())
+			fullPath := filepath.Join(componentDir, entry.Name())
 			linkType, _, _ := cl.analyzeLinkStatus(fullPath)
 
 			// Skip copied directories - don't delete them
