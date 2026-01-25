@@ -1192,29 +1192,28 @@ func (sd *SkillDownloader) downloadSkill(repoURL, skillName string, providedRepo
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
-	// If only one skill component found, copy its contents
+	// If only one skill component found, copy its files
 	if len(skillComponents) == 1 {
 		component := skillComponents[0]
-		componentPath := filepath.Join(repoPath, component.Path)
 
-		// Copy component contents to skill directory
-		err = sd.copyDirectoryContents(componentPath, skillDir)
+		// Copy component files (non-recursive) using FilePath to skill directory
+		err = sd.copyComponentFiles(repoPath, component, skillDir)
 		if err != nil {
 			os.RemoveAll(skillDir)
-			return fmt.Errorf("failed to copy skill contents: %w", err)
+			return fmt.Errorf("failed to copy skill files: %w", err)
 		}
 	} else {
 		// Multiple skills found, create a monorepo structure
 		for _, component := range skillComponents {
 			componentDir := filepath.Join(skillDir, component.Name)
-			componentPath := filepath.Join(repoPath, component.Path)
 
 			err = createDirectoryWithPermissions(componentDir)
 			if err != nil {
 				continue
 			}
 
-			err = sd.copyDirectoryContents(componentPath, componentDir)
+			// Copy component files (non-recursive) using FilePath
+			err = sd.copyComponentFiles(repoPath, component, componentDir)
 			if err != nil {
 				log.Printf("Warning: failed to copy skill %s: %v", component.Name, err)
 			}
@@ -1439,6 +1438,35 @@ func (sd *SkillDownloader) copyDirectoryContents(src, dst string) error {
 	})
 }
 
+// copyComponentFiles copies only files from the component directory (non-recursive)
+// Uses FilePath to determine the component's directory and copies only files in that directory
+func (sd *SkillDownloader) copyComponentFiles(repoPath string, component DetectedComponent, dst string) error {
+	// Get the directory containing the component file
+	componentDir := filepath.Dir(filepath.Join(repoPath, component.FilePath))
+
+	entries, err := os.ReadDir(componentDir)
+	if err != nil {
+		return fmt.Errorf("failed to read component directory %s: %w", componentDir, err)
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(componentDir, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			// Skip subdirectories - only copy files directly in the component directory
+			continue
+		}
+
+		// Copy the file
+		if err := sd.copyFile(srcPath, dstPath); err != nil {
+			return fmt.Errorf("failed to copy file %s: %w", entry.Name(), err)
+		}
+	}
+
+	return nil
+}
+
 func (sd *SkillDownloader) copyFile(src, dst string) error {
 	data, err := os.ReadFile(src)
 	if err != nil {
@@ -1574,12 +1602,11 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
-	// Copy the specific skill component contents
-	componentPath := filepath.Join(repoPath, targetComponent.Path)
-	err := sd.copyDirectoryContents(componentPath, skillDir)
+	// Copy the specific skill component files (non-recursive) using FilePath
+	err := sd.copyComponentFiles(repoPath, *targetComponent, skillDir)
 	if err != nil {
 		os.RemoveAll(skillDir)
-		return fmt.Errorf("failed to copy skill contents: %w", err)
+		return fmt.Errorf("failed to copy skill files: %w", err)
 	}
 
 	var commitHash string
@@ -1772,37 +1799,35 @@ func (cd *CommandDownloader) downloadCommand(repoURL, commandName string, provid
 	// If only one command component found, copy its contents
 	if len(commandComponents) == 1 {
 		component := commandComponents[0]
-		componentPath := filepath.Join(repoPath, component.Path)
 
-		// Copy component contents to command directory
-		err = cd.copyDirectoryContents(componentPath, commandDir)
+		// Copy component files (non-recursive) using FilePath to command directory
+		err = cd.copyComponentFiles(repoPath, component, commandDir)
 		if err != nil {
 			os.RemoveAll(commandDir)
-			return fmt.Errorf("failed to copy command contents: %w", err)
+			return fmt.Errorf("failed to copy command files: %w", err)
 		}
 	} else if matchingComponent != nil {
 		// Downloading a specific component from a multi-component directory
 		// Use direct copy to avoid double nesting
-		componentPath := filepath.Join(repoPath, matchingComponent.Path)
 
-		// Copy component contents to command directory
-		err = cd.copyDirectoryContents(componentPath, commandDir)
+		// Copy component files (non-recursive) using FilePath to command directory
+		err = cd.copyComponentFiles(repoPath, *matchingComponent, commandDir)
 		if err != nil {
 			os.RemoveAll(commandDir)
-			return fmt.Errorf("failed to copy command contents: %w", err)
+			return fmt.Errorf("failed to copy command files: %w", err)
 		}
 	} else {
 		// Multiple commands found, create a monorepo structure
 		for _, component := range commandComponents {
 			componentDir := filepath.Join(commandDir, component.Name)
-			componentPath := filepath.Join(repoPath, component.Path)
 
 			err = createDirectoryWithPermissions(componentDir)
 			if err != nil {
 				continue
 			}
 
-			err = cd.copyDirectoryContents(componentPath, componentDir)
+			// Copy component files (non-recursive) using FilePath
+			err = cd.copyComponentFiles(repoPath, component, componentDir)
 			if err != nil {
 				log.Printf("Warning: failed to copy command %s: %v", component.Name, err)
 			}
@@ -1968,6 +1993,35 @@ func (cd *CommandDownloader) copyDirectoryContents(src, dst string) error {
 	})
 }
 
+// copyComponentFiles copies only files from the component directory (non-recursive)
+// Uses FilePath to determine the component's directory and copies only files in that directory
+func (cd *CommandDownloader) copyComponentFiles(repoPath string, component DetectedComponent, dst string) error {
+	// Get the directory containing the component file
+	componentDir := filepath.Dir(filepath.Join(repoPath, component.FilePath))
+
+	entries, err := os.ReadDir(componentDir)
+	if err != nil {
+		return fmt.Errorf("failed to read component directory %s: %w", componentDir, err)
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(componentDir, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			// Skip subdirectories - only copy files directly in the component directory
+			continue
+		}
+
+		// Copy the file
+		if err := cd.copyFile(srcPath, dstPath); err != nil {
+			return fmt.Errorf("failed to copy file %s: %w", entry.Name(), err)
+		}
+	}
+
+	return nil
+}
+
 func (cd *CommandDownloader) copyFile(src, dst string) error {
 	data, err := os.ReadFile(src)
 	if err != nil {
@@ -2100,26 +2154,25 @@ func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoU
 	// If only one command component found, copy its contents
 	if len(commandComponents) == 1 {
 		component := commandComponents[0]
-		componentPath := filepath.Join(repoPath, component.Path)
 
-		// Copy component contents to command directory
-		err := cd.copyDirectoryContents(componentPath, commandDir)
+		// Copy component files (non-recursive) using FilePath to command directory
+		err := cd.copyComponentFiles(repoPath, component, commandDir)
 		if err != nil {
 			os.RemoveAll(commandDir)
-			return fmt.Errorf("failed to copy command contents: %w", err)
+			return fmt.Errorf("failed to copy command files: %w", err)
 		}
 	} else {
 		// Multiple commands found, create a monorepo structure
 		for _, component := range commandComponents {
 			componentDir := filepath.Join(commandDir, component.Name)
-			componentPath := filepath.Join(repoPath, component.Path)
 
 			err := createDirectoryWithPermissions(componentDir)
 			if err != nil {
 				continue
 			}
 
-			err = cd.copyDirectoryContents(componentPath, componentDir)
+			// Copy component files (non-recursive) using FilePath
+			err = cd.copyComponentFiles(repoPath, component, componentDir)
 			if err != nil {
 				log.Printf("Warning: failed to copy command %s: %v", component.Name, err)
 			}
@@ -2302,37 +2355,35 @@ func (ad *AgentDownloader) downloadAgent(repoURL, agentName string, providedRepo
 	// If only one agent component found, copy its contents
 	if len(agentComponents) == 1 {
 		component := agentComponents[0]
-		componentPath := filepath.Join(repoPath, component.Path)
 
-		// Copy component contents to agent directory
-		err = ad.copyDirectoryContents(componentPath, agentDir)
+		// Copy component files (non-recursive) using FilePath to agent directory
+		err = ad.copyComponentFiles(repoPath, component, agentDir)
 		if err != nil {
 			os.RemoveAll(agentDir)
-			return fmt.Errorf("failed to copy agent contents: %w", err)
+			return fmt.Errorf("failed to copy agent files: %w", err)
 		}
 	} else if matchingComponent != nil {
 		// Downloading a specific component from a multi-component directory
 		// Use direct copy to avoid double nesting
-		componentPath := filepath.Join(repoPath, matchingComponent.Path)
 
-		// Copy component contents to agent directory
-		err = ad.copyDirectoryContents(componentPath, agentDir)
+		// Copy component files (non-recursive) using FilePath to agent directory
+		err = ad.copyComponentFiles(repoPath, *matchingComponent, agentDir)
 		if err != nil {
 			os.RemoveAll(agentDir)
-			return fmt.Errorf("failed to copy agent contents: %w", err)
+			return fmt.Errorf("failed to copy agent files: %w", err)
 		}
 	} else {
 		// Multiple agents found, create a monorepo structure
 		for _, component := range agentComponents {
 			componentDir := filepath.Join(agentDir, component.Name)
-			componentPath := filepath.Join(repoPath, component.Path)
 
 			err = createDirectoryWithPermissions(componentDir)
 			if err != nil {
 				continue
 			}
 
-			err = ad.copyDirectoryContents(componentPath, componentDir)
+			// Copy component files (non-recursive) using FilePath
+			err = ad.copyComponentFiles(repoPath, component, componentDir)
 			if err != nil {
 				log.Printf("Warning: failed to copy agent %s: %v", component.Name, err)
 			}
@@ -2498,6 +2549,35 @@ func (ad *AgentDownloader) copyDirectoryContents(src, dst string) error {
 	})
 }
 
+// copyComponentFiles copies only files from the component directory (non-recursive)
+// Uses FilePath to determine the component's directory and copies only files in that directory
+func (ad *AgentDownloader) copyComponentFiles(repoPath string, component DetectedComponent, dst string) error {
+	// Get the directory containing the component file
+	componentDir := filepath.Dir(filepath.Join(repoPath, component.FilePath))
+
+	entries, err := os.ReadDir(componentDir)
+	if err != nil {
+		return fmt.Errorf("failed to read component directory %s: %w", componentDir, err)
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(componentDir, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			// Skip subdirectories - only copy files directly in the component directory
+			continue
+		}
+
+		// Copy the file
+		if err := ad.copyFile(srcPath, dstPath); err != nil {
+			return fmt.Errorf("failed to copy file %s: %w", entry.Name(), err)
+		}
+	}
+
+	return nil
+}
+
 func (ad *AgentDownloader) copyFile(src, dst string) error {
 	data, err := os.ReadFile(src)
 	if err != nil {
@@ -2630,26 +2710,25 @@ func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL str
 	// If only one agent component found, copy its contents
 	if len(agentComponents) == 1 {
 		component := agentComponents[0]
-		componentPath := filepath.Join(repoPath, component.Path)
 
-		// Copy component contents to agent directory
-		err := ad.copyDirectoryContents(componentPath, agentDir)
+		// Copy component files (non-recursive) using FilePath to agent directory
+		err := ad.copyComponentFiles(repoPath, component, agentDir)
 		if err != nil {
 			os.RemoveAll(agentDir)
-			return fmt.Errorf("failed to copy agent contents: %w", err)
+			return fmt.Errorf("failed to copy agent files: %w", err)
 		}
 	} else {
 		// Multiple agents found, create a monorepo structure
 		for _, component := range agentComponents {
 			componentDir := filepath.Join(agentDir, component.Name)
-			componentPath := filepath.Join(repoPath, component.Path)
 
 			err := createDirectoryWithPermissions(componentDir)
 			if err != nil {
 				continue
 			}
 
-			err = ad.copyDirectoryContents(componentPath, componentDir)
+			// Copy component files (non-recursive) using FilePath
+			err = ad.copyComponentFiles(repoPath, component, componentDir)
 			if err != nil {
 				log.Printf("Warning: failed to copy agent %s: %v", component.Name, err)
 			}
