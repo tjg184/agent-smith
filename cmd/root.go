@@ -26,6 +26,11 @@ func Execute() {
 	}
 }
 
+// isValidComponentType checks if a string is a valid component type
+func isValidComponentType(componentType string) bool {
+	return componentType == "skills" || componentType == "agents" || componentType == "commands"
+}
+
 func init() {
 	// Add legacy commands as Cobra commands for better organization
 	rootCmd.AddCommand(&cobra.Command{
@@ -215,11 +220,21 @@ EXAMPLES:
 
 USAGE:
   agent-smith link <type> <name>  - Link a specific component
+  agent-smith link <type>         - Link all components of a specific type
   agent-smith link all            - Link all downloaded components
 
 EXAMPLES:
   # Link a specific skill
   agent-smith link skills mcp-builder
+
+  # Link all skills
+  agent-smith link skills
+
+  # Link all agents
+  agent-smith link agents
+
+  # Link all commands
+  agent-smith link commands
 
   # Link all components
   agent-smith link all`,
@@ -227,12 +242,13 @@ EXAMPLES:
 		Run: func(cmd *cobra.Command, args []string) {
 			if args[0] == "all" {
 				handleLinkAll()
-			} else {
-				if len(args) != 2 {
-					cmd.PrintErrln("Error: link requires both type and name (or use 'link all')")
-					os.Exit(1)
-				}
+			} else if len(args) == 1 && isValidComponentType(args[0]) {
+				handleLinkType(args[0])
+			} else if len(args) == 2 {
 				handleLink(args[0], args[1])
+			} else {
+				cmd.PrintErrln("Error: link requires type and name, or just type, or 'all'")
+				os.Exit(1)
 			}
 		},
 	})
@@ -275,22 +291,32 @@ The output shows:
 
 USAGE:
   agent-smith unlink <type> <name>  - Unlink a specific component
+  agent-smith unlink <type>         - Unlink all components of a specific type
   agent-smith unlink all            - Unlink all components (with --force to skip confirmation)
 
 COMPONENT TYPES:
-  skills    - Remove a linked skill
-  agents    - Remove a linked agent
-  commands  - Remove a linked command
+  skills    - Remove linked skills
+  agents    - Remove linked agents
+  commands  - Remove linked commands
 
 SAFETY:
   - Symlinks are removed immediately
   - Copied directories require confirmation before deletion
   - Source files in ~/.agents/ are never touched
-  - 'unlink all' prompts for confirmation unless --force is used
+  - 'unlink all' and 'unlink <type>' prompt for confirmation unless --force is used
 
 EXAMPLES:
-  # Unlink a skill
+  # Unlink a specific skill
   agent-smith unlink skills mcp-builder
+
+  # Unlink all skills
+  agent-smith unlink skills
+
+  # Unlink all agents with confirmation
+  agent-smith unlink agents
+
+  # Unlink all commands without confirmation
+  agent-smith unlink commands --force
 
   # Unlink all components with confirmation
   agent-smith unlink all
@@ -299,15 +325,16 @@ EXAMPLES:
   agent-smith unlink all --force`,
 		Args: cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
+			force, _ := cmd.Flags().GetBool("force")
 			if args[0] == "all" {
-				force, _ := cmd.Flags().GetBool("force")
 				handleUnlinkAll(force)
-			} else {
-				if len(args) != 2 {
-					cmd.PrintErrln("Error: unlink requires both type and name (or use 'unlink all')")
-					os.Exit(1)
-				}
+			} else if len(args) == 1 && isValidComponentType(args[0]) {
+				handleUnlinkType(args[0], force)
+			} else if len(args) == 2 {
 				handleUnlink(args[0], args[1])
+			} else {
+				cmd.PrintErrln("Error: unlink requires type and name, or just type, or 'all'")
+				os.Exit(1)
 			}
 		},
 	}
@@ -328,10 +355,12 @@ var (
 	handleUpdateAll  func()
 	handleLink       func(componentType, componentName string)
 	handleLinkAll    func()
+	handleLinkType   func(componentType string)
 	handleAutoLink   func()
 	handleListLinks  func()
 	handleUnlink     func(componentType, componentName string)
 	handleUnlinkAll  func(force bool)
+	handleUnlinkType func(componentType string, force bool)
 )
 
 func SetHandlers(
@@ -344,10 +373,12 @@ func SetHandlers(
 	updateAll func(),
 	link func(componentType, componentName string),
 	linkAll func(),
+	linkType func(componentType string),
 	autoLink func(),
 	listLinks func(),
 	unlink func(componentType, componentName string),
 	unlinkAll func(force bool),
+	unlinkType func(componentType string, force bool),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
@@ -358,8 +389,10 @@ func SetHandlers(
 	handleUpdateAll = updateAll
 	handleLink = link
 	handleLinkAll = linkAll
+	handleLinkType = linkType
 	handleAutoLink = autoLink
 	handleListLinks = listLinks
 	handleUnlink = unlink
 	handleUnlinkAll = unlinkAll
+	handleUnlinkType = unlinkType
 }

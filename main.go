@@ -200,6 +200,20 @@ func main() {
 				log.Fatal("Failed to link all components:", err)
 			}
 		},
+		func(componentType string) {
+			// Validate component type
+			if componentType != "skills" && componentType != "agents" && componentType != "commands" {
+				log.Fatal("Invalid component type. Use: skills, agents, or commands")
+			}
+
+			linker, err := NewComponentLinker()
+			if err != nil {
+				log.Fatal("Failed to create component linker:", err)
+			}
+			if err := linker.LinkComponentsByType(componentType); err != nil {
+				log.Fatal("Failed to link components:", err)
+			}
+		},
 		func() {
 			linker, err := NewComponentLinker()
 			if err != nil {
@@ -234,6 +248,20 @@ func main() {
 			}
 			if err := linker.UnlinkAllComponents(force); err != nil {
 				log.Fatal("Failed to unlink all components:", err)
+			}
+		},
+		func(componentType string, force bool) {
+			// Validate component type
+			if componentType != "skills" && componentType != "agents" && componentType != "commands" {
+				log.Fatal("Invalid component type. Use: skills, agents, or commands")
+			}
+
+			linker, err := NewComponentLinker()
+			if err != nil {
+				log.Fatal("Failed to create component linker:", err)
+			}
+			if err := linker.UnlinkComponentsByType(componentType, force); err != nil {
+				log.Fatal("Failed to unlink components:", err)
 			}
 		},
 	)
