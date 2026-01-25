@@ -161,7 +161,7 @@ type ComponentLockEntry struct {
 	SourceType      string `json:"sourceType"`
 	SourceUrl       string `json:"sourceUrl"`
 	SkillPath       string `json:"skillPath,omitempty"`
-	PluginPath      string `json:"pluginPath,omitempty"` // Path to plugin directory (e.g., "plugins/ui-design")
+	OriginalPath    string `json:"originalPath,omitempty"` // Original path in repo (e.g., "plugins/ui-design/agents/expert.md")
 	SkillFolderHash string `json:"skillFolderHash"`
 	InstalledAt     string `json:"installedAt"`
 	UpdatedAt       string `json:"updatedAt"`
@@ -179,13 +179,13 @@ type ComponentLockFile struct {
 
 // Legacy metadata structure for backward compatibility
 type ComponentMetadata struct {
-	Name       string `json:"name"`
-	Source     string `json:"source"`
-	Commit     string `json:"commit"`
-	Downloaded string `json:"downloaded"`
-	Components int    `json:"components,omitempty"`
-	Detection  string `json:"detection,omitempty"`
-	PluginPath string `json:"pluginPath,omitempty"` // Path to plugin directory
+	Name         string `json:"name"`
+	Source       string `json:"source"`
+	Commit       string `json:"commit"`
+	Downloaded   string `json:"downloaded"`
+	Components   int    `json:"components,omitempty"`
+	Detection    string `json:"detection,omitempty"`
+	OriginalPath string `json:"originalPath,omitempty"` // Original path in repo
 }
 
 // Cross-platform helper functions
@@ -285,6 +285,46 @@ func determineComponentName(frontmatter *ComponentFrontmatter, fileName string) 
 	}
 
 	return name
+}
+
+// determineDestinationFolderName determines the destination folder name using hierarchy heuristic
+// Walks up from component file directory, skipping component-type names (agents/commands/skills)
+// Returns first non-component-type directory name for preserving optional hierarchy
+func determineDestinationFolderName(componentFilePath string) string {
+	componentTypeNames := []string{"agents", "commands", "skills"}
+
+	// Get directory containing the component file
+	currentDir := filepath.Dir(componentFilePath)
+
+	// Walk up the directory tree
+	for {
+		dirName := filepath.Base(currentDir)
+
+		// Check if current directory name is a component type
+		isComponentType := false
+		for _, typeName := range componentTypeNames {
+			if dirName == typeName {
+				isComponentType = true
+				break
+			}
+		}
+
+		// If not a component type name, use it
+		if !isComponentType && dirName != "." && dirName != "" {
+			return dirName
+		}
+
+		// Go up one directory
+		parentDir := filepath.Dir(currentDir)
+
+		// Check if we've reached the root
+		if parentDir == currentDir || parentDir == "." || parentDir == "/" || dirName == "" {
+			// Reached root, fall back to "root"
+			return "root"
+		}
+
+		currentDir = parentDir
+	}
 }
 
 // loadDetectionConfig loads detection configuration from a JSON file
@@ -1438,33 +1478,14 @@ func (sd *SkillDownloader) copyDirectoryContents(src, dst string) error {
 	})
 }
 
-// copyComponentFiles copies only files from the component directory (non-recursive)
-// Uses FilePath to determine the component's directory and copies only files in that directory
+// copyComponentFiles copies the entire directory containing the component file (recursive)
+// Uses FilePath to determine the component's directory and copies all contents recursively
 func (sd *SkillDownloader) copyComponentFiles(repoPath string, component DetectedComponent, dst string) error {
 	// Get the directory containing the component file
 	componentDir := filepath.Dir(filepath.Join(repoPath, component.FilePath))
 
-	entries, err := os.ReadDir(componentDir)
-	if err != nil {
-		return fmt.Errorf("failed to read component directory %s: %w", componentDir, err)
-	}
-
-	for _, entry := range entries {
-		srcPath := filepath.Join(componentDir, entry.Name())
-		dstPath := filepath.Join(dst, entry.Name())
-
-		if entry.IsDir() {
-			// Skip subdirectories - only copy files directly in the component directory
-			continue
-		}
-
-		// Copy the file
-		if err := sd.copyFile(srcPath, dstPath); err != nil {
-			return fmt.Errorf("failed to copy file %s: %w", entry.Name(), err)
-		}
-	}
-
-	return nil
+	// Copy entire directory recursively
+	return sd.copyDirectoryContents(componentDir, dst)
 }
 
 func (sd *SkillDownloader) copyFile(src, dst string) error {
@@ -1488,7 +1509,7 @@ func (sd *SkillDownloader) saveMetadata(filePath string, metadata map[string]int
 }
 
 // Save component lock entry in npx add-skill compatible format
-func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, pluginPath string) error {
+func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, originalPath string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get user home directory: %w", err)
@@ -1543,7 +1564,7 @@ func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceT
 		Source:          source,
 		SourceType:      sourceType,
 		SourceUrl:       sourceUrl,
-		PluginPath:      pluginPath, // Track plugin directory path
+		OriginalPath:    originalPath, // Track original path in repo
 		SkillFolderHash: skillFolderHash,
 		InstalledAt:     existingEntry.InstalledAt,
 		UpdatedAt:       now,
@@ -1596,46 +1617,20 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 		return sd.downloadSkillDirect(fullURL, skillName, repoURL)
 	}
 
-	// Detect if this component is part of a plugin structure
-	// Use detectCommonPluginPath for consistency with commands/agents downloaders
-	skillComponents := []DetectedComponent{*targetComponent}
-	pluginPath := detectCommonPluginPath(skillComponents)
+	// Determine destination folder name using heuristic
+	destFolderName := determineDestinationFolderName(targetComponent.FilePath)
 
-	var skillDir string
-	var err error
+	// Create skill directory with heuristic name
+	skillDir := filepath.Join(sd.baseDir, destFolderName)
+	if err := createDirectoryWithPermissions(skillDir); err != nil {
+		return fmt.Errorf("failed to create skill directory: %w", err)
+	}
 
-	if pluginPath != "" {
-		// Plugin structure detected - copy entire plugin directory once
-		pluginDir := filepath.Join(filepath.Dir(sd.baseDir), pluginPath)
-
-		// Create plugin directory structure
-		if err := createDirectoryWithPermissions(pluginDir); err != nil {
-			return fmt.Errorf("failed to create plugin directory: %w", err)
-		}
-
-		// Copy entire plugin directory from repository
-		pluginSourcePath := filepath.Join(repoPath, pluginPath)
-		err = sd.copyDirectoryContents(pluginSourcePath, pluginDir)
-		if err != nil {
-			os.RemoveAll(pluginDir)
-			return fmt.Errorf("failed to copy plugin directory: %w", err)
-		}
-
-		// Set skillDir to the plugin directory for metadata storage
-		skillDir = pluginDir
-	} else {
-		// Non-plugin structure - use existing behavior
-		skillDir = filepath.Join(sd.baseDir, skillName)
-		if err := createDirectoryWithPermissions(skillDir); err != nil {
-			return fmt.Errorf("failed to create skill directory: %w", err)
-		}
-
-		// Copy the specific skill component files (non-recursive) using FilePath
-		err = sd.copyComponentFiles(repoPath, *targetComponent, skillDir)
-		if err != nil {
-			os.RemoveAll(skillDir)
-			return fmt.Errorf("failed to copy skill files: %w", err)
-		}
+	// Copy the entire component directory recursively
+	err := sd.copyComponentFiles(repoPath, *targetComponent, skillDir)
+	if err != nil {
+		os.RemoveAll(skillDir)
+		return fmt.Errorf("failed to copy skill files: %w", err)
 	}
 
 	var commitHash string
@@ -1666,17 +1661,13 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 
 	// Create metadata
 	metadata := map[string]interface{}{
-		"name":       skillName,
-		"source":     fullURL,
-		"commit":     commitHash,
-		"downloaded": "now",
-		"components": 1,
-		"detection":  "single",
-	}
-
-	// Add plugin path to metadata if present
-	if pluginPath != "" {
-		metadata["pluginPath"] = pluginPath
+		"name":         skillName,
+		"source":       fullURL,
+		"commit":       commitHash,
+		"downloaded":   "now",
+		"components":   1,
+		"detection":    "single",
+		"originalPath": targetComponent.FilePath,
 	}
 
 	// Save legacy metadata file for backward compatibility
@@ -1715,7 +1706,7 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 		}
 	}
 
-	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, 1, "single", pluginPath); err != nil {
+	if err := sd.saveLockFile(destFolderName, fullURL, sourceType, fullURL, folderHash, 1, "single", targetComponent.FilePath); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -1727,11 +1718,7 @@ func (sd *SkillDownloader) downloadSkillWithRepo(fullURL, skillName, repoURL str
 	}
 
 	fmt.Printf("Successfully downloaded skill '%s' from %s\n", skillName, fullURL)
-	if pluginPath != "" {
-		fmt.Printf("Plugin structure detected: %s\n", pluginPath)
-	}
 	fmt.Printf("Skill stored in: %s\n", skillDir)
-	fmt.Printf("Components detected: %d\n", 1)
 
 	return nil
 }
@@ -2030,33 +2017,14 @@ func (cd *CommandDownloader) copyDirectoryContents(src, dst string) error {
 	})
 }
 
-// copyComponentFiles copies only files from the component directory (non-recursive)
-// Uses FilePath to determine the component's directory and copies only files in that directory
+// copyComponentFiles copies the entire directory containing the component file (recursive)
+// Uses FilePath to determine the component's directory and copies all contents recursively
 func (cd *CommandDownloader) copyComponentFiles(repoPath string, component DetectedComponent, dst string) error {
 	// Get the directory containing the component file
 	componentDir := filepath.Dir(filepath.Join(repoPath, component.FilePath))
 
-	entries, err := os.ReadDir(componentDir)
-	if err != nil {
-		return fmt.Errorf("failed to read component directory %s: %w", componentDir, err)
-	}
-
-	for _, entry := range entries {
-		srcPath := filepath.Join(componentDir, entry.Name())
-		dstPath := filepath.Join(dst, entry.Name())
-
-		if entry.IsDir() {
-			// Skip subdirectories - only copy files directly in the component directory
-			continue
-		}
-
-		// Copy the file
-		if err := cd.copyFile(srcPath, dstPath); err != nil {
-			return fmt.Errorf("failed to copy file %s: %w", entry.Name(), err)
-		}
-	}
-
-	return nil
+	// Copy entire directory recursively
+	return cd.copyDirectoryContents(componentDir, dst)
 }
 
 func (cd *CommandDownloader) copyFile(src, dst string) error {
@@ -2080,7 +2048,7 @@ func (cd *CommandDownloader) saveMetadata(filePath string, metadata map[string]i
 }
 
 // Save command lock entry in npx add-skill compatible format
-func (cd *CommandDownloader) saveLockFile(commandName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, pluginPath string) error {
+func (cd *CommandDownloader) saveLockFile(commandName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, originalPath string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get user home directory: %w", err)
@@ -2131,7 +2099,7 @@ func (cd *CommandDownloader) saveLockFile(commandName string, source string, sou
 		Source:          source,
 		SourceType:      sourceType,
 		SourceUrl:       sourceUrl,
-		PluginPath:      pluginPath, // Track plugin directory path
+		OriginalPath:    originalPath, // Track original path in repo
 		SkillFolderHash: skillFolderHash,
 		InstalledAt:     existingEntry.InstalledAt,
 		UpdatedAt:       now,
@@ -2169,78 +2137,34 @@ Add usage instructions here.
 }
 
 func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoURL string, repoPath string, components []DetectedComponent) error {
-	// Filter for command components from provided components
-	var commandComponents []DetectedComponent
+	// Find the specific command component with matching name
+	var targetComponent *DetectedComponent
 	for _, comp := range components {
-		if comp.Type == ComponentCommand {
-			commandComponents = append(commandComponents, comp)
+		if comp.Type == ComponentCommand && comp.Name == commandName {
+			targetComponent = &comp
+			break
 		}
 	}
 
-	if len(commandComponents) == 0 {
-		// No command components detected, fall back to original behavior
+	if targetComponent == nil {
+		// Command component not found in provided components, fall back to original behavior
 		return cd.downloadCommandDirect(fullURL, commandName)
 	}
 
-	// Detect if components are part of a plugin structure
-	pluginPath := detectCommonPluginPath(commandComponents)
+	// Determine destination folder name using heuristic
+	destFolderName := determineDestinationFolderName(targetComponent.FilePath)
 
-	var commandDir string
-	var err error
+	// Create command directory with heuristic name
+	commandDir := filepath.Join(cd.baseDir, destFolderName)
+	if err := createDirectoryWithPermissions(commandDir); err != nil {
+		return fmt.Errorf("failed to create command directory: %w", err)
+	}
 
-	if pluginPath != "" {
-		// Plugin structure detected - copy entire plugin directory once
-		pluginDir := filepath.Join(filepath.Dir(cd.baseDir), pluginPath)
-
-		// Create plugin directory structure
-		if err := createDirectoryWithPermissions(pluginDir); err != nil {
-			return fmt.Errorf("failed to create plugin directory: %w", err)
-		}
-
-		// Copy entire plugin directory from repository
-		pluginSourcePath := filepath.Join(repoPath, pluginPath)
-		err = cd.copyDirectoryContents(pluginSourcePath, pluginDir)
-		if err != nil {
-			os.RemoveAll(pluginDir)
-			return fmt.Errorf("failed to copy plugin directory: %w", err)
-		}
-
-		// Set commandDir to the plugin directory for metadata storage
-		commandDir = pluginDir
-	} else {
-		// Non-plugin structure - use existing behavior
-		commandDir = filepath.Join(cd.baseDir, commandName)
-		if err := createDirectoryWithPermissions(commandDir); err != nil {
-			return fmt.Errorf("failed to create command directory: %w", err)
-		}
-
-		// If only one command component found, copy its contents
-		if len(commandComponents) == 1 {
-			component := commandComponents[0]
-
-			// Copy component files (non-recursive) using FilePath to command directory
-			err = cd.copyComponentFiles(repoPath, component, commandDir)
-			if err != nil {
-				os.RemoveAll(commandDir)
-				return fmt.Errorf("failed to copy command files: %w", err)
-			}
-		} else {
-			// Multiple commands found, create a monorepo structure
-			for _, component := range commandComponents {
-				componentDir := filepath.Join(commandDir, component.Name)
-
-				err := createDirectoryWithPermissions(componentDir)
-				if err != nil {
-					continue
-				}
-
-				// Copy component files (non-recursive) using FilePath
-				err = cd.copyComponentFiles(repoPath, component, componentDir)
-				if err != nil {
-					log.Printf("Warning: failed to copy command %s: %v", component.Name, err)
-				}
-			}
-		}
+	// Copy the entire component directory recursively
+	err := cd.copyComponentFiles(repoPath, *targetComponent, commandDir)
+	if err != nil {
+		os.RemoveAll(commandDir)
+		return fmt.Errorf("failed to copy command files: %w", err)
 	}
 
 	var commitHash string
@@ -2273,17 +2197,13 @@ func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoU
 
 	// Create metadata
 	metadata := map[string]interface{}{
-		"name":       commandName,
-		"source":     fullURL,
-		"commit":     commitHash,
-		"downloaded": "now",
-		"components": len(commandComponents),
-		"detection":  "recursive",
-	}
-
-	// Add plugin path to metadata if present
-	if pluginPath != "" {
-		metadata["pluginPath"] = pluginPath
+		"name":         commandName,
+		"source":       fullURL,
+		"commit":       commitHash,
+		"downloaded":   "now",
+		"components":   1,
+		"detection":    "single",
+		"originalPath": targetComponent.FilePath,
 	}
 
 	// Save legacy metadata file for backward compatibility
@@ -2308,7 +2228,7 @@ func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoU
 		}
 	}
 
-	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, len(commandComponents), "recursive", pluginPath); err != nil {
+	if err := cd.saveLockFile(destFolderName, fullURL, sourceType, fullURL, folderHash, 1, "single", targetComponent.FilePath); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -2318,11 +2238,7 @@ func (cd *CommandDownloader) downloadCommandWithRepo(fullURL, commandName, repoU
 	}
 
 	fmt.Printf("Successfully downloaded command '%s' from %s\n", commandName, fullURL)
-	if pluginPath != "" {
-		fmt.Printf("Plugin structure detected: %s\n", pluginPath)
-	}
 	fmt.Printf("Command stored in: %s\n", commandDir)
-	fmt.Printf("Components detected: %d\n", len(commandComponents))
 
 	return nil
 }
@@ -2621,33 +2537,14 @@ func (ad *AgentDownloader) copyDirectoryContents(src, dst string) error {
 	})
 }
 
-// copyComponentFiles copies only files from the component directory (non-recursive)
-// Uses FilePath to determine the component's directory and copies only files in that directory
+// copyComponentFiles copies the entire directory containing the component file (recursive)
+// Uses FilePath to determine the component's directory and copies all contents recursively
 func (ad *AgentDownloader) copyComponentFiles(repoPath string, component DetectedComponent, dst string) error {
 	// Get the directory containing the component file
 	componentDir := filepath.Dir(filepath.Join(repoPath, component.FilePath))
 
-	entries, err := os.ReadDir(componentDir)
-	if err != nil {
-		return fmt.Errorf("failed to read component directory %s: %w", componentDir, err)
-	}
-
-	for _, entry := range entries {
-		srcPath := filepath.Join(componentDir, entry.Name())
-		dstPath := filepath.Join(dst, entry.Name())
-
-		if entry.IsDir() {
-			// Skip subdirectories - only copy files directly in the component directory
-			continue
-		}
-
-		// Copy the file
-		if err := ad.copyFile(srcPath, dstPath); err != nil {
-			return fmt.Errorf("failed to copy file %s: %w", entry.Name(), err)
-		}
-	}
-
-	return nil
+	// Copy entire directory recursively
+	return ad.copyDirectoryContents(componentDir, dst)
 }
 
 func (ad *AgentDownloader) copyFile(src, dst string) error {
@@ -2671,7 +2568,7 @@ func (ad *AgentDownloader) saveMetadata(filePath string, metadata map[string]int
 }
 
 // Save agent lock entry in npx add-skill compatible format
-func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, pluginPath string) error {
+func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, originalPath string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get user home directory: %w", err)
@@ -2722,7 +2619,7 @@ func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceT
 		Source:          source,
 		SourceType:      sourceType,
 		SourceUrl:       sourceUrl,
-		PluginPath:      pluginPath, // Track plugin directory path
+		OriginalPath:    originalPath, // Track original directory path in repo
 		SkillFolderHash: skillFolderHash,
 		InstalledAt:     existingEntry.InstalledAt,
 		UpdatedAt:       now,
@@ -2760,78 +2657,34 @@ Add usage instructions here.
 }
 
 func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL string, repoPath string, components []DetectedComponent) error {
-	// Filter for agent components from provided components
-	var agentComponents []DetectedComponent
+	// Find the specific agent component with matching name
+	var targetComponent *DetectedComponent
 	for _, comp := range components {
-		if comp.Type == ComponentAgent {
-			agentComponents = append(agentComponents, comp)
+		if comp.Type == ComponentAgent && comp.Name == agentName {
+			targetComponent = &comp
+			break
 		}
 	}
 
-	if len(agentComponents) == 0 {
-		// No agent components detected, fall back to original behavior
+	if targetComponent == nil {
+		// Agent component not found in provided components, fall back to original behavior
 		return ad.downloadAgentDirect(fullURL, agentName)
 	}
 
-	// Detect if components are part of a plugin structure
-	pluginPath := detectCommonPluginPath(agentComponents)
+	// Determine destination folder name using heuristic
+	destFolderName := determineDestinationFolderName(targetComponent.FilePath)
 
-	var agentDir string
-	var err error
+	// Create agent directory with heuristic name
+	agentDir := filepath.Join(ad.baseDir, destFolderName)
+	if err := createDirectoryWithPermissions(agentDir); err != nil {
+		return fmt.Errorf("failed to create agent directory: %w", err)
+	}
 
-	if pluginPath != "" {
-		// Plugin structure detected - copy entire plugin directory once
-		pluginDir := filepath.Join(filepath.Dir(ad.baseDir), pluginPath)
-
-		// Create plugin directory structure
-		if err := createDirectoryWithPermissions(pluginDir); err != nil {
-			return fmt.Errorf("failed to create plugin directory: %w", err)
-		}
-
-		// Copy entire plugin directory from repository
-		pluginSourcePath := filepath.Join(repoPath, pluginPath)
-		err = ad.copyDirectoryContents(pluginSourcePath, pluginDir)
-		if err != nil {
-			os.RemoveAll(pluginDir)
-			return fmt.Errorf("failed to copy plugin directory: %w", err)
-		}
-
-		// Set agentDir to the plugin directory for metadata storage
-		agentDir = pluginDir
-	} else {
-		// Non-plugin structure - use existing behavior
-		agentDir = filepath.Join(ad.baseDir, agentName)
-		if err := createDirectoryWithPermissions(agentDir); err != nil {
-			return fmt.Errorf("failed to create agent directory: %w", err)
-		}
-
-		// If only one agent component found, copy its contents
-		if len(agentComponents) == 1 {
-			component := agentComponents[0]
-
-			// Copy component files (non-recursive) using FilePath to agent directory
-			err = ad.copyComponentFiles(repoPath, component, agentDir)
-			if err != nil {
-				os.RemoveAll(agentDir)
-				return fmt.Errorf("failed to copy agent files: %w", err)
-			}
-		} else {
-			// Multiple agents found, create a monorepo structure
-			for _, component := range agentComponents {
-				componentDir := filepath.Join(agentDir, component.Name)
-
-				err := createDirectoryWithPermissions(componentDir)
-				if err != nil {
-					continue
-				}
-
-				// Copy component files (non-recursive) using FilePath
-				err = ad.copyComponentFiles(repoPath, component, componentDir)
-				if err != nil {
-					log.Printf("Warning: failed to copy agent %s: %v", component.Name, err)
-				}
-			}
-		}
+	// Copy the entire component directory recursively
+	err := ad.copyComponentFiles(repoPath, *targetComponent, agentDir)
+	if err != nil {
+		os.RemoveAll(agentDir)
+		return fmt.Errorf("failed to copy agent files: %w", err)
 	}
 
 	var commitHash string
@@ -2864,17 +2717,13 @@ func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL str
 
 	// Create metadata
 	metadata := map[string]interface{}{
-		"name":       agentName,
-		"source":     fullURL,
-		"commit":     commitHash,
-		"downloaded": "now",
-		"components": len(agentComponents),
-		"detection":  "recursive",
-	}
-
-	// Add plugin path to metadata if present
-	if pluginPath != "" {
-		metadata["pluginPath"] = pluginPath
+		"name":         agentName,
+		"source":       fullURL,
+		"commit":       commitHash,
+		"downloaded":   "now",
+		"components":   1,
+		"detection":    "single",
+		"originalPath": targetComponent.FilePath,
 	}
 
 	// Save legacy metadata file for backward compatibility
@@ -2899,7 +2748,7 @@ func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL str
 		}
 	}
 
-	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, len(agentComponents), "recursive", pluginPath); err != nil {
+	if err := ad.saveLockFile(destFolderName, fullURL, sourceType, fullURL, folderHash, 1, "single", targetComponent.FilePath); err != nil {
 		log.Printf("Warning: failed to save lock file: %v", err)
 	}
 
@@ -2909,11 +2758,7 @@ func (ad *AgentDownloader) downloadAgentWithRepo(fullURL, agentName, repoURL str
 	}
 
 	fmt.Printf("Successfully downloaded agent '%s' from %s\n", agentName, fullURL)
-	if pluginPath != "" {
-		fmt.Printf("Plugin structure detected: %s\n", pluginPath)
-	}
 	fmt.Printf("Agent stored in: %s\n", agentDir)
-	fmt.Printf("Components detected: %d\n", len(agentComponents))
 
 	return nil
 }
@@ -2987,12 +2832,9 @@ func (cl *ComponentLinker) linkComponent(componentType, componentName string) er
 		return fmt.Errorf("component %s/%s does not exist in %s", componentType, componentName, cl.agentsDir)
 	}
 
-	// Check if this component is part of a plugin structure
+	// All components are now stored type-based, no special plugin handling needed
 	metadata := cl.loadComponentMetadata(componentType, componentName)
-	if metadata != nil && metadata.PluginPath != "" {
-		// This is a plugin-based component, link individual component files
-		return cl.linkPluginComponent(componentType, componentName, metadata.PluginPath)
-	}
+	_ = metadata // Keep metadata loading for potential future use
 
 	// Create destination directory
 	if err := createDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
@@ -3086,55 +2928,13 @@ func (cl *ComponentLinker) loadFromLockFile(componentType, componentName string)
 
 	// Convert lock entry to metadata
 	return &ComponentMetadata{
-		Name:       componentName,
-		Source:     entry.SourceUrl,
-		Commit:     entry.SkillFolderHash,
-		PluginPath: entry.PluginPath,
-		Components: entry.Components,
-		Detection:  entry.Detection,
+		Name:         componentName,
+		Source:       entry.SourceUrl,
+		Commit:       entry.SkillFolderHash,
+		OriginalPath: entry.OriginalPath,
+		Components:   entry.Components,
+		Detection:    entry.Detection,
 	}
-}
-
-// linkPluginComponent creates symlinks for individual components within a plugin structure
-func (cl *ComponentLinker) linkPluginComponent(componentType, componentName, pluginPath string) error {
-	// The component is stored at: ~/.agents/{type}/{name}/plugins/{plugin-name}/{type}/{component-name}/
-	// We need to find the actual component files within this structure
-
-	srcBaseDir := filepath.Join(cl.agentsDir, componentType, componentName)
-	pluginDir := filepath.Join(srcBaseDir, pluginPath)
-
-	// Look for the component directory within the plugin structure
-	// Plugin structure: plugins/{plugin-name}/{agents|skills|commands}/{component-name}/
-	componentDir := filepath.Join(pluginDir, componentType, componentName)
-
-	// Check if the component directory exists
-	if _, err := os.Stat(componentDir); os.IsNotExist(err) {
-		// Try alternative: component might be directly in the plugin type directory
-		// e.g., plugins/ui-design/agents/accessibility-expert.md (file, not directory)
-		componentFile := componentDir + ".md"
-		if _, err := os.Stat(componentFile); os.IsNotExist(err) {
-			return fmt.Errorf("plugin component %s not found in %s", componentName, pluginDir)
-		}
-		// Component is a single file, link the parent directory containing the file
-		componentDir = filepath.Join(pluginDir, componentType)
-	}
-
-	// Create destination directory
-	dstDir := filepath.Join(cl.opencodeDir, componentType, componentName)
-	if err := createDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
-		return fmt.Errorf("failed to create destination directory: %w", err)
-	}
-
-	// Create symlink to the component directory within the plugin
-	if err := cl.createSymlink(componentDir, dstDir); err != nil {
-		return fmt.Errorf("failed to link plugin component: %w", err)
-	}
-
-	fmt.Printf("Successfully linked plugin-based %s '%s' to opencode\n", componentType, componentName)
-	fmt.Printf("Source: %s\n", componentDir)
-	fmt.Printf("Target: %s\n", dstDir)
-
-	return nil
 }
 
 func (cl *ComponentLinker) linkAllComponents() error {
@@ -3181,15 +2981,6 @@ func (cl *ComponentLinker) isMonorepoContainer(componentType, componentName stri
 	entries, err := os.ReadDir(componentDir)
 	if err != nil {
 		return false
-	}
-
-	// Check if this is a plugin structure by looking for a "plugins" subdirectory
-	// Plugin structure: ~/.agents/{type}/{name}/plugins/{plugin-name}/{agents|skills|commands}/
-	for _, entry := range entries {
-		if entry.IsDir() && entry.Name() == "plugins" {
-			// This is a plugin container, should not be linked directly
-			return true
-		}
 	}
 
 	// Determine possible marker files for this component type
@@ -3689,81 +3480,6 @@ func (bd *BulkDownloader) detectPluginDirectories(repoPath string) ([]string, er
 	return pluginDirs, nil
 }
 
-// extractPluginPath extracts the plugin directory path from a component path.
-// Returns the plugin path (e.g., "plugins/ui-design") if the component is in a plugin,
-// or an empty string if not in a plugin structure.
-// Uses filepath.ToSlash for cross-platform compatibility.
-func extractPluginPath(componentPath string) string {
-	// Normalize path separators for cross-platform compatibility
-	// Replace backslashes with forward slashes for consistent parsing
-	normalizedPath := strings.ReplaceAll(componentPath, "\\", "/")
-
-	// Trim trailing slash
-	normalizedPath = strings.TrimSuffix(normalizedPath, "/")
-
-	// Check if path contains "plugins/"
-	if !strings.Contains(normalizedPath, "plugins/") {
-		return ""
-	}
-
-	// Split path into parts
-	parts := strings.Split(normalizedPath, "/")
-
-	// Find "plugins" in the path
-	pluginIndex := -1
-	for i, part := range parts {
-		if part == "plugins" {
-			pluginIndex = i
-			break
-		}
-	}
-
-	// If "plugins" is not found or is the last part, no plugin path
-	if pluginIndex == -1 || pluginIndex >= len(parts)-1 {
-		return ""
-	}
-
-	// Extract plugin name (the directory immediately after "plugins")
-	pluginName := parts[pluginIndex+1]
-
-	// Plugin name should not be empty
-	if pluginName == "" {
-		return ""
-	}
-
-	// Return the plugin path using the platform-specific separator
-	return filepath.Join("plugins", pluginName)
-}
-
-// detectCommonPluginPath detects if all components share a common plugin path.
-// Returns the common plugin path if all components are from the same plugin,
-// or an empty string if components are from different plugins or not in plugin structures.
-func detectCommonPluginPath(components []DetectedComponent) string {
-	if len(components) == 0 {
-		return ""
-	}
-
-	// Extract plugin path from first component
-	firstPluginPath := extractPluginPath(components[0].Path)
-
-	// If first component is not in a plugin, return empty
-	if firstPluginPath == "" {
-		return ""
-	}
-
-	// Check if all components share the same plugin path
-	for _, comp := range components[1:] {
-		pluginPath := extractPluginPath(comp.Path)
-		if pluginPath != firstPluginPath {
-			// Components from different plugins or mixed structures
-			return ""
-		}
-	}
-
-	// All components share the same plugin path
-	return firstPluginPath
-}
-
 // processComponents handles downloading components for non-plugin repositories (fallback)
 func (bd *BulkDownloader) processComponents(components []DetectedComponent, fullURL, repoURL, tempDir string) error {
 	// Group components by type
@@ -3824,8 +3540,10 @@ func (bd *BulkDownloader) processComponents(components []DetectedComponent, full
 // processPluginComponents handles downloading components for a specific plugin
 func (bd *BulkDownloader) processPluginComponents(components []DetectedComponent, fullURL, repoURL, tempDir, pluginDir string) (int, int, int, error) {
 	// Adjust component paths to be relative to repository root instead of plugin directory
+	// Must update both Path and FilePath fields to include the plugin directory
 	for i := range components {
 		components[i].Path = filepath.Join(pluginDir, components[i].Path)
+		components[i].FilePath = filepath.Join(pluginDir, components[i].FilePath)
 	}
 
 	// Group components by type for this plugin
@@ -3845,6 +3563,7 @@ func (bd *BulkDownloader) processPluginComponents(components []DetectedComponent
 	}
 
 	// Download skills using optimized method with shared repository
+	// Pass tempDir as base since component paths now include plugin directory
 	for _, comp := range skillComponents {
 		fmt.Printf("  Downloading skill: %s\n", comp.Name)
 		if err := bd.skillDownloader.downloadSkillWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
