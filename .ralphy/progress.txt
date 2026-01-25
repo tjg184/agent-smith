@@ -56,3 +56,8 @@
 - [✓] 2026-01-25 14:23 - **Story-008**: As a developer maintaining linking functionality, I want component linking isolated so that I can extend it without touching other code. - Create `internal/linker/` package, Extract ComponentLinker to linker.go, Extract link status analysis to status.go, Implement dependency injection.
 - [✓] 2026-01-25 14:27 - **Story-009**: As a developer maintaining update functionality, I want update detection in its own package so that I can improve it independently. - Create `internal/updater/` package, Extract UpdateDetector to updater.go, Implement clean interfaces.
 - [✓] 2026-01-25 14:30 - **Story-010**: As a developer maintaining npx-like execution, I want executor functionality isolated so that I can extend execution without affecting downloads. - Create `internal/executor/` package, Extract ComponentExecutor to executor.go, Wire up to CLI handlers.
+- [✓] 2026-01-25 15:19 - Story-001: As a developer, I want unit tests colocated with the detector package so that detector functionality is easier to test and maintain.
+- [✓] 2026-01-25 15:21 - Story-002: As a developer, I want unit tests colocated with the fileutil package so that file utility functions are easier to test and maintain.
+- [✓] 2026-01-25 15:25 - Story-003: As a developer, I want integration tests organized in a dedicated directory so I can easily distinguish them from unit tests.
+- [✓] 2026-01-25 15:26 - Story-004: As a developer, I want obsolete skipped test files removed so the repository stays clean and maintainable.
+- [✓] 2026-01-25 15:28 - Story-005: As a developer, I want to verify all tests pass after reorganization so I can be confident nothing broke during the move.
