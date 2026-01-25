@@ -21,14 +21,7 @@ import (
 	"github.com/tgaines/agent-smith/cmd"
 	"github.com/tgaines/agent-smith/internal/fileutil"
 	"github.com/tgaines/agent-smith/internal/models"
-)
-
-const (
-	agentsDir    = "~/.agents"
-	skillsDir    = agentsDir + string(filepath.Separator) + "skills"
-	agentsSubDir = agentsDir + string(filepath.Separator) + "agents"
-	commandsDir  = agentsDir + string(filepath.Separator) + "commands"
-	opencodeDir  = "~/.config" + string(filepath.Separator) + "opencode"
+	"github.com/tgaines/agent-smith/pkg/paths"
 )
 
 // RepositoryDetector maintains repository patterns and component detection
@@ -42,36 +35,21 @@ func createDefaultDetectionConfig() *models.DetectionConfig {
 	return &models.DetectionConfig{
 		Components: map[string]models.ComponentDetectionPattern{
 			string(models.ComponentSkill): {
-				Name:       "skill",
-				ExactFiles: []string{"SKILL.md"},
-				IgnorePaths: []string{
-					".git",
-					"node_modules",
-					".vscode",
-					".idea",
-				},
+				Name:        "skill",
+				ExactFiles:  []string{paths.SkillMarkdownFile},
+				IgnorePaths: paths.IgnoredPaths,
 			},
 			string(models.ComponentAgent): {
 				Name:           "agent",
-				PathPatterns:   []string{"/agents/", "agents"},
+				PathPatterns:   []string{paths.AgentsPathPattern, paths.AgentsSubDir},
 				FileExtensions: []string{".md"},
-				IgnorePaths: []string{
-					".git",
-					"node_modules",
-					".vscode",
-					".idea",
-				},
+				IgnorePaths:    paths.IgnoredPaths,
 			},
 			string(models.ComponentCommand): {
 				Name:           "command",
-				PathPatterns:   []string{"/commands/", "commands"},
+				PathPatterns:   []string{paths.CommandsPathPattern, paths.CommandsSubDir},
 				FileExtensions: []string{".md"},
-				IgnorePaths: []string{
-					".git",
-					"node_modules",
-					".vscode",
-					".idea",
-				},
+				IgnorePaths:    paths.IgnoredPaths,
 			},
 		},
 	}
@@ -152,7 +130,7 @@ func determineComponentName(frontmatter *models.ComponentFrontmatter, fileName s
 // Walks up from component file directory, skipping component-type names (agents/commands/skills)
 // Returns first non-component-type directory name for preserving optional hierarchy
 func determineDestinationFolderName(componentFilePath string) string {
-	componentTypeNames := []string{"agents", "commands", "skills"}
+	componentTypeNames := paths.GetComponentTypeNames()
 
 	// Get directory containing the component file
 	currentDir := filepath.Dir(componentFilePath)
@@ -232,11 +210,11 @@ func (rd *RepositoryDetector) saveDetectionConfig(configPath string) error {
 
 // getDetectionConfigPath returns the default path for the detection configuration file
 func getDetectionConfigPath() string {
-	homeDir, err := os.UserHomeDir()
+	configPath, err := paths.GetDetectionConfigPath()
 	if err != nil {
 		return "./detection-config.json"
 	}
-	return filepath.Join(homeDir, ".config", "opencode", "detection-config.json")
+	return configPath
 }
 
 func NewRepositoryDetector() *RepositoryDetector {
@@ -843,12 +821,10 @@ func (rd *RepositoryDetector) detectComponentsInRepo(repoPath string) ([]models.
 }
 
 func NewSkillDownloader() *SkillDownloader {
-	home, err := os.UserHomeDir()
+	baseDir, err := paths.GetSkillsDir()
 	if err != nil {
-		log.Fatal("Failed to get user home directory:", err)
+		log.Fatal("Failed to get skills directory:", err)
 	}
-
-	baseDir := filepath.Join(home, ".agents", "skills")
 
 	// Create base directory if it doesn't exist
 	if err := createDirectoryWithPermissions(baseDir); err != nil {
@@ -862,12 +838,10 @@ func NewSkillDownloader() *SkillDownloader {
 }
 
 func NewAgentDownloader() *AgentDownloader {
-	home, err := os.UserHomeDir()
+	baseDir, err := paths.GetAgentsSubDir()
 	if err != nil {
-		log.Fatal("Failed to get user home directory:", err)
+		log.Fatal("Failed to get agents directory:", err)
 	}
-
-	baseDir := filepath.Join(home, ".agents", "agents")
 
 	// Create base directory if it doesn't exist
 	if err := createDirectoryWithPermissions(baseDir); err != nil {
@@ -881,12 +855,10 @@ func NewAgentDownloader() *AgentDownloader {
 }
 
 func NewCommandDownloader() *CommandDownloader {
-	home, err := os.UserHomeDir()
+	baseDir, err := paths.GetCommandsDir()
 	if err != nil {
-		log.Fatal("Failed to get user home directory:", err)
+		log.Fatal("Failed to get commands directory:", err)
 	}
-
-	baseDir := filepath.Join(home, ".agents", "commands")
 
 	// Create base directory if it doesn't exist
 	if err := createDirectoryWithPermissions(baseDir); err != nil {
@@ -900,13 +872,15 @@ func NewCommandDownloader() *CommandDownloader {
 }
 
 func NewComponentLinker() *ComponentLinker {
-	home, err := os.UserHomeDir()
+	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
-		log.Fatal("Failed to get user home directory:", err)
+		log.Fatal("Failed to get agents directory:", err)
 	}
 
-	agentsDir := filepath.Join(home, ".agents")
-	opencodeDir := filepath.Join(home, ".config", "opencode")
+	opencodeDir, err := paths.GetOpencodeDir()
+	if err != nil {
+		log.Fatal("Failed to get opencode directory:", err)
+	}
 
 	// Create opencode directory if it doesn't exist
 	if err := createDirectoryWithPermissions(opencodeDir); err != nil {
@@ -921,12 +895,10 @@ func NewComponentLinker() *ComponentLinker {
 }
 
 func NewUpdateDetector() *UpdateDetector {
-	home, err := os.UserHomeDir()
+	baseDir, err := paths.GetAgentsDir()
 	if err != nil {
-		log.Fatal("Failed to get user home directory:", err)
+		log.Fatal("Failed to get agents directory:", err)
 	}
-
-	baseDir := filepath.Join(home, ".agents")
 
 	return &UpdateDetector{
 		baseDir:  baseDir,
@@ -1367,17 +1339,16 @@ func (sd *SkillDownloader) saveMetadata(filePath string, metadata map[string]int
 
 // Save component lock entry in npx add-skill compatible format
 func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, originalPath string) error {
-	home, err := os.UserHomeDir()
+	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
-		return fmt.Errorf("failed to get user home directory: %w", err)
+		return fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
-	agentsDir := filepath.Join(home, ".agents")
 	if err := createDirectoryWithPermissions(agentsDir); err != nil {
 		return fmt.Errorf("failed to create agents directory: %w", err)
 	}
 
-	lockFilePath := filepath.Join(agentsDir, ".skill-lock.json")
+	lockFilePath := paths.GetComponentLockPath(agentsDir, "skills")
 
 	// Read existing lock file or create new one
 	var lockFile ComponentLockFile
@@ -1880,17 +1851,16 @@ func (cd *CommandDownloader) saveMetadata(filePath string, metadata map[string]i
 
 // Save command lock entry in npx add-skill compatible format
 func (cd *CommandDownloader) saveLockFile(commandName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, originalPath string) error {
-	home, err := os.UserHomeDir()
+	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
-		return fmt.Errorf("failed to get user home directory: %w", err)
+		return fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
-	agentsDir := filepath.Join(home, ".agents")
 	if err := createDirectoryWithPermissions(agentsDir); err != nil {
 		return fmt.Errorf("failed to create agents directory: %w", err)
 	}
 
-	lockFilePath := filepath.Join(agentsDir, ".command-lock.json")
+	lockFilePath := paths.GetComponentLockPath(agentsDir, "commands")
 
 	// Read existing lock file or create new one
 	var lockFile ComponentLockFile
@@ -2374,17 +2344,16 @@ func (ad *AgentDownloader) saveMetadata(filePath string, metadata map[string]int
 
 // Save agent lock entry in npx add-skill compatible format
 func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, originalPath string) error {
-	home, err := os.UserHomeDir()
+	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
-		return fmt.Errorf("failed to get user home directory: %w", err)
+		return fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
-	agentsDir := filepath.Join(home, ".agents")
 	if err := createDirectoryWithPermissions(agentsDir); err != nil {
 		return fmt.Errorf("failed to create agents directory: %w", err)
 	}
 
-	lockFilePath := filepath.Join(agentsDir, ".agent-lock.json")
+	lockFilePath := paths.GetComponentLockPath(agentsDir, "agents")
 
 	// Read existing lock file or create new one
 	var lockFile ComponentLockFile
@@ -2645,17 +2614,17 @@ func (cl *ComponentLinker) loadComponentMetadata(componentType, componentName st
 
 	// Try legacy metadata file
 	var metadataFile string
+
 	switch componentType {
 	case "skills":
-		metadataFile = filepath.Join(cl.agentsDir, "skills", componentName, ".skill-metadata.json")
+		metadataFile = paths.GetComponentMetadataPath(cl.agentsDir, componentType, componentName)
 	case "agents":
-		metadataFile = filepath.Join(cl.agentsDir, "agents", componentName, ".agent-metadata.json")
+		metadataFile = paths.GetComponentMetadataPath(cl.agentsDir, componentType, componentName)
 	case "commands":
-		metadataFile = filepath.Join(cl.agentsDir, "commands", componentName, ".command-metadata.json")
+		metadataFile = paths.GetComponentMetadataPath(cl.agentsDir, componentType, componentName)
 	default:
 		return nil
 	}
-
 	data, err := os.ReadFile(metadataFile)
 	if err != nil {
 		return nil
@@ -2676,11 +2645,11 @@ func (cl *ComponentLinker) loadFromLockFile(componentType, componentName string)
 
 	switch componentType {
 	case "skills":
-		lockFilePath = filepath.Join(cl.agentsDir, ".skill-lock.json")
+		lockFilePath = paths.GetComponentLockPath(cl.agentsDir, componentType)
 	case "agents":
-		lockFilePath = filepath.Join(cl.agentsDir, ".agent-lock.json")
+		lockFilePath = paths.GetComponentLockPath(cl.agentsDir, componentType)
 	case "commands":
-		lockFilePath = filepath.Join(cl.agentsDir, ".command-lock.json")
+		lockFilePath = paths.GetComponentLockPath(cl.agentsDir, componentType)
 	default:
 		return nil
 	}
@@ -2721,7 +2690,7 @@ func (cl *ComponentLinker) loadFromLockFile(componentType, componentName string)
 }
 
 func (cl *ComponentLinker) linkAllComponents() error {
-	componentTypes := []string{"skills", "agents", "commands"}
+	componentTypes := paths.GetComponentTypes()
 
 	for _, componentType := range componentTypes {
 		typeDir := filepath.Join(cl.agentsDir, componentType)
@@ -2947,7 +2916,7 @@ type LinkStatus struct {
 
 // listLinkedComponents lists all components linked to opencode
 func (cl *ComponentLinker) listLinkedComponents() error {
-	componentTypes := []string{"skills", "agents", "commands"}
+	componentTypes := paths.GetComponentTypes()
 
 	allLinks := make(map[string][]LinkStatus)
 	totalCount := 0
@@ -3148,7 +3117,7 @@ func (cl *ComponentLinker) unlinkComponent(componentType, componentName string) 
 
 // unlinkAllComponents removes all linked components from opencode
 func (cl *ComponentLinker) unlinkAllComponents(force bool) error {
-	componentTypes := []string{"skills", "agents", "commands"}
+	componentTypes := paths.GetComponentTypes()
 
 	// First, collect all symlinks (skip copied directories)
 	totalLinks := 0
@@ -3283,11 +3252,11 @@ func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*mo
 	var metadataFile string
 	switch componentType {
 	case "skills":
-		metadataFile = filepath.Join(ud.baseDir, "skills", componentName, ".skill-metadata.json")
+		metadataFile = paths.GetComponentMetadataPath(ud.baseDir, componentType, componentName)
 	case "agents":
-		metadataFile = filepath.Join(ud.baseDir, "agents", componentName, ".agent-metadata.json")
+		metadataFile = paths.GetComponentMetadataPath(ud.baseDir, componentType, componentName)
 	case "commands":
-		metadataFile = filepath.Join(ud.baseDir, "commands", componentName, ".command-metadata.json")
+		metadataFile = paths.GetComponentMetadataPath(ud.baseDir, componentType, componentName)
 	default:
 		return nil, fmt.Errorf("unknown component type: %s", componentType)
 	}
@@ -3311,11 +3280,11 @@ func (ud *UpdateDetector) loadFromLockFile(componentType, componentName string) 
 
 	switch componentType {
 	case "skills":
-		lockFilePath = filepath.Join(ud.baseDir, ".skill-lock.json")
+		lockFilePath = paths.GetComponentLockPath(ud.baseDir, componentType)
 	case "agents":
-		lockFilePath = filepath.Join(ud.baseDir, ".agent-lock.json")
+		lockFilePath = paths.GetComponentLockPath(ud.baseDir, componentType)
 	case "commands":
-		lockFilePath = filepath.Join(ud.baseDir, ".command-lock.json")
+		lockFilePath = paths.GetComponentLockPath(ud.baseDir, componentType)
 	default:
 		return nil, fmt.Errorf("unknown component type: %s", componentType)
 	}
@@ -3436,7 +3405,7 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 }
 
 func (ud *UpdateDetector) UpdateAll() error {
-	componentTypes := []string{"skills", "agents", "commands"}
+	componentTypes := paths.GetComponentTypes()
 
 	for _, componentType := range componentTypes {
 		typeDir := filepath.Join(ud.baseDir, componentType)
@@ -3574,16 +3543,26 @@ type ComponentExecutor struct {
 }
 
 func NewComponentExecutor() *ComponentExecutor {
-	home, err := os.UserHomeDir()
+	skillDir, err := paths.GetSkillsDir()
 	if err != nil {
-		log.Fatal("Failed to get user home directory:", err)
+		log.Fatal("Failed to get skills directory:", err)
+	}
+
+	agentDir, err := paths.GetAgentsSubDir()
+	if err != nil {
+		log.Fatal("Failed to get agents directory:", err)
+	}
+
+	commandDir, err := paths.GetCommandsDir()
+	if err != nil {
+		log.Fatal("Failed to get commands directory:", err)
 	}
 
 	return &ComponentExecutor{
 		detector:   NewRepositoryDetector(),
-		skillDir:   filepath.Join(home, ".agents", "skills"),
-		agentDir:   filepath.Join(home, ".agents", "agents"),
-		commandDir: filepath.Join(home, ".agents", "commands"),
+		skillDir:   skillDir,
+		agentDir:   agentDir,
+		commandDir: commandDir,
 	}
 }
 
