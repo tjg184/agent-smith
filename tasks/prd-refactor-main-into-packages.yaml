@@ -1,0 +1,242 @@
+name: Refactor main.go into Standard Go Package Structure
+description: |
+  Refactor the monolithic 4200+ line main.go file into a well-organized, 
+  standard Go package structure that separates concerns, improves testability, 
+  and follows Go best practices.
+
+status: draft
+priority: high
+created: 2026-01-25
+
+goals:
+  - Reduce main.go from 4200 lines to < 200 lines
+  - Separate concerns by domain/responsibility
+  - Improve testability with dependency injection
+  - Zero breaking changes to CLI interface
+  - Maintain backward compatibility with existing installations
+
+packages:
+  internal/models:
+    purpose: Define all data structures and domain models
+    files:
+      - component.go
+      - config.go
+      - lock.go
+      - metadata.go
+  
+  internal/detector:
+    purpose: Handle all component detection logic
+    files:
+      - detector.go
+      - patterns.go
+      - components.go
+  
+  internal/downloader:
+    purpose: Handle downloading components from repositories
+    files:
+      - common.go
+      - skill.go
+      - agent.go
+      - command.go
+      - bulk.go
+  
+  internal/linker:
+    purpose: Manage component linking to OpenCode
+    files:
+      - linker.go
+      - status.go
+  
+  internal/updater:
+    purpose: Handle component update detection and execution
+    files:
+      - updater.go
+  
+  internal/executor:
+    purpose: Execute components without installation (npx-like)
+    files:
+      - executor.go
+  
+  internal/metadata:
+    purpose: Manage metadata and lock files
+    files:
+      - lock.go
+      - legacy.go
+      - hash.go
+  
+  internal/git:
+    purpose: Git operations and repository management
+    files:
+      - clone.go
+      - info.go
+  
+  internal/fileutil:
+    purpose: File system utilities
+    files:
+      - permissions.go
+      - copy.go
+      - frontmatter.go
+  
+  pkg/paths:
+    purpose: Centralized path management
+    files:
+      - paths.go
+
+phases:
+  - phase: 1
+    name: Extract Models
+    risk: low
+    estimate: 2-3 hours
+    tasks:
+      - Create internal/models/ directory
+      - Extract component.go
+      - Extract config.go
+      - Extract lock.go
+      - Extract metadata.go
+      - Update imports in main.go
+      - Run tests
+  
+  - phase: 2
+    name: Extract Utilities
+    risk: low
+    estimate: 2-3 hours
+    tasks:
+      - Create internal/fileutil/ directory
+      - Extract permissions.go
+      - Extract copy.go
+      - Extract frontmatter.go
+      - Create pkg/paths/ directory
+      - Extract path constants
+      - Update imports
+      - Run tests
+  
+  - phase: 3
+    name: Extract Detector
+    risk: medium
+    estimate: 4-5 hours
+    tasks:
+      - Create internal/detector/ directory
+      - Extract detector.go
+      - Extract patterns.go
+      - Extract components.go
+      - Update dependencies
+      - Run detection tests
+  
+  - phase: 4
+    name: Extract Downloaders
+    risk: medium
+    estimate: 6-8 hours
+    tasks:
+      - Create internal/downloader/ directory
+      - Extract common.go
+      - Extract skill.go
+      - Extract agent.go
+      - Extract command.go
+      - Extract bulk.go
+      - Wire up dependencies
+      - Run download tests
+  
+  - phase: 5
+    name: Extract Metadata & Git
+    risk: low
+    estimate: 3-4 hours
+    tasks:
+      - Create internal/metadata/ directory
+      - Extract lock file operations
+      - Extract legacy metadata operations
+      - Extract hash utilities
+      - Create internal/git/ directory
+      - Extract git operations
+      - Run tests
+  
+  - phase: 6
+    name: Extract Linker & Updater
+    risk: medium
+    estimate: 4-5 hours
+    tasks:
+      - Create internal/linker/ directory
+      - Extract linker implementation
+      - Extract status analysis
+      - Create internal/updater/ directory
+      - Extract updater implementation
+      - Run tests
+  
+  - phase: 7
+    name: Extract Executor
+    risk: low
+    estimate: 2-3 hours
+    tasks:
+      - Create internal/executor/ directory
+      - Extract executor implementation
+      - Wire up to CLI
+      - Run execution tests
+  
+  - phase: 8
+    name: Cleanup
+    risk: low
+    estimate: 3-4 hours
+    tasks:
+      - Refactor main.go to minimal size
+      - Update cmd/root.go
+      - Final integration tests
+      - Update documentation
+
+success_criteria:
+  - main.go reduced to < 200 lines
+  - All packages follow single responsibility principle
+  - All existing tests pass
+  - No breaking changes to CLI interface
+  - Code coverage maintained or improved
+  - No performance degradation
+  - Clear package documentation added
+  - Dependency injection used throughout
+
+timeline:
+  total_hours: 26-35
+  phases: 8
+
+benefits:
+  maintainability:
+    - Clear organization with single responsibility
+    - Easier navigation by domain concern
+    - Better documentation at package level
+  
+  testability:
+    - Dependency injection enables mocking
+    - Isolated package testing
+    - Faster tests with mocked operations
+  
+  extensibility:
+    - Easy to add new component types
+    - Simple to extend detector patterns
+    - Clean interfaces for future plugins
+  
+  code_quality:
+    - Reduced coupling via interfaces
+    - Type safety at package boundaries
+    - Compile-time interface compliance
+
+risks:
+  - risk: Migration complexity could introduce bugs
+    mitigation: Incremental phases with testing after each
+  
+  - risk: Breaking internal APIs
+    mitigation: Everything in internal/ is not public API
+  
+  - risk: Performance regression from abstraction
+    mitigation: Benchmark before/after, optimize if needed
+
+rollback_plan:
+  - Each phase in separate branch
+  - Can revert to previous phase
+  - Keep main.go working in parallel during phases 1-7
+  - Only delete old code after full validation in phase 8
+
+future_enhancements:
+  - Plugin system with clean interfaces
+  - Multiple storage backends
+  - Remote execution capability
+  - Caching layer for downloads
+  - Parallel component downloads
+  - Structured error handling with context
+  - Usage telemetry (opt-in)
+  - Enhanced configuration management
