@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/downloader"
 	"github.com/tgaines/agent-smith/internal/fileutil"
+	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
@@ -33,12 +33,8 @@ type UpdateDetector struct {
 	detector *detector.RepositoryDetector
 }
 
-type ComponentLockFile struct {
-	Version  int                                  `json:"version"`
-	Skills   map[string]models.ComponentLockEntry `json:"skills"`
-	Agents   map[string]models.ComponentLockEntry `json:"agents,omitempty"`
-	Commands map[string]models.ComponentLockEntry `json:"commands,omitempty"`
-}
+// Re-export type for backward compatibility
+type ComponentLockFile = metadataPkg.ComponentLockFile
 
 // Cross-platform helper functions
 func getCrossPlatformPermissions() os.FileMode {
@@ -220,86 +216,16 @@ func (cl *ComponentLinker) linkComponent(componentType, componentName string) er
 
 // loadComponentMetadata loads metadata for a component from lock files or metadata files
 func (cl *ComponentLinker) loadComponentMetadata(componentType, componentName string) *models.ComponentMetadata {
-	// Try lock file first
-	if metadata := cl.loadFromLockFile(componentType, componentName); metadata != nil {
-		return metadata
-	}
-
-	// Try legacy metadata file
-	var metadataFile string
-
-	switch componentType {
-	case "skills":
-		metadataFile = paths.GetComponentMetadataPath(cl.agentsDir, componentType, componentName)
-	case "agents":
-		metadataFile = paths.GetComponentMetadataPath(cl.agentsDir, componentType, componentName)
-	case "commands":
-		metadataFile = paths.GetComponentMetadataPath(cl.agentsDir, componentType, componentName)
-	default:
-		return nil
-	}
-	data, err := os.ReadFile(metadataFile)
-	if err != nil {
-		return nil
-	}
-
-	var metadata models.ComponentMetadata
-	if err := json.Unmarshal(data, &metadata); err != nil {
-		return nil
-	}
-
-	return &metadata
+	return metadataPkg.LoadComponentMetadata(cl.agentsDir, componentType, componentName)
 }
 
 // loadFromLockFile loads metadata from lock file
 func (cl *ComponentLinker) loadFromLockFile(componentType, componentName string) *models.ComponentMetadata {
-	var lockFilePath string
-	var entries map[string]models.ComponentLockEntry
-
-	switch componentType {
-	case "skills":
-		lockFilePath = paths.GetComponentLockPath(cl.agentsDir, componentType)
-	case "agents":
-		lockFilePath = paths.GetComponentLockPath(cl.agentsDir, componentType)
-	case "commands":
-		lockFilePath = paths.GetComponentLockPath(cl.agentsDir, componentType)
-	default:
-		return nil
-	}
-
-	lockData, err := os.ReadFile(lockFilePath)
+	metadata, err := metadataPkg.LoadFromLockFile(cl.agentsDir, componentType, componentName)
 	if err != nil {
 		return nil
 	}
-
-	var lockFile ComponentLockFile
-	if err := json.Unmarshal(lockData, &lockFile); err != nil {
-		return nil
-	}
-
-	switch componentType {
-	case "skills":
-		entries = lockFile.Skills
-	case "agents":
-		entries = lockFile.Agents
-	case "commands":
-		entries = lockFile.Commands
-	}
-
-	entry, exists := entries[componentName]
-	if !exists {
-		return nil
-	}
-
-	// Convert lock entry to metadata
-	return &models.ComponentMetadata{
-		Name:         componentName,
-		Source:       entry.SourceUrl,
-		Commit:       entry.SkillFolderHash,
-		OriginalPath: entry.OriginalPath,
-		Components:   entry.Components,
-		Detection:    entry.Detection,
-	}
+	return metadata
 }
 
 func (cl *ComponentLinker) linkAllComponents() error {
@@ -852,81 +778,21 @@ func (cl *ComponentLinker) unlinkAllComponents(force bool) error {
 
 func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*models.ComponentMetadata, error) {
 	// First try to load from npx add-skill compatible lock files
-	if metadata, err := ud.loadFromLockFile(componentType, componentName); err == nil {
+	if entry, err := metadataPkg.LoadLockFileEntry(ud.baseDir, componentType, componentName); err == nil {
 		// Convert to legacy format for compatibility
 		return &models.ComponentMetadata{
 			Name:   componentName,
-			Source: metadata.SourceUrl,
-			Commit: metadata.SkillFolderHash,
+			Source: entry.SourceUrl,
+			Commit: entry.SkillFolderHash,
 		}, nil
 	}
 
 	// Fall back to legacy metadata files
-	var metadataFile string
-	switch componentType {
-	case "skills":
-		metadataFile = paths.GetComponentMetadataPath(ud.baseDir, componentType, componentName)
-	case "agents":
-		metadataFile = paths.GetComponentMetadataPath(ud.baseDir, componentType, componentName)
-	case "commands":
-		metadataFile = paths.GetComponentMetadataPath(ud.baseDir, componentType, componentName)
-	default:
-		return nil, fmt.Errorf("unknown component type: %s", componentType)
-	}
-
-	data, err := os.ReadFile(metadataFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read metadata file: %w", err)
-	}
-
-	var metadata models.ComponentMetadata
-	if err := json.Unmarshal(data, &metadata); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
-	}
-
-	return &metadata, nil
+	return metadataPkg.LoadLegacyMetadata(ud.baseDir, componentType, componentName)
 }
 
 func (ud *UpdateDetector) loadFromLockFile(componentType, componentName string) (*models.ComponentLockEntry, error) {
-	var lockFilePath string
-	var entries map[string]models.ComponentLockEntry
-
-	switch componentType {
-	case "skills":
-		lockFilePath = paths.GetComponentLockPath(ud.baseDir, componentType)
-	case "agents":
-		lockFilePath = paths.GetComponentLockPath(ud.baseDir, componentType)
-	case "commands":
-		lockFilePath = paths.GetComponentLockPath(ud.baseDir, componentType)
-	default:
-		return nil, fmt.Errorf("unknown component type: %s", componentType)
-	}
-
-	lockData, err := os.ReadFile(lockFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read lock file: %w", err)
-	}
-
-	var lockFile ComponentLockFile
-	if err := json.Unmarshal(lockData, &lockFile); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal lock file: %w", err)
-	}
-
-	switch componentType {
-	case "skills":
-		entries = lockFile.Skills
-	case "agents":
-		entries = lockFile.Agents
-	case "commands":
-		entries = lockFile.Commands
-	}
-
-	entry, exists := entries[componentName]
-	if !exists {
-		return nil, fmt.Errorf("component %s not found in lock file", componentName)
-	}
-
-	return &entry, nil
+	return metadataPkg.LoadLockFileEntry(ud.baseDir, componentType, componentName)
 }
 
 func (ud *UpdateDetector) getCurrentRepoSHA(repoURL string) (string, error) {

@@ -1,18 +1,17 @@
 package downloader
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/fileutil"
+	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
@@ -324,14 +323,7 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 }
 
 func (ad *AgentDownloader) saveMetadata(filePath string, metadata map[string]interface{}) error {
-	metadata["downloaded"] = time.Now().Format(time.RFC3339)
-
-	jsonData, err := json.MarshalIndent(metadata, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal metadata: %w", err)
-	}
-
-	return fileutil.CreateFileWithPermissions(filePath, jsonData)
+	return metadataPkg.SaveLegacyMetadata(filePath, metadata)
 }
 
 // saveLockFile saves agent lock entry in npx add-skill compatible format
@@ -345,61 +337,7 @@ func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceT
 		return fmt.Errorf("failed to create agents directory: %w", err)
 	}
 
-	lockFilePath := paths.GetComponentLockPath(agentsDir, "agents")
-
-	// Read existing lock file or create new one
-	var lockFile ComponentLockFile
-	lockData, err := os.ReadFile(lockFilePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			lockFile = ComponentLockFile{
-				Version: 3,
-				Agents:  make(map[string]ComponentLockEntry),
-			}
-		} else {
-			return fmt.Errorf("failed to read lock file: %w", err)
-		}
-	} else {
-		if err := json.Unmarshal(lockData, &lockFile); err != nil {
-			lockFile = ComponentLockFile{
-				Version: 3,
-				Agents:  make(map[string]ComponentLockEntry),
-			}
-		}
-		if lockFile.Version < 3 {
-			lockFile.Version = 3
-			if lockFile.Agents == nil {
-				lockFile.Agents = make(map[string]ComponentLockEntry)
-			}
-		}
-	}
-
-	now := time.Now().Format(time.RFC3339)
-
-	existingEntry, exists := lockFile.Agents[agentName]
-	if !exists {
-		existingEntry.InstalledAt = now
-	}
-
-	lockFile.Agents[agentName] = ComponentLockEntry{
-		Source:          source,
-		SourceType:      sourceType,
-		SourceUrl:       sourceUrl,
-		OriginalPath:    originalPath, // Track original directory path in repo
-		SkillFolderHash: skillFolderHash,
-		InstalledAt:     existingEntry.InstalledAt,
-		UpdatedAt:       now,
-		Version:         3,
-		Components:      components,
-		Detection:       detection,
-	}
-
-	jsonData, err := json.MarshalIndent(lockFile, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal lock file: %w", err)
-	}
-
-	return os.WriteFile(lockFilePath, jsonData, 0644)
+	return metadataPkg.SaveLockFileEntry(agentsDir, "agents", agentName, source, sourceType, sourceUrl, skillFolderHash, components, detection, originalPath)
 }
 
 func (ad *AgentDownloader) createAgentFile(filePath, agentName, source string) error {
