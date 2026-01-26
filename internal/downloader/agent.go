@@ -209,9 +209,7 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		os.RemoveAll(agentDir + ".git")
 	}
 
-	fmt.Printf("Successfully downloaded agent '%s' from %s\n", agentName, fullURL)
-	fmt.Printf("Agent stored in: %s\n", agentDir)
-	fmt.Printf("Components detected: %d\n", len(agentComponents))
+	fmt.Printf("Installed: %s ✓\n", agentName)
 
 	return nil
 }
@@ -357,8 +355,7 @@ func (ad *AgentDownloader) DownloadAgentWithRepo(fullURL, agentName, repoURL str
 		os.RemoveAll(agentDir + ".git")
 	}
 
-	fmt.Printf("Successfully downloaded agent '%s' from %s\n", agentName, fullURL)
-	fmt.Printf("Agent stored in: %s\n", agentDir)
+	fmt.Printf("Installed: %s ✓\n", agentName)
 
 	return nil
 }
