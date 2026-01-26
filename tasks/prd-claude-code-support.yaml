@@ -1,0 +1,16 @@
+tasks:
+  - title: "Story-001: As a developer, I want agent-smith to understand different target environments so that I can support both OpenCode and Claude Code - Create an abstraction for 'Target' (e.g., Enum or Class) encompassing OpenCode and Claude Code, Define paths and configuration constants for Claude Code (e.g., ~/.claude/), Metadata tracking supports multiple targets for a single resource"
+    completed: false
+    parallel_group: 0
+  - title: "Story-002: As a user, I want agent-smith to auto-detect if Claude Code is installed so that I don't have to configure it manually - Check for the existence of ~/.claude directory or specific configuration files, Store the detected status of Claude Code availability, Default operations should include Claude Code if detected"
+    completed: false
+    parallel_group: 0
+  - title: "Story-003: As a user, I want to link my tools to the global Claude Code directories so that I can use them within Claude Code - Implement linking logic for Skills to ~/.claude/skills/, Implement linking logic for Agents to ~/.claude/agents/, Implement linking logic for Commands to ~/.claude/commands/, Ensure symlink creation handles existing files/links correctly (overwrite/skip prompting), Scope: Global linking only (no project-local support)"
+    completed: false
+    parallel_group: 1
+  - title: "Story-004: As a user, I want to control which target I am linking to using CLI flags so that I can be specific or broad in my operations - Add --target flag accepting values like opencode, claude, or all, Add --all-agents flag to explicitly request linking to all detected targets, Default behavior (no flags): Link to ALL detected and available targets"
+    completed: false
+    parallel_group: 1
+  - title: "Story-005: As a user, I want to see the status of my links across all targets so that I know what is installed where - Update status command output to show columns or sections for each target, clearly indicate if a resource is linked to OpenCode, Claude Code, or both, Show 'Not Installed' or similar status if a target is not available on the system"
+    completed: false
+    parallel_group: 2
