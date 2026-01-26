@@ -329,36 +329,42 @@ EXAMPLES:
 		},
 	})
 
+	// Create 'link' parent command with subcommands
 	linkCmd := &cobra.Command{
-		Use:   "link <type|all> [name]",
-		Short: "Link a component or all components to detected targets",
-		Long: `Link a specific component or all downloaded components to detected targets.
+		Use:   "link",
+		Short: "Link components to detected targets",
+		Long: `Link components (skills, agents, commands) to detected targets.
 
-USAGE:
-  agent-smith link <type> <name>  - Link a specific component
-  agent-smith link <type>         - Link all components of a specific type
-  agent-smith link all            - Link all downloaded components
+This command provides a modern interface for linking downloaded AI components
+to supported targets (OpenCode, Claude Code, etc.).
 
-FLAGS:
+FLAGS (apply to all subcommands):
   --target, -t <target>  - Specify target to link to (opencode, claudecode, or all)
-  --all-targets          - Explicitly link to all detected targets (default behavior)
+  --all-targets          - Explicitly link to all detected targets (default behavior)`,
+	}
+
+	// Add subcommands to 'link' command
+	linkSkillCmd := &cobra.Command{
+		Use:   "skill [name]",
+		Short: "Link a skill or all skills to detected targets",
+		Long: `Link a specific skill or all skills to detected targets.
+
+This command links a downloaded skill from ~/.agents/skills/ to the appropriate
+directories for OpenCode, Claude Code, or other supported targets.
 
 EXAMPLES:
   # Link a specific skill to all detected targets (default)
-  agent-smith link skills mcp-builder
+  agent-smith link skill mcp-builder
 
-  # Link all skills to OpenCode only
-  agent-smith link skills --target opencode
+  # Link a specific skill to OpenCode only
+  agent-smith link skill mcp-builder --target opencode
 
-  # Link all agents to Claude Code only
-  agent-smith link agents --target claudecode
+  # Link all skills to all detected targets
+  agent-smith link skill
 
-  # Link all commands to all targets explicitly
-  agent-smith link commands --target all
-  
-  # Link all components to all detected targets
-  agent-smith link all --all-targets`,
-		Args: cobra.RangeArgs(1, 2),
+  # Link all skills to Claude Code only
+  agent-smith link skill --target claudecode`,
+		Args: cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
@@ -368,20 +374,139 @@ EXAMPLES:
 				targetFilter = "all"
 			}
 
-			if args[0] == "all" {
-				handleLinkAll(targetFilter)
-			} else if len(args) == 1 && isValidComponentType(args[0]) {
-				handleLinkType(args[0], targetFilter)
-			} else if len(args) == 2 {
-				handleLink(args[0], args[1], targetFilter)
+			if len(args) == 0 {
+				// Link all skills
+				handleLinkType("skills", targetFilter)
 			} else {
-				cmd.PrintErrln("Error: link requires type and name, or just type, or 'all'")
-				os.Exit(1)
+				// Link specific skill
+				handleLink("skills", args[0], targetFilter)
 			}
 		},
 	}
-	linkCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
-	linkCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkSkillCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkSkillCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkCmd.AddCommand(linkSkillCmd)
+
+	linkAgentCmd := &cobra.Command{
+		Use:   "agent [name]",
+		Short: "Link an agent or all agents to detected targets",
+		Long: `Link a specific agent or all agents to detected targets.
+
+This command links a downloaded agent from ~/.agents/agents/ to the appropriate
+directories for OpenCode, Claude Code, or other supported targets.
+
+EXAMPLES:
+  # Link a specific agent to all detected targets (default)
+  agent-smith link agent coding-assistant
+
+  # Link a specific agent to OpenCode only
+  agent-smith link agent coding-assistant --target opencode
+
+  # Link all agents to all detected targets
+  agent-smith link agent
+
+  # Link all agents to Claude Code only
+  agent-smith link agent --target claudecode`,
+		Args: cobra.MaximumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			targetFilter, _ := cmd.Flags().GetString("target")
+			allTargets, _ := cmd.Flags().GetBool("all-targets")
+
+			// If --all-targets is specified, override targetFilter to "all"
+			if allTargets {
+				targetFilter = "all"
+			}
+
+			if len(args) == 0 {
+				// Link all agents
+				handleLinkType("agents", targetFilter)
+			} else {
+				// Link specific agent
+				handleLink("agents", args[0], targetFilter)
+			}
+		},
+	}
+	linkAgentCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkAgentCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkCmd.AddCommand(linkAgentCmd)
+
+	linkCommandCmd := &cobra.Command{
+		Use:   "command [name]",
+		Short: "Link a command or all commands to detected targets",
+		Long: `Link a specific command or all commands to detected targets.
+
+This command links a downloaded command from ~/.agents/commands/ to the appropriate
+directories for OpenCode, Claude Code, or other supported targets.
+
+EXAMPLES:
+  # Link a specific command to all detected targets (default)
+  agent-smith link command json-formatter
+
+  # Link a specific command to OpenCode only
+  agent-smith link command json-formatter --target opencode
+
+  # Link all commands to all detected targets
+  agent-smith link command
+
+  # Link all commands to Claude Code only
+  agent-smith link command --target claudecode`,
+		Args: cobra.MaximumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			targetFilter, _ := cmd.Flags().GetString("target")
+			allTargets, _ := cmd.Flags().GetBool("all-targets")
+
+			// If --all-targets is specified, override targetFilter to "all"
+			if allTargets {
+				targetFilter = "all"
+			}
+
+			if len(args) == 0 {
+				// Link all commands
+				handleLinkType("commands", targetFilter)
+			} else {
+				// Link specific command
+				handleLink("commands", args[0], targetFilter)
+			}
+		},
+	}
+	linkCommandCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkCommandCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkCmd.AddCommand(linkCommandCmd)
+
+	linkAllCmd := &cobra.Command{
+		Use:   "all",
+		Short: "Link all components to detected targets",
+		Long: `Link all downloaded components (skills, agents, and commands) to detected targets.
+
+This command links all components from ~/.agents/ to the appropriate directories
+for OpenCode, Claude Code, or other supported targets.
+
+EXAMPLES:
+  # Link all components to all detected targets (default)
+  agent-smith link all
+
+  # Link all components to OpenCode only
+  agent-smith link all --target opencode
+
+  # Link all components to all targets explicitly
+  agent-smith link all --all-targets`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			targetFilter, _ := cmd.Flags().GetString("target")
+			allTargets, _ := cmd.Flags().GetBool("all-targets")
+
+			// If --all-targets is specified, override targetFilter to "all"
+			if allTargets {
+				targetFilter = "all"
+			}
+
+			handleLinkAll(targetFilter)
+		},
+	}
+	linkAllCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkAllCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkCmd.AddCommand(linkAllCmd)
+
 	rootCmd.AddCommand(linkCmd)
 
 	rootCmd.AddCommand(&cobra.Command{
@@ -438,6 +563,70 @@ The output shows:
 			handleLinkStatus()
 		},
 	})
+
+	// Add legacy link command for backward compatibility
+	legacyLinkCmd := &cobra.Command{
+		Use:   "link-legacy <type|all> [name]",
+		Short: "Link a component or all components to detected targets (legacy)",
+		Long: `Link a specific component or all downloaded components to detected targets.
+
+DEPRECATED: This command is maintained for backward compatibility.
+Please use the modern 'agent-smith link' command with subcommands instead:
+  - 'agent-smith link skill <name>' instead of 'agent-smith link-legacy skills <name>'
+  - 'agent-smith link agent <name>' instead of 'agent-smith link-legacy agents <name>'
+  - 'agent-smith link command <name>' instead of 'agent-smith link-legacy commands <name>'
+  - 'agent-smith link all' instead of 'agent-smith link-legacy all'
+
+USAGE:
+  agent-smith link-legacy <type> <name>  - Link a specific component
+  agent-smith link-legacy <type>         - Link all components of a specific type
+  agent-smith link-legacy all            - Link all downloaded components
+
+FLAGS:
+  --target, -t <target>  - Specify target to link to (opencode, claudecode, or all)
+  --all-targets          - Explicitly link to all detected targets (default behavior)
+
+EXAMPLES:
+  # Link a specific skill to all detected targets (default)
+  agent-smith link-legacy skills mcp-builder
+
+  # Link all skills to OpenCode only
+  agent-smith link-legacy skills --target opencode
+
+  # Link all agents to Claude Code only
+  agent-smith link-legacy agents --target claudecode
+
+  # Link all commands to all targets explicitly
+  agent-smith link-legacy commands --target all
+  
+  # Link all components to all detected targets
+  agent-smith link-legacy all --all-targets`,
+		Args:   cobra.RangeArgs(1, 2),
+		Hidden: true, // Hide from help output since it's legacy
+		Run: func(cmd *cobra.Command, args []string) {
+			targetFilter, _ := cmd.Flags().GetString("target")
+			allTargets, _ := cmd.Flags().GetBool("all-targets")
+
+			// If --all-targets is specified, override targetFilter to "all"
+			if allTargets {
+				targetFilter = "all"
+			}
+
+			if args[0] == "all" {
+				handleLinkAll(targetFilter)
+			} else if len(args) == 1 && isValidComponentType(args[0]) {
+				handleLinkType(args[0], targetFilter)
+			} else if len(args) == 2 {
+				handleLink(args[0], args[1], targetFilter)
+			} else {
+				cmd.PrintErrln("Error: link requires type and name, or just type, or 'all'")
+				os.Exit(1)
+			}
+		},
+	}
+	legacyLinkCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	legacyLinkCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	rootCmd.AddCommand(legacyLinkCmd)
 
 	unlinkCmd := &cobra.Command{
 		Use:   "unlink <type|all> [name]",
