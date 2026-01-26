@@ -64,3 +64,8 @@
 - [✓] 2026-01-25 16:06 - Story-001: As a developer, I want to abstract the hardcoded `opencode` paths into a configuration interface so that the CLI can support multiple targets in the future.
 - [✓] 2026-01-25 16:07 - Story-002: As a developer, I want to refactor the Linker to use a generic Target interface so that linking logic is not coupled to `opencode` directory structures.
 - [✓] 2026-01-25 16:11 - Story-003: As a user, I want the CLI to default to `opencode` behavior without extra configuration so that my existing workflows remain unchanged.
+- [✓] 2026-01-26 13:13 - Story-001: As a developer, I want agent-smith to understand different target environments so that I can support both OpenCode and Claude Code.
+- [✓] 2026-01-26 13:15 - Story-002: As a user, I want agent-smith to auto-detect if Claude Code is installed so that I don't have to configure it manually.
+- [✓] 2026-01-26 13:21 - Story-003: As a user, I want to link my tools to the global Claude Code directories so that I can use them within Claude Code.
+- [✓] 2026-01-26 13:25 - Story-004: As a user, I want to control which target I am linking to using CLI flags so that I can be specific or broad in my operations.
+- [✓] 2026-01-26 13:30 - Story-005: As a user, I want to see the status of my links across all targets so that I know what is installed where.
