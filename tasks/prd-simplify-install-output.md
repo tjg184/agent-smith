@@ -54,7 +54,7 @@ Reduce visual clutter in the agent-smith install output by consolidating repetit
   **Component Browser Tests:**
   - N/A (CLI tool, no browser components)
 
-- [ ] Story-003: As a user, I want to see a summary table after bulk installations so that I can quickly review what was installed successfully.
+- [x] Story-003: As a user, I want to see a summary table after bulk installations so that I can quickly review what was installed successfully.
 
   **Acceptance Criteria:**
   - Summary table displays after all installations complete
@@ -76,7 +76,7 @@ Reduce visual clutter in the agent-smith install output by consolidating repetit
   **Component Browser Tests:**
   - N/A (CLI tool, no browser components)
 
-- [ ] Story-004: As a developer, I want to refactor output formatting logic into a centralized module so that output formatting is consistent across all downloaders.
+- [x] Story-004: As a developer, I want to refactor output formatting logic into a centralized module so that output formatting is consistent across all downloaders.
 
   **Acceptance Criteria:**
   - Create new output formatter package/module
