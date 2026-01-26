@@ -111,10 +111,10 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
-	// Create the default opencode target
-	target, err := config.NewOpencodeTarget()
+	// Detect and create the appropriate target
+	target, err := config.DetectTarget()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create opencode target: %w", err)
+		return nil, fmt.Errorf("failed to detect target: %w", err)
 	}
 
 	det := detector.NewRepositoryDetector()
