@@ -122,6 +122,37 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 	return linker.NewComponentLinker(agentsDir, targets, det)
 }
 
+// NewComponentLinkerWithFilter creates a new ComponentLinker with filtered targets
+// targetFilter can be: "opencode", "claudecode", "all", or "" (defaults to all)
+func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker, error) {
+	agentsDir, err := paths.GetAgentsDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get agents directory: %w", err)
+	}
+
+	var targets []config.Target
+
+	// Filter targets based on the provided filter
+	if targetFilter == "" || targetFilter == "all" {
+		// Default behavior: link to all detected targets
+		targets, err = config.DetectAllTargets()
+		if err != nil {
+			return nil, fmt.Errorf("failed to detect targets: %w", err)
+		}
+	} else {
+		// Create a specific target based on the filter
+		target, err := config.NewTarget(targetFilter)
+		if err != nil {
+			return nil, fmt.Errorf("invalid target: %w", err)
+		}
+		targets = []config.Target{target}
+	}
+
+	det := detector.NewRepositoryDetector()
+
+	return linker.NewComponentLinker(agentsDir, targets, det)
+}
+
 // executeComponent provides npx-like functionality to run components without explicit installation
 func executeComponent(target string, args []string) error {
 	exec := executor.NewComponentExecutor()
@@ -184,8 +215,8 @@ func main() {
 				log.Fatal("Failed to update components:", err)
 			}
 		},
-		func(componentType, componentName string) {
-			linker, err := NewComponentLinker()
+		func(componentType, componentName, targetFilter string) {
+			linker, err := NewComponentLinkerWithFilter(targetFilter)
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
 			}
@@ -193,8 +224,8 @@ func main() {
 				log.Fatal("Failed to link component:", err)
 			}
 		},
-		func() {
-			linker, err := NewComponentLinker()
+		func(targetFilter string) {
+			linker, err := NewComponentLinkerWithFilter(targetFilter)
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
 			}
@@ -202,13 +233,13 @@ func main() {
 				log.Fatal("Failed to link all components:", err)
 			}
 		},
-		func(componentType string) {
+		func(componentType, targetFilter string) {
 			// Validate component type
 			if componentType != "skills" && componentType != "agents" && componentType != "commands" {
 				log.Fatal("Invalid component type. Use: skills, agents, or commands")
 			}
 
-			linker, err := NewComponentLinker()
+			linker, err := NewComponentLinkerWithFilter(targetFilter)
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
 			}

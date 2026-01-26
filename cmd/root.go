@@ -213,45 +213,60 @@ EXAMPLES:
 		},
 	})
 
-	rootCmd.AddCommand(&cobra.Command{
+	linkCmd := &cobra.Command{
 		Use:   "link <type|all> [name]",
-		Short: "Link a component or all components to opencode",
-		Long: `Link a specific component or all downloaded components to opencode.
+		Short: "Link a component or all components to detected targets",
+		Long: `Link a specific component or all downloaded components to detected targets.
 
 USAGE:
   agent-smith link <type> <name>  - Link a specific component
   agent-smith link <type>         - Link all components of a specific type
   agent-smith link all            - Link all downloaded components
 
+FLAGS:
+  --target, -t <target>  - Specify target to link to (opencode, claudecode, or all)
+  --all-targets          - Explicitly link to all detected targets (default behavior)
+
 EXAMPLES:
-  # Link a specific skill
+  # Link a specific skill to all detected targets (default)
   agent-smith link skills mcp-builder
 
-  # Link all skills
-  agent-smith link skills
+  # Link all skills to OpenCode only
+  agent-smith link skills --target opencode
 
-  # Link all agents
-  agent-smith link agents
+  # Link all agents to Claude Code only
+  agent-smith link agents --target claudecode
 
-  # Link all commands
-  agent-smith link commands
-
-  # Link all components
-  agent-smith link all`,
+  # Link all commands to all targets explicitly
+  agent-smith link commands --target all
+  
+  # Link all components to all detected targets
+  agent-smith link all --all-targets`,
 		Args: cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
+			targetFilter, _ := cmd.Flags().GetString("target")
+			allTargets, _ := cmd.Flags().GetBool("all-targets")
+
+			// If --all-targets is specified, override targetFilter to "all"
+			if allTargets {
+				targetFilter = "all"
+			}
+
 			if args[0] == "all" {
-				handleLinkAll()
+				handleLinkAll(targetFilter)
 			} else if len(args) == 1 && isValidComponentType(args[0]) {
-				handleLinkType(args[0])
+				handleLinkType(args[0], targetFilter)
 			} else if len(args) == 2 {
-				handleLink(args[0], args[1])
+				handleLink(args[0], args[1], targetFilter)
 			} else {
 				cmd.PrintErrln("Error: link requires type and name, or just type, or 'all'")
 				os.Exit(1)
 			}
 		},
-	})
+	}
+	linkCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	rootCmd.AddCommand(linkCmd)
 
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "auto-link",
@@ -353,9 +368,9 @@ var (
 	handleRun        func(target string, args []string)
 	handleUpdate     func(componentType, componentName string)
 	handleUpdateAll  func()
-	handleLink       func(componentType, componentName string)
-	handleLinkAll    func()
-	handleLinkType   func(componentType string)
+	handleLink       func(componentType, componentName, targetFilter string)
+	handleLinkAll    func(targetFilter string)
+	handleLinkType   func(componentType, targetFilter string)
 	handleAutoLink   func()
 	handleListLinks  func()
 	handleUnlink     func(componentType, componentName string)
@@ -371,9 +386,9 @@ func SetHandlers(
 	run func(target string, args []string),
 	update func(componentType, componentName string),
 	updateAll func(),
-	link func(componentType, componentName string),
-	linkAll func(),
-	linkType func(componentType string),
+	link func(componentType, componentName, targetFilter string),
+	linkAll func(targetFilter string),
+	linkType func(componentType, targetFilter string),
 	autoLink func(),
 	listLinks func(),
 	unlink func(componentType, componentName string),
