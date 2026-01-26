@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/schollz/progressbar/v3"
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/models"
 )
@@ -84,41 +85,64 @@ func (bd *BulkDownloader) processComponents(components []models.DetectedComponen
 		}
 	}
 
+	totalComponents := len(components)
+	fmt.Printf("\nInstalling %d components...\n", totalComponents)
+
+	// Create progress bar
+	bar := progressbar.NewOptions(totalComponents,
+		progressbar.OptionSetDescription("Progress"),
+		progressbar.OptionSetWidth(50),
+		progressbar.OptionShowCount(),
+		progressbar.OptionSetTheme(progressbar.Theme{
+			Saucer:        "=",
+			SaucerHead:    ">",
+			SaucerPadding: " ",
+			BarStart:      "[",
+			BarEnd:        "]",
+		}),
+	)
+
+	var failedComponents []string
+
 	// Download skills using optimized method with shared repository
 	for _, comp := range skillComponents {
-		fmt.Printf("Downloading: %s\n", comp.Name)
 		if err := bd.skillDownloader.DownloadSkillWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
-			fmt.Printf("Warning: failed to download skill %s: %v\n", comp.Name, err)
-		} else {
-			fmt.Printf("Successfully downloaded skill: %s\n", comp.Name)
+			failedComponents = append(failedComponents, fmt.Sprintf("skill %s: %v", comp.Name, err))
 		}
+		bar.Add(1)
 	}
 
 	// Download agents using optimized method with shared repository
 	for _, comp := range agentComponents {
-		fmt.Printf("Downloading: %s\n", comp.Name)
 		if err := bd.agentDownloader.DownloadAgentWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
-			fmt.Printf("Warning: failed to download agent %s: %v\n", comp.Name, err)
-		} else {
-			fmt.Printf("Successfully downloaded agent: %s\n", comp.Name)
+			failedComponents = append(failedComponents, fmt.Sprintf("agent %s: %v", comp.Name, err))
 		}
+		bar.Add(1)
 	}
 
 	// Download commands using optimized method with shared repository
 	for _, comp := range commandComponents {
-		fmt.Printf("Downloading: %s\n", comp.Name)
 		if err := bd.commandDownloader.DownloadCommandWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
-			fmt.Printf("Warning: failed to download command %s: %v\n", comp.Name, err)
-		} else {
-			fmt.Printf("Successfully downloaded command: %s\n", comp.Name)
+			failedComponents = append(failedComponents, fmt.Sprintf("command %s: %v", comp.Name, err))
 		}
+		bar.Add(1)
 	}
 
-	totalComponents := len(skillComponents) + len(agentComponents) + len(commandComponents)
-	fmt.Printf("Bulk download completed. Processed %d components:\n", totalComponents)
+	// Finish the progress bar
+	bar.Finish()
+
+	// Print summary
+	fmt.Printf("\nBulk download completed. Processed %d components:\n", totalComponents)
 	fmt.Printf("  Skills: %d\n", len(skillComponents))
 	fmt.Printf("  Agents: %d\n", len(agentComponents))
 	fmt.Printf("  Commands: %d\n", len(commandComponents))
+
+	if len(failedComponents) > 0 {
+		fmt.Printf("\nWarnings (%d):\n", len(failedComponents))
+		for _, failure := range failedComponents {
+			fmt.Printf("  - Failed to download %s\n", failure)
+		}
+	}
 
 	return nil
 }
