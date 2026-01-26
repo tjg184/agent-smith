@@ -13,7 +13,7 @@ Expand `agent-smith` to support Claude Code in addition to OpenCode. This featur
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want agent-smith to understand different target environments so that I can support both OpenCode and Claude Code.
+- [x] Story-001: As a developer, I want agent-smith to understand different target environments so that I can support both OpenCode and Claude Code.
   **Acceptance Criteria:**
   - Create an abstraction for "Target" (e.g., Enum or Class) encompassing OpenCode and Claude Code.
   - Define paths and configuration constants for Claude Code (e.g., `~/.claude/`).
@@ -26,7 +26,7 @@ Expand `agent-smith` to support Claude Code in addition to OpenCode. This featur
   **Integration Tests:**
   - Verify configuration loading respects target definitions.
 
-- [ ] Story-002: As a user, I want agent-smith to auto-detect if Claude Code is installed so that I don't have to configure it manually.
+- [x] Story-002: As a user, I want agent-smith to auto-detect if Claude Code is installed so that I don't have to configure it manually.
   **Acceptance Criteria:**
   - Check for the existence of `~/.claude` directory or specific configuration files.
   - Store the detected status of Claude Code availability.

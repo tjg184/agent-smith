@@ -77,3 +77,38 @@ func GetAvailableTargets() []string {
 		string(TargetClaudeCode),
 	}
 }
+
+// DetectAllTargets returns all detected target environments that exist on the system
+// This checks which target directories are present and returns Target instances for each
+func DetectAllTargets() ([]Target, error) {
+	var targets []Target
+
+	// Check OpenCode
+	opencodeTarget, err := NewOpencodeTarget()
+	if err == nil {
+		baseDir, _ := opencodeTarget.GetBaseDir()
+		if _, err := os.Stat(baseDir); err == nil {
+			targets = append(targets, opencodeTarget)
+		}
+	}
+
+	// Check Claude Code
+	claudeCodeTarget, err := NewClaudeCodeTarget()
+	if err == nil {
+		baseDir, _ := claudeCodeTarget.GetBaseDir()
+		if _, err := os.Stat(baseDir); err == nil {
+			targets = append(targets, claudeCodeTarget)
+		}
+	}
+
+	// If no targets detected, default to OpenCode
+	if len(targets) == 0 {
+		opencodeTarget, err := NewOpencodeTarget()
+		if err != nil {
+			return nil, err
+		}
+		targets = append(targets, opencodeTarget)
+	}
+
+	return targets, nil
+}

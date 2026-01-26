@@ -111,15 +111,15 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
-	// Detect and create the appropriate target
-	target, err := config.DetectTarget()
+	// Detect all available targets
+	targets, err := config.DetectAllTargets()
 	if err != nil {
-		return nil, fmt.Errorf("failed to detect target: %w", err)
+		return nil, fmt.Errorf("failed to detect targets: %w", err)
 	}
 
 	det := detector.NewRepositoryDetector()
 
-	return linker.NewComponentLinker(agentsDir, target, det)
+	return linker.NewComponentLinker(agentsDir, targets, det)
 }
 
 // executeComponent provides npx-like functionality to run components without explicit installation
