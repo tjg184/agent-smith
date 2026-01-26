@@ -7,8 +7,9 @@ import (
 
 // Base directory constants
 const (
-	AgentsDir   = "~/.agents"
-	OpencodeDir = "~/.config/opencode"
+	AgentsDir     = "~/.agents"
+	OpencodeDir   = "~/.config/opencode"
+	ClaudeCodeDir = "~/.config/claudecode"
 )
 
 // Component subdirectory names
@@ -82,6 +83,11 @@ func GetAgentsDir() (string, error) {
 // GetOpencodeDir returns the expanded opencode config directory path
 func GetOpencodeDir() (string, error) {
 	return expandHome(OpencodeDir)
+}
+
+// GetClaudeCodeDir returns the expanded claudecode config directory path
+func GetClaudeCodeDir() (string, error) {
+	return expandHome(ClaudeCodeDir)
 }
 
 // GetSkillsDir returns the full path to the skills directory
