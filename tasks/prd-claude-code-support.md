@@ -38,7 +38,7 @@ Expand `agent-smith` to support Claude Code in addition to OpenCode. This featur
   **Integration Tests:**
   - run detection sequence on the actual environment and verify result matches expected state.
 
-- [ ] Story-003: As a user, I want to link my tools to the global Claude Code directories so that I can use them within Claude Code.
+- [x] Story-003: As a user, I want to link my tools to the global Claude Code directories so that I can use them within Claude Code.
   **Acceptance Criteria:**
   - Implement linking logic for Skills to `~/.claude/skills/`.
   - Implement linking logic for Agents to `~/.claude/agents/`.
@@ -53,7 +53,7 @@ Expand `agent-smith` to support Claude Code in addition to OpenCode. This featur
   **Integration Tests:**
   - Perform actual linking to a temporary/mock `~/.claude` directory and verify symlinks are created.
 
-- [ ] Story-004: As a user, I want to control which target I am linking to using CLI flags so that I can be specific or broad in my operations.
+- [x] Story-004: As a user, I want to control which target I am linking to using CLI flags so that I can be specific or broad in my operations.
   **Acceptance Criteria:**
   - Add `--target` flag accepting values like `opencode`, `claude`, or `all`.
   - Add `--all-agents` flag to explicitly request linking to all detected targets.
@@ -66,7 +66,7 @@ Expand `agent-smith` to support Claude Code in addition to OpenCode. This featur
   **Component Browser Tests:**
   - N/A (CLI tool)
 
-- [ ] Story-005: As a user, I want to see the status of my links across all targets so that I know what is installed where.
+- [x] Story-005: As a user, I want to see the status of my links across all targets so that I know what is installed where.
   **Acceptance Criteria:**
   - Update `status` command output to show columns or sections for each target.
   - clearly indicate if a resource is linked to OpenCode, Claude Code, or both.
