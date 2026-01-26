@@ -551,8 +551,27 @@ Only one profile can be active at a time. The active profile persists across ses
 		},
 	}
 
+	profilesDeactivateCmd := &cobra.Command{
+		Use:   "deactivate",
+		Short: "Deactivate the current profile",
+		Long: `Deactivate the currently active profile and return to base state.
+
+This command will:
+1. Remove all symlinks created by the active profile
+2. Clear the active profile state
+3. Return to base state (no profile active)
+
+This allows you to return to using only your directly installed components
+without any profile-specific overrides.`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			handleProfilesDeactivate()
+		},
+	}
+
 	profilesCmd.AddCommand(profilesListCmd)
 	profilesCmd.AddCommand(profilesActivateCmd)
+	profilesCmd.AddCommand(profilesDeactivateCmd)
 	rootCmd.AddCommand(profilesCmd)
 
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
@@ -560,24 +579,25 @@ Only one profile can be active at a time. The active profile persists across ses
 
 // These functions will be implemented in main.go to keep existing logic
 var (
-	handleAddSkill         func(repoURL, name string)
-	handleAddAgent         func(repoURL, name string)
-	handleAddCommand       func(repoURL, name string)
-	handleAddAll           func(repoURL string)
-	handleRun              func(target string, args []string)
-	handleUpdate           func(componentType, componentName string)
-	handleUpdateAll        func()
-	handleLink             func(componentType, componentName, targetFilter string)
-	handleLinkAll          func(targetFilter string)
-	handleLinkType         func(componentType, targetFilter string)
-	handleAutoLink         func()
-	handleListLinks        func()
-	handleLinkStatus       func()
-	handleUnlink           func(componentType, componentName string)
-	handleUnlinkAll        func(force bool)
-	handleUnlinkType       func(componentType string, force bool)
-	handleProfilesList     func()
-	handleProfilesActivate func(profileName string)
+	handleAddSkill           func(repoURL, name string)
+	handleAddAgent           func(repoURL, name string)
+	handleAddCommand         func(repoURL, name string)
+	handleAddAll             func(repoURL string)
+	handleRun                func(target string, args []string)
+	handleUpdate             func(componentType, componentName string)
+	handleUpdateAll          func()
+	handleLink               func(componentType, componentName, targetFilter string)
+	handleLinkAll            func(targetFilter string)
+	handleLinkType           func(componentType, targetFilter string)
+	handleAutoLink           func()
+	handleListLinks          func()
+	handleLinkStatus         func()
+	handleUnlink             func(componentType, componentName string)
+	handleUnlinkAll          func(force bool)
+	handleUnlinkType         func(componentType string, force bool)
+	handleProfilesList       func()
+	handleProfilesActivate   func(profileName string)
+	handleProfilesDeactivate func()
 )
 
 func SetHandlers(
@@ -599,6 +619,7 @@ func SetHandlers(
 	unlinkType func(componentType string, force bool),
 	profilesList func(),
 	profilesActivate func(profileName string),
+	profilesDeactivate func(),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
@@ -618,4 +639,5 @@ func SetHandlers(
 	handleUnlinkType = unlinkType
 	handleProfilesList = profilesList
 	handleProfilesActivate = profilesActivate
+	handleProfilesDeactivate = profilesDeactivate
 }
