@@ -175,9 +175,9 @@ agent-smith run <target> [args...]
 ## Validation Criteria
 
 ### Functional Testing
-- [ ] `agent-smith add skill <repo> <name>` downloads skill correctly
-- [ ] `agent-smith add agent <repo> <name>` downloads agent correctly
-- [ ] `agent-smith add command <repo> <name>` downloads command correctly
+- [x] `agent-smith add skill <repo> <name>` downloads skill correctly
+- [x] `agent-smith add agent <repo> <name>` downloads agent correctly
+- [x] `agent-smith add command <repo> <name>` downloads command correctly
 - [ ] `agent-smith add all <repo>` downloads all components correctly
 - [ ] `agent-smith link skill <name>` links skill to targets
 - [ ] `agent-smith link agent <name>` links agent to targets

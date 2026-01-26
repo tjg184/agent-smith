@@ -69,3 +69,4 @@
 - [✓] 2026-01-26 13:21 - Story-003: As a user, I want to link my tools to the global Claude Code directories so that I can use them within Claude Code.
 - [✓] 2026-01-26 13:25 - Story-004: As a user, I want to control which target I am linking to using CLI flags so that I can be specific or broad in my operations.
 - [✓] 2026-01-26 13:30 - Story-005: As a user, I want to see the status of my links across all targets so that I know what is installed where.
+- [✓] 2026-01-26 13:54 - `agent-smith add command <repo> <name>` downloads command correctly
