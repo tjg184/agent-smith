@@ -144,3 +144,150 @@ func (pm *ProfileManager) CountComponents(profile *Profile) (agents, skills, com
 
 	return agents, skills, commands
 }
+
+// ActivateProfile activates a profile by creating symlinks from profile components to ~/.agents/
+// If another profile is active, it will be deactivated first
+func (pm *ProfileManager) ActivateProfile(profileName string) error {
+	// Validate that the profile exists
+	profile := pm.loadProfile(profileName)
+	if !profile.IsValid() {
+		return fmt.Errorf("profile '%s' does not exist or has no components", profileName)
+	}
+
+	// Get the agents directory
+	agentsDir, err := paths.GetAgentsDir()
+	if err != nil {
+		return fmt.Errorf("failed to get agents directory: %w", err)
+	}
+
+	// Check if a profile is currently active
+	currentActive, err := pm.GetActiveProfile()
+	if err != nil {
+		return fmt.Errorf("failed to check current active profile: %w", err)
+	}
+
+	// Deactivate current profile if one is active
+	if currentActive != "" {
+		if currentActive == profileName {
+			return fmt.Errorf("profile '%s' is already active", profileName)
+		}
+		fmt.Printf("Deactivating current profile: %s\n", currentActive)
+		if err := pm.unlinkAllComponents(agentsDir); err != nil {
+			return fmt.Errorf("failed to deactivate current profile: %w", err)
+		}
+	}
+
+	// Activate the new profile by creating symlinks
+	fmt.Printf("Activating profile: %s\n", profileName)
+
+	componentTypes := []struct {
+		name      string
+		hasType   bool
+		getDir    func() string
+		targetDir string
+	}{
+		{"agents", profile.HasAgents, profile.GetAgentsDir, filepath.Join(agentsDir, paths.AgentsSubDir)},
+		{"skills", profile.HasSkills, profile.GetSkillsDir, filepath.Join(agentsDir, paths.SkillsSubDir)},
+		{"commands", profile.HasCommands, profile.GetCommandsDir, filepath.Join(agentsDir, paths.CommandsSubDir)},
+	}
+
+	linkedCount := 0
+	for _, ct := range componentTypes {
+		if !ct.hasType {
+			continue
+		}
+
+		sourceDir := ct.getDir()
+		entries, err := os.ReadDir(sourceDir)
+		if err != nil {
+			return fmt.Errorf("failed to read %s directory: %w", ct.name, err)
+		}
+
+		// Ensure target directory exists
+		if err := os.MkdirAll(ct.targetDir, 0755); err != nil {
+			return fmt.Errorf("failed to create target directory for %s: %w", ct.name, err)
+		}
+
+		for _, entry := range entries {
+			if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+				continue
+			}
+
+			componentName := entry.Name()
+			srcPath := filepath.Join(sourceDir, componentName)
+			dstPath := filepath.Join(ct.targetDir, componentName)
+
+			// Create relative symlink
+			relPath, err := filepath.Rel(filepath.Dir(dstPath), srcPath)
+			if err != nil {
+				return fmt.Errorf("failed to create relative path for %s/%s: %w", ct.name, componentName, err)
+			}
+
+			// Remove existing destination if it exists
+			if _, err := os.Lstat(dstPath); err == nil {
+				if err := os.Remove(dstPath); err != nil {
+					return fmt.Errorf("failed to remove existing %s/%s: %w", ct.name, componentName, err)
+				}
+			}
+
+			// Create the symlink
+			if err := os.Symlink(relPath, dstPath); err != nil {
+				return fmt.Errorf("failed to create symlink for %s/%s: %w", ct.name, componentName, err)
+			}
+
+			linkedCount++
+			fmt.Printf("  Linked %s/%s\n", ct.name, componentName)
+		}
+	}
+
+	// Update the active profile state file
+	activeProfilePath := filepath.Join(agentsDir, ".active_profile")
+	if err := os.WriteFile(activeProfilePath, []byte(profileName), 0644); err != nil {
+		return fmt.Errorf("failed to write active profile state: %w", err)
+	}
+
+	fmt.Printf("\nSuccessfully activated profile '%s' (%d components linked)\n", profileName, linkedCount)
+	return nil
+}
+
+// unlinkAllComponents removes all symlinks from the agents directory component folders
+func (pm *ProfileManager) unlinkAllComponents(agentsDir string) error {
+	componentDirs := []string{
+		filepath.Join(agentsDir, paths.AgentsSubDir),
+		filepath.Join(agentsDir, paths.SkillsSubDir),
+		filepath.Join(agentsDir, paths.CommandsSubDir),
+	}
+
+	for _, dir := range componentDirs {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			continue
+		}
+
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return fmt.Errorf("failed to read directory %s: %w", dir, err)
+		}
+
+		for _, entry := range entries {
+			if strings.HasPrefix(entry.Name(), ".") {
+				continue
+			}
+
+			entryPath := filepath.Join(dir, entry.Name())
+
+			// Check if it's a symlink
+			info, err := os.Lstat(entryPath)
+			if err != nil {
+				continue
+			}
+
+			if info.Mode()&os.ModeSymlink != 0 {
+				if err := os.Remove(entryPath); err != nil {
+					return fmt.Errorf("failed to remove symlink %s: %w", entryPath, err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
