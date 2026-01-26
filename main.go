@@ -265,6 +265,15 @@ func main() {
 				log.Fatal("Failed to list linked components:", err)
 			}
 		},
+		func() {
+			linker, err := NewComponentLinker()
+			if err != nil {
+				log.Fatal("Failed to create component linker:", err)
+			}
+			if err := linker.ShowLinkStatus(); err != nil {
+				log.Fatal("Failed to show link status:", err)
+			}
+		},
 		func(componentType, componentName string) {
 			linker, err := NewComponentLinker()
 			if err != nil {

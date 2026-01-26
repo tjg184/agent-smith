@@ -573,6 +573,182 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 	return nil
 }
 
+// ShowLinkStatus displays a matrix view of components and their status across all targets
+func (cl *ComponentLinker) ShowLinkStatus() error {
+	componentTypes := paths.GetComponentTypes()
+
+	// Collect all unique components from source directory
+	type ComponentInfo struct {
+		Name string
+		Type string
+	}
+	allComponents := make([]ComponentInfo, 0)
+
+	// Scan source directories for all available components
+	for _, componentType := range componentTypes {
+		sourceDir := filepath.Join(cl.agentsDir, componentType)
+		if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
+			continue
+		}
+
+		entries, err := os.ReadDir(sourceDir)
+		if err != nil {
+			return fmt.Errorf("failed to read %s directory: %w", componentType, err)
+		}
+
+		for _, entry := range entries {
+			if strings.HasPrefix(entry.Name(), ".") {
+				continue
+			}
+			allComponents = append(allComponents, ComponentInfo{
+				Name: entry.Name(),
+				Type: componentType,
+			})
+		}
+	}
+
+	if len(allComponents) == 0 {
+		fmt.Println("No components found in ~/.agents/")
+		return nil
+	}
+
+	// Get link status for each component across all targets
+	type ComponentStatus struct {
+		Component ComponentInfo
+		Targets   map[string]string // target name -> status symbol
+	}
+
+	statuses := make([]ComponentStatus, 0)
+
+	for _, comp := range allComponents {
+		status := ComponentStatus{
+			Component: comp,
+			Targets:   make(map[string]string),
+		}
+
+		for _, target := range cl.targets {
+			componentDir, err := target.GetComponentDir(comp.Type)
+			if err != nil {
+				status.Targets[target.GetName()] = "?"
+				continue
+			}
+
+			linkPath := filepath.Join(componentDir, comp.Name)
+
+			// Check if link exists
+			if _, err := os.Lstat(linkPath); os.IsNotExist(err) {
+				status.Targets[target.GetName()] = "-"
+				continue
+			}
+
+			// Get link status
+			linkType, _, valid := cl.analyzeLinkStatus(linkPath)
+
+			var symbol string
+			switch linkType {
+			case "symlink":
+				if valid {
+					symbol = "✓"
+				} else {
+					symbol = "✗"
+				}
+			case "copied":
+				symbol = "◆"
+			case "broken":
+				symbol = "✗"
+			default:
+				symbol = "?"
+			}
+
+			status.Targets[target.GetName()] = symbol
+		}
+
+		statuses = append(statuses, status)
+	}
+
+	// Display header
+	fmt.Println("\n=== Link Status Across All Targets ===\n")
+
+	// Get target names for header
+	targetNames := make([]string, 0, len(cl.targets))
+	for _, target := range cl.targets {
+		targetNames = append(targetNames, target.GetName())
+	}
+
+	// Calculate column widths
+	maxNameLen := 20
+	for _, status := range statuses {
+		nameLen := len(status.Component.Name) + 2 // +2 for indent
+		if nameLen > maxNameLen {
+			maxNameLen = nameLen
+		}
+	}
+
+	// Print header
+	fmt.Printf("%-*s", maxNameLen+2, "Component")
+	for _, targetName := range targetNames {
+		fmt.Printf("  %-12s", strings.ToUpper(targetName))
+	}
+	fmt.Println()
+
+	// Print separator
+	fmt.Print(strings.Repeat("-", maxNameLen+2))
+	for range targetNames {
+		fmt.Print("  " + strings.Repeat("-", 12))
+	}
+	fmt.Println()
+
+	// Group by type and sort by name within each type
+	byType := make(map[string][]ComponentStatus)
+	for _, status := range statuses {
+		byType[status.Component.Type] = append(byType[status.Component.Type], status)
+	}
+
+	// Display each component type
+	for _, componentType := range componentTypes {
+		components := byType[componentType]
+		if len(components) == 0 {
+			continue
+		}
+
+		fmt.Printf("\n%s:\n", strings.Title(componentType))
+
+		for _, status := range components {
+			componentName := fmt.Sprintf("  %s", status.Component.Name)
+			fmt.Printf("%-*s", maxNameLen+2, componentName)
+
+			for _, targetName := range targetNames {
+				symbol := status.Targets[targetName]
+				fmt.Printf("  %-12s", symbol)
+			}
+			fmt.Println()
+		}
+	}
+
+	// Print legend
+	fmt.Println("\nLegend:")
+	fmt.Println("  ✓  Valid symlink")
+	fmt.Println("  ◆  Copied directory")
+	fmt.Println("  ✗  Broken link")
+	fmt.Println("  -  Not linked")
+	fmt.Println("  ?  Unknown status")
+
+	// Print summary
+	fmt.Println("\nSummary:")
+	for _, targetName := range targetNames {
+		linkedCount := 0
+		for _, status := range statuses {
+			symbol := status.Targets[targetName]
+			if symbol == "✓" || symbol == "◆" {
+				linkedCount++
+			}
+		}
+		fmt.Printf("  %s: %d/%d components linked\n", strings.ToUpper(targetName), linkedCount, len(statuses))
+	}
+
+	return nil
+}
+
 // UnlinkComponent removes a linked component from all configured targets
 func (cl *ComponentLinker) UnlinkComponent(componentType, componentName string) error {
 	// Validate component type
