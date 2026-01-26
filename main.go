@@ -389,6 +389,16 @@ func main() {
 			// Display total count
 			fmt.Printf("\nTotal: %d profile(s)\n", len(profilesList))
 		},
+		func(profileName string) {
+			pm, err := profiles.NewProfileManager()
+			if err != nil {
+				log.Fatal("Failed to create profile manager:", err)
+			}
+
+			if err := pm.ActivateProfile(profileName); err != nil {
+				log.Fatal("Failed to activate profile:", err)
+			}
+		},
 	)
 
 	// Execute Cobra command
