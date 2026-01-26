@@ -536,6 +536,29 @@ EXAMPLES:
 	}
 	linkCmd.AddCommand(linkAutoCmd)
 
+	linkListCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List all linked components across all targets",
+		Long: `List all components (skills, agents, and commands) currently linked to detected targets.
+
+This command shows the status of each linked component, including whether it's
+a symlink or copied directory, and whether the link is valid or broken.
+
+EXAMPLES:
+  # List all linked components
+  agent-smith link list
+
+The output shows:
+  ✓ - Valid symlink
+  ◆ - Copied directory
+  ✗ - Broken link`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			handleListLinks()
+		},
+	}
+	linkCmd.AddCommand(linkListCmd)
+
 	rootCmd.AddCommand(linkCmd)
 
 	rootCmd.AddCommand(&cobra.Command{
