@@ -11,12 +11,14 @@ import (
 	"github.com/tgaines/agent-smith/internal/downloader"
 	"github.com/tgaines/agent-smith/internal/executor"
 	"github.com/tgaines/agent-smith/internal/fileutil"
+	"github.com/tgaines/agent-smith/internal/formatter"
 	"github.com/tgaines/agent-smith/internal/linker"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/internal/updater"
 	"github.com/tgaines/agent-smith/pkg/config"
 	"github.com/tgaines/agent-smith/pkg/paths"
+	"github.com/tgaines/agent-smith/pkg/profiles"
 )
 
 type BulkDownloader = downloader.BulkDownloader
@@ -157,6 +159,18 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 func executeComponent(target string, args []string) error {
 	exec := executor.NewComponentExecutor()
 	return exec.Execute(target, args)
+}
+
+// joinStrings joins a slice of strings with a separator
+func joinStrings(strings []string, separator string) string {
+	if len(strings) == 0 {
+		return ""
+	}
+	result := strings[0]
+	for i := 1; i < len(strings); i++ {
+		result += separator + strings[i]
+	}
+	return result
 }
 
 func main() {
@@ -305,6 +319,75 @@ func main() {
 			if err := linker.UnlinkComponentsByType(componentType, force); err != nil {
 				log.Fatal("Failed to unlink components:", err)
 			}
+		},
+		func() {
+			pm, err := profiles.NewProfileManager()
+			if err != nil {
+				log.Fatal("Failed to create profile manager:", err)
+			}
+
+			profilesList, err := pm.ScanProfiles()
+			if err != nil {
+				log.Fatal("Failed to scan profiles:", err)
+			}
+
+			// Get active profile
+			activeProfile, err := pm.GetActiveProfile()
+			if err != nil {
+				log.Fatal("Failed to get active profile:", err)
+			}
+
+			// Display results
+			if len(profilesList) == 0 {
+				fmt.Println("No profiles found in ~/.agents/profiles/")
+				fmt.Println("\nTo create a profile, create a directory structure like:")
+				fmt.Println("  ~/.agents/profiles/<profile-name>/agents/")
+				fmt.Println("  ~/.agents/profiles/<profile-name>/skills/")
+				fmt.Println("  ~/.agents/profiles/<profile-name>/commands/")
+				return
+			}
+
+			fmt.Println("Available Profiles:")
+			fmt.Println()
+
+			for _, profile := range profilesList {
+				// Count components
+				agents, skills, commands := pm.CountComponents(profile)
+
+				// Build component counts string
+				var components []string
+				if agents > 0 {
+					components = append(components, fmt.Sprintf("%d agent(s)", agents))
+				}
+				if skills > 0 {
+					components = append(components, fmt.Sprintf("%d skill(s)", skills))
+				}
+				if commands > 0 {
+					components = append(components, fmt.Sprintf("%d command(s)", commands))
+				}
+
+				componentStr := ""
+				if len(components) > 0 {
+					componentStr = fmt.Sprintf(" (%s)", joinStrings(components, ", "))
+				}
+
+				// Check if this is the active profile
+				activeIndicator := "  "
+				activeLabel := ""
+				if profile.Name == activeProfile {
+					activeIndicator = fmt.Sprintf("%s ", formatter.SymbolSuccess)
+					activeLabel = " [active]"
+				}
+
+				fmt.Printf("%s%-15s%s%s\n", activeIndicator, profile.Name, activeLabel, componentStr)
+			}
+
+			// Display legend
+			fmt.Println("\nLegend:")
+			fmt.Printf("  %s - Currently active profile\n", formatter.SymbolSuccess)
+
+			// Display total count
+			fmt.Printf("\nTotal: %d profile(s)\n", len(profilesList))
 		},
 	)
 

@@ -509,27 +509,56 @@ EXAMPLES:
 	unlinkCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt (only for 'unlink all')")
 	rootCmd.AddCommand(unlinkCmd)
 
+	// Create 'profiles' parent command with subcommands
+	profilesCmd := &cobra.Command{
+		Use:   "profiles",
+		Short: "Manage profiles for context switching",
+		Long: `Manage profiles to switch between different sets of agents, skills, and commands.
+		
+Profiles allow you to organize and switch between different configurations
+of AI components. Each profile can contain its own set of agents, skills,
+and commands, making it easy to switch contexts for different projects or tasks.`,
+	}
+
+	profilesListCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List available profiles",
+		Long: `List all available profiles found in ~/.agents/profiles/.
+
+This command shows all valid profiles (those containing at least one component
+directory), indicates which profile is currently active, and displays component
+counts for each profile.`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			handleProfilesList()
+		},
+	}
+
+	profilesCmd.AddCommand(profilesListCmd)
+	rootCmd.AddCommand(profilesCmd)
+
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
 }
 
 // These functions will be implemented in main.go to keep existing logic
 var (
-	handleAddSkill   func(repoURL, name string)
-	handleAddAgent   func(repoURL, name string)
-	handleAddCommand func(repoURL, name string)
-	handleAddAll     func(repoURL string)
-	handleRun        func(target string, args []string)
-	handleUpdate     func(componentType, componentName string)
-	handleUpdateAll  func()
-	handleLink       func(componentType, componentName, targetFilter string)
-	handleLinkAll    func(targetFilter string)
-	handleLinkType   func(componentType, targetFilter string)
-	handleAutoLink   func()
-	handleListLinks  func()
-	handleLinkStatus func()
-	handleUnlink     func(componentType, componentName string)
-	handleUnlinkAll  func(force bool)
-	handleUnlinkType func(componentType string, force bool)
+	handleAddSkill     func(repoURL, name string)
+	handleAddAgent     func(repoURL, name string)
+	handleAddCommand   func(repoURL, name string)
+	handleAddAll       func(repoURL string)
+	handleRun          func(target string, args []string)
+	handleUpdate       func(componentType, componentName string)
+	handleUpdateAll    func()
+	handleLink         func(componentType, componentName, targetFilter string)
+	handleLinkAll      func(targetFilter string)
+	handleLinkType     func(componentType, targetFilter string)
+	handleAutoLink     func()
+	handleListLinks    func()
+	handleLinkStatus   func()
+	handleUnlink       func(componentType, componentName string)
+	handleUnlinkAll    func(force bool)
+	handleUnlinkType   func(componentType string, force bool)
+	handleProfilesList func()
 )
 
 func SetHandlers(
@@ -549,6 +578,7 @@ func SetHandlers(
 	unlink func(componentType, componentName string),
 	unlinkAll func(force bool),
 	unlinkType func(componentType string, force bool),
+	profilesList func(),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
@@ -566,4 +596,5 @@ func SetHandlers(
 	handleUnlink = unlink
 	handleUnlinkAll = unlinkAll
 	handleUnlinkType = unlinkType
+	handleProfilesList = profilesList
 }
