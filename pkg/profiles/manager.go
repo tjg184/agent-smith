@@ -76,3 +76,71 @@ func (pm *ProfileManager) loadProfile(name string) *Profile {
 
 	return profile
 }
+
+// GetActiveProfile reads the active profile from the state file
+// Returns empty string if no profile is active or state file doesn't exist
+func (pm *ProfileManager) GetActiveProfile() (string, error) {
+	agentsDir, err := paths.GetAgentsDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get agents directory: %w", err)
+	}
+
+	activeProfilePath := filepath.Join(agentsDir, ".active_profile")
+
+	// Check if state file exists
+	if _, err := os.Stat(activeProfilePath); os.IsNotExist(err) {
+		return "", nil // No active profile yet
+	}
+
+	// Read the file
+	data, err := os.ReadFile(activeProfilePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read active profile file: %w", err)
+	}
+
+	// Trim whitespace and return profile name
+	profileName := strings.TrimSpace(string(data))
+	return profileName, nil
+}
+
+// CountComponents counts the number of component directories in a profile
+// Returns counts for agents, skills, and commands
+func (pm *ProfileManager) CountComponents(profile *Profile) (agents, skills, commands int) {
+	// Count agents
+	if profile.HasAgents {
+		agentsPath := filepath.Join(profile.BasePath, paths.AgentsSubDir)
+		if entries, err := os.ReadDir(agentsPath); err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
+					agents++
+				}
+			}
+		}
+	}
+
+	// Count skills
+	if profile.HasSkills {
+		skillsPath := filepath.Join(profile.BasePath, paths.SkillsSubDir)
+		if entries, err := os.ReadDir(skillsPath); err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
+					skills++
+				}
+			}
+		}
+	}
+
+	// Count commands
+	if profile.HasCommands {
+		commandsPath := filepath.Join(profile.BasePath, paths.CommandsSubDir)
+		if entries, err := os.ReadDir(commandsPath); err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
+					commands++
+				}
+			}
+		}
+	}
+
+	return agents, skills, commands
+}
