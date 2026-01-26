@@ -507,6 +507,35 @@ EXAMPLES:
 	linkAllCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
 	linkCmd.AddCommand(linkAllCmd)
 
+	linkAutoCmd := &cobra.Command{
+		Use:   "auto",
+		Short: "Automatically detect and link components from current repository",
+		Long: `Automatically detect and link components from the current repository.
+
+This command scans the current working directory for AI components (skills, agents,
+and commands) and automatically links them to detected targets. It uses pattern
+detection to identify component files:
+  - Skills: Files named SKILL.md
+  - Agents: Files in /agents/ directories with .md extension
+  - Commands: Files in /commands/ directories with .md extension
+
+The detection also honors frontmatter metadata in markdown files, using the 'name'
+field if present.
+
+EXAMPLES:
+  # Auto-detect and link all components in current repository
+  agent-smith link auto
+
+  # Typically used from within a repository containing component definitions
+  cd /path/to/my-components
+  agent-smith link auto`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			handleAutoLink()
+		},
+	}
+	linkCmd.AddCommand(linkAutoCmd)
+
 	rootCmd.AddCommand(linkCmd)
 
 	rootCmd.AddCommand(&cobra.Command{
