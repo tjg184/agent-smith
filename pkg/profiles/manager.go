@@ -250,6 +250,43 @@ func (pm *ProfileManager) ActivateProfile(profileName string) error {
 	return nil
 }
 
+// DeactivateProfile deactivates the currently active profile and returns to base state
+// This removes all profile symlinks and clears the active profile state
+func (pm *ProfileManager) DeactivateProfile() error {
+	// Get the agents directory
+	agentsDir, err := paths.GetAgentsDir()
+	if err != nil {
+		return fmt.Errorf("failed to get agents directory: %w", err)
+	}
+
+	// Check if a profile is currently active
+	currentActive, err := pm.GetActiveProfile()
+	if err != nil {
+		return fmt.Errorf("failed to check current active profile: %w", err)
+	}
+
+	if currentActive == "" {
+		return fmt.Errorf("no profile is currently active")
+	}
+
+	fmt.Printf("Deactivating profile: %s\n", currentActive)
+
+	// Remove all profile symlinks
+	if err := pm.unlinkAllComponents(agentsDir); err != nil {
+		return fmt.Errorf("failed to remove profile components: %w", err)
+	}
+
+	// Clear the active profile state file
+	activeProfilePath := filepath.Join(agentsDir, ".active_profile")
+	if err := os.Remove(activeProfilePath); err != nil {
+		return fmt.Errorf("failed to clear active profile state: %w", err)
+	}
+
+	fmt.Printf("\nSuccessfully deactivated profile '%s'\n", currentActive)
+	fmt.Println("Returned to base state (no profile active)")
+	return nil
+}
+
 // unlinkAllComponents removes all symlinks from the agents directory component folders
 func (pm *ProfileManager) unlinkAllComponents(agentsDir string) error {
 	componentDirs := []string{

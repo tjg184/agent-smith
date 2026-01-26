@@ -399,6 +399,16 @@ func main() {
 				log.Fatal("Failed to activate profile:", err)
 			}
 		},
+		func() {
+			pm, err := profiles.NewProfileManager()
+			if err != nil {
+				log.Fatal("Failed to create profile manager:", err)
+			}
+
+			if err := pm.DeactivateProfile(); err != nil {
+				log.Fatal("Failed to deactivate profile:", err)
+			}
+		},
 	)
 
 	// Execute Cobra command
