@@ -258,7 +258,7 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 	return nil
 }
 
-// saveLockFile saves command lock entry in npx add-skill compatible format
+// saveLockFile saves command lock entry in agent-smith install compatible format
 func (cd *CommandDownloader) saveLockFile(commandName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, originalPath string) error {
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {

@@ -2,24 +2,24 @@
 
 ## Introduction
 
-The `add-all` command in Agent Smith currently clones the same repository multiple times when downloading skills, agents, and commands from a single repository. This inefficiency occurs because the `AddAll` method clones the repository once for component detection, then calls individual download methods (`downloadSkill`, `downloadAgent`, `downloadCommand`) which each clone the repository again for their own component detection. For a repository containing one skill, one agent, and one command, this results in 4 total clones of the same repository.
+The `install-all` command in Agent Smith currently clones the same repository multiple times when downloading skills, agents, and commands from a single repository. This inefficiency occurs because the `AddAll` method clones the repository once for component detection, then calls individual download methods (`downloadSkill`, `downloadAgent`, `downloadCommand`) which each clone the repository again for their own component detection. For a repository containing one skill, one agent, and one command, this results in 4 total clones of the same repository.
 
-This optimization will eliminate redundant repository cloning while maintaining full backward compatibility and limiting scope to only the `add-all` command.
+This optimization will eliminate redundant repository cloning while maintaining full backward compatibility and limiting scope to only the `install-all` command.
 
 ## Goals
 
-- Eliminate redundant repository cloning in `add-all` command operations
+- Eliminate redundant repository cloning in `install-all` command operations
 - Reduce network bandwidth usage by avoiding duplicate downloads
-- Improve `add-all` command performance by minimizing git operations
+- Improve `install-all` command performance by minimizing git operations
 - Maintain full backward compatibility for existing APIs and commands
-- Limit scope to `add-all` command optimization only
+- Limit scope to `install-all` command optimization only
 
 ## User Stories
 
-- [x] Story-001: As a user running `add-all`, I want the repository to be cloned only once so that the command completes faster and uses less bandwidth.
+- [x] Story-001: As a user running `install-all`, I want the repository to be cloned only once so that the command completes faster and uses less bandwidth.
 
   **Acceptance Criteria:**
-  - Repository is cloned exactly once during `add-all` execution
+  - Repository is cloned exactly once during `install-all` execution
   - All component types (skills, agents, commands) are still detected and downloaded
   - No breaking changes to existing CLI interface
   - Performance improvement measurable through timing
@@ -32,7 +32,7 @@ This optimization will eliminate redundant repository cloning while maintaining 
   - Existing error handling and logging behaviors preserved
   - All existing unit tests continue to pass
 
-- [x] Story-003: As a user, I want consistent behavior between `add-all` and individual download commands so that the user experience remains predictable.
+- [x] Story-003: As a user, I want consistent behavior between `install-all` and individual download commands so that the user experience remains predictable.
 
   **Acceptance Criteria:**
   - Metadata creation and lock file generation unchanged
@@ -52,7 +52,7 @@ This optimization will eliminate redundant repository cloning while maintaining 
 
 ## Non-Goals (Out of Scope)
 
-- No optimization of individual download commands (`add-skill`, `add-agent`, `add-command`)
+- No optimization of individual download commands (`install-skill`, `install-agent`, `install-command`)
 - No implementation of repository caching system beyond temporary operation scope
 - No performance monitoring or metrics collection
 - No changes to component detection logic or algorithms

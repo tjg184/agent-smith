@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The agent-smith CLI has accumulated legacy commands that maintain backward compatibility with older command syntax. These legacy commands include `add-skill`, `add-agent`, `add-command`, `add-all`, `link-legacy`, `auto-link`, `list-links`, and `link-status`. Additionally, legacy metadata file support exists for `.{type}-metadata.json` files alongside the modern lock file format.
+The agent-smith CLI has accumulated legacy commands that maintain backward compatibility with older command syntax. These legacy commands include `install-skill`, `install-agent`, `install-command`, `install-all`, `link-legacy`, `auto-link`, `list-links`, and `link-status`. Additionally, legacy metadata file support exists for `.{type}-metadata.json` files alongside the modern lock file format.
 
 This PRD outlines the complete removal of these legacy components to simplify the codebase, reduce maintenance burden, and enforce the modern command structure.
 
@@ -11,83 +11,83 @@ This PRD outlines the complete removal of these legacy components to simplify th
 - Remove all legacy CLI commands from the codebase
 - Eliminate support for legacy metadata file formats
 - Simplify cmd/root.go by removing backward compatibility code
-- Standardize on modern command structure (e.g., `add skill` instead of `add-skill`)
+- Standardize on modern command structure (e.g., `install skill` instead of `install-skill`)
 - Update documentation to reflect only modern command syntax
 - Create comprehensive tests to validate legacy code removal
 
 ## User Stories
 
-- [x] Story-001: As a developer, I want to remove the add-skill legacy command so that the codebase only supports the modern 'add skill' syntax.
+- [x] Story-001: As a developer, I want to remove the install-skill legacy command so that the codebase only supports the modern 'install skill' syntax.
 
   **Acceptance Criteria:**
-  - Remove add-skill command definition from cmd/root.go (lines 152-184)
+  - Remove install-skill command definition from cmd/root.go (lines 152-184)
   - Update any internal references or documentation
   - Ensure tests are updated to use modern syntax
 
   **Testing Criteria:**
   **Unit Tests:**
-  - Verify command registry no longer includes add-skill
-  - Test that add-skill command returns command not found error
+  - Verify command registry no longer includes install-skill
+  - Test that install-skill command returns command not found error
   
   **Integration Tests:**
-  - Validate 'add skill' command works correctly as replacement
+  - Validate 'install skill' command works correctly as replacement
   - Test error messaging when legacy command is attempted
   
   **Component Browser Tests:**
   - N/A (CLI only)
 
-- [x] Story-002: As a developer, I want to remove the add-agent legacy command so that the codebase only supports the modern 'add agent' syntax.
+- [x] Story-002: As a developer, I want to remove the install-agent legacy command so that the codebase only supports the modern 'install agent' syntax.
 
   **Acceptance Criteria:**
-  - Remove add-agent command definition from cmd/root.go (lines 186-217)
+  - Remove install-agent command definition from cmd/root.go (lines 186-217)
   - Update any internal references or documentation
   - Ensure tests are updated to use modern syntax
 
   **Testing Criteria:**
   **Unit Tests:**
-  - Verify command registry no longer includes add-agent
-  - Test that add-agent command returns command not found error
+  - Verify command registry no longer includes install-agent
+  - Test that install-agent command returns command not found error
   
   **Integration Tests:**
-  - Validate 'add agent' command works correctly as replacement
+  - Validate 'install agent' command works correctly as replacement
   - Test error messaging when legacy command is attempted
   
   **Component Browser Tests:**
   - N/A (CLI only)
 
-- [x] Story-003: As a developer, I want to remove the add-command legacy command so that the codebase only supports the modern 'add command' syntax.
+- [x] Story-003: As a developer, I want to remove the install-command legacy command so that the codebase only supports the modern 'install command' syntax.
 
   **Acceptance Criteria:**
-  - Remove add-command command definition from cmd/root.go (lines 219-250)
+  - Remove install-command command definition from cmd/root.go (lines 219-250)
   - Update any internal references or documentation
   - Ensure tests are updated to use modern syntax
 
   **Testing Criteria:**
   **Unit Tests:**
-  - Verify command registry no longer includes add-command
-  - Test that add-command command returns command not found error
+  - Verify command registry no longer includes install-command
+  - Test that install-command command returns command not found error
   
   **Integration Tests:**
-  - Validate 'add command' command works correctly as replacement
+  - Validate 'install command' command works correctly as replacement
   - Test error messaging when legacy command is attempted
   
   **Component Browser Tests:**
   - N/A (CLI only)
 
-- [x] Story-004: As a developer, I want to remove the add-all legacy command so that the codebase only supports the modern 'add all' syntax.
+- [x] Story-004: As a developer, I want to remove the install-all legacy command so that the codebase only supports the modern 'install all' syntax.
 
   **Acceptance Criteria:**
-  - Remove add-all command definition from cmd/root.go (lines 252-283)
+  - Remove install-all command definition from cmd/root.go (lines 252-283)
   - Update any internal references or documentation
   - Ensure tests are updated to use modern syntax
 
   **Testing Criteria:**
   **Unit Tests:**
-  - Verify command registry no longer includes add-all
-  - Test that add-all command returns command not found error
+  - Verify command registry no longer includes install-all
+  - Test that install-all command returns command not found error
   
   **Integration Tests:**
-  - Validate 'add all' command works correctly as replacement
+  - Validate 'install all' command works correctly as replacement
   - Test error messaging when legacy command is attempted
   
   **Component Browser Tests:**
@@ -248,9 +248,9 @@ This PRD outlines the complete removal of these legacy components to simplify th
 
 ## Functional Requirements
 
-- FR-1: The system must remove all legacy command definitions from cmd/root.go (add-skill, add-agent, add-command, add-all, link-legacy, auto-link, list-links, link-status)
+- FR-1: The system must remove all legacy command definitions from cmd/root.go (install-skill, install-agent, install-command, install-all, link-legacy, auto-link, list-links, link-status)
 - FR-2: The system must eliminate internal/metadata/legacy.go and all legacy metadata file support
-- FR-3: The system must ensure modern command alternatives (add skill, add agent, link auto, link list, link status) provide equivalent functionality
+- FR-3: The system must ensure modern command alternatives (install skill, install agent, link auto, link list, link status) provide equivalent functionality
 - FR-4: The system must return appropriate "command not found" errors when legacy commands are attempted
 - FR-5: The system must update all documentation to reflect only modern command syntax
 - FR-6: The system must include comprehensive tests validating removal and modern command functionality
@@ -282,10 +282,10 @@ This PRD outlines the complete removal of these legacy components to simplify th
 
 | Legacy Command | Modern Equivalent | Location in cmd/root.go |
 |---------------|-------------------|------------------------|
-| `add-skill` | `add skill` | Lines 36-149 (subcommands) |
-| `add-agent` | `add agent` | Lines 36-149 (subcommands) |
-| `add-command` | `add command` | Lines 36-149 (subcommands) |
-| `add-all` | `add all` | Lines 36-149 (subcommands) |
+| `install-skill` | `install skill` | Lines 36-149 (subcommands) |
+| `install-agent` | `install agent` | Lines 36-149 (subcommands) |
+| `install-command` | `install command` | Lines 36-149 (subcommands) |
+| `install-all` | `install all` | Lines 36-149 (subcommands) |
 | `auto-link` | `link auto` | Lines 333-587 (link subcommands) |
 | `list-links` | `link list` | Lines 333-587 (link subcommands) |
 | `link-status` | `link status` | Lines 333-587 (link subcommands) |

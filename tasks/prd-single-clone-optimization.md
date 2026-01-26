@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The add-all command currently performs repository cloning multiple times - once for component detection and once for each component type (skills, agents, commands) for metadata extraction. This creates 3-4 redundant git operations instead of the intended single clone optimization, causing slow performance and excessive network traffic.
+The install-all command currently performs repository cloning multiple times - once for component detection and once for each component type (skills, agents, commands) for metadata extraction. This creates 3-4 redundant git operations instead of the intended single clone optimization, causing slow performance and excessive network traffic.
 
 ## Goals
 
@@ -13,13 +13,13 @@ The add-all command currently performs repository cloning multiple times - once 
 
 ## User Stories
 
-- [x] Story-001: As a user running add-all, I want the repository cloned only once so that the command completes faster and uses less bandwidth.
+- [x] Story-001: As a user running install-all, I want the repository cloned only once so that the command completes faster and uses less bandwidth.
 
   **Acceptance Criteria:**
-  - Repository is cloned exactly one time during add-all execution
+  - Repository is cloned exactly one time during install-all execution
   - Component detection uses the initial cloned repository
   - Metadata extraction reuses the same repository object (no additional clones)
-  - Individual add-skill/add-agent/add-add-command commands maintain current behavior
+  - Individual install-skill/install-agent/add-install-command commands maintain current behavior
   - Performance improvement is measurable (75% reduction in git operations)
   - Large repositories process significantly faster than current implementation
 
@@ -37,7 +37,7 @@ The add-all command currently performs repository cloning multiple times - once 
 - FR-1: The system must modify BulkDownloader.AddAll to extract git.Repository object from the initial clone and pass it to component download methods.
 - FR-2: The system must update downloadSkillWithRepo, downloadAgentWithRepo, and downloadCommandWithRepo methods to accept an optional shared repository parameter.
 - FR-3: The system must eliminate redundant git.PlainClone operations for metadata extraction when a shared repository is provided.
-- FR-4: The system must maintain backward compatibility for individual add-skill, add-agent, and add-command commands by falling back to current cloning behavior when no shared repository is provided.
+- FR-4: The system must maintain backward compatibility for individual install-skill, install-agent, and install-command commands by falling back to current cloning behavior when no shared repository is provided.
 - FR-5: The system must preserve all existing functionality including metadata extraction, lock file generation, and file copying operations.
 
 ## Non-Goals
@@ -60,7 +60,7 @@ The add-all command currently performs repository cloning multiple times - once 
 - Maintain existing error handling and fallback mechanisms
 
 ### Phase 3: Preserve Backward Compatibility
-- Ensure individual add-skill/add-agent/add-add-command commands work exactly as before
+- Ensure individual install-skill/install-agent/add-install-command commands work exactly as before
 - Only apply optimization when called from BulkDownloader.AddAll context
 - Keep all existing error messages and metadata generation intact
 
@@ -75,12 +75,12 @@ The add-all command currently performs repository cloning multiple times - once 
 **Current State:**
 - 1 clone for component detection
 - 3 additional clones for metadata extraction (skills, agents, commands)
-- Total: 4 git clone operations per add-all execution
+- Total: 4 git clone operations per install-all execution
 
 **Optimized State:**
 - 1 clone for component detection AND metadata extraction
 - 0 additional clones for individual component types
-- Total: 1 git clone operation per add-all execution
+- Total: 1 git clone operation per install-all execution
 
 **Improvement Metrics:**
 - 75% reduction in git clone operations

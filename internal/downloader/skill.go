@@ -257,7 +257,7 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 	return nil
 }
 
-// saveLockFile saves component lock entry in npx add-skill compatible format
+// saveLockFile saves component lock entry in agent-smith install compatible format
 func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, originalPath string) error {
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {

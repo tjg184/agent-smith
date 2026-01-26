@@ -32,11 +32,11 @@ func isValidComponentType(componentType string) bool {
 }
 
 func init() {
-	// Create 'add' parent command with subcommands
-	addCmd := &cobra.Command{
-		Use:   "add",
-		Short: "Add components from git repositories",
-		Long: `Add components (skills, agents, commands) from git repositories.
+	// Create 'install' parent command with subcommands
+	installCmd := &cobra.Command{
+		Use:   "install",
+		Short: "Install components from git repositories",
+		Long: `Install components (skills, agents, commands) from git repositories.
 
 This command provides a modern interface for downloading and installing AI components
 from any git repository (GitHub, GitLab, Bitbucket, or private repositories).
@@ -49,8 +49,8 @@ REPOSITORY URL FORMATS:
   Local path:           /path/to/local/repo`,
 	}
 
-	// Add subcommands to 'add' command
-	addCmd.AddCommand(&cobra.Command{
+	// Add subcommands to 'install' command
+	installCmd.AddCommand(&cobra.Command{
 		Use:   "skill <repository-url> <skill-name>",
 		Short: "Download a skill from a git repository",
 		Long: `Download and install a skill from a git repository to your local agents directory.
@@ -61,20 +61,20 @@ and will be automatically detected if it contains a SKILL.md file.
 
 EXAMPLES:
   # Download from GitHub using shorthand
-  agent-smith add skill openai/cookbook gpt-skill
+  agent-smith install skill openai/cookbook gpt-skill
 
   # Download using full URL
-  agent-smith add skill https://github.com/example/repo my-skill
+  agent-smith install skill https://github.com/example/repo my-skill
 
   # Download from local repository
-  agent-smith add skill /path/to/local/skill local-skill`,
+  agent-smith install skill /path/to/local/skill local-skill`,
 		Args: cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleAddSkill(args[0], args[1])
 		},
 	})
 
-	addCmd.AddCommand(&cobra.Command{
+	installCmd.AddCommand(&cobra.Command{
 		Use:   "agent <repository-url> <agent-name>",
 		Short: "Download an agent from a git repository",
 		Long: `Download and install an AI agent from a git repository to your local agents directory.
@@ -85,20 +85,20 @@ based on path patterns and file extensions.
 
 EXAMPLES:
   # Download from GitHub using shorthand
-  agent-smith add agent openai/assistant coding-agent
+  agent-smith install agent openai/assistant coding-agent
 
   # Download using full URL
-  agent-smith add agent https://github.com/example/agent my-agent
+  agent-smith install agent https://github.com/example/agent my-agent
 
   # Download from local repository
-  agent-smith add agent /path/to/local/agent local-agent`,
+  agent-smith install agent /path/to/local/agent local-agent`,
 		Args: cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleAddAgent(args[0], args[1])
 		},
 	})
 
-	addCmd.AddCommand(&cobra.Command{
+	installCmd.AddCommand(&cobra.Command{
 		Use:   "command <repository-url> <command-name>",
 		Short: "Download a command from a git repository",
 		Long: `Download and install a command-line tool from a git repository to your local agents directory.
@@ -109,20 +109,20 @@ based on path patterns and file extensions.
 
 EXAMPLES:
   # Download from GitHub using shorthand
-  agent-smith add command cli-tools/formatter json-formatter
+  agent-smith install command cli-tools/formatter json-formatter
 
   # Download using full URL
-  agent-smith add command https://github.com/example/tool my-tool
+  agent-smith install command https://github.com/example/tool my-tool
 
   # Download from local repository
-  agent-smith add command /path/to/local/command local-cmd`,
+  agent-smith install command /path/to/local/command local-cmd`,
 		Args: cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleAddCommand(args[0], args[1])
 		},
 	})
 
-	addCmd.AddCommand(&cobra.Command{
+	installCmd.AddCommand(&cobra.Command{
 		Use:   "all <repository-url>",
 		Short: "Download all components from a git repository",
 		Long: `Download and install all components (skills, agents, and commands) from a git repository.
@@ -133,20 +133,20 @@ detected based on the presence of SKILL.md files or path patterns.
 
 EXAMPLES:
   # Download all components from GitHub using shorthand
-  agent-smith add all openai/cookbook
+  agent-smith install all openai/cookbook
 
   # Download using full URL
-  agent-smith add all https://github.com/example/monorepo
+  agent-smith install all https://github.com/example/monorepo
 
   # Download from local repository
-  agent-smith add all /path/to/local/repo`,
+  agent-smith install all /path/to/local/repo`,
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleAddAll(args[0])
 		},
 	})
 
-	rootCmd.AddCommand(addCmd)
+	rootCmd.AddCommand(installCmd)
 
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "npx <repository-or-package> [args...]",

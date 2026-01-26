@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// ComputeGitHubTreeSHA computes the GitHub tree SHA for a skill folder hash (npx add-skill compatible)
+// ComputeGitHubTreeSHA computes the GitHub tree SHA for a skill folder hash (agent-smith install compatible)
 func ComputeGitHubTreeSHA(ownerRepo string, skillPath string) (string, error) {
 	// Normalize skill path - remove SKILL.md suffix to get folder path
 	folderPath := skillPath
