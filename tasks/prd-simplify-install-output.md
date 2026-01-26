@@ -14,7 +14,7 @@ Reduce visual clutter in the agent-smith install output by consolidating repetit
 
 ## User Stories
 
-- [ ] Story-001: As a user, I want single component installations to show a concise one-line summary so that my terminal stays clean and readable.
+- [x] Story-001: As a user, I want single component installations to show a concise one-line summary so that my terminal stays clean and readable.
 
   **Acceptance Criteria:**
   - Single installations display format: "Installed: component-name ✓"
@@ -34,7 +34,7 @@ Reduce visual clutter in the agent-smith install output by consolidating repetit
   **Component Browser Tests:**
   - N/A (CLI tool, no browser components)
 
-- [ ] Story-002: As a user, I want bulk installations to show a progress indicator so that I know the system is working without verbose per-component messages.
+- [x] Story-002: As a user, I want bulk installations to show a progress indicator so that I know the system is working without verbose per-component messages.
 
   **Acceptance Criteria:**
   - Display "Installing X components..." at start of bulk operation
