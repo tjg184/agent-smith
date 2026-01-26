@@ -182,9 +182,7 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		}
 	}
 
-	fmt.Printf("Successfully downloaded skill '%s' from %s\n", skillName, fullURL)
-	fmt.Printf("Skill stored in: %s\n", skillDir)
-	fmt.Printf("Components detected: %d\n", len(skillComponents))
+	fmt.Printf("Installed: %s ✓\n", skillName)
 
 	return nil
 }
@@ -364,8 +362,7 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 		}
 	}
 
-	fmt.Printf("Successfully downloaded skill '%s' from %s\n", skillName, fullURL)
-	fmt.Printf("Skill stored in: %s\n", skillDir)
+	fmt.Printf("Installed: %s ✓\n", skillName)
 
 	return nil
 }
