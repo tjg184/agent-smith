@@ -91,3 +91,7 @@
 - [✓] 2026-01-26 15:38 - Story-009: As a developer, I want to remove legacy metadata file support to simplify the codebase and standardize on lock files.
 - [✓] 2026-01-26 15:45 - Story-010: As a maintainer, I want to update all documentation to remove references to legacy commands.
 - [✓] 2026-01-26 15:41 - Story-010: As a maintainer, I want to update all documentation to remove references to legacy commands.
+- [✓] 2026-01-26 21:24 - Story-001: As a user, I want single component installations to show a concise one-line summary so that my terminal stays clean and readable.
+- [✓] 2026-01-26 21:26 - Story-002: As a user, I want bulk installations to show a progress indicator so that I know the system is working without verbose per-component messages.
+- [✓] 2026-01-26 21:29 - Story-003: As a user, I want to see a summary table after bulk installations so that I can quickly review what was installed successfully.
+- [✓] 2026-01-26 21:35 - Story-004: As a developer, I want to refactor output formatting logic into a centralized module so that output formatting is consistent across all downloaders.
