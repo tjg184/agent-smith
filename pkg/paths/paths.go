@@ -9,7 +9,7 @@ import (
 const (
 	AgentsDir     = "~/.agents"
 	OpencodeDir   = "~/.config/opencode"
-	ClaudeCodeDir = "~/.config/claudecode"
+	ClaudeCodeDir = "~/.claude"
 )
 
 // Component subdirectory names
