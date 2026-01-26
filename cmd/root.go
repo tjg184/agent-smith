@@ -453,15 +453,6 @@ The output shows:
 	rootCmd.AddCommand(linkCmd)
 
 	rootCmd.AddCommand(&cobra.Command{
-		Use:   "auto-link",
-		Short: "Automatically detect and link components from current repository",
-		Args:  cobra.NoArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			handleAutoLink()
-		},
-	})
-
-	rootCmd.AddCommand(&cobra.Command{
 		Use:   "list-links",
 		Short: "List all linked components across all targets",
 		Long: `List all components (skills, agents, and commands) currently linked to detected targets.
