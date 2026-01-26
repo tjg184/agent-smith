@@ -299,6 +299,30 @@ The output shows:
 		},
 	})
 
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "link-status",
+		Short: "Show link status across all targets in a matrix view",
+		Long: `Show the status of all components across all detected targets in a matrix format.
+
+This command displays a table showing which components are linked to which targets,
+making it easy to see what is installed where at a glance.
+
+EXAMPLES:
+  # Show link status matrix
+  agent-smith link-status
+
+The output shows:
+  ✓ - Valid symlink
+  ◆ - Copied directory
+  ✗ - Broken link
+  - - Not linked
+  ? - Unknown status`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			handleLinkStatus()
+		},
+	})
+
 	unlinkCmd := &cobra.Command{
 		Use:   "unlink <type|all> [name]",
 		Short: "Remove a linked component or all components from opencode",
@@ -373,6 +397,7 @@ var (
 	handleLinkType   func(componentType, targetFilter string)
 	handleAutoLink   func()
 	handleListLinks  func()
+	handleLinkStatus func()
 	handleUnlink     func(componentType, componentName string)
 	handleUnlinkAll  func(force bool)
 	handleUnlinkType func(componentType string, force bool)
@@ -391,6 +416,7 @@ func SetHandlers(
 	linkType func(componentType, targetFilter string),
 	autoLink func(),
 	listLinks func(),
+	linkStatus func(),
 	unlink func(componentType, componentName string),
 	unlinkAll func(force bool),
 	unlinkType func(componentType string, force bool),
@@ -407,6 +433,7 @@ func SetHandlers(
 	handleLinkType = linkType
 	handleAutoLink = autoLink
 	handleListLinks = listLinks
+	handleLinkStatus = linkStatus
 	handleUnlink = unlink
 	handleUnlinkAll = unlinkAll
 	handleUnlinkType = unlinkType
