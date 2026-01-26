@@ -17,6 +17,7 @@ const (
 	SkillsSubDir   = "skills"
 	AgentsSubDir   = "agents"
 	CommandsSubDir = "commands"
+	ProfilesSubDir = "profiles"
 )
 
 // Lock file patterns
@@ -145,4 +146,22 @@ func GetComponentTypes() []string {
 // GetComponentTypeNames returns the list of component type names for display
 func GetComponentTypeNames() []string {
 	return []string{AgentsSubDir, CommandsSubDir, SkillsSubDir}
+}
+
+// GetProfilesDir returns the full path to the profiles directory
+func GetProfilesDir() (string, error) {
+	baseDir, err := GetAgentsDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(baseDir, ProfilesSubDir), nil
+}
+
+// GetProfileDir returns the full path to a specific profile directory
+func GetProfileDir(profileName string) (string, error) {
+	profilesDir, err := GetProfilesDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(profilesDir, profileName), nil
 }
