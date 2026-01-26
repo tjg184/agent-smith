@@ -32,10 +32,126 @@ func isValidComponentType(componentType string) bool {
 }
 
 func init() {
-	// Add legacy commands as Cobra commands for better organization
+	// Create 'add' parent command with subcommands
+	addCmd := &cobra.Command{
+		Use:   "add",
+		Short: "Add components from git repositories",
+		Long: `Add components (skills, agents, commands) from git repositories.
+
+This command provides a modern interface for downloading and installing AI components
+from any git repository (GitHub, GitLab, Bitbucket, or private repositories).
+
+REPOSITORY URL FORMATS:
+  GitHub shorthand:     owner/repo
+  Full GitHub URL:      https://github.com/owner/repo
+  GitLab URL:           https://gitlab.com/owner/repo
+  SSH URL:              git@github.com:owner/repo.git
+  Local path:           /path/to/local/repo`,
+	}
+
+	// Add subcommands to 'add' command
+	addCmd.AddCommand(&cobra.Command{
+		Use:   "skill <repository-url> <skill-name>",
+		Short: "Download a skill from a git repository",
+		Long: `Download and install a skill from a git repository to your local agents directory.
+
+This command fetches a skill from any git repository (GitHub, GitLab, Bitbucket, or private)
+and installs it to ~/.agents/skills/<skill-name>. The skill can include multiple components
+and will be automatically detected if it contains a SKILL.md file.
+
+EXAMPLES:
+  # Download from GitHub using shorthand
+  agent-smith add skill openai/cookbook gpt-skill
+
+  # Download using full URL
+  agent-smith add skill https://github.com/example/repo my-skill
+
+  # Download from local repository
+  agent-smith add skill /path/to/local/skill local-skill`,
+		Args: cobra.ExactArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleAddSkill(args[0], args[1])
+		},
+	})
+
+	addCmd.AddCommand(&cobra.Command{
+		Use:   "agent <repository-url> <agent-name>",
+		Short: "Download an agent from a git repository",
+		Long: `Download and install an AI agent from a git repository to your local agents directory.
+
+This command fetches an agent from any git repository (GitHub, GitLab, Bitbucket, or private)
+and installs it to ~/.agents/agents/<agent-name>. The agent will be automatically detected
+based on path patterns and file extensions.
+
+EXAMPLES:
+  # Download from GitHub using shorthand
+  agent-smith add agent openai/assistant coding-agent
+
+  # Download using full URL
+  agent-smith add agent https://github.com/example/agent my-agent
+
+  # Download from local repository
+  agent-smith add agent /path/to/local/agent local-agent`,
+		Args: cobra.ExactArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleAddAgent(args[0], args[1])
+		},
+	})
+
+	addCmd.AddCommand(&cobra.Command{
+		Use:   "command <repository-url> <command-name>",
+		Short: "Download a command from a git repository",
+		Long: `Download and install a command-line tool from a git repository to your local agents directory.
+
+This command fetches a command from any git repository (GitHub, GitLab, Bitbucket, or private)
+and installs it to ~/.agents/commands/<command-name>. The command will be automatically detected
+based on path patterns and file extensions.
+
+EXAMPLES:
+  # Download from GitHub using shorthand
+  agent-smith add command cli-tools/formatter json-formatter
+
+  # Download using full URL
+  agent-smith add command https://github.com/example/tool my-tool
+
+  # Download from local repository
+  agent-smith add command /path/to/local/command local-cmd`,
+		Args: cobra.ExactArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleAddCommand(args[0], args[1])
+		},
+	})
+
+	addCmd.AddCommand(&cobra.Command{
+		Use:   "all <repository-url>",
+		Short: "Download all components from a git repository",
+		Long: `Download and install all components (skills, agents, and commands) from a git repository.
+
+This command fetches a repository and automatically detects all AI components
+within it, then downloads them to their respective directories. Components are
+detected based on the presence of SKILL.md files or path patterns.
+
+EXAMPLES:
+  # Download all components from GitHub using shorthand
+  agent-smith add all openai/cookbook
+
+  # Download using full URL
+  agent-smith add all https://github.com/example/monorepo
+
+  # Download from local repository
+  agent-smith add all /path/to/local/repo`,
+		Args: cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleAddAll(args[0])
+		},
+	})
+
+	rootCmd.AddCommand(addCmd)
+
+	// Add legacy commands as Cobra commands for backward compatibility
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "add-skill <repository-url> <skill-name>",
-		Short: "Download a skill from a git repository",
+		Short: "Download a skill from a git repository (legacy)",
 		Long: `Download and install a skill from a git repository to your local agents directory.
 
 This command fetches a skill from any git repository (GitHub, GitLab, Bitbucket, or private)
@@ -69,7 +185,7 @@ The skill will be available for execution with 'agent-smith npx' or 'agent-smith
 
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "add-agent <repository-url> <agent-name>",
-		Short: "Download an agent from a git repository",
+		Short: "Download an agent from a git repository (legacy)",
 		Long: `Download and install an AI agent from a git repository to your local agents directory.
 
 This command fetches an agent from any git repository (GitHub, GitLab, Bitbucket, or private)
@@ -102,7 +218,7 @@ The agent will be available for execution with 'agent-smith npx' or 'agent-smith
 
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "add-command <repository-url> <command-name>",
-		Short: "Download a command from a git repository",
+		Short: "Download a command from a git repository (legacy)",
 		Long: `Download and install a command-line tool from a git repository to your local agents directory.
 
 This command fetches a command from any git repository (GitHub, GitLab, Bitbucket, or private)
@@ -135,7 +251,7 @@ The command will be available for execution with 'agent-smith npx' or 'agent-smi
 
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "add-all <repository-url>",
-		Short: "Download all components from a git repository",
+		Short: "Download all components from a git repository (legacy)",
 		Long: `Download and install all components (skills, agents, and commands) from a git repository.
 
 This command fetches a repository and automatically detects all AI components
