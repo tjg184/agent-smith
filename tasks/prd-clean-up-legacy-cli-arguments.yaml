@@ -1,0 +1,48 @@
+tasks:
+  - title: "Story-001: As a developer, I want to remove the add-skill legacy command so that the codebase only supports the modern 'add skill' syntax - Remove add-skill command definition from cmd/root.go (lines 152-184), Update any internal references or documentation, Ensure tests are updated to use modern syntax"
+    completed: false
+    parallel_group: 0
+  
+  - title: "Story-002: As a developer, I want to remove the add-agent legacy command so that the codebase only supports the modern 'add agent' syntax - Remove add-agent command definition from cmd/root.go (lines 186-217), Update any internal references or documentation, Ensure tests are updated to use modern syntax"
+    completed: false
+    parallel_group: 0
+  
+  - title: "Story-003: As a developer, I want to remove the add-command legacy command so that the codebase only supports the modern 'add command' syntax - Remove add-command command definition from cmd/root.go (lines 219-250), Update any internal references or documentation, Ensure tests are updated to use modern syntax"
+    completed: false
+    parallel_group: 0
+  
+  - title: "Story-004: As a developer, I want to remove the add-all legacy command so that the codebase only supports the modern 'add all' syntax - Remove add-all command definition from cmd/root.go (lines 252-283), Update any internal references or documentation, Ensure tests are updated to use modern syntax"
+    completed: false
+    parallel_group: 0
+  
+  - title: "Story-005: As a developer, I want to remove the link-legacy deprecated command to eliminate hidden legacy code paths - Remove link-legacy command definition from cmd/root.go (lines 645-706), Verify modern link subcommands cover all functionality, Ensure no internal code references link-legacy"
+    completed: false
+    parallel_group: 1
+  
+  - title: "Story-006: As a developer, I want to remove the auto-link standalone command so that users must use 'link auto' instead - Remove auto-link command definition from cmd/root.go (lines 589-596), Verify 'link auto' provides equivalent functionality, Update any documentation or examples"
+    completed: false
+    parallel_group: 1
+  
+  - title: "Story-007: As a developer, I want to remove the list-links standalone command so that users must use 'link list' instead - Remove list-links command definition from cmd/root.go (lines 598-618), Verify 'link list' provides equivalent functionality, Update any documentation or examples"
+    completed: false
+    parallel_group: 1
+  
+  - title: "Story-008: As a developer, I want to remove the link-status standalone command so that users must use 'link status' instead - Remove link-status command definition from cmd/root.go (lines 620-642), Verify 'link status' provides equivalent functionality, Update any documentation or examples"
+    completed: false
+    parallel_group: 1
+  
+  - title: "Story-009: As a developer, I want to remove legacy metadata file support to simplify the codebase and standardize on lock files - Remove internal/metadata/legacy.go file entirely, Remove any imports or references to legacy metadata handling, Update migration documentation to indicate legacy format is no longer supported"
+    completed: false
+    parallel_group: 1
+  
+  - title: "Story-010: As a maintainer, I want to update all documentation to remove references to legacy commands - Update README.md to remove legacy command examples, Update any inline code comments referencing old commands, Verify no documentation references deprecated commands, Add migration notes to CHANGELOG.md"
+    completed: false
+    parallel_group: 2
+  
+  - title: "Story-011: As a maintainer, I want comprehensive tests validating all legacy commands are removed - Add tests confirming removed commands return appropriate errors, Verify modern command alternatives work correctly, Test that lock file format is the only supported metadata format, Ensure no regression in modern command functionality"
+    completed: false
+    parallel_group: 2
+  
+  - title: "Story-012: As a maintainer, I want to update the version number and CHANGELOG to reflect breaking changes - Bump major version number to indicate breaking changes, Add detailed CHANGELOG entry documenting all removed commands, Include migration instructions in release notes, Update version constant in main.go"
+    completed: false
+    parallel_group: 2
