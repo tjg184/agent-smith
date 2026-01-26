@@ -16,7 +16,7 @@ It provides npm-like functionality for AI components, allowing you to:
 - Download and install agents, skills, and commands
 - Execute components without installation (npx-like)
 - Update and manage installed components
-- Link components to opencode configuration`,
+- Link components to supported targets (OpenCode, Claude Code, etc.)`,
 }
 
 func Execute() {
@@ -279,8 +279,8 @@ EXAMPLES:
 
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "list-links",
-		Short: "List all components linked to opencode",
-		Long: `List all components (skills, agents, and commands) currently linked to opencode.
+		Short: "List all linked components across all targets",
+		Long: `List all components (skills, agents, and commands) currently linked to detected targets.
 
 This command shows the status of each linked component, including whether it's
 a symlink or copied directory, and whether the link is valid or broken.
@@ -325,8 +325,8 @@ The output shows:
 
 	unlinkCmd := &cobra.Command{
 		Use:   "unlink <type|all> [name]",
-		Short: "Remove a linked component or all components from opencode",
-		Long: `Remove a specific linked component or all linked components from opencode.
+		Short: "Remove a linked component or all components from targets",
+		Long: `Remove a specific linked component or all linked components from detected targets.
 
 USAGE:
   agent-smith unlink <type> <name>  - Unlink a specific component
