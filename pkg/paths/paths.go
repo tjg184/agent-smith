@@ -19,13 +19,6 @@ const (
 	CommandsSubDir = "commands"
 )
 
-// Metadata file patterns
-const (
-	SkillMetadataFile   = ".skill-metadata.json"
-	AgentMetadataFile   = ".agent-metadata.json"
-	CommandMetadataFile = ".command-metadata.json"
-)
-
 // Lock file patterns
 const (
 	SkillLockFile   = ".skill-lock.json"
@@ -124,28 +117,6 @@ func GetDetectionConfigPath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(configDir, DetectionConfigFile), nil
-}
-
-// GetComponentMetadataPath returns the full path to a component's metadata file
-func GetComponentMetadataPath(baseDir, componentType, componentName string) string {
-	var metadataFile string
-	var subDir string
-
-	switch componentType {
-	case "skills":
-		subDir = SkillsSubDir
-		metadataFile = SkillMetadataFile
-	case "agents":
-		subDir = AgentsSubDir
-		metadataFile = AgentMetadataFile
-	case "commands":
-		subDir = CommandsSubDir
-		metadataFile = CommandMetadataFile
-	default:
-		return ""
-	}
-
-	return filepath.Join(baseDir, subDir, componentName, metadataFile)
 }
 
 // GetComponentLockPath returns the full path to a component type's lock file

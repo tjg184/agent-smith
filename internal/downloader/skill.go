@@ -141,49 +141,7 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		}
 	}
 
-	var commitHash string
-	var repo gitpkg.Repository
-
-	// Handle metadata differently for local vs remote repositories
-	if sd.detector.DetectProvider(repoURL) == "local" {
-		// For local repositories, open the repository directly
-		repo, err = gitpkg.OpenRepository(sd.cloner, fullURL)
-		if err != nil {
-			// Non-fatal, continue without git metadata
-			log.Printf("Warning: failed to open local repository for metadata: %v", err)
-		}
-	} else {
-		// For remote repositories, clone to get git history for metadata
-		repo, err = gitpkg.CloneBareShallow(sd.cloner, skillDir+".git", fullURL)
-		if err != nil {
-			// Non-fatal, continue without git metadata
-			log.Printf("Warning: failed to clone repository for metadata: %v", err)
-		}
-	}
-
-	if repo != nil {
-		if hash, err := gitpkg.GetCommitHash(repo); err == nil {
-			commitHash = hash
-		}
-	}
-
-	// Create metadata
-	metadata := map[string]interface{}{
-		"name":       skillName,
-		"source":     fullURL,
-		"commit":     commitHash,
-		"downloaded": "now",
-		"components": len(skillComponents),
-		"detection":  "recursive",
-	}
-
-	// Save legacy metadata file for backward compatibility
-	metadataFile := filepath.Join(skillDir, ".skill-metadata.json")
-	if err := sd.saveMetadata(metadataFile, metadata); err != nil {
-		log.Printf("Warning: failed to save metadata: %v", err)
-	}
-
-	// Save to npx add-skill compatible lock file
+	// Save to lock file
 	var sourceType string
 	if sd.detector.DetectProvider(repoURL) == "local" {
 		sourceType = "local"
@@ -238,7 +196,7 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
-	var repo gitpkg.Repository
+	// Clone repository for local or remote
 	var err error
 
 	// Handle local vs remote repositories
@@ -249,45 +207,16 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 			os.RemoveAll(skillDir)
 			return fmt.Errorf("failed to copy local repository: %w", err)
 		}
-
-		// Open local repository for metadata
-		repo, err = gitpkg.OpenRepository(sd.cloner, fullURL)
-		if err != nil {
-			log.Printf("Warning: failed to open local repository for metadata: %v", err)
-		}
 	} else {
 		// For remote repositories, clone directly
-		repo, err = gitpkg.CloneShallow(sd.cloner, skillDir, fullURL)
+		_, err = gitpkg.CloneShallow(sd.cloner, skillDir, fullURL)
 		if err != nil {
 			os.RemoveAll(skillDir)
 			return fmt.Errorf("failed to clone repository: %w", err)
 		}
 	}
 
-	// Get repository info for metadata
-	var commitHash string
-	if repo != nil {
-		if hash, err := gitpkg.GetCommitHash(repo); err == nil {
-			commitHash = hash
-		}
-	}
-
-	// Create metadata
-	metadata := map[string]interface{}{
-		"name":       skillName,
-		"source":     fullURL,
-		"commit":     commitHash,
-		"downloaded": "now",
-		"detection":  "direct",
-	}
-
-	// Save legacy metadata file for backward compatibility
-	metadataFile := filepath.Join(skillDir, ".skill-metadata.json")
-	if err := sd.saveMetadata(metadataFile, metadata); err != nil {
-		log.Printf("Warning: failed to save metadata: %v", err)
-	}
-
-	// Save to npx add-skill compatible lock file
+	// Save to lock file
 	sourceType := "github"
 	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
@@ -326,10 +255,6 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 	}
 
 	return nil
-}
-
-func (sd *SkillDownloader) saveMetadata(filePath string, metadata map[string]interface{}) error {
-	return metadataPkg.SaveLegacyMetadata(filePath, metadata)
 }
 
 // saveLockFile saves component lock entry in npx add-skill compatible format
@@ -398,50 +323,7 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 		return fmt.Errorf("failed to copy skill files: %w", err)
 	}
 
-	var commitHash string
-	var repo gitpkg.Repository
-
-	// Handle metadata differently for local vs remote repositories
-	if sd.detector.DetectProvider(repoURL) == "local" {
-		// For local repositories, open the repository directly
-		repo, err = gitpkg.OpenRepository(sd.cloner, repoPath)
-		if err != nil {
-			// Non-fatal, continue without git metadata
-			log.Printf("Warning: failed to open local repository for metadata: %v", err)
-		}
-	} else {
-		// For remote repositories, use the already-cloned repository at repoPath
-		repo, err = gitpkg.OpenRepository(sd.cloner, repoPath)
-		if err != nil {
-			// Non-fatal, continue without git metadata
-			log.Printf("Warning: failed to open repository for metadata: %v", err)
-		}
-	}
-
-	if repo != nil {
-		if hash, err := gitpkg.GetCommitHash(repo); err == nil {
-			commitHash = hash
-		}
-	}
-
-	// Create metadata
-	metadata := map[string]interface{}{
-		"name":         skillName,
-		"source":       fullURL,
-		"commit":       commitHash,
-		"downloaded":   "now",
-		"components":   1,
-		"detection":    "single",
-		"originalPath": targetComponent.FilePath,
-	}
-
-	// Save legacy metadata file for backward compatibility
-	metadataFile := filepath.Join(skillDir, ".skill-metadata.json")
-	if err := sd.saveMetadata(metadataFile, metadata); err != nil {
-		log.Printf("Warning: failed to save metadata: %v", err)
-	}
-
-	// Save to npx add-skill compatible lock file
+	// Save to lock file
 	var sourceType string
 	if sd.detector.DetectProvider(repoURL) == "local" {
 		sourceType = "local"

@@ -101,47 +101,6 @@ func TestGetDetectionConfigPath(t *testing.T) {
 	}
 }
 
-func TestGetComponentMetadataPath(t *testing.T) {
-	tests := []struct {
-		name          string
-		baseDir       string
-		componentType string
-		componentName string
-		want          string
-	}{
-		{
-			name:          "skill metadata",
-			baseDir:       "/test/base",
-			componentType: "skills",
-			componentName: "test-skill",
-			want:          filepath.Join("/test/base", "skills", "test-skill", ".skill-metadata.json"),
-		},
-		{
-			name:          "agent metadata",
-			baseDir:       "/test/base",
-			componentType: "agents",
-			componentName: "test-agent",
-			want:          filepath.Join("/test/base", "agents", "test-agent", ".agent-metadata.json"),
-		},
-		{
-			name:          "command metadata",
-			baseDir:       "/test/base",
-			componentType: "commands",
-			componentName: "test-command",
-			want:          filepath.Join("/test/base", "commands", "test-command", ".command-metadata.json"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := GetComponentMetadataPath(tt.baseDir, tt.componentType, tt.componentName)
-			if got != tt.want {
-				t.Errorf("GetComponentMetadataPath() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestGetComponentLockPath(t *testing.T) {
 	tests := []struct {
 		name          string

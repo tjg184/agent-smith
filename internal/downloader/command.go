@@ -176,42 +176,7 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		}
 	}
 
-	// Clone the repository again to get proper git history for metadata
-	repo, err := git.PlainClone(commandDir+".git", true, &git.CloneOptions{
-		URL:           fullURL,
-		Depth:         1,
-		ReferenceName: plumbing.HEAD,
-		SingleBranch:  true,
-	})
-	if err != nil {
-		// Non-fatal, continue without git metadata
-		log.Printf("Warning: failed to clone repository for metadata: %v", err)
-	}
-
-	var commitHash string
-	if repo != nil {
-		if ref, err := repo.Head(); err == nil {
-			commitHash = ref.Hash().String()
-		}
-	}
-
-	// Create metadata
-	metadata := map[string]interface{}{
-		"name":       commandName,
-		"source":     fullURL,
-		"commit":     commitHash,
-		"downloaded": "now",
-		"components": len(commandComponents),
-		"detection":  "recursive",
-	}
-
-	// Save legacy metadata file for backward compatibility
-	legacyMetadataFile := filepath.Join(commandDir, ".command-metadata.json")
-	if err := cd.saveMetadata(legacyMetadataFile, metadata); err != nil {
-		log.Printf("Warning: failed to save legacy metadata: %v", err)
-	}
-
-	// Save to npx add-skill compatible lock file
+	// Save to lock file
 	sourceType := "github"
 	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
@@ -251,7 +216,7 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 	}
 
 	// Clone repository directly
-	repo, err := git.PlainClone(commandDir, false, &git.CloneOptions{
+	_, err := git.PlainClone(commandDir, false, &git.CloneOptions{
 		URL:           fullURL,
 		Depth:         1,
 		ReferenceName: plumbing.HEAD,
@@ -262,28 +227,7 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
 
-	// Get repository info for metadata
-	var commitHash string
-	if ref, err := repo.Head(); err == nil {
-		commitHash = ref.Hash().String()
-	}
-
-	// Create metadata
-	metadata := map[string]interface{}{
-		"name":       commandName,
-		"source":     fullURL,
-		"commit":     commitHash,
-		"downloaded": "now",
-		"detection":  "direct",
-	}
-
-	// Save legacy metadata file for backward compatibility
-	legacyMetadataFile := filepath.Join(commandDir, ".command-metadata.json")
-	if err := cd.saveMetadata(legacyMetadataFile, metadata); err != nil {
-		log.Printf("Warning: failed to save legacy metadata: %v", err)
-	}
-
-	// Save to npx add-skill compatible lock file
+	// Save to lock file
 	sourceType := "github"
 	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
@@ -312,10 +256,6 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 	}
 
 	return nil
-}
-
-func (cd *CommandDownloader) saveMetadata(filePath string, metadata map[string]interface{}) error {
-	return metadataPkg.SaveLegacyMetadata(filePath, metadata)
 }
 
 // saveLockFile saves command lock entry in npx add-skill compatible format
@@ -384,52 +324,7 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 		return fmt.Errorf("failed to copy command files: %w", err)
 	}
 
-	var commitHash string
-	var repo *git.Repository
-
-	// Handle metadata differently for local vs remote repositories
-	if cd.detector.DetectProvider(repoURL) == "local" {
-		// For local repositories, open the repository directly
-		var err error
-		repo, err = git.PlainOpen(fullURL)
-		if err != nil {
-			// Non-fatal, continue without git metadata
-			log.Printf("Warning: failed to open local repository for metadata: %v", err)
-		}
-	} else {
-		// For remote repositories, use the already-cloned repository at repoPath
-		var err error
-		repo, err = git.PlainOpen(repoPath)
-		if err != nil {
-			// Non-fatal, continue without git metadata
-			log.Printf("Warning: failed to open repository for metadata: %v", err)
-		}
-	}
-
-	if repo != nil {
-		if ref, err := repo.Head(); err == nil {
-			commitHash = ref.Hash().String()
-		}
-	}
-
-	// Create metadata
-	metadata := map[string]interface{}{
-		"name":         commandName,
-		"source":       fullURL,
-		"commit":       commitHash,
-		"downloaded":   "now",
-		"components":   1,
-		"detection":    "single",
-		"originalPath": targetComponent.FilePath,
-	}
-
-	// Save legacy metadata file for backward compatibility
-	legacyMetadataFile := filepath.Join(commandDir, ".command-metadata.json")
-	if err := cd.saveMetadata(legacyMetadataFile, metadata); err != nil {
-		log.Printf("Warning: failed to save legacy metadata: %v", err)
-	}
-
-	// Save to npx add-skill compatible lock file
+	// Save to lock file
 	sourceType := "github"
 	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"

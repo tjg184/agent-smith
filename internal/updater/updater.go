@@ -33,25 +33,25 @@ func NewUpdateDetector() *UpdateDetector {
 	}
 }
 
-// LoadMetadata loads component metadata from lock files or legacy metadata files
+// LoadMetadata loads component metadata from lock files only
 func (ud *UpdateDetector) LoadMetadata(componentType, componentName string) (*models.ComponentMetadata, error) {
 	return ud.loadMetadata(componentType, componentName)
 }
 
-// loadMetadata loads component metadata from lock files or legacy metadata files
+// loadMetadata loads component metadata from lock files only
 func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*models.ComponentMetadata, error) {
-	// First try to load from npx add-skill compatible lock files
-	if entry, err := metadataPkg.LoadLockFileEntry(ud.baseDir, componentType, componentName); err == nil {
-		// Convert to legacy format for compatibility
-		return &models.ComponentMetadata{
-			Name:   componentName,
-			Source: entry.SourceUrl,
-			Commit: entry.SkillFolderHash,
-		}, nil
+	// Load from lock files
+	entry, err := metadataPkg.LoadLockFileEntry(ud.baseDir, componentType, componentName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load lock file entry: %w", err)
 	}
 
-	// Fall back to legacy metadata files
-	return metadataPkg.LoadLegacyMetadata(ud.baseDir, componentType, componentName)
+	// Convert to legacy format for compatibility
+	return &models.ComponentMetadata{
+		Name:   componentName,
+		Source: entry.SourceUrl,
+		Commit: entry.SkillFolderHash,
+	}, nil
 }
 
 // loadFromLockFile loads component metadata from lock files
