@@ -9,6 +9,7 @@ import (
 
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/fileutil"
+	"github.com/tgaines/agent-smith/internal/formatter"
 	gitpkg "github.com/tgaines/agent-smith/internal/git"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
@@ -17,9 +18,10 @@ import (
 
 // SkillDownloader handles downloading skill components
 type SkillDownloader struct {
-	baseDir  string
-	detector *detector.RepositoryDetector
-	cloner   gitpkg.Cloner
+	baseDir   string
+	detector  *detector.RepositoryDetector
+	cloner    gitpkg.Cloner
+	formatter *formatter.Formatter
 }
 
 // NewSkillDownloader creates a new SkillDownloader instance
@@ -35,9 +37,10 @@ func NewSkillDownloader() *SkillDownloader {
 	}
 
 	return &SkillDownloader{
-		baseDir:  baseDir,
-		detector: detector.NewRepositoryDetector(),
-		cloner:   gitpkg.NewDefaultCloner(),
+		baseDir:   baseDir,
+		detector:  detector.NewRepositoryDetector(),
+		cloner:    gitpkg.NewDefaultCloner(),
+		formatter: formatter.New(),
 	}
 }
 
@@ -136,7 +139,7 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 			// Copy component files (non-recursive) using FilePath
 			err = fileutil.CopyComponentFiles(repoPath, component, componentDir)
 			if err != nil {
-				log.Printf("Warning: failed to copy skill %s: %v", component.Name, err)
+				sd.formatter.Warning("failed to copy skill %s: %v", component.Name, err)
 			}
 		}
 	}
@@ -172,7 +175,7 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 	}
 
 	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, len(skillComponents), "recursive", ""); err != nil {
-		log.Printf("Warning: failed to save lock file: %v", err)
+		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
 	// Clean up git clone only for remote repositories
@@ -182,7 +185,7 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		}
 	}
 
-	fmt.Printf("✓ Installed skill: %s\n", skillName)
+	sd.formatter.Success("skill", skillName)
 
 	return nil
 }
@@ -241,14 +244,14 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 	}
 
 	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, 1, "direct", ""); err != nil {
-		log.Printf("Warning: failed to save lock file: %v", err)
+		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
 	// Create SKILL.md if it doesn't exist
 	skillFile := filepath.Join(skillDir, "SKILL.md")
 	if _, err := os.Stat(skillFile); os.IsNotExist(err) {
 		if err := sd.createSkillFile(skillFile, skillName, fullURL); err != nil {
-			log.Printf("Warning: failed to create SKILL.md: %v", err)
+			sd.formatter.Warning("failed to create SKILL.md: %v", err)
 		}
 	}
 
@@ -352,7 +355,7 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 	}
 
 	if err := sd.saveLockFile(destFolderName, fullURL, sourceType, fullURL, folderHash, 1, "single", targetComponent.FilePath); err != nil {
-		log.Printf("Warning: failed to save lock file: %v", err)
+		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
 	// Clean up git clone only for remote repositories
@@ -362,7 +365,7 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 		}
 	}
 
-	fmt.Printf("✓ Installed skill: %s\n", skillName)
+	sd.formatter.Success("skill", skillName)
 
 	return nil
 }

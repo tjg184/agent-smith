@@ -3,12 +3,12 @@ package downloader
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/schollz/progressbar/v3"
 	"github.com/tgaines/agent-smith/internal/detector"
+	"github.com/tgaines/agent-smith/internal/formatter"
 	"github.com/tgaines/agent-smith/internal/models"
 )
 
@@ -18,6 +18,7 @@ type BulkDownloader struct {
 	agentDownloader   *AgentDownloader
 	commandDownloader *CommandDownloader
 	detector          *detector.RepositoryDetector
+	formatter         *formatter.Formatter
 }
 
 // NewBulkDownloader creates a new BulkDownloader instance
@@ -27,6 +28,7 @@ func NewBulkDownloader() *BulkDownloader {
 		agentDownloader:   NewAgentDownloader(),
 		commandDownloader: NewCommandDownloader(),
 		detector:          detector.NewRepositoryDetector(),
+		formatter:         formatter.New(),
 	}
 }
 
@@ -68,14 +70,6 @@ func (bd *BulkDownloader) AddAll(repoURL string) error {
 	return bd.processComponents(components, fullURL, repoURL, tempDir)
 }
 
-// InstallResult represents the result of a single component installation
-type InstallResult struct {
-	Name    string
-	Type    string
-	Success bool
-	Error   string
-}
-
 // processComponents handles downloading components from the repository
 func (bd *BulkDownloader) processComponents(components []models.DetectedComponent, fullURL, repoURL, tempDir string) error {
 	// Group components by type
@@ -111,11 +105,11 @@ func (bd *BulkDownloader) processComponents(components []models.DetectedComponen
 		}),
 	)
 
-	var results []InstallResult
+	var results []formatter.InstallResult
 
 	// Download skills using optimized method with shared repository
 	for _, comp := range skillComponents {
-		result := InstallResult{
+		result := formatter.InstallResult{
 			Name:    comp.Name,
 			Type:    "skill",
 			Success: true,
@@ -130,7 +124,7 @@ func (bd *BulkDownloader) processComponents(components []models.DetectedComponen
 
 	// Download agents using optimized method with shared repository
 	for _, comp := range agentComponents {
-		result := InstallResult{
+		result := formatter.InstallResult{
 			Name:    comp.Name,
 			Type:    "agent",
 			Success: true,
@@ -145,7 +139,7 @@ func (bd *BulkDownloader) processComponents(components []models.DetectedComponen
 
 	// Download commands using optimized method with shared repository
 	for _, comp := range commandComponents {
-		result := InstallResult{
+		result := formatter.InstallResult{
 			Name:    comp.Name,
 			Type:    "command",
 			Success: true,
@@ -162,80 +156,7 @@ func (bd *BulkDownloader) processComponents(components []models.DetectedComponen
 	bar.Finish()
 
 	// Display summary table
-	bd.displaySummaryTable(results, len(skillComponents), len(agentComponents), len(commandComponents))
+	bd.formatter.DisplaySummaryTable(results, len(skillComponents), len(agentComponents), len(commandComponents))
 
 	return nil
-}
-
-// displaySummaryTable shows a formatted table of installation results
-func (bd *BulkDownloader) displaySummaryTable(results []InstallResult, skillCount, agentCount, commandCount int) {
-	fmt.Println("\n" + strings.Repeat("=", 80))
-	fmt.Println("Installation Summary")
-	fmt.Println(strings.Repeat("=", 80))
-
-	// Group results by type
-	skillResults := []InstallResult{}
-	agentResults := []InstallResult{}
-	commandResults := []InstallResult{}
-
-	for _, result := range results {
-		switch result.Type {
-		case "skill":
-			skillResults = append(skillResults, result)
-		case "agent":
-			agentResults = append(agentResults, result)
-		case "command":
-			commandResults = append(commandResults, result)
-		}
-	}
-
-	// Display each type section
-	if len(skillResults) > 0 {
-		bd.displayTypeSection("Skills", skillResults)
-	}
-	if len(agentResults) > 0 {
-		bd.displayTypeSection("Agents", agentResults)
-	}
-	if len(commandResults) > 0 {
-		bd.displayTypeSection("Commands", commandResults)
-	}
-
-	// Calculate summary statistics
-	successCount := 0
-	failureCount := 0
-	for _, result := range results {
-		if result.Success {
-			successCount++
-		} else {
-			failureCount++
-		}
-	}
-
-	// Display summary
-	fmt.Println("\n" + strings.Repeat("-", 80))
-	fmt.Printf("Successfully installed: %d/%d components\n", successCount, len(results))
-	if failureCount > 0 {
-		fmt.Printf("Failed: %d components\n", failureCount)
-	}
-	fmt.Println(strings.Repeat("=", 80))
-}
-
-// displayTypeSection displays a section of results for a specific component type
-func (bd *BulkDownloader) displayTypeSection(typeName string, results []InstallResult) {
-	fmt.Printf("\n%s:\n", typeName)
-	fmt.Println(strings.Repeat("-", 80))
-
-	for _, result := range results {
-		status := "✓"
-		statusText := "Success"
-		if !result.Success {
-			status = "✗"
-			statusText = "Failed"
-		}
-
-		fmt.Printf("  %s  %-40s  %s\n", status, result.Name, statusText)
-		if !result.Success && result.Error != "" {
-			fmt.Printf("      Error: %s\n", result.Error)
-		}
-	}
 }
