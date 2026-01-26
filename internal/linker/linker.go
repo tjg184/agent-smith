@@ -15,39 +15,41 @@ import (
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
 
-// ComponentLinker handles linking components to a configured target
+// ComponentLinker handles linking components to configured targets
 type ComponentLinker struct {
 	agentsDir string
-	target    config.Target
+	targets   []config.Target
 	detector  *detector.RepositoryDetector
 }
 
 // NewComponentLinker creates a new ComponentLinker with dependency injection
-func NewComponentLinker(agentsDir string, target config.Target, det *detector.RepositoryDetector) (*ComponentLinker, error) {
+func NewComponentLinker(agentsDir string, targets []config.Target, det *detector.RepositoryDetector) (*ComponentLinker, error) {
 	// Validate inputs
 	if agentsDir == "" {
 		return nil, fmt.Errorf("agentsDir cannot be empty")
 	}
-	if target == nil {
-		return nil, fmt.Errorf("target cannot be nil")
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("at least one target must be provided")
 	}
 	if det == nil {
 		return nil, fmt.Errorf("detector cannot be nil")
 	}
 
-	// Create target base directory if it doesn't exist
-	targetDir, err := target.GetBaseDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get target base directory: %w", err)
-	}
+	// Create target base directories if they don't exist
+	for _, target := range targets {
+		targetDir, err := target.GetBaseDir()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get target base directory: %w", err)
+		}
 
-	if err := fileutil.CreateDirectoryWithPermissions(targetDir); err != nil {
-		return nil, fmt.Errorf("failed to create target directory: %w", err)
+		if err := fileutil.CreateDirectoryWithPermissions(targetDir); err != nil {
+			return nil, fmt.Errorf("failed to create target directory: %w", err)
+		}
 	}
 
 	return &ComponentLinker{
 		agentsDir: agentsDir,
-		target:    target,
+		targets:   targets,
 		detector:  det,
 	}, nil
 }
@@ -94,16 +96,9 @@ func (cl *ComponentLinker) copyFile(src, dst string) error {
 	return fileutil.CopyFile(src, dst)
 }
 
-// LinkComponent links a single component to the configured target
+// LinkComponent links a single component to all configured targets
 func (cl *ComponentLinker) LinkComponent(componentType, componentName string) error {
 	srcDir := filepath.Join(cl.agentsDir, componentType, componentName)
-
-	// Get destination directory from target
-	componentDir, err := cl.target.GetComponentDir(componentType)
-	if err != nil {
-		return fmt.Errorf("failed to get target component directory: %w", err)
-	}
-	dstDir := filepath.Join(componentDir, componentName)
 
 	// Check if source component exists
 	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
@@ -114,20 +109,49 @@ func (cl *ComponentLinker) LinkComponent(componentType, componentName string) er
 	metadata := cl.loadComponentMetadata(componentType, componentName)
 	_ = metadata // Keep metadata loading for potential future use
 
-	// Create destination directory
-	if err := fileutil.CreateDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
-		return fmt.Errorf("failed to create destination directory: %w", err)
+	// Link to all configured targets
+	var errors []string
+	successCount := 0
+
+	for _, target := range cl.targets {
+		// Get destination directory from target
+		componentDir, err := target.GetComponentDir(componentType)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("failed to get target component directory for %s: %v", target.GetName(), err))
+			continue
+		}
+		dstDir := filepath.Join(componentDir, componentName)
+
+		// Create destination directory
+		if err := fileutil.CreateDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
+			errors = append(errors, fmt.Sprintf("failed to create destination directory for %s: %v", target.GetName(), err))
+			continue
+		}
+
+		// Create symlink or copy
+		if err := cl.createSymlink(srcDir, dstDir); err != nil {
+			errors = append(errors, fmt.Sprintf("failed to link component to %s: %v", target.GetName(), err))
+			continue
+		}
+
+		targetName := target.GetName()
+		fmt.Printf("Successfully linked %s '%s' to %s\n", componentType, componentName, targetName)
+		fmt.Printf("  Target: %s\n", dstDir)
+		successCount++
 	}
 
-	// Create symlink or copy
-	if err := cl.createSymlink(srcDir, dstDir); err != nil {
-		return fmt.Errorf("failed to link component: %w", err)
+	if successCount > 0 {
+		fmt.Printf("  Source: %s\n", srcDir)
 	}
 
-	targetName := cl.target.GetName()
-	fmt.Printf("Successfully linked %s '%s' to %s\n", componentType, componentName, targetName)
-	fmt.Printf("Source: %s\n", srcDir)
-	fmt.Printf("Target: %s\n", dstDir)
+	if len(errors) > 0 {
+		for _, errMsg := range errors {
+			fmt.Printf("Warning: %s\n", errMsg)
+		}
+		if successCount == 0 {
+			return fmt.Errorf("failed to link to any target")
+		}
+	}
 
 	return nil
 }
@@ -320,28 +344,36 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 				// Create the link from the sub-component directory
 				srcDir := subComponentDir
 
-				// Get destination directory from target
-				componentDir, err := cl.target.GetComponentDir(componentType)
-				if err != nil {
-					fmt.Printf("Warning: failed to get target component directory: %v\n", err)
-					continue
-				}
-				dstDir := filepath.Join(componentDir, linkName)
+				// Link to all configured targets
+				linkedToAnyTarget := false
+				for _, target := range cl.targets {
+					// Get destination directory from target
+					componentDir, err := target.GetComponentDir(componentType)
+					if err != nil {
+						fmt.Printf("Warning: failed to get target component directory for %s: %v\n", target.GetName(), err)
+						continue
+					}
+					dstDir := filepath.Join(componentDir, linkName)
 
-				// Create destination directory
-				if err := fileutil.CreateDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
-					fmt.Printf("Warning: failed to create destination directory for %s: %v\n", linkName, err)
-					continue
+					// Create destination directory
+					if err := fileutil.CreateDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
+						fmt.Printf("Warning: failed to create destination directory for %s in %s: %v\n", linkName, target.GetName(), err)
+						continue
+					}
+
+					// Create symlink
+					if err := cl.createSymlink(srcDir, dstDir); err != nil {
+						fmt.Printf("Warning: failed to link monorepo component %s to %s: %v\n", linkName, target.GetName(), err)
+						continue
+					}
+
+					linkedToAnyTarget = true
 				}
 
-				// Create symlink
-				if err := cl.createSymlink(srcDir, dstDir); err != nil {
-					fmt.Printf("Warning: failed to link monorepo component %s: %v\n", linkName, err)
-					continue
+				if linkedToAnyTarget {
+					fmt.Printf("Successfully linked monorepo component %s from %s\n", linkName, repoName)
+					linkedCount++
 				}
-
-				fmt.Printf("Successfully linked monorepo component %s from %s\n", linkName, repoName)
-				linkedCount++
 			}
 		}
 	}
@@ -415,305 +447,222 @@ func (cl *ComponentLinker) DetectAndLinkLocalRepositories() error {
 	return nil
 }
 
-// ListLinkedComponents lists all components linked to the configured target
+// ListLinkedComponents lists all components linked to the configured targets
 func (cl *ComponentLinker) ListLinkedComponents() error {
 	componentTypes := paths.GetComponentTypes()
 
-	allLinks := make(map[string][]LinkStatus)
-	totalCount := 0
-	validCount := 0
-	brokenCount := 0
+	// Loop through each target and display links
+	for _, target := range cl.targets {
+		allLinks := make(map[string][]LinkStatus)
+		totalCount := 0
+		validCount := 0
+		brokenCount := 0
 
-	for _, componentType := range componentTypes {
-		componentDir, err := cl.target.GetComponentDir(componentType)
-		if err != nil {
-			return fmt.Errorf("failed to get target component directory: %w", err)
-		}
+		for _, componentType := range componentTypes {
+			componentDir, err := target.GetComponentDir(componentType)
+			if err != nil {
+				return fmt.Errorf("failed to get target component directory: %w", err)
+			}
 
-		// Check if directory exists
-		if _, err := os.Stat(componentDir); os.IsNotExist(err) {
-			allLinks[componentType] = []LinkStatus{}
-			continue
-		}
-
-		// Read directory entries
-		entries, err := os.ReadDir(componentDir)
-		if err != nil {
-			return fmt.Errorf("failed to read %s directory: %w", componentType, err)
-		}
-
-		links := []LinkStatus{}
-		for _, entry := range entries {
-			// Skip hidden files
-			if strings.HasPrefix(entry.Name(), ".") {
+			// Check if directory exists
+			if _, err := os.Stat(componentDir); os.IsNotExist(err) {
+				allLinks[componentType] = []LinkStatus{}
 				continue
 			}
 
-			fullPath := filepath.Join(componentDir, entry.Name())
-			linkType, target, valid := cl.analyzeLinkStatus(fullPath)
-
-			status := LinkStatus{
-				Name:       entry.Name(),
-				Type:       componentType,
-				LinkType:   linkType,
-				Target:     target,
-				Valid:      valid,
-				TargetPath: fullPath,
+			// Read directory entries
+			entries, err := os.ReadDir(componentDir)
+			if err != nil {
+				return fmt.Errorf("failed to read %s directory: %w", componentType, err)
 			}
 
-			links = append(links, status)
-			totalCount++
+			links := []LinkStatus{}
+			for _, entry := range entries {
+				// Skip hidden files
+				if strings.HasPrefix(entry.Name(), ".") {
+					continue
+				}
 
-			if valid {
-				validCount++
-			} else if linkType == "broken" {
-				brokenCount++
+				fullPath := filepath.Join(componentDir, entry.Name())
+				linkType, targetPath, valid := cl.analyzeLinkStatus(fullPath)
+
+				status := LinkStatus{
+					Name:       entry.Name(),
+					Type:       componentType,
+					LinkType:   linkType,
+					Target:     targetPath,
+					Valid:      valid,
+					TargetPath: fullPath,
+				}
+
+				links = append(links, status)
+				totalCount++
+
+				if valid {
+					validCount++
+				} else if linkType == "broken" {
+					brokenCount++
+				}
 			}
+
+			allLinks[componentType] = links
 		}
 
-		allLinks[componentType] = links
-	}
+		// Get target info for display
+		targetName := target.GetName()
+		targetDir, _ := target.GetBaseDir()
 
-	// Get target info for display
-	targetName := cl.target.GetName()
-	targetDir, _ := cl.target.GetBaseDir()
+		// Display results for this target
+		fmt.Printf("\n=== %s ===\n", strings.ToUpper(targetName))
 
-	// Display results
-	if totalCount == 0 {
-		fmt.Printf("No components are currently linked to %s.\n", targetName)
-		fmt.Printf("Link location: %s\n", targetDir)
-		return nil
-	}
-
-	// Display by type
-	for _, componentType := range componentTypes {
-		links := allLinks[componentType]
-		if len(links) == 0 {
+		if totalCount == 0 {
+			fmt.Printf("No components are currently linked to %s.\n", targetName)
+			fmt.Printf("Link location: %s\n", targetDir)
 			continue
 		}
 
-		// Capitalize first letter for display
-		displayType := strings.Title(componentType)
-		fmt.Printf("\n%s (%d):\n", displayType, len(links))
-
-		for _, link := range links {
-			var symbol, statusMsg string
-
-			switch link.LinkType {
-			case "symlink":
-				if link.Valid {
-					symbol = "✓"
-					statusMsg = fmt.Sprintf("→ %s", link.Target)
-				} else {
-					symbol = "✗"
-					statusMsg = "[broken link]"
-				}
-			case "copied":
-				symbol = "◆"
-				statusMsg = "[copied directory]"
-			case "broken":
-				symbol = "✗"
-				statusMsg = "[broken link]"
-			case "missing":
-				symbol = "?"
-				statusMsg = "[unknown state]"
-			default:
-				symbol = "?"
-				statusMsg = "[unknown]"
+		// Display by type
+		for _, componentType := range componentTypes {
+			links := allLinks[componentType]
+			if len(links) == 0 {
+				continue
 			}
 
-			fmt.Printf("  %s %s %s\n", symbol, link.Name, statusMsg)
-		}
-	}
+			// Capitalize first letter for display
+			displayType := strings.Title(componentType)
+			fmt.Printf("\n%s (%d):\n", displayType, len(links))
 
-	// Summary
-	fmt.Printf("\nTotal: %d components", totalCount)
-	if brokenCount > 0 {
-		fmt.Printf(" (%d valid, %d broken)", validCount, brokenCount)
+			for _, link := range links {
+				var symbol, statusMsg string
+
+				switch link.LinkType {
+				case "symlink":
+					if link.Valid {
+						symbol = "✓"
+						statusMsg = fmt.Sprintf("→ %s", link.Target)
+					} else {
+						symbol = "✗"
+						statusMsg = "[broken link]"
+					}
+				case "copied":
+					symbol = "◆"
+					statusMsg = "[copied directory]"
+				case "broken":
+					symbol = "✗"
+					statusMsg = "[broken link]"
+				case "missing":
+					symbol = "?"
+					statusMsg = "[unknown state]"
+				default:
+					symbol = "?"
+					statusMsg = "[unknown]"
+				}
+
+				fmt.Printf("  %s %s %s\n", symbol, link.Name, statusMsg)
+			}
+		}
+
+		// Summary
+		fmt.Printf("\nTotal: %d components", totalCount)
+		if brokenCount > 0 {
+			fmt.Printf(" (%d valid, %d broken)", validCount, brokenCount)
+		}
+		fmt.Println()
 	}
-	fmt.Println()
 
 	return nil
 }
 
-// UnlinkComponent removes a linked component from the configured target
+// UnlinkComponent removes a linked component from all configured targets
 func (cl *ComponentLinker) UnlinkComponent(componentType, componentName string) error {
 	// Validate component type
 	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
 		return fmt.Errorf("invalid component type: %s (must be skills, agents, or commands)", componentType)
 	}
 
-	componentDir, err := cl.target.GetComponentDir(componentType)
-	if err != nil {
-		return fmt.Errorf("failed to get target component directory: %w", err)
-	}
-	linkPath := filepath.Join(componentDir, componentName)
+	successCount := 0
+	var errors []string
 
-	targetName := cl.target.GetName()
-
-	// Check if link exists
-	if _, err := os.Lstat(linkPath); os.IsNotExist(err) {
-		return fmt.Errorf("component %s/%s is not linked to %s", componentType, componentName, targetName)
-	}
-
-	// Analyze what we're removing
-	linkType, target, _ := cl.analyzeLinkStatus(linkPath)
-
-	// For copied directories, ask for confirmation
-	if linkType == "copied" {
-		fmt.Printf("Warning: '%s' is a copied directory, not a symlink.\n", componentName)
-		fmt.Printf("This will permanently delete: %s\n", linkPath)
-		fmt.Print("Continue? [y/N]: ")
-
-		var response string
-		fmt.Scanln(&response)
-
-		if strings.ToLower(strings.TrimSpace(response)) != "y" {
-			fmt.Println("Unlink cancelled.")
-			return nil
-		}
-	}
-
-	// Remove the link or directory
-	if linkType == "copied" {
-		if err := os.RemoveAll(linkPath); err != nil {
-			return fmt.Errorf("failed to remove copied directory: %w", err)
-		}
-	} else {
-		// For symlinks and broken links
-		if err := os.Remove(linkPath); err != nil {
-			return fmt.Errorf("failed to remove link: %w", err)
-		}
-	}
-
-	fmt.Printf("Successfully unlinked %s '%s' from %s\n", componentType, componentName, targetName)
-
-	if linkType == "symlink" && target != "" {
-		fmt.Printf("Source still available at: %s\n", target)
-	}
-
-	return nil
-}
-
-// UnlinkComponentsByType removes all linked components of a specific type from the configured target
-func (cl *ComponentLinker) UnlinkComponentsByType(componentType string, force bool) error {
-	componentDir, err := cl.target.GetComponentDir(componentType)
-	if err != nil {
-		return fmt.Errorf("failed to get target component directory: %w", err)
-	}
-
-	if _, err := os.Stat(componentDir); os.IsNotExist(err) {
-		fmt.Printf("No linked %s found.\n", componentType)
-		return nil
-	}
-
-	// First, collect all symlinks (skip copied directories)
-	totalLinks := 0
-	copiedDirs := 0
-
-	entries, err := os.ReadDir(componentDir)
-	if err != nil {
-		return fmt.Errorf("failed to read %s directory: %w", componentType, err)
-	}
-
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), ".") {
-			continue
-		}
-
-		fullPath := filepath.Join(componentDir, entry.Name())
-		linkType, _, _ := cl.analyzeLinkStatus(fullPath)
-
-		if linkType == "copied" {
-			copiedDirs++
-			continue // Skip copied directories
-		}
-		totalLinks++
-	}
-
-	if totalLinks == 0 && copiedDirs == 0 {
-		fmt.Printf("No linked %s found.\n", componentType)
-		return nil
-	}
-
-	targetName := cl.target.GetName()
-
-	// Require force flag or confirmation
-	if !force {
-		if totalLinks > 0 {
-			fmt.Printf("This will unlink %d %s from %s", totalLinks, componentType, targetName)
-			fmt.Println()
-		}
-		if copiedDirs > 0 {
-			fmt.Printf("Note: %d copied directories will be skipped (not deleted)\n", copiedDirs)
-		}
-		if totalLinks == 0 {
-			fmt.Printf("No symlinked %s to unlink (only copied directories found).\n", componentType)
-			return nil
-		}
-		fmt.Print("Continue? [y/N]: ")
-
-		var response string
-		fmt.Scanln(&response)
-
-		if strings.ToLower(strings.TrimSpace(response)) != "y" {
-			fmt.Println("Unlink cancelled.")
-			return nil
-		}
-	}
-
-	// Remove all symlinks (skip copied directories)
-	removedCount := 0
-	skippedCount := 0
-	errorCount := 0
-
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), ".") {
-			continue
-		}
-
-		fullPath := filepath.Join(componentDir, entry.Name())
-		linkType, _, _ := cl.analyzeLinkStatus(fullPath)
-
-		// Skip copied directories - don't delete them
-		if linkType == "copied" {
-			skippedCount++
-			continue
-		}
-
-		// Remove symlinks and broken links
-		err := os.Remove(fullPath)
-
+	for _, target := range cl.targets {
+		componentDir, err := target.GetComponentDir(componentType)
 		if err != nil {
-			fmt.Printf("Warning: failed to unlink %s/%s: %v\n", componentType, entry.Name(), err)
-			errorCount++
+			errors = append(errors, fmt.Sprintf("failed to get target component directory for %s: %v", target.GetName(), err))
+			continue
+		}
+		linkPath := filepath.Join(componentDir, componentName)
+
+		targetName := target.GetName()
+
+		// Check if link exists
+		if _, err := os.Lstat(linkPath); os.IsNotExist(err) {
+			// Not an error, just skip this target
+			continue
+		}
+
+		// Analyze what we're removing
+		linkType, targetPath, _ := cl.analyzeLinkStatus(linkPath)
+
+		// For copied directories, ask for confirmation
+		if linkType == "copied" {
+			fmt.Printf("Warning: '%s' is a copied directory in %s, not a symlink.\n", componentName, targetName)
+			fmt.Printf("This will permanently delete: %s\n", linkPath)
+			fmt.Print("Continue? [y/N]: ")
+
+			var response string
+			fmt.Scanln(&response)
+
+			if strings.ToLower(strings.TrimSpace(response)) != "y" {
+				fmt.Printf("Unlink cancelled for %s.\n", targetName)
+				continue
+			}
+		}
+
+		// Remove the link or directory
+		if linkType == "copied" {
+			if err := os.RemoveAll(linkPath); err != nil {
+				errors = append(errors, fmt.Sprintf("failed to remove copied directory from %s: %v", targetName, err))
+				continue
+			}
 		} else {
-			removedCount++
+			// For symlinks and broken links
+			if err := os.Remove(linkPath); err != nil {
+				errors = append(errors, fmt.Sprintf("failed to remove link from %s: %v", targetName, err))
+				continue
+			}
+		}
+
+		fmt.Printf("Successfully unlinked %s '%s' from %s\n", componentType, componentName, targetName)
+
+		if linkType == "symlink" && targetPath != "" {
+			fmt.Printf("  Source still available at: %s\n", targetPath)
+		}
+		successCount++
+	}
+
+	if len(errors) > 0 {
+		for _, errMsg := range errors {
+			fmt.Printf("Warning: %s\n", errMsg)
+		}
+		if successCount == 0 {
+			return fmt.Errorf("failed to unlink from any target")
 		}
 	}
 
-	fmt.Printf("\nSuccessfully unlinked %d %s", removedCount, componentType)
-	if skippedCount > 0 {
-		fmt.Printf(" (%d copied directories skipped)", skippedCount)
+	if successCount == 0 {
+		return fmt.Errorf("component %s/%s is not linked to any target", componentType, componentName)
 	}
-	if errorCount > 0 {
-		fmt.Printf(" (%d errors)", errorCount)
-	}
-	fmt.Println()
 
 	return nil
 }
 
-// UnlinkAllComponents removes all linked components from the configured target
-func (cl *ComponentLinker) UnlinkAllComponents(force bool) error {
-	componentTypes := paths.GetComponentTypes()
-
-	// First, collect all symlinks (skip copied directories)
+// UnlinkComponentsByType removes all linked components of a specific type from all configured targets
+func (cl *ComponentLinker) UnlinkComponentsByType(componentType string, force bool) error {
 	totalLinks := 0
 	copiedDirs := 0
 
-	for _, componentType := range componentTypes {
-		componentDir, err := cl.target.GetComponentDir(componentType)
+	// First, collect all symlinks across all targets
+	for _, target := range cl.targets {
+		componentDir, err := target.GetComponentDir(componentType)
 		if err != nil {
 			return fmt.Errorf("failed to get target component directory: %w", err)
 		}
@@ -744,16 +693,143 @@ func (cl *ComponentLinker) UnlinkAllComponents(force bool) error {
 	}
 
 	if totalLinks == 0 && copiedDirs == 0 {
-		fmt.Println("No linked components found.")
+		fmt.Printf("No linked %s found.\n", componentType)
 		return nil
 	}
-
-	targetName := cl.target.GetName()
 
 	// Require force flag or confirmation
 	if !force {
 		if totalLinks > 0 {
-			fmt.Printf("This will unlink %d symlinked components from %s", totalLinks, targetName)
+			fmt.Printf("This will unlink %d %s from all targets", totalLinks, componentType)
+			fmt.Println()
+		}
+		if copiedDirs > 0 {
+			fmt.Printf("Note: %d copied directories will be skipped (not deleted)\n", copiedDirs)
+		}
+		if totalLinks == 0 {
+			fmt.Printf("No symlinked %s to unlink (only copied directories found).\n", componentType)
+			return nil
+		}
+		fmt.Print("Continue? [y/N]: ")
+
+		var response string
+		fmt.Scanln(&response)
+
+		if strings.ToLower(strings.TrimSpace(response)) != "y" {
+			fmt.Println("Unlink cancelled.")
+			return nil
+		}
+	}
+
+	// Remove all symlinks (skip copied directories)
+	removedCount := 0
+	skippedCount := 0
+	errorCount := 0
+
+	for _, target := range cl.targets {
+		componentDir, err := target.GetComponentDir(componentType)
+		if err != nil {
+			return fmt.Errorf("failed to get target component directory: %w", err)
+		}
+
+		if _, err := os.Stat(componentDir); os.IsNotExist(err) {
+			continue
+		}
+
+		entries, err := os.ReadDir(componentDir)
+		if err != nil {
+			fmt.Printf("Warning: failed to read %s directory for %s: %v\n", componentType, target.GetName(), err)
+			continue
+		}
+
+		for _, entry := range entries {
+			if strings.HasPrefix(entry.Name(), ".") {
+				continue
+			}
+
+			fullPath := filepath.Join(componentDir, entry.Name())
+			linkType, _, _ := cl.analyzeLinkStatus(fullPath)
+
+			// Skip copied directories - don't delete them
+			if linkType == "copied" {
+				skippedCount++
+				continue
+			}
+
+			// Remove symlinks and broken links
+			err := os.Remove(fullPath)
+
+			if err != nil {
+				fmt.Printf("Warning: failed to unlink %s/%s from %s: %v\n", componentType, entry.Name(), target.GetName(), err)
+				errorCount++
+			} else {
+				removedCount++
+			}
+		}
+	}
+
+	fmt.Printf("\nSuccessfully unlinked %d %s", removedCount, componentType)
+	if skippedCount > 0 {
+		fmt.Printf(" (%d copied directories skipped)", skippedCount)
+	}
+	if errorCount > 0 {
+		fmt.Printf(" (%d errors)", errorCount)
+	}
+	fmt.Println()
+
+	return nil
+}
+
+// UnlinkAllComponents removes all linked components from all configured targets
+func (cl *ComponentLinker) UnlinkAllComponents(force bool) error {
+	componentTypes := paths.GetComponentTypes()
+
+	// First, collect all symlinks across all targets
+	totalLinks := 0
+	copiedDirs := 0
+
+	for _, target := range cl.targets {
+		for _, componentType := range componentTypes {
+			componentDir, err := target.GetComponentDir(componentType)
+			if err != nil {
+				return fmt.Errorf("failed to get target component directory: %w", err)
+			}
+
+			if _, err := os.Stat(componentDir); os.IsNotExist(err) {
+				continue
+			}
+
+			entries, err := os.ReadDir(componentDir)
+			if err != nil {
+				return fmt.Errorf("failed to read %s directory: %w", componentType, err)
+			}
+
+			for _, entry := range entries {
+				if strings.HasPrefix(entry.Name(), ".") {
+					continue
+				}
+
+				fullPath := filepath.Join(componentDir, entry.Name())
+				linkType, _, _ := cl.analyzeLinkStatus(fullPath)
+
+				if linkType == "copied" {
+					copiedDirs++
+					continue // Skip copied directories
+				}
+				totalLinks++
+			}
+		}
+	}
+
+	if totalLinks == 0 && copiedDirs == 0 {
+		fmt.Println("No linked components found.")
+		return nil
+	}
+
+	// Require force flag or confirmation
+	if !force {
+		if totalLinks > 0 {
+			fmt.Printf("This will unlink %d symlinked components from all targets", totalLinks)
 			fmt.Println()
 		}
 		if copiedDirs > 0 {
@@ -779,45 +855,47 @@ func (cl *ComponentLinker) UnlinkAllComponents(force bool) error {
 	skippedCount := 0
 	errorCount := 0
 
-	for _, componentType := range componentTypes {
-		componentDir, err := cl.target.GetComponentDir(componentType)
-		if err != nil {
-			return fmt.Errorf("failed to get target component directory: %w", err)
-		}
-
-		if _, err := os.Stat(componentDir); os.IsNotExist(err) {
-			continue
-		}
-
-		entries, err := os.ReadDir(componentDir)
-		if err != nil {
-			fmt.Printf("Warning: failed to read %s directory: %v\n", componentType, err)
-			continue
-		}
-
-		for _, entry := range entries {
-			if strings.HasPrefix(entry.Name(), ".") {
-				continue
-			}
-
-			fullPath := filepath.Join(componentDir, entry.Name())
-			linkType, _, _ := cl.analyzeLinkStatus(fullPath)
-
-			// Skip copied directories - don't delete them
-			if linkType == "copied" {
-				skippedCount++
-				continue
-			}
-
-			// Remove symlinks and broken links
-			var err error
-			err = os.Remove(fullPath)
-
+	for _, target := range cl.targets {
+		for _, componentType := range componentTypes {
+			componentDir, err := target.GetComponentDir(componentType)
 			if err != nil {
-				fmt.Printf("Warning: failed to unlink %s/%s: %v\n", componentType, entry.Name(), err)
-				errorCount++
-			} else {
-				removedCount++
+				return fmt.Errorf("failed to get target component directory: %w", err)
+			}
+
+			if _, err := os.Stat(componentDir); os.IsNotExist(err) {
+				continue
+			}
+
+			entries, err := os.ReadDir(componentDir)
+			if err != nil {
+				fmt.Printf("Warning: failed to read %s directory for %s: %v\n", componentType, target.GetName(), err)
+				continue
+			}
+
+			for _, entry := range entries {
+				if strings.HasPrefix(entry.Name(), ".") {
+					continue
+				}
+
+				fullPath := filepath.Join(componentDir, entry.Name())
+				linkType, _, _ := cl.analyzeLinkStatus(fullPath)
+
+				// Skip copied directories - don't delete them
+				if linkType == "copied" {
+					skippedCount++
+					continue
+				}
+
+				// Remove symlinks and broken links
+				var err error
+				err = os.Remove(fullPath)
+
+				if err != nil {
+					fmt.Printf("Warning: failed to unlink %s/%s from %s: %v\n", componentType, entry.Name(), target.GetName(), err)
+					errorCount++
+				} else {
+					removedCount++
+				}
 			}
 		}
 	}
