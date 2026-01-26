@@ -574,6 +574,24 @@ without any profile-specific overrides.`,
 	profilesCmd.AddCommand(profilesDeactivateCmd)
 	rootCmd.AddCommand(profilesCmd)
 
+	// Add status command
+	statusCmd := &cobra.Command{
+		Use:   "status",
+		Short: "Show current status and active profile",
+		Long: `Display the current configuration status including:
+  - Active profile (if any)
+  - Detected targets (OpenCode, Claude Code, etc.)
+  - Component counts in ~/.agents/
+  - Quick summary of system state
+
+This provides a dashboard view of your agent-smith installation.`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			handleStatus()
+		},
+	}
+	rootCmd.AddCommand(statusCmd)
+
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
 }
 
@@ -598,6 +616,7 @@ var (
 	handleProfilesList       func()
 	handleProfilesActivate   func(profileName string)
 	handleProfilesDeactivate func()
+	handleStatus             func()
 )
 
 func SetHandlers(
@@ -620,6 +639,7 @@ func SetHandlers(
 	profilesList func(),
 	profilesActivate func(profileName string),
 	profilesDeactivate func(),
+	status func(),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
@@ -640,4 +660,5 @@ func SetHandlers(
 	handleProfilesList = profilesList
 	handleProfilesActivate = profilesActivate
 	handleProfilesDeactivate = profilesDeactivate
+	handleStatus = status
 }

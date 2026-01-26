@@ -409,6 +409,115 @@ func main() {
 				log.Fatal("Failed to deactivate profile:", err)
 			}
 		},
+		func() {
+			// Status handler - shows current system status
+			pm, err := profiles.NewProfileManager()
+			if err != nil {
+				log.Fatal("Failed to create profile manager:", err)
+			}
+
+			// Get active profile
+			activeProfile, err := pm.GetActiveProfile()
+			if err != nil {
+				log.Fatal("Failed to get active profile:", err)
+			}
+
+			// Detect all available targets
+			targets, err := config.DetectAllTargets()
+			if err != nil {
+				log.Fatal("Failed to detect targets:", err)
+			}
+
+			// Get agents directory
+			agentsDir, err := paths.GetAgentsDir()
+			if err != nil {
+				log.Fatal("Failed to get agents directory:", err)
+			}
+
+			// Count components in ~/.agents/
+			agentsPath := filepath.Join(agentsDir, "agents")
+			skillsPath := filepath.Join(agentsDir, "skills")
+			commandsPath := filepath.Join(agentsDir, "commands")
+
+			agentsCount := 0
+			skillsCount := 0
+			commandsCount := 0
+
+			if entries, err := os.ReadDir(agentsPath); err == nil {
+				for _, entry := range entries {
+					if entry.IsDir() {
+						agentsCount++
+					}
+				}
+			}
+
+			if entries, err := os.ReadDir(skillsPath); err == nil {
+				for _, entry := range entries {
+					if entry.IsDir() {
+						skillsCount++
+					}
+				}
+			}
+
+			if entries, err := os.ReadDir(commandsPath); err == nil {
+				for _, entry := range entries {
+					if entry.IsDir() {
+						commandsCount++
+					}
+				}
+			}
+
+			// Display status
+			fmt.Println("Current Configuration:")
+			fmt.Println()
+
+			// Show active profile
+			if activeProfile != "" {
+				fmt.Printf("  Active Profile: %s %s\n", activeProfile, formatter.SymbolSuccess)
+			} else {
+				fmt.Println("  Active Profile: None")
+			}
+
+			// Show detected targets
+			if len(targets) > 0 {
+				var targetNames []string
+				for _, target := range targets {
+					targetNames = append(targetNames, target.GetName())
+				}
+				fmt.Printf("  Detected Targets: %s\n", joinStrings(targetNames, ", "))
+			} else {
+				fmt.Println("  Detected Targets: None")
+			}
+
+			fmt.Println()
+			fmt.Println("Components in ~/.agents/:")
+			fmt.Printf("  Agents: %d\n", agentsCount)
+			fmt.Printf("  Skills: %d\n", skillsCount)
+			fmt.Printf("  Commands: %d\n", commandsCount)
+
+			// If there's an active profile, show its components
+			if activeProfile != "" {
+				profilesList, err := pm.ScanProfiles()
+				if err == nil {
+					for _, profile := range profilesList {
+						if profile.Name == activeProfile {
+							agents, skills, commands := pm.CountComponents(profile)
+							fmt.Println()
+							fmt.Printf("Active Profile (%s):\n", activeProfile)
+							fmt.Printf("  Agents: %d\n", agents)
+							fmt.Printf("  Skills: %d\n", skills)
+							fmt.Printf("  Commands: %d\n", commands)
+							break
+						}
+					}
+				}
+			}
+
+			fmt.Println()
+			fmt.Println("For more details:")
+			fmt.Println("  - Run 'agent-smith link status' for link information")
+			fmt.Println("  - Run 'agent-smith profiles list' to see all profiles")
+		},
 	)
 
 	// Execute Cobra command
