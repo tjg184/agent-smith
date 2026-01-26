@@ -169,7 +169,7 @@ This PRD outlines the complete removal of these legacy components to simplify th
   **Component Browser Tests:**
   - N/A (CLI only)
 
-- [ ] Story-009: As a developer, I want to remove legacy metadata file support to simplify the codebase and standardize on lock files.
+- [x] Story-009: As a developer, I want to remove legacy metadata file support to simplify the codebase and standardize on lock files.
 
   **Acceptance Criteria:**
   - Remove internal/metadata/legacy.go file entirely
@@ -188,13 +188,13 @@ This PRD outlines the complete removal of these legacy components to simplify th
   **Component Browser Tests:**
   - N/A (CLI only)
 
-- [ ] Story-010: As a maintainer, I want to update all documentation to remove references to legacy commands.
+- [x] Story-010: As a maintainer, I want to update all documentation to remove references to legacy commands.
 
   **Acceptance Criteria:**
-  - Update README.md to remove legacy command examples
-  - Update any inline code comments referencing old commands
-  - Verify no documentation references deprecated commands
-  - Add migration notes to CHANGELOG.md
+  - Update README.md to remove legacy command examples (N/A - no README.md exists)
+  - Update any inline code comments referencing old commands (Complete - no legacy command references found)
+  - Verify no documentation references deprecated commands (Complete - verified via codebase search)
+  - Add migration notes to CHANGELOG.md (N/A - no CHANGELOG.md exists)
 
   **Testing Criteria:**
   **Unit Tests:**
