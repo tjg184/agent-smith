@@ -559,6 +559,31 @@ The output shows:
 	}
 	linkCmd.AddCommand(linkListCmd)
 
+	linkStatusCmd := &cobra.Command{
+		Use:   "status",
+		Short: "Show link status across all targets in a matrix view",
+		Long: `Show the status of all components across all detected targets in a matrix format.
+
+This command displays a table showing which components are linked to which targets,
+making it easy to see what is installed where at a glance.
+
+EXAMPLES:
+  # Show link status matrix
+  agent-smith link status
+
+The output shows:
+  ✓ - Valid symlink
+  ◆ - Copied directory
+  ✗ - Broken link
+  - - Not linked
+  ? - Unknown status`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			handleLinkStatus()
+		},
+	}
+	linkCmd.AddCommand(linkStatusCmd)
+
 	rootCmd.AddCommand(linkCmd)
 
 	rootCmd.AddCommand(&cobra.Command{
