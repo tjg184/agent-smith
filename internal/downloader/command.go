@@ -201,7 +201,7 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		os.RemoveAll(commandDir + ".git")
 	}
 
-	fmt.Printf("Installed: %s ✓\n", commandName)
+	fmt.Printf("✓ Installed command: %s\n", commandName)
 
 	return nil
 }
@@ -347,7 +347,7 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 		os.RemoveAll(commandDir + ".git")
 	}
 
-	fmt.Printf("Installed: %s ✓\n", commandName)
+	fmt.Printf("✓ Installed command: %s\n", commandName)
 
 	return nil
 }

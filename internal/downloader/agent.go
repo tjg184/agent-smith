@@ -209,7 +209,7 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		os.RemoveAll(agentDir + ".git")
 	}
 
-	fmt.Printf("Installed: %s ✓\n", agentName)
+	fmt.Printf("✓ Installed agent: %s\n", agentName)
 
 	return nil
 }
@@ -355,7 +355,7 @@ func (ad *AgentDownloader) DownloadAgentWithRepo(fullURL, agentName, repoURL str
 		os.RemoveAll(agentDir + ".git")
 	}
 
-	fmt.Printf("Installed: %s ✓\n", agentName)
+	fmt.Printf("✓ Installed agent: %s\n", agentName)
 
 	return nil
 }
