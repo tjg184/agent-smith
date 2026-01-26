@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The `add-all` command in Agent Smith is experiencing performance degradation due to redundant repository cloning. Although the optimization was implemented to clone the repository only once, individual download methods are not properly using the provided temporary directory, causing each component type (skills, agents, commands) to re-clone the repository separately.
+The `install-all` command in Agent Smith is experiencing performance degradation due to redundant repository cloning. Although the optimization was implemented to clone the repository only once, individual download methods are not properly using the provided temporary directory, causing each component type (skills, agents, commands) to re-clone the repository separately.
 
 ## Goals
 
@@ -12,10 +12,10 @@ The `add-all` command in Agent Smith is experiencing performance degradation due
 
 ## User Stories
 
-- [x] Story-001: As a user running add-all, I want the repository to be cloned only once so that the command completes faster and uses less bandwidth.
+- [x] Story-001: As a user running install-all, I want the repository to be cloned only once so that the command completes faster and uses less bandwidth.
 
   **Acceptance Criteria:**
-  - Repository is cloned exactly once during add-all execution
+  - Repository is cloned exactly once during install-all execution
   - All component types (skills, agents, commands) use the same temporary directory
   - No breaking changes to existing CLI interface
   - Performance improvement measurable through timing

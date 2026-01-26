@@ -23,11 +23,11 @@ The wshobson/agents repository uses this pattern:
 - Enable detection of skills, agents, and commands across different repository organizational patterns
 - Support wshobson/agents repository structure specifically
 - Maintain 100% backward compatibility with existing SKILL.md detection
-- Improve reliability of `add-all` command for bulk component downloads
+- Improve reliability of `install-all` command for bulk component downloads
 
 ## User Stories
 
-- [x] Story-001: As a user, I want add-all command to detect all components in a repository so that I can bulk download skills, agents, and commands regardless of how they're organized.
+- [x] Story-001: As a user, I want install-all command to detect all components in a repository so that I can bulk download skills, agents, and commands regardless of how they're organized.
 
   **Acceptance Criteria:**
   - System detects SKILL.md files in skills directories (existing behavior preserved)
@@ -114,7 +114,7 @@ if strings.HasSuffix(fileName, ".md") && strings.Contains(relPath, "/commands/")
 
 ## Non-Goals
 
-- No changes to individual component download commands (add-skill, add-agent, add-command)
+- No changes to individual component download commands (install-skill, install-agent, install-command)
 - No configuration file or user-configurable detection patterns in this version
 - No support for custom component types beyond skills, agents, and commands
 - No changes to metadata or lock file formats
@@ -140,7 +140,7 @@ if strings.HasSuffix(fileName, ".md") && strings.Contains(relPath, "/commands/")
 - Edge cases: empty directories, malformed paths, mixed patterns
 
 ### Integration Tests
-- Test add-all command with wshobson/agents repository structure
+- Test install-all command with wshobson/agents repository structure
 - Verify all component types are detected and downloaded correctly
 - Test with existing repositories to ensure no regression
 - Confirm downloaded components have correct names and structure
@@ -171,5 +171,5 @@ if strings.HasSuffix(fileName, ".md") && strings.Contains(relPath, "/commands/")
 - [x] Test component name extraction for all types
 - [ ] Verify backward compatibility with existing repositories
 - [ ] Run integration tests with wshobson/agents repository
-- [ ] Confirm add-all command detects all component types
+- [ ] Confirm install-all command detects all component types
 - [ ] Validate downloaded components have correct structure and names

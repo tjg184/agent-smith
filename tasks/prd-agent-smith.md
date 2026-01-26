@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Agent Smith is a universal component manager for AI coding environments that provides seamless downloading, management, and linking of agents, commands, and skills. It maintains full compatibility with the existing npx add-skill ecosystem while extending functionality to cover all component types. The tool operates with a two-tier system: global canonical storage in `~/.agents/` and automatic symlinking to environment-specific directories, enabling developers to efficiently manage components across multiple projects with intelligent change detection and flexible repository format support. 
+Agent Smith is a universal component manager for AI coding environments that provides seamless downloading, management, and linking of agents, commands, and skills. It maintains full compatibility with the existing npx install-skill ecosystem while extending functionality to cover all component types. The tool operates with a two-tier system: global canonical storage in `~/.agents/` and automatic symlinking to environment-specific directories, enabling developers to efficiently manage components across multiple projects with intelligent change detection and flexible repository format support. 
 
 **Current Scope**: Starting with OpenCode support as the initial environment. The architecture is designed for extensibility to support Claude Code, Cursor, and other AI coding environments in future releases, but the initial implementation focuses solely on OpenCode compatibility and functionality.
 
@@ -11,7 +11,7 @@ Agent Smith is a universal component manager for AI coding environments that pro
 - Create a universal component manager that replaces multiple scattered tools across AI coding environments
 - Improve developer experience with seamless component management for OpenCode (initial release focus)
 - Establish a standardized system for managing agents, commands, and skills across AI platforms
-- Maintain full compatibility with existing npx add-skill ecosystem
+- Maintain full compatibility with existing npx install-skill ecosystem
 - Support flexible repository format detection and linking to OpenCode directories (initial scope)
 - Provide intelligent updates via GitHub tree SHA change detection
 - Enable bulk operations and efficient component management
@@ -66,22 +66,22 @@ Agent Smith is a universal component manager for AI coding environments that pro
   - Compare stored hashes with current repository state
   - Only re-download when actual content changes
 
-- [x] Story-007: As a developer, I want npx add-skill compatibility so I can use both tools together.
+- [x] Story-007: As a developer, I want npx install-skill compatibility so I can use both tools together.
 
   **Acceptance Criteria:**
   - Use same ~/.agents/ directory structure for component storage
   - Maintain compatible .skill-lock.json format for skills
   - Extend pattern with .agent-lock.json and .command-lock.json for other component types
-  - Support existing .skill-lock.json files from npx add-skill installations
-  - Coexist peacefully with npx add-skill tool (no conflicts or overwrites)
+  - Support existing .skill-lock.json files from npx install-skill installations
+  - Coexist peacefully with npx install-skill tool (no conflicts or overwrites)
 
 - [x] Story-008: As a developer, I want bulk operations so I can manage many components efficiently.
 
   **Acceptance Criteria:**
-  - Download all component types from repositories with add-all command
+  - Download all component types from repositories with install-all command
   - Link all components to ~/.config/opencode/ with single command
   - Perform batch updates across all installed components with configurable concurrency
-  - Support bulk operations like add-all, link-all, update-all
+  - Support bulk operations like install-all, link-all, update-all
 
 - [x] Story-009: As a developer, I want cross-platform support so I can work on any OS.
 
@@ -95,10 +95,10 @@ Agent Smith is a universal component manager for AI coding environments that pro
 - [x] Story-010: As a developer, I want a CLI interface similar to npx so I have a familiar experience.
 
   **Acceptance Criteria:**
-  - Use add-agent, add-command, add-skill subcommands matching npx add-skill patterns
+  - Use install-agent, install-command, install-skill subcommands matching npx install-skill patterns
   - Provide list, search, update, link, and help commands
   - Include comprehensive help with examples and auto-completion
-  - Support global (--global, -g) and force (--force, -f) flags like npx add-skill
+  - Support global (--global, -g) and force (--force, -f) flags like npx install-skill
   - Provide dry-run functionality to preview actions before execution
 
 - [x] Story-011: As a developer, I want comprehensive source type support so I can download from anywhere.
@@ -134,9 +134,9 @@ Agent Smith is a universal component manager for AI coding environments that pro
 - FR-4: The system must create relative symlinks from ~/.config/opencode/ to ~/.agents/ global storage for component availability
 - FR-5: The system must use GitHub tree SHA for precise change detection and only re-download when content actually changes
 - FR-6: The system must detect repository formats through recursive content-based analysis for all component types
-- FR-7: The system must maintain full compatibility with existing npx add-skill ecosystem and coexist peacefully
+- FR-7: The system must maintain full compatibility with existing npx install-skill ecosystem and coexist peacefully
 - FR-8: The system must support cross-platform symlink creation with Windows junction fallbacks and graceful degradation
-- FR-9: The system must provide CLI interface with add-skill, add-agent, add-command, list, search, update, and link commands
+- FR-9: The system must provide CLI interface with install-skill, install-agent, install-command, list, search, update, and link commands
 - FR-10: The system must handle conflicts by skipping existing files with clear user notification and --force override option
 - FR-11: The system must support bulk operations for downloading and linking multiple components with configurable concurrency
 - FR-12: The system must validate component content before installation and linking (SKILL.md/AGENT.md/COMMAND.md format validation)
@@ -160,6 +160,6 @@ Agent Smith is a universal component manager for AI coding environments that pro
 - No content validation beyond basic structure checking and frontmatter validation
 - No backup or restore functionality for component libraries
 - No analytics or usage tracking beyond basic error reporting
-- No modification of existing npx add-skill installations or lock files
+- No modification of existing npx install-skill installations or lock files
 - No hard dependencies on specific AI environments - should work with any supported environment
 - Initial release scope limited to OpenCode only (extensible architecture for future environments)

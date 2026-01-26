@@ -32,7 +32,7 @@ type ComponentLockEntry struct {
 	Detection       string `json:"detection,omitempty"`
 }
 
-// SaveLockFileEntry saves a component lock entry in npx add-skill compatible format
+// SaveLockFileEntry saves a component lock entry in agent-smith install compatible format
 func SaveLockFileEntry(baseDir, componentType, componentName, source, sourceType, sourceUrl, folderHash string, components int, detection, originalPath string) error {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
@@ -42,7 +42,7 @@ func SaveLockFileEntry(baseDir, componentType, componentName, source, sourceType
 	if err != nil {
 		if os.IsNotExist(err) {
 			lockFile = ComponentLockFile{
-				Version:  3, // Current version matching npx add-skill
+				Version:  3, // Current version matching agent-smith install
 				Skills:   make(map[string]ComponentLockEntry),
 				Agents:   make(map[string]ComponentLockEntry),
 				Commands: make(map[string]ComponentLockEntry),

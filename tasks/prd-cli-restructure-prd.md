@@ -6,7 +6,7 @@ Restructure the Agent Smith CLI from a flat command structure to a hierarchical,
 
 ## Problem Statement
 
-The current CLI has a flat command structure with commands like `add-skill`, `add-agent`, `add-command`, `add-all`, `auto-link`, `list-links`, `link-status`, etc. This creates:
+The current CLI has a flat command structure with commands like `install-skill`, `install-agent`, `install-command`, `install-all`, `auto-link`, `list-links`, `link-status`, etc. This creates:
 - A cluttered root help menu with 15+ commands
 - Inconsistent naming patterns
 - Poor command discoverability
@@ -23,10 +23,10 @@ The current CLI has a flat command structure with commands like `add-skill`, `ad
 
 ### Before (Current)
 ```
-agent-smith add-skill <repo> <name>
-agent-smith add-agent <repo> <name>
-agent-smith add-command <repo> <name>
-agent-smith add-all <repo>
+agent-smith install skill <repo> <name>
+agent-smith install agent <repo> <name>
+agent-smith install command <repo> <name>
+agent-smith install all <repo>
 agent-smith link <type|all> [name] [--target]
 agent-smith auto-link
 agent-smith list-links
@@ -39,10 +39,10 @@ agent-smith run <target> [args...]
 
 ### After (Proposed)
 ```
-agent-smith add skill <repo> <name>
-agent-smith add agent <repo> <name>
-agent-smith add command <repo> <name>
-agent-smith add all <repo>
+agent-smith install skill <repo> <name>
+agent-smith install agent <repo> <name>
+agent-smith install command <repo> <name>
+agent-smith install all <repo>
 
 agent-smith link skill <name> [--target]
 agent-smith link agent <name> [--target]
@@ -67,9 +67,9 @@ agent-smith run <target> [args...]
 
 ## Technical Requirements
 
-### 1. Command Group: `add`
+### 1. Command Group: `install`
 
-**Parent Command**: `agent-smith add`
+**Parent Command**: `agent-smith install`
 - Description: "Download and install components from git repositories"
 
 **Subcommands**:
@@ -79,8 +79,8 @@ agent-smith run <target> [args...]
 - `all <repo>` - Download all components from a repository
 
 **Implementation**:
-- Create parent `addCmd` with no Run function
-- Convert existing `add-skill`, `add-agent`, `add-command`, `add-all` to subcommands
+- Create parent `installCmd` with no Run function
+- Convert existing `install-skill`, `install-agent`, `install-command`, `install-all` to subcommands
 - Preserve all existing flags, help text, and functionality
 - Map to existing handlers: `handleAddSkill`, `handleAddAgent`, `handleAddCommand`, `handleAddAll`
 
@@ -161,8 +161,8 @@ agent-smith run <target> [args...]
 ### `/Users/tgaines/dev/git/agent-smith/cmd/root.go`
 
 **Changes**:
-1. Remove flat commands: `add-skill`, `add-agent`, `add-command`, `add-all`, `auto-link`, `list-links`, `link-status`, `npx`
-2. Create parent command groups: `addCmd`, refactor `linkCmd`, `unlinkCmd`, `updateCmd`
+1. Remove flat commands: `install-skill`, `install-agent`, `install-command`, `install-all`, `auto-link`, `list-links`, `link-status`, `npx`
+2. Create parent command groups: `installCmd`, refactor `linkCmd`, `unlinkCmd`, `updateCmd`
 3. Add subcommands to each parent command group
 4. Preserve all existing handlers and flags
 5. Update help text to reflect new structure
@@ -175,10 +175,10 @@ agent-smith run <target> [args...]
 ## Validation Criteria
 
 ### Functional Testing
-- [x] `agent-smith add skill <repo> <name>` downloads skill correctly
-- [x] `agent-smith add agent <repo> <name>` downloads agent correctly
-- [x] `agent-smith add command <repo> <name>` downloads command correctly
-- [x] `agent-smith add all <repo>` downloads all components correctly
+- [x] `agent-smith install skill <repo> <name>` downloads skill correctly
+- [x] `agent-smith install agent <repo> <name>` downloads agent correctly
+- [x] `agent-smith install command <repo> <name>` downloads command correctly
+- [x] `agent-smith install all <repo>` downloads all components correctly
 - [x] `agent-smith link skill <name>` links skill to targets
 - [x] `agent-smith link agent <name>` links agent to targets
 - [x] `agent-smith link command <name>` links command to targets
@@ -194,7 +194,7 @@ agent-smith run <target> [args...]
 - [ ] `agent-smith update all` updates all components
 - [ ] `agent-smith run <target> [args...]` executes component
 - [ ] `agent-smith --help` shows clean root menu with 5-6 commands
-- [ ] `agent-smith add --help` shows add subcommands
+- [ ] `agent-smith install --help` shows install subcommands
 - [ ] `agent-smith link --help` shows link subcommands
 
 ### Build Testing

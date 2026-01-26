@@ -364,7 +364,7 @@ func createDefaultDetectionConfig() *DetectionConfig
 go build -o agent-smith main.go
 
 # Test detection
-./agent-smith add-all wshobson/agents
+./agent-smith install all wshobson/agents
 
 # Verify storage
 ls -la ~/.agents/agents/

@@ -2,25 +2,25 @@
 
 ## Introduction
 
-The add-all command has critical bugs in component detection and naming logic that prevent multiple skills from being processed. When a repository contains multiple legitimate skills (like the wshobson/agents repository with skills in multiple plugin directories), the system either fails to detect them or processes them incorrectly due to naming conflicts and path extraction issues.
+The install-all command has critical bugs in component detection and naming logic that prevent multiple skills from being processed. When a repository contains multiple legitimate skills (like the wshobson/agents repository with skills in multiple plugin directories), the system either fails to detect them or processes them incorrectly due to naming conflicts and path extraction issues.
 
 ## Goals
 
 - Fix component naming extraction to handle nested directory structures correctly
 - Resolve component deduplication logic that prevents legitimate components from being processed
 - Add debug logging to component detection for better troubleshooting
-- Ensure all detected components are processed by add-all command
+- Ensure all detected components are processed by install-all command
 - Maintain backward compatibility with existing component detection patterns
 
 ## User Stories
 
-- [x] Story-001: As a user running add-all on a repository with multiple skills, I want all skills to be detected and downloaded so that I can access all available components from the repository.
+- [x] Story-001: As a user running install-all on a repository with multiple skills, I want all skills to be detected and downloaded so that I can access all available components from the repository.
 
   **Acceptance Criteria:**
   - Component detection correctly identifies all SKILL.md files in nested directories
   - Name extraction handles paths like "plugins/python-development/SKILL.md" correctly
   - Component deduplication only prevents actual duplicates, not legitimate different components
-  - All detected skills are processed and downloaded by add-all command
+  - All detected skills are processed and downloaded by install-all command
   - Debug information is available to troubleshoot detection issues
 
 - [ ] Story-002: As a developer maintaining component detection, I want clear and predictable naming logic so that component names are extracted consistently and reliably.
@@ -47,7 +47,7 @@ The add-all command has critical bugs in component detection and naming logic th
 - No changes to the clone optimization (which is working correctly)
 - No modifications to repository URL handling or validation logic
 - No changes to file copying or metadata generation
-- No changes to individual download commands (add-skill, add-agent, add-command)
+- No changes to individual download commands (install-skill, install-agent, install-command)
 
 ## Implementation Strategy
 
@@ -140,7 +140,7 @@ Successfully downloaded skill: security-scanning
 4. Repositories with special characters in paths
 
 ### Debug Validation
-1. Run add-all with debug logging enabled
+1. Run install-all with debug logging enabled
 2. Verify component count matches expected count
 3. Check that all detected components are processed
 4. Confirm no spurious duplicate prevention

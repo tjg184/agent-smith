@@ -266,7 +266,7 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 	return nil
 }
 
-// saveLockFile saves agent lock entry in npx add-skill compatible format
+// saveLockFile saves agent lock entry in agent-smith install compatible format
 func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, originalPath string) error {
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {

@@ -9,11 +9,11 @@ The current component detection system in Agent Smith only recognizes specific f
 - Enable detection of skills, agents, and commands across different repository organizational patterns
 - Support the wshobson/agents repository structure (plugins/category/type/component-type files)
 - Maintain backward compatibility with existing SKILL.md detection
-- Improve reliability of the `add-all` command for bulk component downloads
+- Improve reliability of the `install-all` command for bulk component downloads
 
 ## User Stories
 
-- [x] Story-001: As a user, I want the add-all command to detect all components in a repository so that I can bulk download skills, agents, and commands regardless of how they're organized.
+- [x] Story-001: As a user, I want the install-all command to detect all components in a repository so that I can bulk download skills, agents, and commands regardless of how they're organized.
 
   **Acceptance Criteria:**
   - System detects SKILL.md files in skills directories (existing behavior preserved)
@@ -49,7 +49,7 @@ The current component detection system in Agent Smith only recognizes specific f
 
 ## Non-Goals
 
-- No changes to individual component download commands (add-skill, add-agent, add-command)
+- No changes to individual component download commands (install-skill, install-agent, install-command)
 - No configuration file or user-configurable detection patterns in this version
 - No support for custom component types beyond skills, agents, and commands
 - No changes to metadata or lock file formats
@@ -100,12 +100,12 @@ Replace the current filename-only detection in `detectComponentsInRepo()` with p
 - Edge cases: empty directories, malformed paths, mixed patterns
 
 ### Integration Tests
-- Test add-all command with wshobson/agents repository structure
+- Test install-all command with wshobson/agents repository structure
 - Test with existing repositories using current patterns
 - Verify bulk download processes all detected components correctly
 - Confirm console output format and content
 
 ### Regression Tests
-- Ensure all existing add-skill, add-agent, add-command functionality unchanged
+- Ensure all existing install-skill, install-agent, install-command functionality unchanged
 - Verify metadata and lock file generation unchanged
 - Test linking and execution functionality unaffected
