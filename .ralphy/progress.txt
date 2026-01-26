@@ -70,3 +70,13 @@
 - [✓] 2026-01-26 13:25 - Story-004: As a user, I want to control which target I am linking to using CLI flags so that I can be specific or broad in my operations.
 - [✓] 2026-01-26 13:30 - Story-005: As a user, I want to see the status of my links across all targets so that I know what is installed where.
 - [✓] 2026-01-26 13:54 - `agent-smith add command <repo> <name>` downloads command correctly
+- [✓] 2026-01-26 14:37 - `agent-smith add skill <repo> <name>` downloads skill correctly
+- [✓] 2026-01-26 14:40 - `agent-smith add all <repo>` downloads all components correctly
+- [✓] 2026-01-26 14:44 - `agent-smith link skill <name>` links skill to targets
+- [✓] 2026-01-26 14:47 - `agent-smith link agent <name>` links agent to targets
+- [✓] 2026-01-26 14:50 - `agent-smith link command <name>` links command to targets
+- [✓] 2026-01-26 14:52 - `agent-smith link all` links all components
+- [✓] 2026-01-26 14:55 - `agent-smith link auto` auto-detects and links components
+- [✓] 2026-01-26 14:57 - `agent-smith link list` lists linked components
+- [✓] 2026-01-26 14:59 - `agent-smith link status` shows link status matrix
+- [✓] 2026-01-26 15:02 - `agent-smith link skill <name> --target opencode` respects target flag

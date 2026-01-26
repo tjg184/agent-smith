@@ -178,15 +178,15 @@ agent-smith run <target> [args...]
 - [x] `agent-smith add skill <repo> <name>` downloads skill correctly
 - [x] `agent-smith add agent <repo> <name>` downloads agent correctly
 - [x] `agent-smith add command <repo> <name>` downloads command correctly
-- [ ] `agent-smith add all <repo>` downloads all components correctly
-- [ ] `agent-smith link skill <name>` links skill to targets
-- [ ] `agent-smith link agent <name>` links agent to targets
-- [ ] `agent-smith link command <name>` links command to targets
-- [ ] `agent-smith link all` links all components
-- [ ] `agent-smith link auto` auto-detects and links components
-- [ ] `agent-smith link list` lists linked components
-- [ ] `agent-smith link status` shows link status matrix
-- [ ] `agent-smith link skill <name> --target opencode` respects target flag
+- [x] `agent-smith add all <repo>` downloads all components correctly
+- [x] `agent-smith link skill <name>` links skill to targets
+- [x] `agent-smith link agent <name>` links agent to targets
+- [x] `agent-smith link command <name>` links command to targets
+- [x] `agent-smith link all` links all components
+- [x] `agent-smith link auto` auto-detects and links components
+- [x] `agent-smith link list` lists linked components
+- [x] `agent-smith link status` shows link status matrix
+- [x] `agent-smith link skill <name> --target opencode` respects target flag
 - [ ] `agent-smith unlink skill <name>` unlinks skill
 - [ ] `agent-smith unlink all` prompts for confirmation
 - [ ] `agent-smith unlink all --force` skips confirmation
