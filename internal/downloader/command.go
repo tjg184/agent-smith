@@ -11,6 +11,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/fileutil"
+	"github.com/tgaines/agent-smith/internal/formatter"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/paths"
@@ -18,8 +19,9 @@ import (
 
 // CommandDownloader handles downloading command components
 type CommandDownloader struct {
-	baseDir  string
-	detector *detector.RepositoryDetector
+	baseDir   string
+	detector  *detector.RepositoryDetector
+	formatter *formatter.Formatter
 }
 
 // NewCommandDownloader creates a new CommandDownloader instance
@@ -35,8 +37,9 @@ func NewCommandDownloader() *CommandDownloader {
 	}
 
 	return &CommandDownloader{
-		baseDir:  baseDir,
-		detector: detector.NewRepositoryDetector(),
+		baseDir:   baseDir,
+		detector:  detector.NewRepositoryDetector(),
+		formatter: formatter.New(),
 	}
 }
 
@@ -171,7 +174,7 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 			// Copy component files (non-recursive) using FilePath
 			err = fileutil.CopyComponentFiles(repoPath, component, componentDir)
 			if err != nil {
-				log.Printf("Warning: failed to copy command %s: %v", component.Name, err)
+				cd.formatter.Warning("failed to copy command %s: %v", component.Name, err)
 			}
 		}
 	}
@@ -193,7 +196,7 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 	}
 
 	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, len(commandComponents), "recursive", ""); err != nil {
-		log.Printf("Warning: failed to save lock file: %v", err)
+		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
 	// Clean up git clone if it exists
@@ -201,7 +204,7 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		os.RemoveAll(commandDir + ".git")
 	}
 
-	fmt.Printf("✓ Installed command: %s\n", commandName)
+	cd.formatter.Success("command", commandName)
 
 	return nil
 }
@@ -242,14 +245,14 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 	}
 
 	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, 1, "direct", ""); err != nil {
-		log.Printf("Warning: failed to save lock file: %v", err)
+		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
 	// Create {name}.md if it doesn't exist
 	commandFile := filepath.Join(commandDir, commandName+".md")
 	if _, err := os.Stat(commandFile); os.IsNotExist(err) {
 		if err := cd.createCommandFile(commandFile, commandName, fullURL); err != nil {
-			log.Printf("Warning: failed to create %s.md: %v", commandName, err)
+			cd.formatter.Warning("failed to create %s.md: %v", commandName, err)
 		}
 	}
 
@@ -339,7 +342,7 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 	}
 
 	if err := cd.saveLockFile(destFolderName, fullURL, sourceType, fullURL, folderHash, 1, "single", targetComponent.FilePath); err != nil {
-		log.Printf("Warning: failed to save lock file: %v", err)
+		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
 	// Clean up git clone if it exists
@@ -347,7 +350,7 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 		os.RemoveAll(commandDir + ".git")
 	}
 
-	fmt.Printf("✓ Installed command: %s\n", commandName)
+	cd.formatter.Success("command", commandName)
 
 	return nil
 }

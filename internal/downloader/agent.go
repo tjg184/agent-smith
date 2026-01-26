@@ -11,6 +11,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/fileutil"
+	"github.com/tgaines/agent-smith/internal/formatter"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/paths"
@@ -18,8 +19,9 @@ import (
 
 // AgentDownloader handles downloading agent components
 type AgentDownloader struct {
-	baseDir  string
-	detector *detector.RepositoryDetector
+	baseDir   string
+	detector  *detector.RepositoryDetector
+	formatter *formatter.Formatter
 }
 
 // NewAgentDownloader creates a new AgentDownloader instance
@@ -35,16 +37,18 @@ func NewAgentDownloader() *AgentDownloader {
 	}
 
 	return &AgentDownloader{
-		baseDir:  baseDir,
-		detector: detector.NewRepositoryDetector(),
+		baseDir:   baseDir,
+		detector:  detector.NewRepositoryDetector(),
+		formatter: formatter.New(),
 	}
 }
 
 // NewAgentDownloaderWithParams creates a new AgentDownloader with custom parameters (for testing)
 func NewAgentDownloaderWithParams(baseDir string, detect *detector.RepositoryDetector) *AgentDownloader {
 	return &AgentDownloader{
-		baseDir:  baseDir,
-		detector: detect,
+		baseDir:   baseDir,
+		detector:  detect,
+		formatter: formatter.New(),
 	}
 }
 
@@ -179,7 +183,7 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 			// Copy component files (non-recursive) using FilePath
 			err = fileutil.CopyComponentFiles(repoPath, component, componentDir)
 			if err != nil {
-				log.Printf("Warning: failed to copy agent %s: %v", component.Name, err)
+				ad.formatter.Warning("failed to copy agent %s: %v", component.Name, err)
 			}
 		}
 	}
@@ -201,7 +205,7 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 	}
 
 	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, len(agentComponents), "recursive", ""); err != nil {
-		log.Printf("Warning: failed to save lock file: %v", err)
+		ad.formatter.Warning("failed to save lock file: %v", err)
 	}
 
 	// Clean up git clone if it exists
@@ -209,7 +213,7 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		os.RemoveAll(agentDir + ".git")
 	}
 
-	fmt.Printf("✓ Installed agent: %s\n", agentName)
+	ad.formatter.Success("agent", agentName)
 
 	return nil
 }
@@ -250,14 +254,14 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 	}
 
 	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, 1, "direct", ""); err != nil {
-		log.Printf("Warning: failed to save lock file: %v", err)
+		ad.formatter.Warning("failed to save lock file: %v", err)
 	}
 
 	// Create {name}.md if it doesn't exist
 	agentFile := filepath.Join(agentDir, agentName+".md")
 	if _, err := os.Stat(agentFile); os.IsNotExist(err) {
 		if err := ad.createAgentFile(agentFile, agentName, fullURL); err != nil {
-			log.Printf("Warning: failed to create %s.md: %v", agentName, err)
+			ad.formatter.Warning("failed to create %s.md: %v", agentName, err)
 		}
 	}
 
@@ -347,7 +351,7 @@ func (ad *AgentDownloader) DownloadAgentWithRepo(fullURL, agentName, repoURL str
 	}
 
 	if err := ad.saveLockFile(destFolderName, fullURL, sourceType, fullURL, folderHash, 1, "single", targetComponent.FilePath); err != nil {
-		log.Printf("Warning: failed to save lock file: %v", err)
+		ad.formatter.Warning("failed to save lock file: %v", err)
 	}
 
 	// Clean up git clone if it exists
@@ -355,7 +359,7 @@ func (ad *AgentDownloader) DownloadAgentWithRepo(fullURL, agentName, repoURL str
 		os.RemoveAll(agentDir + ".git")
 	}
 
-	fmt.Printf("✓ Installed agent: %s\n", agentName)
+	ad.formatter.Success("agent", agentName)
 
 	return nil
 }
