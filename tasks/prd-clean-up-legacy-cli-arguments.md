@@ -17,7 +17,7 @@ This PRD outlines the complete removal of these legacy components to simplify th
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want to remove the add-skill legacy command so that the codebase only supports the modern 'add skill' syntax.
+- [x] Story-001: As a developer, I want to remove the add-skill legacy command so that the codebase only supports the modern 'add skill' syntax.
 
   **Acceptance Criteria:**
   - Remove add-skill command definition from cmd/root.go (lines 152-184)
@@ -36,7 +36,7 @@ This PRD outlines the complete removal of these legacy components to simplify th
   **Component Browser Tests:**
   - N/A (CLI only)
 
-- [ ] Story-002: As a developer, I want to remove the add-agent legacy command so that the codebase only supports the modern 'add agent' syntax.
+- [x] Story-002: As a developer, I want to remove the add-agent legacy command so that the codebase only supports the modern 'add agent' syntax.
 
   **Acceptance Criteria:**
   - Remove add-agent command definition from cmd/root.go (lines 186-217)
@@ -55,7 +55,7 @@ This PRD outlines the complete removal of these legacy components to simplify th
   **Component Browser Tests:**
   - N/A (CLI only)
 
-- [ ] Story-003: As a developer, I want to remove the add-command legacy command so that the codebase only supports the modern 'add command' syntax.
+- [x] Story-003: As a developer, I want to remove the add-command legacy command so that the codebase only supports the modern 'add command' syntax.
 
   **Acceptance Criteria:**
   - Remove add-command command definition from cmd/root.go (lines 219-250)
@@ -74,7 +74,7 @@ This PRD outlines the complete removal of these legacy components to simplify th
   **Component Browser Tests:**
   - N/A (CLI only)
 
-- [ ] Story-004: As a developer, I want to remove the add-all legacy command so that the codebase only supports the modern 'add all' syntax.
+- [x] Story-004: As a developer, I want to remove the add-all legacy command so that the codebase only supports the modern 'add all' syntax.
 
   **Acceptance Criteria:**
   - Remove add-all command definition from cmd/root.go (lines 252-283)
@@ -93,7 +93,7 @@ This PRD outlines the complete removal of these legacy components to simplify th
   **Component Browser Tests:**
   - N/A (CLI only)
 
-- [ ] Story-005: As a developer, I want to remove the link-legacy deprecated command to eliminate hidden legacy code paths.
+- [x] Story-005: As a developer, I want to remove the link-legacy deprecated command to eliminate hidden legacy code paths.
 
   **Acceptance Criteria:**
   - Remove link-legacy command definition from cmd/root.go (lines 645-706)
@@ -112,7 +112,7 @@ This PRD outlines the complete removal of these legacy components to simplify th
   **Component Browser Tests:**
   - N/A (CLI only)
 
-- [ ] Story-006: As a developer, I want to remove the auto-link standalone command so that users must use 'link auto' instead.
+- [x] Story-006: As a developer, I want to remove the auto-link standalone command so that users must use 'link auto' instead.
 
   **Acceptance Criteria:**
   - Remove auto-link command definition from cmd/root.go (lines 589-596)
@@ -131,7 +131,7 @@ This PRD outlines the complete removal of these legacy components to simplify th
   **Component Browser Tests:**
   - N/A (CLI only)
 
-- [ ] Story-007: As a developer, I want to remove the list-links standalone command so that users must use 'link list' instead.
+- [x] Story-007: As a developer, I want to remove the list-links standalone command so that users must use 'link list' instead.
 
   **Acceptance Criteria:**
   - Remove list-links command definition from cmd/root.go (lines 598-618)
@@ -150,7 +150,7 @@ This PRD outlines the complete removal of these legacy components to simplify th
   **Component Browser Tests:**
   - N/A (CLI only)
 
-- [ ] Story-008: As a developer, I want to remove the link-status standalone command so that users must use 'link status' instead.
+- [x] Story-008: As a developer, I want to remove the link-status standalone command so that users must use 'link status' instead.
 
   **Acceptance Criteria:**
   - Remove link-status command definition from cmd/root.go (lines 620-642)

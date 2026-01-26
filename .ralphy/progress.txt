@@ -80,3 +80,11 @@
 - [✓] 2026-01-26 14:57 - `agent-smith link list` lists linked components
 - [✓] 2026-01-26 14:59 - `agent-smith link status` shows link status matrix
 - [✓] 2026-01-26 15:02 - `agent-smith link skill <name> --target opencode` respects target flag
+- [✓] 2026-01-26 15:21 - Story-001: As a developer, I want to remove the add-skill legacy command so that the codebase only supports the modern 'add skill' syntax.
+- [✓] 2026-01-26 15:22 - Story-002: As a developer, I want to remove the add-agent legacy command so that the codebase only supports the modern 'add agent' syntax.
+- [✓] 2026-01-26 15:25 - Story-003: As a developer, I want to remove the add-command legacy command so that the codebase only supports the modern 'add command' syntax.
+- [✓] 2026-01-26 15:26 - Story-004: As a developer, I want to remove the add-all legacy command so that the codebase only supports the modern 'add all' syntax.
+- [✓] 2026-01-26 15:27 - Story-005: As a developer, I want to remove the link-legacy deprecated command to eliminate hidden legacy code paths.
+- [✓] 2026-01-26 15:28 - Story-006: As a developer, I want to remove the auto-link standalone command so that users must use 'link auto' instead.
+- [✓] 2026-01-26 15:30 - Story-007: As a developer, I want to remove the list-links standalone command so that users must use 'link list' instead.
+- [✓] 2026-01-26 15:31 - Story-008: As a developer, I want to remove the link-status standalone command so that users must use 'link status' instead.

@@ -265,12 +265,10 @@ func TestGroupedComponentDownload(t *testing.T) {
 	// Verify the agent file was copied
 	helper.VerifyFileExists(filepath.Join(agentDir, "accessibility-expert.md"), "Agent file")
 
-	// Verify metadata file exists
-	metadataFile := filepath.Join(agentDir, ".agent-metadata.json")
-	helper.VerifyFileExists(metadataFile, "Metadata file")
-
-	// Verify metadata contains original path
-	helper.VerifyFileContent(metadataFile, "plugins/ui-design/agents/accessibility-expert.md", "Original path in metadata")
+	// Verify lock file contains original path
+	lockFile := filepath.Join(installDir, ".agent-lock.json")
+	helper.VerifyFileExists(lockFile, "Lock file")
+	helper.VerifyFileContent(lockFile, "plugins/ui-design/agents/accessibility-expert.md", "Original path in lock file")
 }
 
 // TestMultipleComponentsFromSameGroup tests downloading multiple components from the same group
@@ -370,9 +368,9 @@ func TestBackwardCompatibilityFlatStructure(t *testing.T) {
 	helper.VerifyDirExists(agentDir, "Flat agent directory")
 	helper.VerifyFileExists(filepath.Join(agentDir, "chatbot.md"), "Agent file in flat structure")
 
-	// Verify metadata exists
-	metadataFile := filepath.Join(agentDir, ".agent-metadata.json")
-	helper.VerifyFileExists(metadataFile, "Metadata file")
+	// Verify lock file exists
+	lockFile := filepath.Join(installDir, ".agent-lock.json")
+	helper.VerifyFileExists(lockFile, "Lock file")
 }
 
 // TestBackwardCompatibilityMonorepo tests that monorepo structures work correctly
@@ -491,16 +489,16 @@ func TestCrossPlatformPathHandling(t *testing.T) {
 	agentDir := filepath.Join(agentsDir, "ui-design")
 	helper.VerifyDirExists(agentDir, "Agent directory with platform-specific paths")
 
-	// Read metadata and verify paths use forward slashes (normalized)
-	metadataFile := filepath.Join(agentDir, ".agent-metadata.json")
-	content, err := os.ReadFile(metadataFile)
+	// Read lock file and verify paths use forward slashes (normalized)
+	lockFile := filepath.Join(installDir, ".agent-lock.json")
+	content, err := os.ReadFile(lockFile)
 	if err != nil {
-		t.Fatalf("Failed to read metadata: %v", err)
+		t.Fatalf("Failed to read lock file: %v", err)
 	}
 
-	// originalPath in metadata should use forward slashes
+	// originalPath in lock file should use forward slashes
 	if !strings.Contains(string(content), "plugins/ui-design") {
-		t.Errorf("Metadata should contain normalized path with forward slashes")
+		t.Errorf("Lock file should contain normalized path with forward slashes")
 	}
 }
 
@@ -689,15 +687,14 @@ func TestGitOperations(t *testing.T) {
 		t.Fatalf("Failed to download agent: %v", err)
 	}
 
-	// Verify commit hash was saved in metadata
-	agentDir := filepath.Join(agentsDir, "ui-design")
-	metadataFile := filepath.Join(agentDir, ".agent-metadata.json")
-	content, err := os.ReadFile(metadataFile)
+	// Verify commit hash was saved in lock file
+	lockFile := filepath.Join(installDir, ".agent-lock.json")
+	content, err := os.ReadFile(lockFile)
 	if err != nil {
-		t.Fatalf("Failed to read metadata: %v", err)
+		t.Fatalf("Failed to read lock file: %v", err)
 	}
 
-	if !strings.Contains(string(content), "commit") {
-		t.Errorf("Metadata should contain commit hash")
+	if !strings.Contains(string(content), "skillFolderHash") {
+		t.Errorf("Lock file should contain skillFolderHash field")
 	}
 }

@@ -156,9 +156,9 @@ func (cl *ComponentLinker) LinkComponent(componentType, componentName string) er
 	return nil
 }
 
-// loadComponentMetadata loads metadata for a component from lock files or metadata files
+// loadComponentMetadata loads metadata for a component from lock files only
 func (cl *ComponentLinker) loadComponentMetadata(componentType, componentName string) *models.ComponentMetadata {
-	return metadataPkg.LoadComponentMetadata(cl.agentsDir, componentType, componentName)
+	return cl.loadFromLockFile(componentType, componentName)
 }
 
 // loadFromLockFile loads metadata from lock file
@@ -667,7 +667,7 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 	}
 
 	// Display header
-	fmt.Println("\n=== Link Status Across All Targets ===\n")
+	fmt.Println("\n=== Link Status Across All Targets ===")
 
 	// Get target names for header
 	targetNames := make([]string, 0, len(cl.targets))
