@@ -90,3 +90,4 @@
 - [✓] 2026-01-26 15:31 - Story-008: As a developer, I want to remove the link-status standalone command so that users must use 'link status' instead.
 - [✓] 2026-01-26 15:38 - Story-009: As a developer, I want to remove legacy metadata file support to simplify the codebase and standardize on lock files.
 - [✓] 2026-01-26 15:45 - Story-010: As a maintainer, I want to update all documentation to remove references to legacy commands.
+- [✓] 2026-01-26 15:41 - Story-010: As a maintainer, I want to update all documentation to remove references to legacy commands.
