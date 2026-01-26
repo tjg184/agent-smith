@@ -149,39 +149,6 @@ EXAMPLES:
 	rootCmd.AddCommand(addCmd)
 
 	rootCmd.AddCommand(&cobra.Command{
-		Use:   "add-command <repository-url> <command-name>",
-		Short: "Download a command from a git repository (legacy)",
-		Long: `Download and install a command-line tool from a git repository to your local agents directory.
-
-This command fetches a command from any git repository (GitHub, GitLab, Bitbucket, or private)
-and installs it to ~/.agents/commands/<command-name>. The command will be automatically detected
-based on path patterns and file extensions.
-
-REPOSITORY URL FORMATS:
-  GitHub shorthand:     owner/repo
-  Full GitHub URL:      https://github.com/owner/repo
-  GitLab URL:           https://gitlab.com/owner/repo
-  SSH URL:              git@github.com:owner/repo.git
-  Local path:           /path/to/local/repo
-
-EXAMPLES:
-  # Download from GitHub using shorthand
-  agent-smith add-command cli-tools/formatter json-formatter
-
-  # Download using full URL
-  agent-smith add-command https://github.com/example/tool my-tool
-
-  # Download from local repository
-  agent-smith add-command /path/to/local/command local-cmd
-
-The command will be available for execution with 'agent-smith npx' or 'agent-smith run'.`,
-		Args: cobra.ExactArgs(2),
-		Run: func(cmd *cobra.Command, args []string) {
-			handleAddCommand(args[0], args[1])
-		},
-	})
-
-	rootCmd.AddCommand(&cobra.Command{
 		Use:   "add-all <repository-url>",
 		Short: "Download all components from a git repository (legacy)",
 		Long: `Download and install all components (skills, agents, and commands) from a git repository.
