@@ -588,10 +588,40 @@ without any profile-specific overrides.`,
 		},
 	}
 
+	profilesAddCmd := &cobra.Command{
+		Use:   "add <type> <profile-name> <component-name>",
+		Short: "Add an existing component to a profile",
+		Long: `Add an existing component from ~/.agents/ to a profile.
+
+This command copies a component (skill, agent, or command) from your base
+~/.agents/ directory to a specific profile. The component must already exist
+in ~/.agents/ before it can be added to a profile.
+
+COMPONENT TYPES:
+  skills   - Copy a skill to the profile
+  agents   - Copy an agent to the profile
+  commands - Copy a command to the profile
+
+EXAMPLES:
+  # Add a skill to a profile
+  agent-smith profiles add skills my-profile gpt-skill
+
+  # Add an agent to a profile
+  agent-smith profiles add agents work-profile coding-agent
+
+  # Add a command to a profile
+  agent-smith profiles add commands dev-profile test-runner`,
+		Args: cobra.ExactArgs(3),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleProfilesAdd(args[0], args[1], args[2])
+		},
+	}
+
 	profilesCmd.AddCommand(profilesListCmd)
 	profilesCmd.AddCommand(profilesCreateCmd)
 	profilesCmd.AddCommand(profilesActivateCmd)
 	profilesCmd.AddCommand(profilesDeactivateCmd)
+	profilesCmd.AddCommand(profilesAddCmd)
 	rootCmd.AddCommand(profilesCmd)
 
 	// Add status command
@@ -637,6 +667,7 @@ var (
 	handleProfilesCreate     func(profileName string)
 	handleProfilesActivate   func(profileName string)
 	handleProfilesDeactivate func()
+	handleProfilesAdd        func(componentType, profileName, componentName string)
 	handleStatus             func()
 )
 
@@ -661,6 +692,7 @@ func SetHandlers(
 	profilesCreate func(profileName string),
 	profilesActivate func(profileName string),
 	profilesDeactivate func(),
+	profilesAdd func(componentType, profileName, componentName string),
 	status func(),
 ) {
 	handleAddSkill = addSkill
@@ -683,5 +715,6 @@ func SetHandlers(
 	handleProfilesCreate = profilesCreate
 	handleProfilesActivate = profilesActivate
 	handleProfilesDeactivate = profilesDeactivate
+	handleProfilesAdd = profilesAdd
 	handleStatus = status
 }

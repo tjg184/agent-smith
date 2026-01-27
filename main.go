@@ -419,6 +419,16 @@ func main() {
 				log.Fatal("Failed to deactivate profile:", err)
 			}
 		},
+		func(componentType, profileName, componentName string) {
+			pm, err := profiles.NewProfileManager()
+			if err != nil {
+				log.Fatal("Failed to create profile manager:", err)
+			}
+
+			if err := pm.AddComponentToProfile(profileName, componentType, componentName); err != nil {
+				log.Fatal("Failed to add component to profile:", err)
+			}
+		},
 		func() {
 			// Status handler - shows current system status
 			pm, err := profiles.NewProfileManager()
