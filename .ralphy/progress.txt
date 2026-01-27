@@ -108,3 +108,9 @@
 - [✓] 2026-01-27 01:03 - Story-006: As a developer, I want to delete a profile so that I can remove profiles I no longer need.
 - [✓] 2026-01-27 01:08 - Story-007: As a developer, I want to see detailed information about a profile so that I know what's in it before activating.
 - [✓] 2026-01-27 01:12 - Story-008: As a developer, I want profile name validation to prevent file system issues so that profiles always work correctly.
+- [✗] 2026-01-27 12:39 - Install 10+ skills to `~/.agents/`
+- [✗] 2026-01-27 12:39 - Install 10+ skills to `~/.agents/`
+- [✗] 2026-01-27 12:39 - Install 10+ skills to `~/.agents/`
+- [✗] 2026-01-27 12:39 - Install 10+ skills to `~/.agents/`
+- [✗] 2026-01-27 12:39 - Install 10+ skills to `~/.agents/`
+- [✗] 2026-01-27 12:39 - Install 10+ skills to `~/.agents/`
