@@ -37,109 +37,106 @@ Currently this workflow fails at step 2-3 due to the issues above.
 
 ## User Stories
 
-### Story-001: Lightweight Profile Activation
-**As a user**, I want to activate a profile without immediately affecting my editor, so that I can control when changes are applied.
+- [ ] Story-001: As a user, I want to activate a profile without immediately affecting my editor, so that I can control when changes are applied.
 
-**Acceptance Criteria:**
-- `agent-smith profiles activate <name>` only updates state file (`~/.agents/.active_profile`)
-- Does not create or remove any symlinks
-- Does not modify `~/.agents/` directory contents
-- Validates profile exists before updating state
-- Returns error if same profile already active
-- Prints guidance message: "Run 'agent-smith link all' to apply changes to your editor."
+  **Acceptance Criteria:**
+  - `agent-smith profiles activate <name>` only updates state file (`~/.agents/.active_profile`)
+  - Does not create or remove any symlinks
+  - Does not modify `~/.agents/` directory contents
+  - Validates profile exists before updating state
+  - Returns error if same profile already active
+  - Prints guidance message: "Run 'agent-smith link all' to apply changes to your editor."
 
-**Testing Criteria:**
-- **Unit Tests:**
+  **Testing Criteria:**
+  **Unit Tests:**
   - Verify state file written correctly
   - Verify no symlinks created
   - Verify `~/.agents/` directory unchanged
   - Verify error on duplicate activation
-- **Integration Tests:**
+  
+  **Integration Tests:**
   - Activate profile, verify only state file changes
   - Verify `~/.agents/` contents identical before/after
 
-### Story-002: Lightweight Profile Deactivation
-**As a user**, I want to deactivate a profile without immediately affecting my editor, so that I can control when changes are applied.
+- [ ] Story-002: As a user, I want to deactivate a profile without immediately affecting my editor, so that I can control when changes are applied.
 
-**Acceptance Criteria:**
-- `agent-smith profiles deactivate` only clears state file
-- Does not create or remove any symlinks
-- Does not modify `~/.agents/` directory contents
-- Returns error if no profile is active
-- Prints guidance message: "Run 'agent-smith link all' to restore base installation to your editor."
+  **Acceptance Criteria:**
+  - `agent-smith profiles deactivate` only clears state file
+  - Does not create or remove any symlinks
+  - Does not modify `~/.agents/` directory contents
+  - Returns error if no profile is active
+  - Prints guidance message: "Run 'agent-smith link all' to restore base installation to your editor."
 
-**Testing Criteria:**
-- **Unit Tests:**
+  **Testing Criteria:**
+  **Unit Tests:**
   - Verify state file deleted
   - Verify no symlinks removed
   - Verify `~/.agents/` directory unchanged
   - Verify error when no active profile
-- **Integration Tests:**
+  
+  **Integration Tests:**
   - Deactivate profile, verify only state file removed
   - Verify `~/.agents/` contents identical before/after
 
-### Story-003: Profile-Aware Link Commands
-**As a user**, I want link commands to automatically use my active profile, so that linking matches my current context.
+- [ ] Story-003: As a user, I want link commands to automatically use my active profile, so that linking matches my current context.
 
-**Acceptance Criteria:**
-- When profile active, `link` commands source from `~/.agents/profiles/<profile>/` (ALREADY IMPLEMENTED)
-- When no profile active, `link` commands source from `~/.agents/`
-- Displays message "Using active profile: <name>" when profile active
-- Works for all link commands: `link skills`, `link agents`, `link commands`, `link all`
-- No breaking changes to existing link command syntax
+  **Acceptance Criteria:**
+  - When profile active, `link` commands source from `~/.agents/profiles/<profile>/` (ALREADY IMPLEMENTED)
+  - When no profile active, `link` commands source from `~/.agents/`
+  - Displays message "Using active profile: <name>" when profile active
+  - Works for all link commands: `link skills`, `link agents`, `link commands`, `link all`
+  - No breaking changes to existing link command syntax
 
-**Testing Criteria:**
-- **Unit Tests:**
+  **Testing Criteria:**
+  **Unit Tests:**
   - Verify source directory determination logic
   - Verify profile detection
-- **Integration Tests:**
+  
+  **Integration Tests:**
   - Activate profile, run `link all`, verify sources from profile
   - Deactivate profile, run `link all`, verify sources from base
   - Verify correct message displayed
 
-### Story-004: Profile Workflow Preservation
-**As a user**, I want to install components to `~/.agents/`, create profiles from them, and switch between profiles without losing my base installation.
+- [ ] Story-004: As a user, I want to install components to `~/.agents/`, create profiles from them, and switch between profiles without losing my base installation.
 
-**Acceptance Criteria:**
-- Can install 100+ components to `~/.agents/`
-- Can create multiple profiles using `profiles add` to copy components
-- Can activate profile without affecting `~/.agents/` contents
-- Can run `link all` to link only profile components
-- Can deactivate profile without affecting `~/.agents/` contents
-- Can run `link all` after deactivate to restore all base components
-- Base installation in `~/.agents/` remains intact throughout
+  **Acceptance Criteria:**
+  - Can install 100+ components to `~/.agents/`
+  - Can create multiple profiles using `profiles add` to copy components
+  - Can activate profile without affecting `~/.agents/` contents
+  - Can run `link all` to link only profile components
+  - Can deactivate profile without affecting `~/.agents/` contents
+  - Can run `link all` after deactivate to restore all base components
+  - Base installation in `~/.agents/` remains intact throughout
 
-**Testing Criteria:**
-- **Integration Tests:**
+  **Testing Criteria:**
+  **Integration Tests:**
   - Full workflow test with 10+ components
   - Verify `~/.agents/` unchanged after multiple activate/deactivate cycles
   - Verify linking works correctly at each step
 
-### Story-005: Clear User Guidance
-**As a user**, I want clear guidance on what to do after activation/deactivation, so that I understand the two-step workflow.
+- [ ] Story-005: As a user, I want clear guidance on what to do after activation/deactivation, so that I understand the two-step workflow.
 
-**Acceptance Criteria:**
-- Activation prints: "Profile '<name>' activated. Run 'agent-smith link all' to apply changes to your editor."
-- Deactivation prints: "Profile deactivated. Run 'agent-smith link all' to restore base installation to your editor."
-- Help text for `profiles activate` explains two-step process
-- Help text for `profiles deactivate` explains two-step process
-- `link` command help mentions profile awareness
+  **Acceptance Criteria:**
+  - Activation prints: "Profile '<name>' activated. Run 'agent-smith link all' to apply changes to your editor."
+  - Deactivation prints: "Profile deactivated. Run 'agent-smith link all' to restore base installation to your editor."
+  - Help text for `profiles activate` explains two-step process
+  - Help text for `profiles deactivate` explains two-step process
+  - `link` command help mentions profile awareness
 
-**Testing Criteria:**
-- **Manual Tests:**
+  **Testing Criteria:**
+  **Manual Tests:**
   - Verify messages display correctly
   - Verify help text is clear and accurate
 
-### Story-006: Enhanced Status Display
-**As a user**, I want to see which profile is active and where components are sourced from, so that I understand the current state.
+- [ ] Story-006: As a user, I want to see which profile is active and where components are sourced from, so that I understand the current state.
 
-**Acceptance Criteria:**
-- `agent-smith status` shows active profile (ALREADY IMPLEMENTED)
-- `agent-smith link status` optionally shows source directory
-- Status display makes it clear when profile is active vs base installation
+  **Acceptance Criteria:**
+  - `agent-smith status` shows active profile (ALREADY IMPLEMENTED)
+  - `agent-smith link status` optionally shows source directory
+  - Status display makes it clear when profile is active vs base installation
 
-**Testing Criteria:**
-- **Integration Tests:**
+  **Testing Criteria:**
+  **Integration Tests:**
   - Verify status shows correct active profile
   - Verify status distinguishes profile vs base mode
 
@@ -419,17 +416,17 @@ if activeProfile != "" {
 
 ### Manual Testing Checklist
 
-- [ ] Install 10+ skills to `~/.agents/`
-- [ ] Create profile with 2 skills
-- [ ] Activate profile (verify no changes to `~/.agents/`)
-- [ ] Run `link all` (verify only 2 skills linked)
-- [ ] Create second profile with 3 skills
-- [ ] Activate second profile (verify `~/.agents/` still has all 10 skills)
-- [ ] Run `link all` (verify 3 skills linked, replacing previous 2)
-- [ ] Deactivate profile (verify `~/.agents/` still has all 10 skills)
-- [ ] Run `link all` (verify all 10 skills linked)
-- [ ] Run `agent-smith status` at each step (verify correct profile shown)
-- [ ] Run `agent-smith link status` at each step (verify correct links)
+- Install 10+ skills to `~/.agents/`
+- Create profile with 2 skills
+- Activate profile (verify no changes to `~/.agents/`)
+- Run `link all` (verify only 2 skills linked)
+- Create second profile with 3 skills
+- Activate second profile (verify `~/.agents/` still has all 10 skills)
+- Run `link all` (verify 3 skills linked, replacing previous 2)
+- Deactivate profile (verify `~/.agents/` still has all 10 skills)
+- Run `link all` (verify all 10 skills linked)
+- Run `agent-smith status` at each step (verify correct profile shown)
+- Run `agent-smith link status` at each step (verify correct links)
 
 ## Migration Plan
 
