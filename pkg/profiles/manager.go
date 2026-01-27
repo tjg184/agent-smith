@@ -220,8 +220,8 @@ func (pm *ProfileManager) GetComponentNames(profile *Profile) (agents, skills, c
 	return agents, skills, commands
 }
 
-// ActivateProfile activates a profile by creating symlinks from profile components to ~/.agents/
-// If another profile is active, it will be deactivated first
+// ActivateProfile activates a profile by updating the active profile state
+// This does not immediately affect the editor - use 'agent-smith link all' to apply changes
 func (pm *ProfileManager) ActivateProfile(profileName string) error {
 	// Validate profile name
 	if err := validateProfileName(profileName); err != nil {
@@ -246,78 +246,9 @@ func (pm *ProfileManager) ActivateProfile(profileName string) error {
 		return fmt.Errorf("failed to check current active profile: %w", err)
 	}
 
-	// Deactivate current profile if one is active
-	if currentActive != "" {
-		if currentActive == profileName {
-			return fmt.Errorf("profile '%s' is already active", profileName)
-		}
-		fmt.Printf("Deactivating current profile: %s\n", currentActive)
-		if err := pm.unlinkAllComponents(agentsDir); err != nil {
-			return fmt.Errorf("failed to deactivate current profile: %w", err)
-		}
-	}
-
-	// Activate the new profile by creating symlinks
-	fmt.Printf("Activating profile: %s\n", profileName)
-
-	componentTypes := []struct {
-		name      string
-		hasType   bool
-		getDir    func() string
-		targetDir string
-	}{
-		{"agents", profile.HasAgents, profile.GetAgentsDir, filepath.Join(agentsDir, paths.AgentsSubDir)},
-		{"skills", profile.HasSkills, profile.GetSkillsDir, filepath.Join(agentsDir, paths.SkillsSubDir)},
-		{"commands", profile.HasCommands, profile.GetCommandsDir, filepath.Join(agentsDir, paths.CommandsSubDir)},
-	}
-
-	linkedCount := 0
-	for _, ct := range componentTypes {
-		if !ct.hasType {
-			continue
-		}
-
-		sourceDir := ct.getDir()
-		entries, err := os.ReadDir(sourceDir)
-		if err != nil {
-			return fmt.Errorf("failed to read %s directory: %w", ct.name, err)
-		}
-
-		// Ensure target directory exists
-		if err := os.MkdirAll(ct.targetDir, 0755); err != nil {
-			return fmt.Errorf("failed to create target directory for %s: %w", ct.name, err)
-		}
-
-		for _, entry := range entries {
-			if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
-				continue
-			}
-
-			componentName := entry.Name()
-			srcPath := filepath.Join(sourceDir, componentName)
-			dstPath := filepath.Join(ct.targetDir, componentName)
-
-			// Create relative symlink
-			relPath, err := filepath.Rel(filepath.Dir(dstPath), srcPath)
-			if err != nil {
-				return fmt.Errorf("failed to create relative path for %s/%s: %w", ct.name, componentName, err)
-			}
-
-			// Remove existing destination if it exists
-			if _, err := os.Lstat(dstPath); err == nil {
-				if err := os.Remove(dstPath); err != nil {
-					return fmt.Errorf("failed to remove existing %s/%s: %w", ct.name, componentName, err)
-				}
-			}
-
-			// Create the symlink
-			if err := os.Symlink(relPath, dstPath); err != nil {
-				return fmt.Errorf("failed to create symlink for %s/%s: %w", ct.name, componentName, err)
-			}
-
-			linkedCount++
-			fmt.Printf("  Linked %s/%s\n", ct.name, componentName)
-		}
+	// Check if trying to activate already active profile
+	if currentActive == profileName {
+		return fmt.Errorf("profile '%s' is already active", profileName)
 	}
 
 	// Update the active profile state file
@@ -326,7 +257,14 @@ func (pm *ProfileManager) ActivateProfile(profileName string) error {
 		return fmt.Errorf("failed to write active profile state: %w", err)
 	}
 
-	fmt.Printf("\nSuccessfully activated profile '%s' (%d components linked)\n", profileName, linkedCount)
+	// Count components for informational output
+	agents, skills, commands := pm.CountComponents(profile)
+	totalComponents := agents + skills + commands
+
+	fmt.Printf("Successfully activated profile '%s'\n", profileName)
+	fmt.Printf("Profile contains %d components (%d agents, %d skills, %d commands)\n", totalComponents, agents, skills, commands)
+	fmt.Println("\nTo apply this profile to your editor, run:")
+	fmt.Println("  agent-smith link all")
 	return nil
 }
 
@@ -476,8 +414,8 @@ func copyDirectory(src, dst string) error {
 	})
 }
 
-// DeactivateProfile deactivates the currently active profile and returns to base state
-// This removes all profile symlinks and clears the active profile state
+// DeactivateProfile deactivates the currently active profile
+// This only updates the state - use 'agent-smith link all' to apply changes
 func (pm *ProfileManager) DeactivateProfile() error {
 	// Get the agents directory
 	agentsDir, err := paths.GetAgentsDir()
@@ -495,21 +433,15 @@ func (pm *ProfileManager) DeactivateProfile() error {
 		return fmt.Errorf("no profile is currently active")
 	}
 
-	fmt.Printf("Deactivating profile: %s\n", currentActive)
-
-	// Remove all profile symlinks
-	if err := pm.unlinkAllComponents(agentsDir); err != nil {
-		return fmt.Errorf("failed to remove profile components: %w", err)
-	}
-
 	// Clear the active profile state file
 	activeProfilePath := filepath.Join(agentsDir, ".active_profile")
 	if err := os.Remove(activeProfilePath); err != nil {
 		return fmt.Errorf("failed to clear active profile state: %w", err)
 	}
 
-	fmt.Printf("\nSuccessfully deactivated profile '%s'\n", currentActive)
-	fmt.Println("Returned to base state (no profile active)")
+	fmt.Printf("Successfully deactivated profile '%s'\n", currentActive)
+	fmt.Println("\nTo apply this change to your editor, run:")
+	fmt.Println("  agent-smith link all")
 	return nil
 }
 
