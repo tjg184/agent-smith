@@ -552,6 +552,33 @@ counts for each profile.`,
 		},
 	}
 
+	profilesShowCmd := &cobra.Command{
+		Use:   "show <profile-name>",
+		Short: "Show detailed information about a profile",
+		Long: `Display detailed information about a specific profile.
+
+This command shows:
+  - Profile name and active status
+  - Profile location on disk
+  - List of all agents in the profile
+  - List of all skills in the profile
+  - List of all commands in the profile
+
+Use this before activating a profile to see exactly what components it contains.
+
+EXAMPLES:
+  # Show details of a profile
+  agent-smith profiles show my-profile
+  
+  # View contents before activating
+  agent-smith profiles show work-profile
+  agent-smith profiles activate work-profile`,
+		Args: cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleProfilesShow(args[0])
+		},
+	}
+
 	profilesCreateCmd := &cobra.Command{
 		Use:   "create <profile-name>",
 		Short: "Create a new empty profile",
@@ -685,6 +712,7 @@ EXAMPLES:
 	}
 
 	profilesCmd.AddCommand(profilesListCmd)
+	profilesCmd.AddCommand(profilesShowCmd)
 	profilesCmd.AddCommand(profilesCreateCmd)
 	profilesCmd.AddCommand(profilesDeleteCmd)
 	profilesCmd.AddCommand(profilesActivateCmd)
@@ -733,6 +761,7 @@ var (
 	handleUnlinkAll          func(force bool)
 	handleUnlinkType         func(componentType string, force bool)
 	handleProfilesList       func()
+	handleProfilesShow       func(profileName string)
 	handleProfilesCreate     func(profileName string)
 	handleProfilesDelete     func(profileName string)
 	handleProfilesActivate   func(profileName string)
@@ -760,6 +789,7 @@ func SetHandlers(
 	unlinkAll func(force bool),
 	unlinkType func(componentType string, force bool),
 	profilesList func(),
+	profilesShow func(profileName string),
 	profilesCreate func(profileName string),
 	profilesDelete func(profileName string),
 	profilesActivate func(profileName string),
@@ -785,6 +815,7 @@ func SetHandlers(
 	handleUnlinkAll = unlinkAll
 	handleUnlinkType = unlinkType
 	handleProfilesList = profilesList
+	handleProfilesShow = profilesShow
 	handleProfilesCreate = profilesCreate
 	handleProfilesDelete = profilesDelete
 	handleProfilesActivate = profilesActivate

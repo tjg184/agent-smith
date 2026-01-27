@@ -533,6 +533,86 @@ func main() {
 				log.Fatal("Failed to create profile manager:", err)
 			}
 
+			// Load the profile
+			profilesList, err := pm.ScanProfiles()
+			if err != nil {
+				log.Fatal("Failed to scan profiles:", err)
+			}
+
+			var targetProfile *profiles.Profile
+			for _, p := range profilesList {
+				if p.Name == profileName {
+					targetProfile = p
+					break
+				}
+			}
+
+			if targetProfile == nil {
+				log.Fatalf("Profile '%s' not found", profileName)
+			}
+
+			// Get active profile to show status
+			activeProfile, err := pm.GetActiveProfile()
+			if err != nil {
+				log.Fatal("Failed to get active profile:", err)
+			}
+
+			// Display profile information
+			fmt.Printf("Profile: %s", targetProfile.Name)
+			if targetProfile.Name == activeProfile {
+				fmt.Printf(" %s [active]", formatter.SymbolSuccess)
+			}
+			fmt.Println()
+			fmt.Printf("Location: %s\n", targetProfile.BasePath)
+			fmt.Println()
+
+			// Get component names
+			agents, skills, commands := pm.GetComponentNames(targetProfile)
+
+			// Display agents
+			if len(agents) > 0 {
+				fmt.Printf("Agents (%d):\n", len(agents))
+				for _, agent := range agents {
+					fmt.Printf("  - %s\n", agent)
+				}
+				fmt.Println()
+			}
+
+			// Display skills
+			if len(skills) > 0 {
+				fmt.Printf("Skills (%d):\n", len(skills))
+				for _, skill := range skills {
+					fmt.Printf("  - %s\n", skill)
+				}
+				fmt.Println()
+			}
+
+			// Display commands
+			if len(commands) > 0 {
+				fmt.Printf("Commands (%d):\n", len(commands))
+				for _, command := range commands {
+					fmt.Printf("  - %s\n", command)
+				}
+				fmt.Println()
+			}
+
+			// Show empty state if no components
+			if len(agents) == 0 && len(skills) == 0 && len(commands) == 0 {
+				fmt.Println("This profile is empty.")
+				fmt.Println("\nAdd components with:")
+				fmt.Printf("  agent-smith profiles add <type> %s <component-name>\n", profileName)
+			} else if targetProfile.Name != activeProfile {
+				// Show activation hint if not active
+				fmt.Println("To activate this profile:")
+				fmt.Printf("  agent-smith profiles activate %s\n", profileName)
+			}
+		},
+		func(profileName string) {
+			pm, err := profiles.NewProfileManager()
+			if err != nil {
+				log.Fatal("Failed to create profile manager:", err)
+			}
+
 			if err := pm.CreateProfile(profileName); err != nil {
 				log.Fatal("Failed to create profile:", err)
 			}
