@@ -16,7 +16,7 @@ Enhance the existing profiles feature in agent-smith to support creating profile
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want to create a new empty profile so that I can organize my tools for different projects.
+- [x] Story-001: As a developer, I want to create a new empty profile so that I can organize my tools for different projects.
 
   **Acceptance Criteria:**
   - Command `agent-smith profiles create <name>` creates new profile
@@ -41,7 +41,7 @@ Enhance the existing profiles feature in agent-smith to support creating profile
   **Component Browser Tests:**
   - N/A (CLI-only feature)
 
-- [ ] Story-002: As a developer, I want to add an existing component from ~/.agents/ to a profile so that I can reuse components across profiles.
+- [x] Story-002: As a developer, I want to add an existing component from ~/.agents/ to a profile so that I can reuse components across profiles.
 
   **Acceptance Criteria:**
   - Commands: `agent-smith profiles add skill <profile> <name>`, `agent-smith profiles add agent <profile> <name>`, `agent-smith profiles add command <profile> <name>`
@@ -66,7 +66,7 @@ Enhance the existing profiles feature in agent-smith to support creating profile
   **Component Browser Tests:**
   - N/A (CLI-only feature)
 
-- [ ] Story-003: As a developer, I want to remove a component from a profile so that I can keep profiles clean and focused.
+- [x] Story-003: As a developer, I want to remove a component from a profile so that I can keep profiles clean and focused.
 
   **Acceptance Criteria:**
   - Commands: `agent-smith profiles remove skill <profile> <name>`, `agent-smith profiles remove agent <profile> <name>`, `agent-smith profiles remove command <profile> <name>`
@@ -92,7 +92,7 @@ Enhance the existing profiles feature in agent-smith to support creating profile
   **Component Browser Tests:**
   - N/A (CLI-only feature)
 
-- [ ] Story-004: As a developer, I want to install a component directly to a profile so that I can skip installing to ~/.agents/ first.
+- [x] Story-004: As a developer, I want to install a component directly to a profile so that I can skip installing to ~/.agents/ first.
 
   **Acceptance Criteria:**
   - Add --profile flag to install commands: `agent-smith install skill <repo> <name> --profile <profile>`
@@ -118,7 +118,7 @@ Enhance the existing profiles feature in agent-smith to support creating profile
   **Component Browser Tests:**
   - N/A (CLI-only feature)
 
-- [ ] Story-005: As a developer, I want the link commands to automatically use my active profile so that linking matches my current context.
+- [x] Story-005: As a developer, I want the link commands to automatically use my active profile so that linking matches my current context.
 
   **Acceptance Criteria:**
   - When profile is active, link commands source from profile instead of ~/.agents/
@@ -144,7 +144,7 @@ Enhance the existing profiles feature in agent-smith to support creating profile
   **Component Browser Tests:**
   - N/A (CLI-only feature)
 
-- [ ] Story-006: As a developer, I want to delete a profile so that I can remove profiles I no longer need.
+- [x] Story-006: As a developer, I want to delete a profile so that I can remove profiles I no longer need.
 
   **Acceptance Criteria:**
   - Command: `agent-smith profiles delete <name>`
@@ -170,7 +170,7 @@ Enhance the existing profiles feature in agent-smith to support creating profile
   **Component Browser Tests:**
   - N/A (CLI-only feature)
 
-- [ ] Story-007: As a developer, I want to see detailed information about a profile so that I know what's in it before activating.
+- [x] Story-007: As a developer, I want to see detailed information about a profile so that I know what's in it before activating.
 
   **Acceptance Criteria:**
   - Command: `agent-smith profiles show <name>`
@@ -196,7 +196,7 @@ Enhance the existing profiles feature in agent-smith to support creating profile
   **Component Browser Tests:**
   - N/A (CLI-only feature)
 
-- [ ] Story-008: As a developer, I want profile name validation to prevent file system issues so that profiles always work correctly.
+- [x] Story-008: As a developer, I want profile name validation to prevent file system issues so that profiles always work correctly.
 
   **Acceptance Criteria:**
   - Profile names must match pattern: ^[a-zA-Z0-9-]+$
