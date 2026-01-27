@@ -95,3 +95,8 @@
 - [✓] 2026-01-26 21:26 - Story-002: As a user, I want bulk installations to show a progress indicator so that I know the system is working without verbose per-component messages.
 - [✓] 2026-01-26 21:29 - Story-003: As a user, I want to see a summary table after bulk installations so that I can quickly review what was installed successfully.
 - [✓] 2026-01-26 21:35 - Story-004: As a developer, I want to refactor output formatting logic into a centralized module so that output formatting is consistent across all downloaders.
+- [✓] 2026-01-26 23:35 - Story-001: As a user, I want to define profiles in a specific directory so that the system can recognize them.
+- [✓] 2026-01-26 23:40 - Story-002: As a user, I want to list available profiles so that I can see what configurations are available.
+- [✓] 2026-01-26 23:44 - Story-003: As a user, I want to activate a specific profile so that its tools replace the currently active ones.
+- [✓] 2026-01-26 23:48 - Story-004: As a user, I want to deactivate the current profile so that I can return to a base state.
+- [✓] 2026-01-26 23:52 - Story-005: As a user, I want to see the current status so that I know which profile is active.
