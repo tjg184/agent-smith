@@ -514,6 +514,7 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 
 		// Display results for this target
 		fmt.Printf("\n=== %s ===\n", strings.ToUpper(targetName))
+		fmt.Printf("%s\n", cl.getSourceDescription())
 
 		if totalCount == 0 {
 			fmt.Printf("No components are currently linked to %s.\n", targetName)
@@ -668,6 +669,7 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 
 	// Display header
 	fmt.Println("\n=== Link Status Across All Targets ===")
+	fmt.Printf("%s\n\n", cl.getSourceDescription())
 
 	// Get target names for header
 	targetNames := make([]string, 0, len(cl.targets))
