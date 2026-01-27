@@ -467,6 +467,40 @@ func (pm *ProfileManager) CreateProfile(profileName string) error {
 	return nil
 }
 
+// DeleteProfile deletes a profile and all its contents
+// Returns an error if the profile is currently active or doesn't exist
+func (pm *ProfileManager) DeleteProfile(profileName string) error {
+	// Validate profile name
+	if profileName == "" {
+		return fmt.Errorf("profile name cannot be empty")
+	}
+
+	// Check if profile exists
+	profile := pm.loadProfile(profileName)
+	if !profile.IsValid() {
+		return fmt.Errorf("profile '%s' does not exist", profileName)
+	}
+
+	// Check if profile is currently active
+	activeProfile, err := pm.GetActiveProfile()
+	if err != nil {
+		return fmt.Errorf("failed to check active profile: %w", err)
+	}
+
+	if activeProfile == profileName {
+		return fmt.Errorf("cannot delete active profile '%s'. Deactivate it first with: agent-smith profiles deactivate", profileName)
+	}
+
+	// Delete the profile directory
+	profileDir := filepath.Join(pm.profilesDir, profileName)
+	if err := os.RemoveAll(profileDir); err != nil {
+		return fmt.Errorf("failed to delete profile directory: %w", err)
+	}
+
+	fmt.Printf("Successfully deleted profile '%s'\n", profileName)
+	return nil
+}
+
 // unlinkAllComponents removes all symlinks from the agents directory component folders
 func (pm *ProfileManager) unlinkAllComponents(agentsDir string) error {
 	componentDirs := []string{

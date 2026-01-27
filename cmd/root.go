@@ -571,6 +571,29 @@ After creation, you can add components to the profile and activate it with:
 		},
 	}
 
+	profilesDeleteCmd := &cobra.Command{
+		Use:   "delete <profile-name>",
+		Short: "Delete a profile",
+		Long: `Delete a profile and all its contents.
+
+This command permanently removes a profile directory and all components within it.
+The profile must be deactivated before it can be deleted.
+
+WARNING: This operation cannot be undone. All components in the profile will be permanently deleted.
+
+EXAMPLES:
+  # Delete a profile
+  agent-smith profiles delete my-profile
+
+  # If the profile is active, deactivate it first
+  agent-smith profiles deactivate
+  agent-smith profiles delete my-profile`,
+		Args: cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleProfilesDelete(args[0])
+		},
+	}
+
 	profilesActivateCmd := &cobra.Command{
 		Use:   "activate <profile-name>",
 		Short: "Activate a specific profile",
@@ -663,6 +686,7 @@ EXAMPLES:
 
 	profilesCmd.AddCommand(profilesListCmd)
 	profilesCmd.AddCommand(profilesCreateCmd)
+	profilesCmd.AddCommand(profilesDeleteCmd)
 	profilesCmd.AddCommand(profilesActivateCmd)
 	profilesCmd.AddCommand(profilesDeactivateCmd)
 	profilesCmd.AddCommand(profilesAddCmd)
@@ -710,6 +734,7 @@ var (
 	handleUnlinkType         func(componentType string, force bool)
 	handleProfilesList       func()
 	handleProfilesCreate     func(profileName string)
+	handleProfilesDelete     func(profileName string)
 	handleProfilesActivate   func(profileName string)
 	handleProfilesDeactivate func()
 	handleProfilesAdd        func(componentType, profileName, componentName string)
@@ -736,6 +761,7 @@ func SetHandlers(
 	unlinkType func(componentType string, force bool),
 	profilesList func(),
 	profilesCreate func(profileName string),
+	profilesDelete func(profileName string),
 	profilesActivate func(profileName string),
 	profilesDeactivate func(),
 	profilesAdd func(componentType, profileName, componentName string),
@@ -760,6 +786,7 @@ func SetHandlers(
 	handleUnlinkType = unlinkType
 	handleProfilesList = profilesList
 	handleProfilesCreate = profilesCreate
+	handleProfilesDelete = profilesDelete
 	handleProfilesActivate = profilesActivate
 	handleProfilesDeactivate = profilesDeactivate
 	handleProfilesAdd = profilesAdd
