@@ -624,12 +624,15 @@ EXAMPLES:
 	profilesActivateCmd := &cobra.Command{
 		Use:   "activate <profile-name>",
 		Short: "Activate a specific profile",
-		Long: `Activate a profile to replace currently active tools with the profile's tools.
+		Long: `Activate a profile without immediately affecting your editor.
 
 This command will:
-1. Deactivate the currently active profile (if any)
-2. Create symlinks from the profile's components to ~/.agents/
-3. Update the active profile state
+1. Update the active profile state
+2. Deactivate any currently active profile
+
+This does NOT immediately modify your editor configuration. To apply this profile
+to your editor, run:
+  agent-smith link all
 
 Only one profile can be active at a time. The active profile persists across sessions.`,
 		Args: cobra.ExactArgs(1),
@@ -641,15 +644,17 @@ Only one profile can be active at a time. The active profile persists across ses
 	profilesDeactivateCmd := &cobra.Command{
 		Use:   "deactivate",
 		Short: "Deactivate the current profile",
-		Long: `Deactivate the currently active profile and return to base state.
+		Long: `Deactivate the currently active profile without immediately affecting your editor.
 
 This command will:
-1. Remove all symlinks created by the active profile
-2. Clear the active profile state
-3. Return to base state (no profile active)
+1. Clear the active profile state
+2. Return to base state (no profile active)
 
-This allows you to return to using only your directly installed components
-without any profile-specific overrides.`,
+This does NOT immediately modify your editor configuration. To apply this change
+to your editor, run:
+  agent-smith link all
+
+This allows you to control when changes are applied to your editor.`,
 		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesDeactivate()
