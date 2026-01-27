@@ -37,7 +37,7 @@ Currently this workflow fails at step 2-3 due to the issues above.
 
 ## User Stories
 
-- [ ] Story-001: As a user, I want to activate a profile without immediately affecting my editor, so that I can control when changes are applied.
+- [x] Story-001: As a user, I want to activate a profile without immediately affecting my editor, so that I can control when changes are applied.
 
   **Acceptance Criteria:**
   - `agent-smith profiles activate <name>` only updates state file (`~/.agents/.active_profile`)
@@ -58,7 +58,7 @@ Currently this workflow fails at step 2-3 due to the issues above.
   - Activate profile, verify only state file changes
   - Verify `~/.agents/` contents identical before/after
 
-- [ ] Story-002: As a user, I want to deactivate a profile without immediately affecting my editor, so that I can control when changes are applied.
+- [x] Story-002: As a user, I want to deactivate a profile without immediately affecting my editor, so that I can control when changes are applied.
 
   **Acceptance Criteria:**
   - `agent-smith profiles deactivate` only clears state file
@@ -78,12 +78,12 @@ Currently this workflow fails at step 2-3 due to the issues above.
   - Deactivate profile, verify only state file removed
   - Verify `~/.agents/` contents identical before/after
 
-- [ ] Story-003: As a user, I want link commands to automatically use my active profile, so that linking matches my current context.
+- [x] Story-003: As a user, I want link commands to automatically use my active profile, so that linking matches my current context.
 
   **Acceptance Criteria:**
-  - When profile active, `link` commands source from `~/.agents/profiles/<profile>/` (ALREADY IMPLEMENTED)
-  - When no profile active, `link` commands source from `~/.agents/`
-  - Displays message "Using active profile: <name>" when profile active
+  - When profile active, `link` commands source from `~/.agents/profiles/<profile>/` (main.go:133, 173)
+  - When no profile active, `link` commands source from `~/.agents/` (main.go:111-135, 151-175)
+  - Displays message "Using active profile: <name>" when profile active (main.go:134, 174)
   - Works for all link commands: `link skills`, `link agents`, `link commands`, `link all`
   - No breaking changes to existing link command syntax
 
@@ -158,10 +158,10 @@ Currently this workflow fails at step 2-3 due to the issues above.
 - **FR-011**: `DeactivateProfile()` must print guidance message about running `link all`
 
 ### Profile-Aware Linking
-- **FR-012**: Link commands must check for active profile before determining source
-- **FR-013**: Link commands must use `~/.agents/profiles/<profile>/` when profile active (ALREADY IMPLEMENTED)
-- **FR-014**: Link commands must use `~/.agents/` when no profile active (ALREADY IMPLEMENTED)
-- **FR-015**: Link commands must display message when using active profile (ALREADY IMPLEMENTED)
+- **FR-012**: Link commands must check for active profile before determining source (main.go:117-125, 157-165)
+- **FR-013**: Link commands must use `~/.agents/profiles/<profile>/` when profile active (main.go:133, 173)
+- **FR-014**: Link commands must use `~/.agents/` when no profile active (main.go:111, 151)
+- **FR-015**: Link commands must display message when using active profile (main.go:134, 174)
 - **FR-016**: Link behavior must be identical whether profile active or not (only source changes)
 
 ### Backward Compatibility
