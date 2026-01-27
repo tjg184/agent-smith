@@ -287,6 +287,50 @@ func (pm *ProfileManager) DeactivateProfile() error {
 	return nil
 }
 
+// CreateProfile creates a new empty profile with the standard directory structure
+func (pm *ProfileManager) CreateProfile(profileName string) error {
+	// Validate profile name
+	if profileName == "" {
+		return fmt.Errorf("profile name cannot be empty")
+	}
+
+	// Check if profile already exists
+	profile := pm.loadProfile(profileName)
+	if profile.IsValid() {
+		return fmt.Errorf("profile '%s' already exists", profileName)
+	}
+
+	// Create profile directory
+	profileDir := filepath.Join(pm.profilesDir, profileName)
+	if err := os.MkdirAll(profileDir, 0755); err != nil {
+		return fmt.Errorf("failed to create profile directory: %w", err)
+	}
+
+	// Create component directories
+	componentDirs := []string{
+		filepath.Join(profileDir, paths.AgentsSubDir),
+		filepath.Join(profileDir, paths.SkillsSubDir),
+		filepath.Join(profileDir, paths.CommandsSubDir),
+	}
+
+	for _, dir := range componentDirs {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create component directory %s: %w", dir, err)
+		}
+	}
+
+	fmt.Printf("Created profile: %s\n", profileName)
+	fmt.Printf("  Location: %s\n", profileDir)
+	fmt.Println("\nComponent directories created:")
+	fmt.Printf("  - %s\n", paths.AgentsSubDir)
+	fmt.Printf("  - %s\n", paths.SkillsSubDir)
+	fmt.Printf("  - %s\n", paths.CommandsSubDir)
+	fmt.Println("\nYou can now add components to this profile and activate it with:")
+	fmt.Printf("  agent-smith profiles activate %s\n", profileName)
+
+	return nil
+}
+
 // unlinkAllComponents removes all symlinks from the agents directory component folders
 func (pm *ProfileManager) unlinkAllComponents(agentsDir string) error {
 	componentDirs := []string{
