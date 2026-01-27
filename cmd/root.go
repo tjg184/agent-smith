@@ -50,7 +50,7 @@ REPOSITORY URL FORMATS:
 	}
 
 	// Add subcommands to 'install' command
-	installCmd.AddCommand(&cobra.Command{
+	installSkillCmd := &cobra.Command{
 		Use:   "skill <repository-url> <skill-name>",
 		Short: "Download a skill from a git repository",
 		Long: `Download and install a skill from a git repository to your local agents directory.
@@ -67,14 +67,20 @@ EXAMPLES:
   agent-smith install skill https://github.com/example/repo my-skill
 
   # Download from local repository
-  agent-smith install skill /path/to/local/skill local-skill`,
+  agent-smith install skill /path/to/local/skill local-skill
+
+  # Install directly to a profile
+  agent-smith install skill openai/cookbook gpt-skill --profile work`,
 		Args: cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
-			handleAddSkill(args[0], args[1])
+			profile, _ := cmd.Flags().GetString("profile")
+			handleAddSkill(args[0], args[1], profile)
 		},
-	})
+	}
+	installSkillCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agents/")
+	installCmd.AddCommand(installSkillCmd)
 
-	installCmd.AddCommand(&cobra.Command{
+	installAgentCmd := &cobra.Command{
 		Use:   "agent <repository-url> <agent-name>",
 		Short: "Download an agent from a git repository",
 		Long: `Download and install an AI agent from a git repository to your local agents directory.
@@ -91,14 +97,20 @@ EXAMPLES:
   agent-smith install agent https://github.com/example/agent my-agent
 
   # Download from local repository
-  agent-smith install agent /path/to/local/agent local-agent`,
+  agent-smith install agent /path/to/local/agent local-agent
+
+  # Install directly to a profile
+  agent-smith install agent openai/assistant coding-agent --profile work`,
 		Args: cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
-			handleAddAgent(args[0], args[1])
+			profile, _ := cmd.Flags().GetString("profile")
+			handleAddAgent(args[0], args[1], profile)
 		},
-	})
+	}
+	installAgentCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agents/")
+	installCmd.AddCommand(installAgentCmd)
 
-	installCmd.AddCommand(&cobra.Command{
+	installCommandCmd := &cobra.Command{
 		Use:   "command <repository-url> <command-name>",
 		Short: "Download a command from a git repository",
 		Long: `Download and install a command-line tool from a git repository to your local agents directory.
@@ -115,12 +127,18 @@ EXAMPLES:
   agent-smith install command https://github.com/example/tool my-tool
 
   # Download from local repository
-  agent-smith install command /path/to/local/command local-cmd`,
+  agent-smith install command /path/to/local/command local-cmd
+
+  # Install directly to a profile
+  agent-smith install command cli-tools/formatter json-formatter --profile work`,
 		Args: cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
-			handleAddCommand(args[0], args[1])
+			profile, _ := cmd.Flags().GetString("profile")
+			handleAddCommand(args[0], args[1], profile)
 		},
-	})
+	}
+	installCommandCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agents/")
+	installCmd.AddCommand(installCommandCmd)
 
 	installCmd.AddCommand(&cobra.Command{
 		Use:   "all <repository-url>",
@@ -674,9 +692,9 @@ This provides a dashboard view of your agent-smith installation.`,
 
 // These functions will be implemented in main.go to keep existing logic
 var (
-	handleAddSkill           func(repoURL, name string)
-	handleAddAgent           func(repoURL, name string)
-	handleAddCommand         func(repoURL, name string)
+	handleAddSkill           func(repoURL, name, profile string)
+	handleAddAgent           func(repoURL, name, profile string)
+	handleAddCommand         func(repoURL, name, profile string)
 	handleAddAll             func(repoURL string)
 	handleRun                func(target string, args []string)
 	handleUpdate             func(componentType, componentName string)
@@ -700,9 +718,9 @@ var (
 )
 
 func SetHandlers(
-	addSkill func(repoURL, name string),
-	addAgent func(repoURL, name string),
-	addCommand func(repoURL, name string),
+	addSkill func(repoURL, name, profile string),
+	addAgent func(repoURL, name, profile string),
+	addCommand func(repoURL, name, profile string),
 	addAll func(repoURL string),
 	run func(target string, args []string),
 	update func(componentType, componentName string),

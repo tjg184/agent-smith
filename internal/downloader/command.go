@@ -43,6 +43,29 @@ func NewCommandDownloader() *CommandDownloader {
 	}
 }
 
+// NewCommandDownloaderForProfile creates a new CommandDownloader instance that installs to a profile
+func NewCommandDownloaderForProfile(profileName string) *CommandDownloader {
+	// Get profiles directory
+	profilesDir, err := paths.GetProfilesDir()
+	if err != nil {
+		log.Fatal("Failed to get profiles directory:", err)
+	}
+
+	// Build path to profile's commands directory
+	baseDir := filepath.Join(profilesDir, profileName, "commands")
+
+	// Create base directory if it doesn't exist
+	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
+		log.Fatal("Failed to create profile commands directory:", err)
+	}
+
+	return &CommandDownloader{
+		baseDir:   baseDir,
+		detector:  detector.NewRepositoryDetector(),
+		formatter: formatter.New(),
+	}
+}
+
 func (cd *CommandDownloader) parseRepoURL(repoURL string) (string, error) {
 	// Normalize URL first (handles GitHub shorthand, etc.)
 	normalizedURL, err := cd.detector.NormalizeURL(repoURL)

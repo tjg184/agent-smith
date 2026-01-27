@@ -44,6 +44,30 @@ func NewSkillDownloader() *SkillDownloader {
 	}
 }
 
+// NewSkillDownloaderForProfile creates a new SkillDownloader instance that installs to a profile
+func NewSkillDownloaderForProfile(profileName string) *SkillDownloader {
+	// Get profiles directory
+	profilesDir, err := paths.GetProfilesDir()
+	if err != nil {
+		log.Fatal("Failed to get profiles directory:", err)
+	}
+
+	// Build path to profile's skills directory
+	baseDir := filepath.Join(profilesDir, profileName, "skills")
+
+	// Create base directory if it doesn't exist
+	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
+		log.Fatal("Failed to create profile skills directory:", err)
+	}
+
+	return &SkillDownloader{
+		baseDir:   baseDir,
+		detector:  detector.NewRepositoryDetector(),
+		cloner:    gitpkg.NewDefaultCloner(),
+		formatter: formatter.New(),
+	}
+}
+
 func (sd *SkillDownloader) parseRepoURL(repoURL string) (string, error) {
 	// Normalize URL first (handles GitHub shorthand, etc.)
 	normalizedURL, err := sd.detector.NormalizeURL(repoURL)

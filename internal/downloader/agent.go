@@ -43,6 +43,29 @@ func NewAgentDownloader() *AgentDownloader {
 	}
 }
 
+// NewAgentDownloaderForProfile creates a new AgentDownloader instance that installs to a profile
+func NewAgentDownloaderForProfile(profileName string) *AgentDownloader {
+	// Get profiles directory
+	profilesDir, err := paths.GetProfilesDir()
+	if err != nil {
+		log.Fatal("Failed to get profiles directory:", err)
+	}
+
+	// Build path to profile's agents directory
+	baseDir := filepath.Join(profilesDir, profileName, "agents")
+
+	// Create base directory if it doesn't exist
+	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
+		log.Fatal("Failed to create profile agents directory:", err)
+	}
+
+	return &AgentDownloader{
+		baseDir:   baseDir,
+		detector:  detector.NewRepositoryDetector(),
+		formatter: formatter.New(),
+	}
+}
+
 // NewAgentDownloaderWithParams creates a new AgentDownloader with custom parameters (for testing)
 func NewAgentDownloaderWithParams(baseDir string, detect *detector.RepositoryDetector) *AgentDownloader {
 	return &AgentDownloader{

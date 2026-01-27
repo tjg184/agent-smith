@@ -176,22 +176,118 @@ func joinStrings(strings []string, separator string) string {
 func main() {
 	// Set up handlers for Cobra commands
 	cmd.SetHandlers(
-		func(repoURL, name string) {
-			dl := downloader.NewSkillDownloader()
-			if err := dl.DownloadSkill(repoURL, name); err != nil {
-				log.Fatal("Failed to download skill:", err)
+		func(repoURL, name, profile string) {
+			if profile != "" {
+				// Install directly to profile
+				pm, err := profiles.NewProfileManager()
+				if err != nil {
+					log.Fatal("Failed to create profile manager:", err)
+				}
+
+				// Validate profile exists by scanning
+				profilesList, err := pm.ScanProfiles()
+				if err != nil {
+					log.Fatal("Failed to scan profiles:", err)
+				}
+
+				profileExists := false
+				for _, p := range profilesList {
+					if p.Name == profile {
+						profileExists = true
+						break
+					}
+				}
+
+				if !profileExists {
+					log.Fatalf("Profile '%s' does not exist. Create it first with: agent-smith profiles create %s", profile, profile)
+				}
+
+				dl := downloader.NewSkillDownloaderForProfile(profile)
+				if err := dl.DownloadSkill(repoURL, name); err != nil {
+					log.Fatal("Failed to download skill:", err)
+				}
+			} else {
+				// Standard installation to ~/.agents/
+				dl := downloader.NewSkillDownloader()
+				if err := dl.DownloadSkill(repoURL, name); err != nil {
+					log.Fatal("Failed to download skill:", err)
+				}
 			}
 		},
-		func(repoURL, name string) {
-			dl := downloader.NewAgentDownloader()
-			if err := dl.DownloadAgent(repoURL, name); err != nil {
-				log.Fatal("Failed to download agent:", err)
+		func(repoURL, name, profile string) {
+			if profile != "" {
+				// Install directly to profile
+				pm, err := profiles.NewProfileManager()
+				if err != nil {
+					log.Fatal("Failed to create profile manager:", err)
+				}
+
+				// Validate profile exists by scanning
+				profilesList, err := pm.ScanProfiles()
+				if err != nil {
+					log.Fatal("Failed to scan profiles:", err)
+				}
+
+				profileExists := false
+				for _, p := range profilesList {
+					if p.Name == profile {
+						profileExists = true
+						break
+					}
+				}
+
+				if !profileExists {
+					log.Fatalf("Profile '%s' does not exist. Create it first with: agent-smith profiles create %s", profile, profile)
+				}
+
+				dl := downloader.NewAgentDownloaderForProfile(profile)
+				if err := dl.DownloadAgent(repoURL, name); err != nil {
+					log.Fatal("Failed to download agent:", err)
+				}
+			} else {
+				// Standard installation to ~/.agents/
+				dl := downloader.NewAgentDownloader()
+				if err := dl.DownloadAgent(repoURL, name); err != nil {
+					log.Fatal("Failed to download agent:", err)
+				}
 			}
 		},
-		func(repoURL, name string) {
-			dl := downloader.NewCommandDownloader()
-			if err := dl.DownloadCommand(repoURL, name); err != nil {
-				log.Fatal("Failed to download command:", err)
+		func(repoURL, name, profile string) {
+			if profile != "" {
+				// Install directly to profile
+				pm, err := profiles.NewProfileManager()
+				if err != nil {
+					log.Fatal("Failed to create profile manager:", err)
+				}
+
+				// Validate profile exists by scanning
+				profilesList, err := pm.ScanProfiles()
+				if err != nil {
+					log.Fatal("Failed to scan profiles:", err)
+				}
+
+				profileExists := false
+				for _, p := range profilesList {
+					if p.Name == profile {
+						profileExists = true
+						break
+					}
+				}
+
+				if !profileExists {
+					log.Fatalf("Profile '%s' does not exist. Create it first with: agent-smith profiles create %s", profile, profile)
+				}
+
+				dl := downloader.NewCommandDownloaderForProfile(profile)
+				if err := dl.DownloadCommand(repoURL, name); err != nil {
+					log.Fatal("Failed to download command:", err)
+				}
+			} else {
+				// Standard installation to ~/.agents/
+				dl := downloader.NewCommandDownloader()
+				if err := dl.DownloadCommand(repoURL, name); err != nil {
+					log.Fatal("Failed to download command:", err)
+				}
 			}
 		},
 		func(repoURL string) {
