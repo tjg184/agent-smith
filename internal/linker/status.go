@@ -1,6 +1,7 @@
 package linker
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -13,6 +14,16 @@ type LinkStatus struct {
 	Target     string
 	Valid      bool
 	TargetPath string
+}
+
+// getSourceDescription returns a human-readable description of the source directory
+func (cl *ComponentLinker) getSourceDescription() string {
+	// Check if this is a profile directory
+	if filepath.Base(filepath.Dir(cl.agentsDir)) == "profiles" {
+		profileName := filepath.Base(cl.agentsDir)
+		return fmt.Sprintf("Source: %s (profile '%s')", cl.agentsDir, profileName)
+	}
+	return fmt.Sprintf("Source: %s (base installation)", cl.agentsDir)
 }
 
 // analyzeLinkStatus analyzes the status of a link/directory
