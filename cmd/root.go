@@ -222,6 +222,17 @@ EXAMPLES:
 This command provides a modern interface for linking downloaded AI components
 to supported targets (OpenCode, Claude Code, etc.).
 
+PROFILE AWARENESS:
+When a profile is active, link commands automatically use components from the
+active profile directory instead of ~/.agents/. This allows you to control which
+components are linked to your editor.
+
+  - With active profile: Sources from ~/.agents/profiles/<profile>/
+  - No active profile: Sources from ~/.agents/ (base installation)
+
+Use 'agent-smith profiles activate <name>' to activate a profile, then run
+'link' commands to apply it.
+
 FLAGS (apply to all subcommands):
   --target, -t <target>  - Specify target to link to (opencode, claudecode, or all)
   --all-targets          - Explicitly link to all detected targets (default behavior)`,
@@ -362,8 +373,18 @@ EXAMPLES:
 		Short: "Link all components to detected targets",
 		Long: `Link all downloaded components (skills, agents, and commands) to detected targets.
 
-This command links all components from ~/.agents/ to the appropriate directories
-for OpenCode, Claude Code, or other supported targets.
+This command links all components to the appropriate directories for OpenCode,
+Claude Code, or other supported targets.
+
+PROFILE AWARENESS:
+  - With active profile: Links components from the active profile
+  - No active profile: Links all components from ~/.agents/ (base installation)
+
+TWO-STEP WORKFLOW:
+  1. Activate a profile: agent-smith profiles activate <name>
+  2. Apply to editor: agent-smith link all
+
+This gives you explicit control over when changes are applied to your editor.
 
 EXAMPLES:
   # Link all components to all detected targets (default)

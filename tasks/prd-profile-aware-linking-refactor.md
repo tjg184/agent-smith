@@ -97,7 +97,7 @@ Currently this workflow fails at step 2-3 due to the issues above.
   - Deactivate profile, run `link all`, verify sources from base
   - Verify correct message displayed
 
-- [ ] Story-004: As a user, I want to install components to `~/.agents/`, create profiles from them, and switch between profiles without losing my base installation.
+- [x] Story-004: As a user, I want to install components to `~/.agents/`, create profiles from them, and switch between profiles without losing my base installation.
 
   **Acceptance Criteria:**
   - Can install 100+ components to `~/.agents/`
@@ -114,7 +114,7 @@ Currently this workflow fails at step 2-3 due to the issues above.
   - Verify `~/.agents/` unchanged after multiple activate/deactivate cycles
   - Verify linking works correctly at each step
 
-- [ ] Story-005: As a user, I want clear guidance on what to do after activation/deactivation, so that I understand the two-step workflow.
+- [x] Story-005: As a user, I want clear guidance on what to do after activation/deactivation, so that I understand the two-step workflow.
 
   **Acceptance Criteria:**
   - Activation prints: "Profile '<name>' activated. Run 'agent-smith link all' to apply changes to your editor."
