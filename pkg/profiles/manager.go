@@ -145,6 +145,48 @@ func (pm *ProfileManager) CountComponents(profile *Profile) (agents, skills, com
 	return agents, skills, commands
 }
 
+// GetComponentNames returns sorted lists of component names in a profile
+// Returns three slices: agent names, skill names, and command names
+func (pm *ProfileManager) GetComponentNames(profile *Profile) (agents, skills, commands []string) {
+	// Get agent names
+	if profile.HasAgents {
+		agentsPath := filepath.Join(profile.BasePath, paths.AgentsSubDir)
+		if entries, err := os.ReadDir(agentsPath); err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
+					agents = append(agents, entry.Name())
+				}
+			}
+		}
+	}
+
+	// Get skill names
+	if profile.HasSkills {
+		skillsPath := filepath.Join(profile.BasePath, paths.SkillsSubDir)
+		if entries, err := os.ReadDir(skillsPath); err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
+					skills = append(skills, entry.Name())
+				}
+			}
+		}
+	}
+
+	// Get command names
+	if profile.HasCommands {
+		commandsPath := filepath.Join(profile.BasePath, paths.CommandsSubDir)
+		if entries, err := os.ReadDir(commandsPath); err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
+					commands = append(commands, entry.Name())
+				}
+			}
+		}
+	}
+
+	return agents, skills, commands
+}
+
 // ActivateProfile activates a profile by creating symlinks from profile components to ~/.agents/
 // If another profile is active, it will be deactivated first
 func (pm *ProfileManager) ActivateProfile(profileName string) error {
