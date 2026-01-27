@@ -114,3 +114,7 @@
 - [✗] 2026-01-27 12:39 - Install 10+ skills to `~/.agents/`
 - [✗] 2026-01-27 12:39 - Install 10+ skills to `~/.agents/`
 - [✗] 2026-01-27 12:39 - Install 10+ skills to `~/.agents/`
+- [✓] 2026-01-27 12:46 - Story-001: As a user, I want to activate a profile without immediately affecting my editor, so that I can control when changes are applied.
+- [✓] 2026-01-27 12:49 - Story-002: As a user, I want to deactivate a profile without immediately affecting my editor, so that I can control when changes are applied.
+- [✓] 2026-01-27 12:52 - Story-003: As a user, I want link commands to automatically use my active profile, so that linking matches my current context.
+- [✓] 2026-01-27 14:56 - Story-004: As a user, I want to install components to ~/.agents/, create profiles from them, and switch between profiles without losing my base installation.
