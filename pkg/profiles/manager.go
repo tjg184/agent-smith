@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/tgaines/agent-smith/pkg/paths"
@@ -21,6 +22,38 @@ func NewProfileManager() (*ProfileManager, error) {
 		return nil, fmt.Errorf("failed to get profiles directory: %w", err)
 	}
 	return &ProfileManager{profilesDir: profilesDir}, nil
+}
+
+// validateProfileName validates a profile name to prevent file system issues
+// Returns an error if the name is invalid
+func validateProfileName(name string) error {
+	// Check for empty name
+	if name == "" {
+		return fmt.Errorf("profile name cannot be empty")
+	}
+
+	// Check for path traversal attempts (check before hidden directory check)
+	if strings.Contains(name, "..") || strings.Contains(name, "./") {
+		return fmt.Errorf("profile name cannot contain path traversal patterns (.. or ./)")
+	}
+
+	// Check for hidden directories (names starting with .)
+	if strings.HasPrefix(name, ".") {
+		return fmt.Errorf("profile name cannot start with '.' (hidden directories not allowed)")
+	}
+
+	// Check for path separators
+	if strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return fmt.Errorf("profile name cannot contain path separators (/ or \\)")
+	}
+
+	// Validate against regex pattern: only alphanumeric and hyphens
+	validPattern := regexp.MustCompile(`^[a-zA-Z0-9-]+$`)
+	if !validPattern.MatchString(name) {
+		return fmt.Errorf("profile name must contain only letters, numbers, and hyphens (got '%s')", name)
+	}
+
+	return nil
 }
 
 // ScanProfiles discovers all valid profiles in the profiles directory
@@ -190,6 +223,11 @@ func (pm *ProfileManager) GetComponentNames(profile *Profile) (agents, skills, c
 // ActivateProfile activates a profile by creating symlinks from profile components to ~/.agents/
 // If another profile is active, it will be deactivated first
 func (pm *ProfileManager) ActivateProfile(profileName string) error {
+	// Validate profile name
+	if err := validateProfileName(profileName); err != nil {
+		return err
+	}
+
 	// Validate that the profile exists
 	profile := pm.loadProfile(profileName)
 	if !profile.IsValid() {
@@ -294,6 +332,11 @@ func (pm *ProfileManager) ActivateProfile(profileName string) error {
 
 // AddComponentToProfile copies an existing component from ~/.agents/ to a profile
 func (pm *ProfileManager) AddComponentToProfile(profileName, componentType, componentName string) error {
+	// Validate profile name
+	if err := validateProfileName(profileName); err != nil {
+		return err
+	}
+
 	// Validate component type
 	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
 		return fmt.Errorf("invalid component type '%s': must be 'skills', 'agents', or 'commands'", componentType)
@@ -373,6 +416,11 @@ func (pm *ProfileManager) AddComponentToProfile(profileName, componentType, comp
 
 // RemoveComponentFromProfile removes a component from a profile
 func (pm *ProfileManager) RemoveComponentFromProfile(profileName, componentType, componentName string) error {
+	// Validate profile name
+	if err := validateProfileName(profileName); err != nil {
+		return err
+	}
+
 	// Validate component type
 	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
 		return fmt.Errorf("invalid component type '%s': must be 'skills', 'agents', or 'commands'", componentType)
@@ -468,8 +516,8 @@ func (pm *ProfileManager) DeactivateProfile() error {
 // CreateProfile creates a new empty profile with the standard directory structure
 func (pm *ProfileManager) CreateProfile(profileName string) error {
 	// Validate profile name
-	if profileName == "" {
-		return fmt.Errorf("profile name cannot be empty")
+	if err := validateProfileName(profileName); err != nil {
+		return err
 	}
 
 	// Check if profile already exists
@@ -513,8 +561,8 @@ func (pm *ProfileManager) CreateProfile(profileName string) error {
 // Returns an error if the profile is currently active or doesn't exist
 func (pm *ProfileManager) DeleteProfile(profileName string) error {
 	// Validate profile name
-	if profileName == "" {
-		return fmt.Errorf("profile name cannot be empty")
+	if err := validateProfileName(profileName); err != nil {
+		return err
 	}
 
 	// Check if profile exists
