@@ -617,11 +617,38 @@ EXAMPLES:
 		},
 	}
 
+	// profiles remove - Remove a component from a profile
+	profilesRemoveCmd := &cobra.Command{
+		Use:   "remove [component-type] [profile] [name]",
+		Short: "Remove a component from a profile",
+		Long: `Remove a component from a profile by deleting it from the profile directory.
+
+COMPONENT TYPES:
+  skills   - Remove a skill from the profile
+  agents   - Remove an agent from the profile
+  commands - Remove a command from the profile
+
+EXAMPLES:
+  # Remove a skill from a profile
+  agent-smith profiles remove skills my-profile gpt-skill
+
+  # Remove an agent from a profile
+  agent-smith profiles remove agents work-profile coding-agent
+
+  # Remove a command from a profile
+  agent-smith profiles remove commands dev-profile test-runner`,
+		Args: cobra.ExactArgs(3),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleProfilesRemove(args[0], args[1], args[2])
+		},
+	}
+
 	profilesCmd.AddCommand(profilesListCmd)
 	profilesCmd.AddCommand(profilesCreateCmd)
 	profilesCmd.AddCommand(profilesActivateCmd)
 	profilesCmd.AddCommand(profilesDeactivateCmd)
 	profilesCmd.AddCommand(profilesAddCmd)
+	profilesCmd.AddCommand(profilesRemoveCmd)
 	rootCmd.AddCommand(profilesCmd)
 
 	// Add status command
@@ -668,6 +695,7 @@ var (
 	handleProfilesActivate   func(profileName string)
 	handleProfilesDeactivate func()
 	handleProfilesAdd        func(componentType, profileName, componentName string)
+	handleProfilesRemove     func(componentType, profileName, componentName string)
 	handleStatus             func()
 )
 
@@ -693,6 +721,7 @@ func SetHandlers(
 	profilesActivate func(profileName string),
 	profilesDeactivate func(),
 	profilesAdd func(componentType, profileName, componentName string),
+	profilesRemove func(componentType, profileName, componentName string),
 	status func(),
 ) {
 	handleAddSkill = addSkill
@@ -716,5 +745,6 @@ func SetHandlers(
 	handleProfilesActivate = profilesActivate
 	handleProfilesDeactivate = profilesDeactivate
 	handleProfilesAdd = profilesAdd
+	handleProfilesRemove = profilesRemove
 	handleStatus = status
 }

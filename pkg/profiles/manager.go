@@ -329,6 +329,36 @@ func (pm *ProfileManager) AddComponentToProfile(profileName, componentType, comp
 	return nil
 }
 
+// RemoveComponentFromProfile removes a component from a profile
+func (pm *ProfileManager) RemoveComponentFromProfile(profileName, componentType, componentName string) error {
+	// Validate component type
+	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
+		return fmt.Errorf("invalid component type '%s': must be 'skills', 'agents', or 'commands'", componentType)
+	}
+
+	// Validate that the profile exists
+	profile := pm.loadProfile(profileName)
+	if !profile.IsValid() {
+		return fmt.Errorf("profile '%s' does not exist or has no components", profileName)
+	}
+
+	// Get component path in profile
+	componentPath := filepath.Join(profile.BasePath, componentType, componentName)
+
+	// Check if component exists in profile
+	if _, err := os.Stat(componentPath); os.IsNotExist(err) {
+		return fmt.Errorf("component '%s' not found in profile '%s'", componentName, profileName)
+	}
+
+	// Remove component directory
+	if err := os.RemoveAll(componentPath); err != nil {
+		return fmt.Errorf("failed to remove component: %w", err)
+	}
+
+	fmt.Printf("Successfully removed %s '%s' from profile '%s'\n", componentType, componentName, profileName)
+	return nil
+}
+
 // copyDirectory recursively copies a directory
 func copyDirectory(src, dst string) error {
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
