@@ -1,0 +1,32 @@
+tasks:
+  - title: "Story-001: As a developer, I want to create a new empty profile so that I can organize my tools for different projects - Command creates profile with validated name, creates directory structure, allows empty profiles, shows success message"
+    completed: false
+    parallel_group: 0
+  
+  - title: "Story-002: As a developer, I want to add an existing component from ~/.agents/ to a profile so that I can reuse components across profiles - Commands for skill/agent/command, validates profile and source, copies directory, errors on duplicate, preserves source"
+    completed: false
+    parallel_group: 0
+  
+  - title: "Story-003: As a developer, I want to remove a component from a profile so that I can keep profiles clean and focused - Commands for skill/agent/command, validates profile and component, prompts for confirmation, supports --force flag, shows success message"
+    completed: false
+    parallel_group: 0
+  
+  - title: "Story-004: As a developer, I want to install a component directly to a profile so that I can skip installing to ~/.agents/ first - Add --profile flag to install commands, validates profile exists, installs to profile directory, skips ~/.agents/, maintains download behavior"
+    completed: false
+    parallel_group: 1
+  
+  - title: "Story-005: As a developer, I want the link commands to automatically use my active profile so that linking matches my current context - Link sources from active profile when present, falls back to ~/.agents/, works for all link commands, displays source, automatic detection"
+    completed: false
+    parallel_group: 1
+  
+  - title: "Story-006: As a developer, I want to delete a profile so that I can remove profiles I no longer need - Delete command, validates existence, blocks active profile deletion, confirms before deletion, supports --force flag, removes directory"
+    completed: false
+    parallel_group: 0
+  
+  - title: "Story-007: As a developer, I want to see detailed information about a profile so that I know what's in it before activating - Show command displays name/path/components/counts/active status, formatted output, handles empty profiles"
+    completed: false
+    parallel_group: 1
+  
+  - title: "Story-008: As a developer, I want profile name validation to prevent file system issues so that profiles always work correctly - Validates alphanumeric + dash, rejects invalid chars/empty/hidden/path traversal, clear error messages, consistent across commands"
+    completed: false
+    parallel_group: 0
