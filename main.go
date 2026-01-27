@@ -543,6 +543,16 @@ func main() {
 				log.Fatal("Failed to create profile manager:", err)
 			}
 
+			if err := pm.DeleteProfile(profileName); err != nil {
+				log.Fatal("Failed to delete profile:", err)
+			}
+		},
+		func(profileName string) {
+			pm, err := profiles.NewProfileManager()
+			if err != nil {
+				log.Fatal("Failed to create profile manager:", err)
+			}
+
 			if err := pm.ActivateProfile(profileName); err != nil {
 				log.Fatal("Failed to activate profile:", err)
 			}
