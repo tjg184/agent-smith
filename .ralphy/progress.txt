@@ -100,3 +100,11 @@
 - [✓] 2026-01-26 23:44 - Story-003: As a user, I want to activate a specific profile so that its tools replace the currently active ones.
 - [✓] 2026-01-26 23:48 - Story-004: As a user, I want to deactivate the current profile so that I can return to a base state.
 - [✓] 2026-01-26 23:52 - Story-005: As a user, I want to see the current status so that I know which profile is active.
+- [✓] 2026-01-27 00:42 - Story-001: As a developer, I want to create a new empty profile so that I can organize my tools for different projects.
+- [✓] 2026-01-27 00:47 - Story-002: As a developer, I want to add an existing component from ~/.agents/ to a profile so that I can reuse components across profiles.
+- [✓] 2026-01-27 00:50 - Story-003: As a developer, I want to remove a component from a profile so that I can keep profiles clean and focused.
+- [✓] 2026-01-27 00:55 - Story-004: As a developer, I want to install a component directly to a profile so that I can skip installing to ~/.agents/ first.
+- [✓] 2026-01-27 00:58 - Story-005: As a developer, I want the link commands to automatically use my active profile so that linking matches my current context.
+- [✓] 2026-01-27 01:03 - Story-006: As a developer, I want to delete a profile so that I can remove profiles I no longer need.
+- [✓] 2026-01-27 01:08 - Story-007: As a developer, I want to see detailed information about a profile so that I know what's in it before activating.
+- [✓] 2026-01-27 01:12 - Story-008: As a developer, I want profile name validation to prevent file system issues so that profiles always work correctly.
