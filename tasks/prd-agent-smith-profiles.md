@@ -14,7 +14,7 @@ The "Agent-Smith Profiles" feature introduces the ability to manage and switch b
 
 ## User Stories
 
-- [ ] Story-001: As a user, I want to define profiles in a specific directory so that the system can recognize them.
+- [x] Story-001: As a user, I want to define profiles in a specific directory so that the system can recognize them.
   **Acceptance Criteria:**
   - Profiles are located in `~/.agents/profiles/<profile_name>/`.
   - Each profile directory mirrors the standard structure (agents/, commands/, skills/).
@@ -28,7 +28,7 @@ The "Agent-Smith Profiles" feature introduces the ability to manage and switch b
   **Integration Tests:**
   - Verify filesystem reads from `~/.agents/profiles/`.
 
-- [ ] Story-002: As a user, I want to list available profiles so that I can see what configurations are available.
+- [x] Story-002: As a user, I want to list available profiles so that I can see what configurations are available.
   **Acceptance Criteria:**
   - New command `agent-smith profiles list` (or similar).
   - output shows the names of all valid profiles found in `~/.agents/profiles/`.
@@ -42,7 +42,7 @@ The "Agent-Smith Profiles" feature introduces the ability to manage and switch b
   **Integration Tests:**
   - CLI command execution returns correct list based on filesystem.
 
-- [ ] Story-003: As a user, I want to activate a specific profile so that its tools replace the currently active ones.
+- [x] Story-003: As a user, I want to activate a specific profile so that its tools replace the currently active ones.
   **Acceptance Criteria:**
   - Command `agent-smith profiles activate <name>`.
   - If another profile is active, it is automatically deactivated (unlinked) first.
@@ -60,7 +60,7 @@ The "Agent-Smith Profiles" feature introduces the ability to manage and switch b
   - Full cycle: Activate A -> Check Links -> Activate B -> Check Links (A gone, B present).
   - Verify `~/.agents/active_profile` updates.
 
-- [ ] Story-004: As a user, I want to deactivate the current profile so that I can return to a base state.
+- [x] Story-004: As a user, I want to deactivate the current profile so that I can return to a base state.
   **Acceptance Criteria:**
   - Command `agent-smith profiles deactivate`.
   - Removes all symlinks associated with the currently active profile.
@@ -74,7 +74,7 @@ The "Agent-Smith Profiles" feature introduces the ability to manage and switch b
   **Integration Tests:**
   - Verify all profile-specific symlinks are removed upon deactivation.
 
-- [ ] Story-005: As a user, I want to see the current status so that I know which profile is active.
+- [x] Story-005: As a user, I want to see the current status so that I know which profile is active.
   **Acceptance Criteria:**
   - Command `agent-smith profiles status`.
   - Displays the name of the active profile or "None".
