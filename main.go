@@ -113,6 +113,27 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
+	// Check if a profile is active and use its path instead
+	profileManager, err := profiles.NewProfileManager()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create profile manager: %w", err)
+	}
+
+	activeProfile, err := profileManager.GetActiveProfile()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active profile: %w", err)
+	}
+
+	// If a profile is active, use the profile's base path instead
+	if activeProfile != "" {
+		profilesDir, err := paths.GetProfilesDir()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
+		}
+		agentsDir = filepath.Join(profilesDir, activeProfile)
+		fmt.Printf("Using active profile: %s\n", activeProfile)
+	}
+
 	// Detect all available targets
 	targets, err := config.DetectAllTargets()
 	if err != nil {
@@ -130,6 +151,27 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agents directory: %w", err)
+	}
+
+	// Check if a profile is active and use its path instead
+	profileManager, err := profiles.NewProfileManager()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create profile manager: %w", err)
+	}
+
+	activeProfile, err := profileManager.GetActiveProfile()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active profile: %w", err)
+	}
+
+	// If a profile is active, use the profile's base path instead
+	if activeProfile != "" {
+		profilesDir, err := paths.GetProfilesDir()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
+		}
+		agentsDir = filepath.Join(profilesDir, activeProfile)
+		fmt.Printf("Using active profile: %s\n", activeProfile)
 	}
 
 	var targets []config.Target
