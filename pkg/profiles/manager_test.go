@@ -332,3 +332,213 @@ func TestProfileManager_DeleteProfile_EmptyName(t *testing.T) {
 		t.Error("DeleteProfile() should return error for empty profile name")
 	}
 }
+
+func TestValidateProfileName(t *testing.T) {
+	tests := []struct {
+		name      string
+		inputName string
+		wantError bool
+		errorMsg  string
+	}{
+		{
+			name:      "valid simple name",
+			inputName: "myprofile",
+			wantError: false,
+		},
+		{
+			name:      "valid name with hyphen",
+			inputName: "my-profile",
+			wantError: false,
+		},
+		{
+			name:      "valid name with numbers",
+			inputName: "profile123",
+			wantError: false,
+		},
+		{
+			name:      "valid name with mixed case",
+			inputName: "MyProfile",
+			wantError: false,
+		},
+		{
+			name:      "valid name complex",
+			inputName: "My-Profile-123",
+			wantError: false,
+		},
+		{
+			name:      "empty name",
+			inputName: "",
+			wantError: true,
+			errorMsg:  "profile name cannot be empty",
+		},
+		{
+			name:      "hidden directory",
+			inputName: ".hidden",
+			wantError: true,
+			errorMsg:  "profile name cannot start with '.'",
+		},
+		{
+			name:      "name with forward slash",
+			inputName: "my/profile",
+			wantError: true,
+			errorMsg:  "profile name cannot contain path separators",
+		},
+		{
+			name:      "name with backslash",
+			inputName: "my\\profile",
+			wantError: true,
+			errorMsg:  "profile name cannot contain path separators",
+		},
+		{
+			name:      "path traversal with double dots",
+			inputName: "../profile",
+			wantError: true,
+			errorMsg:  "profile name cannot contain path traversal patterns",
+		},
+		{
+			name:      "path traversal with dot slash",
+			inputName: "./profile",
+			wantError: true,
+			errorMsg:  "profile name cannot contain path traversal patterns",
+		},
+		{
+			name:      "name with spaces",
+			inputName: "my profile",
+			wantError: true,
+			errorMsg:  "profile name must contain only letters, numbers, and hyphens",
+		},
+		{
+			name:      "name with underscore",
+			inputName: "my_profile",
+			wantError: true,
+			errorMsg:  "profile name must contain only letters, numbers, and hyphens",
+		},
+		{
+			name:      "name with special characters",
+			inputName: "my@profile",
+			wantError: true,
+			errorMsg:  "profile name must contain only letters, numbers, and hyphens",
+		},
+		{
+			name:      "name with dollar sign",
+			inputName: "my$profile",
+			wantError: true,
+			errorMsg:  "profile name must contain only letters, numbers, and hyphens",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateProfileName(tt.inputName)
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("validateProfileName(%q) expected error containing %q, got nil", tt.inputName, tt.errorMsg)
+				} else if tt.errorMsg != "" && !contains(err.Error(), tt.errorMsg) {
+					t.Errorf("validateProfileName(%q) error = %q, want error containing %q", tt.inputName, err.Error(), tt.errorMsg)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("validateProfileName(%q) unexpected error = %v", tt.inputName, err)
+				}
+			}
+		})
+	}
+}
+
+func TestProfileManager_CreateProfile_InvalidNames(t *testing.T) {
+	// Create temporary directory for testing
+	tempDir := t.TempDir()
+	profilesDir := filepath.Join(tempDir, "profiles")
+
+	// Create ProfileManager with custom profiles directory
+	pm := &ProfileManager{profilesDir: profilesDir}
+
+	invalidNames := []string{
+		".hidden",
+		"../etc",
+		"./profile",
+		"my/profile",
+		"my\\profile",
+		"my profile",
+		"my_profile",
+		"profile@123",
+	}
+
+	for _, name := range invalidNames {
+		t.Run(name, func(t *testing.T) {
+			err := pm.CreateProfile(name)
+			if err == nil {
+				t.Errorf("CreateProfile(%q) should return error for invalid name", name)
+			}
+		})
+	}
+}
+
+func TestProfileManager_DeleteProfile_InvalidNames(t *testing.T) {
+	// Create temporary directory for testing
+	tempDir := t.TempDir()
+	profilesDir := filepath.Join(tempDir, "profiles")
+
+	// Create ProfileManager with custom profiles directory
+	pm := &ProfileManager{profilesDir: profilesDir}
+
+	invalidNames := []string{
+		".hidden",
+		"../etc",
+		"./profile",
+		"my/profile",
+		"my\\profile",
+		"my profile",
+	}
+
+	for _, name := range invalidNames {
+		t.Run(name, func(t *testing.T) {
+			err := pm.DeleteProfile(name)
+			if err == nil {
+				t.Errorf("DeleteProfile(%q) should return error for invalid name", name)
+			}
+		})
+	}
+}
+
+func TestProfileManager_ActivateProfile_InvalidNames(t *testing.T) {
+	// Create temporary directory for testing
+	tempDir := t.TempDir()
+	profilesDir := filepath.Join(tempDir, "profiles")
+
+	// Create ProfileManager with custom profiles directory
+	pm := &ProfileManager{profilesDir: profilesDir}
+
+	invalidNames := []string{
+		".hidden",
+		"../etc",
+		"./profile",
+		"my/profile",
+		"my\\profile",
+		"my profile",
+	}
+
+	for _, name := range invalidNames {
+		t.Run(name, func(t *testing.T) {
+			err := pm.ActivateProfile(name)
+			if err == nil {
+				t.Errorf("ActivateProfile(%q) should return error for invalid name", name)
+			}
+		})
+	}
+}
+
+// Helper function to check if a string contains a substring
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && len(substr) > 0 && containsHelper(s, substr)))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
