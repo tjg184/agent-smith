@@ -177,3 +177,84 @@ func TestProfileManager_loadProfile(t *testing.T) {
 		t.Error("Profile should be valid")
 	}
 }
+
+func TestProfileManager_CreateProfile(t *testing.T) {
+	// Create temporary directory for testing
+	tempDir := t.TempDir()
+	profilesDir := filepath.Join(tempDir, "profiles")
+
+	// Create ProfileManager with custom profiles directory
+	pm := &ProfileManager{profilesDir: profilesDir}
+
+	// Create a new profile
+	err := pm.CreateProfile("test-profile")
+	if err != nil {
+		t.Fatalf("CreateProfile() error = %v", err)
+	}
+
+	// Verify profile directory exists
+	profileDir := filepath.Join(profilesDir, "test-profile")
+	if _, err := os.Stat(profileDir); os.IsNotExist(err) {
+		t.Error("Profile directory was not created")
+	}
+
+	// Verify all component directories exist
+	agentsDir := filepath.Join(profileDir, paths.AgentsSubDir)
+	skillsDir := filepath.Join(profileDir, paths.SkillsSubDir)
+	commandsDir := filepath.Join(profileDir, paths.CommandsSubDir)
+
+	if _, err := os.Stat(agentsDir); os.IsNotExist(err) {
+		t.Error("Agents directory was not created")
+	}
+	if _, err := os.Stat(skillsDir); os.IsNotExist(err) {
+		t.Error("Skills directory was not created")
+	}
+	if _, err := os.Stat(commandsDir); os.IsNotExist(err) {
+		t.Error("Commands directory was not created")
+	}
+
+	// Verify the profile is valid and can be loaded
+	profile := pm.loadProfile("test-profile")
+	if !profile.IsValid() {
+		t.Error("Created profile should be valid")
+	}
+	if !profile.HasAgents || !profile.HasSkills || !profile.HasCommands {
+		t.Error("Created profile should have all component directories")
+	}
+}
+
+func TestProfileManager_CreateProfile_AlreadyExists(t *testing.T) {
+	// Create temporary directory for testing
+	tempDir := t.TempDir()
+	profilesDir := filepath.Join(tempDir, "profiles")
+
+	// Create ProfileManager with custom profiles directory
+	pm := &ProfileManager{profilesDir: profilesDir}
+
+	// Create a profile
+	err := pm.CreateProfile("existing-profile")
+	if err != nil {
+		t.Fatalf("CreateProfile() error = %v", err)
+	}
+
+	// Try to create the same profile again
+	err = pm.CreateProfile("existing-profile")
+	if err == nil {
+		t.Error("CreateProfile() should return error for existing profile")
+	}
+}
+
+func TestProfileManager_CreateProfile_EmptyName(t *testing.T) {
+	// Create temporary directory for testing
+	tempDir := t.TempDir()
+	profilesDir := filepath.Join(tempDir, "profiles")
+
+	// Create ProfileManager with custom profiles directory
+	pm := &ProfileManager{profilesDir: profilesDir}
+
+	// Try to create a profile with empty name
+	err := pm.CreateProfile("")
+	if err == nil {
+		t.Error("CreateProfile() should return error for empty profile name")
+	}
+}

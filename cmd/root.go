@@ -534,6 +534,25 @@ counts for each profile.`,
 		},
 	}
 
+	profilesCreateCmd := &cobra.Command{
+		Use:   "create <profile-name>",
+		Short: "Create a new empty profile",
+		Long: `Create a new profile with empty component directories.
+
+This command creates a new profile directory structure at ~/.agents/profiles/<profile-name>/
+with the following subdirectories:
+  - agents/
+  - skills/
+  - commands/
+
+After creation, you can add components to the profile and activate it with:
+  agent-smith profiles activate <profile-name>`,
+		Args: cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleProfilesCreate(args[0])
+		},
+	}
+
 	profilesActivateCmd := &cobra.Command{
 		Use:   "activate <profile-name>",
 		Short: "Activate a specific profile",
@@ -570,6 +589,7 @@ without any profile-specific overrides.`,
 	}
 
 	profilesCmd.AddCommand(profilesListCmd)
+	profilesCmd.AddCommand(profilesCreateCmd)
 	profilesCmd.AddCommand(profilesActivateCmd)
 	profilesCmd.AddCommand(profilesDeactivateCmd)
 	rootCmd.AddCommand(profilesCmd)
@@ -614,6 +634,7 @@ var (
 	handleUnlinkAll          func(force bool)
 	handleUnlinkType         func(componentType string, force bool)
 	handleProfilesList       func()
+	handleProfilesCreate     func(profileName string)
 	handleProfilesActivate   func(profileName string)
 	handleProfilesDeactivate func()
 	handleStatus             func()
@@ -637,6 +658,7 @@ func SetHandlers(
 	unlinkAll func(force bool),
 	unlinkType func(componentType string, force bool),
 	profilesList func(),
+	profilesCreate func(profileName string),
 	profilesActivate func(profileName string),
 	profilesDeactivate func(),
 	status func(),
@@ -658,6 +680,7 @@ func SetHandlers(
 	handleUnlinkAll = unlinkAll
 	handleUnlinkType = unlinkType
 	handleProfilesList = profilesList
+	handleProfilesCreate = profilesCreate
 	handleProfilesActivate = profilesActivate
 	handleProfilesDeactivate = profilesDeactivate
 	handleStatus = status
