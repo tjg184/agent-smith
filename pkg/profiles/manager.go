@@ -250,6 +250,112 @@ func (pm *ProfileManager) ActivateProfile(profileName string) error {
 	return nil
 }
 
+// AddComponentToProfile copies an existing component from ~/.agents/ to a profile
+func (pm *ProfileManager) AddComponentToProfile(profileName, componentType, componentName string) error {
+	// Validate component type
+	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
+		return fmt.Errorf("invalid component type '%s': must be 'skills', 'agents', or 'commands'", componentType)
+	}
+
+	// Validate that the profile exists
+	profile := pm.loadProfile(profileName)
+	if !profile.IsValid() {
+		return fmt.Errorf("profile '%s' does not exist or has no components", profileName)
+	}
+
+	// Get source directory based on component type
+	agentsDir, err := paths.GetAgentsDir()
+	if err != nil {
+		return fmt.Errorf("failed to get agents directory: %w", err)
+	}
+
+	srcDir := filepath.Join(agentsDir, componentType, componentName)
+
+	// Check if source component exists
+	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+		return fmt.Errorf("component '%s' not found in ~/.agents/%s/", componentName, componentType)
+	}
+
+	// Check if component is a symlink (from active profile)
+	info, err := os.Lstat(srcDir)
+	if err != nil {
+		return fmt.Errorf("failed to stat component: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("cannot add component '%s': it is a symlink from an active profile. Deactivate the profile first.", componentName)
+	}
+
+	// Get destination directory in profile
+	dstDir := filepath.Join(profile.BasePath, componentType, componentName)
+
+	// Check if component already exists in profile
+	if _, err := os.Stat(dstDir); err == nil {
+		return fmt.Errorf("component '%s' already exists in profile '%s'", componentName, profileName)
+	}
+
+	// Copy component to profile
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	// Copy files
+	entries, err := os.ReadDir(srcDir)
+	if err != nil {
+		return fmt.Errorf("failed to read source directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(srcDir, entry.Name())
+		dstPath := filepath.Join(dstDir, entry.Name())
+
+		if entry.IsDir() {
+			// Recursively copy subdirectories
+			if err := copyDirectory(srcPath, dstPath); err != nil {
+				return fmt.Errorf("failed to copy directory %s: %w", entry.Name(), err)
+			}
+		} else {
+			// Copy file
+			data, err := os.ReadFile(srcPath)
+			if err != nil {
+				return fmt.Errorf("failed to read file %s: %w", entry.Name(), err)
+			}
+			if err := os.WriteFile(dstPath, data, 0644); err != nil {
+				return fmt.Errorf("failed to write file %s: %w", entry.Name(), err)
+			}
+		}
+	}
+
+	fmt.Printf("Successfully added %s '%s' to profile '%s'\n", componentType, componentName, profileName)
+	return nil
+}
+
+// copyDirectory recursively copies a directory
+func copyDirectory(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+
+		dstPath := filepath.Join(dst, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, 0755)
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		return os.WriteFile(dstPath, data, 0644)
+	})
+}
+
 // DeactivateProfile deactivates the currently active profile and returns to base state
 // This removes all profile symlinks and clears the active profile state
 func (pm *ProfileManager) DeactivateProfile() error {
