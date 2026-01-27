@@ -128,7 +128,7 @@ Currently this workflow fails at step 2-3 due to the issues above.
   - Verify messages display correctly
   - Verify help text is clear and accurate
 
-- [ ] Story-006: As a user, I want to see which profile is active and where components are sourced from, so that I understand the current state.
+- [x] Story-006: As a user, I want to see which profile is active and where components are sourced from, so that I understand the current state.
 
   **Acceptance Criteria:**
   - `agent-smith status` shows active profile (ALREADY IMPLEMENTED)
