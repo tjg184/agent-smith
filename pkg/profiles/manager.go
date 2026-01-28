@@ -118,7 +118,7 @@ func (pm *ProfileManager) GetActiveProfile() (string, error) {
 		return "", fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
-	activeProfilePath := filepath.Join(agentsDir, ".active_profile")
+	activeProfilePath := filepath.Join(agentsDir, ".active-profile")
 
 	// Check if state file exists
 	if _, err := os.Stat(activeProfilePath); os.IsNotExist(err) {
@@ -252,7 +252,7 @@ func (pm *ProfileManager) ActivateProfile(profileName string) error {
 	}
 
 	// Update the active profile state file
-	activeProfilePath := filepath.Join(agentsDir, ".active_profile")
+	activeProfilePath := filepath.Join(agentsDir, ".active-profile")
 	if err := os.WriteFile(activeProfilePath, []byte(profileName), 0644); err != nil {
 		return fmt.Errorf("failed to write active profile state: %w", err)
 	}
@@ -434,7 +434,7 @@ func (pm *ProfileManager) DeactivateProfile() error {
 	}
 
 	// Clear the active profile state file
-	activeProfilePath := filepath.Join(agentsDir, ".active_profile")
+	activeProfilePath := filepath.Join(agentsDir, ".active-profile")
 	if err := os.Remove(activeProfilePath); err != nil {
 		return fmt.Errorf("failed to clear active profile state: %w", err)
 	}
