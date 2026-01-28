@@ -20,20 +20,20 @@ type ComponentLockFile struct {
 
 // ComponentLockEntry represents a single component entry in the lock file
 type ComponentLockEntry struct {
-	Source          string `json:"source"`
-	SourceType      string `json:"sourceType"`
-	SourceUrl       string `json:"sourceUrl"`
-	OriginalPath    string `json:"originalPath,omitempty"`
-	SkillFolderHash string `json:"skillFolderHash,omitempty"`
-	InstalledAt     string `json:"installedAt"`
-	UpdatedAt       string `json:"updatedAt"`
-	Version         int    `json:"version"`
-	Components      int    `json:"components,omitempty"`
-	Detection       string `json:"detection,omitempty"`
+	Source       string `json:"source"`
+	SourceType   string `json:"sourceType"`
+	SourceUrl    string `json:"sourceUrl"`
+	OriginalPath string `json:"originalPath,omitempty"`
+	CommitHash   string `json:"commitHash,omitempty"`
+	InstalledAt  string `json:"installedAt"`
+	UpdatedAt    string `json:"updatedAt"`
+	Version      int    `json:"version"`
+	Components   int    `json:"components,omitempty"`
+	Detection    string `json:"detection,omitempty"`
 }
 
 // SaveLockFileEntry saves a component lock entry in agent-smith install compatible format
-func SaveLockFileEntry(baseDir, componentType, componentName, source, sourceType, sourceUrl, folderHash string, components int, detection, originalPath string) error {
+func SaveLockFileEntry(baseDir, componentType, componentName, source, sourceType, sourceUrl, commitHash string, components int, detection, originalPath string) error {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
 	// Read existing lock file or create new one
@@ -98,16 +98,16 @@ func SaveLockFileEntry(baseDir, componentType, componentName, source, sourceType
 
 	// Update or add the component entry
 	targetMap[componentName] = ComponentLockEntry{
-		Source:          source,
-		SourceType:      sourceType,
-		SourceUrl:       sourceUrl,
-		OriginalPath:    originalPath,
-		SkillFolderHash: folderHash,
-		InstalledAt:     existingEntry.InstalledAt,
-		UpdatedAt:       now,
-		Version:         3,
-		Components:      components,
-		Detection:       detection,
+		Source:       source,
+		SourceType:   sourceType,
+		SourceUrl:    sourceUrl,
+		OriginalPath: originalPath,
+		CommitHash:   commitHash,
+		InstalledAt:  existingEntry.InstalledAt,
+		UpdatedAt:    now,
+		Version:      3,
+		Components:   components,
+		Detection:    detection,
 	}
 
 	// Write back to file
@@ -130,7 +130,7 @@ func LoadFromLockFile(baseDir, componentType, componentName string) (*models.Com
 	return &models.ComponentMetadata{
 		Name:         componentName,
 		Source:       entry.SourceUrl,
-		Commit:       entry.SkillFolderHash,
+		Commit:       entry.CommitHash,
 		OriginalPath: entry.OriginalPath,
 		Components:   entry.Components,
 		Detection:    entry.Detection,

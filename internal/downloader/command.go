@@ -12,6 +12,7 @@ import (
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/fileutil"
 	"github.com/tgaines/agent-smith/internal/formatter"
+	gitpkg "github.com/tgaines/agent-smith/internal/git"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/paths"
@@ -21,6 +22,7 @@ import (
 type CommandDownloader struct {
 	baseDir   string
 	detector  *detector.RepositoryDetector
+	cloner    gitpkg.Cloner
 	formatter *formatter.Formatter
 }
 
@@ -39,6 +41,7 @@ func NewCommandDownloader() *CommandDownloader {
 	return &CommandDownloader{
 		baseDir:   baseDir,
 		detector:  detector.NewRepositoryDetector(),
+		cloner:    gitpkg.NewDefaultCloner(),
 		formatter: formatter.New(),
 	}
 }
@@ -62,6 +65,7 @@ func NewCommandDownloaderForProfile(profileName string) *CommandDownloader {
 	return &CommandDownloader{
 		baseDir:   baseDir,
 		detector:  detector.NewRepositoryDetector(),
+		cloner:    gitpkg.NewDefaultCloner(),
 		formatter: formatter.New(),
 	}
 }
@@ -210,15 +214,15 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		sourceType = "git"
 	}
 
-	// Compute folder hash if it's a GitHub repo
-	var folderHash string
-	if sourceType != "github" {
-		if hash, err := ComputeLocalFolderHash(commandDir); err == nil {
-			folderHash = hash
-		}
+	// Get commit hash from repository
+	var commitHash string
+	if hash, err := gitpkg.GetCommitHashFromPath(cd.cloner, repoPath); err == nil {
+		commitHash = hash
+	} else {
+		cd.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, len(commandComponents), "recursive", ""); err != nil {
+	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, commitHash, len(commandComponents), "recursive", ""); err != nil {
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -259,15 +263,15 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		sourceType = "git"
 	}
 
-	// Compute folder hash if it's a GitHub repo
-	var folderHash string
-	if sourceType != "github" {
-		if hash, err := ComputeLocalFolderHash(commandDir); err == nil {
-			folderHash = hash
-		}
+	// Get commit hash from repository
+	var commitHash string
+	if hash, err := gitpkg.GetCommitHashFromPath(cd.cloner, commandDir); err == nil {
+		commitHash = hash
+	} else {
+		cd.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, folderHash, 1, "direct", ""); err != nil {
+	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, commitHash, 1, "direct", ""); err != nil {
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -283,7 +287,7 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 }
 
 // saveLockFile saves command lock entry in agent-smith install compatible format
-func (cd *CommandDownloader) saveLockFile(commandName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, originalPath string) error {
+func (cd *CommandDownloader) saveLockFile(commandName string, source string, sourceType string, sourceUrl string, commitHash string, components int, detection string, originalPath string) error {
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
 		return fmt.Errorf("failed to get agents directory: %w", err)
@@ -293,7 +297,7 @@ func (cd *CommandDownloader) saveLockFile(commandName string, source string, sou
 		return fmt.Errorf("failed to create agents directory: %w", err)
 	}
 
-	return metadataPkg.SaveLockFileEntry(agentsDir, "commands", commandName, source, sourceType, sourceUrl, skillFolderHash, components, detection, originalPath)
+	return metadataPkg.SaveLockFileEntry(agentsDir, "commands", commandName, source, sourceType, sourceUrl, commitHash, components, detection, originalPath)
 }
 
 func (cd *CommandDownloader) createCommandFile(filePath, commandName, source string) error {
@@ -356,15 +360,15 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 		sourceType = "git"
 	}
 
-	// Compute folder hash if it's a GitHub repo
-	var folderHash string
-	if sourceType != "github" {
-		if hash, err := ComputeLocalFolderHash(commandDir); err == nil {
-			folderHash = hash
-		}
+	// Get commit hash from repository
+	var commitHash string
+	if hash, err := gitpkg.GetCommitHashFromPath(cd.cloner, repoPath); err == nil {
+		commitHash = hash
+	} else {
+		cd.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := cd.saveLockFile(destFolderName, fullURL, sourceType, fullURL, folderHash, 1, "single", targetComponent.FilePath); err != nil {
+	if err := cd.saveLockFile(destFolderName, fullURL, sourceType, fullURL, commitHash, 1, "single", targetComponent.FilePath); err != nil {
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
