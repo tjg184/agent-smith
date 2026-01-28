@@ -207,7 +207,7 @@ EXAMPLES:
 	installCommandCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agents/")
 	installCmd.AddCommand(installCommandCmd)
 
-	installCmd.AddCommand(&cobra.Command{
+	installAllCmd := &cobra.Command{
 		Use:   "all <repository-url>",
 		Short: "Download all components from a git repository",
 		Long: `Download and install all components (skills, agents, and commands) from a git repository.
@@ -224,12 +224,21 @@ EXAMPLES:
   agent-smith install all https://github.com/example/monorepo
 
   # Download from local repository
-  agent-smith install all /path/to/local/repo`,
+  agent-smith install all /path/to/local/repo
+
+  # Install to a custom target directory (project-local)
+  agent-smith install all openai/cookbook --target-dir ./tools
+
+  # Install to a custom directory with tilde expansion
+  agent-smith install all openai/cookbook --target-dir ~/my-project/agents`,
 		Args: exactArgsWithHelp(1, "agent-smith install all <repository-url>"),
 		Run: func(cmd *cobra.Command, args []string) {
-			handleAddAll(args[0])
+			targetDir, _ := cmd.Flags().GetString("target-dir")
+			handleAddAll(args[0], targetDir)
 		},
-	})
+	}
+	installAllCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory instead of ~/.agents/")
+	installCmd.AddCommand(installAllCmd)
 
 	rootCmd.AddCommand(installCmd)
 
@@ -1174,7 +1183,7 @@ var (
 	handleAddSkill           func(repoURL, name, profile string)
 	handleAddAgent           func(repoURL, name, profile string)
 	handleAddCommand         func(repoURL, name, profile string)
-	handleAddAll             func(repoURL string)
+	handleAddAll             func(repoURL string, targetDir string)
 	handleUpdate             func(componentType, componentName string)
 	handleUpdateAll          func()
 	handleLink               func(componentType, componentName, targetFilter string)
@@ -1203,7 +1212,7 @@ func SetHandlers(
 	addSkill func(repoURL, name, profile string),
 	addAgent func(repoURL, name, profile string),
 	addCommand func(repoURL, name, profile string),
-	addAll func(repoURL string),
+	addAll func(repoURL string, targetDir string),
 	update func(componentType, componentName string),
 	updateAll func(),
 	link func(componentType, componentName, targetFilter string),

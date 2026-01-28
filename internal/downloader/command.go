@@ -70,6 +70,24 @@ func NewCommandDownloaderForProfile(profileName string) *CommandDownloader {
 	}
 }
 
+// NewCommandDownloaderWithTargetDir creates a new CommandDownloader instance that installs to a custom target directory
+func NewCommandDownloaderWithTargetDir(targetDir string) *CommandDownloader {
+	// Build path to target directory's commands subdirectory
+	baseDir := filepath.Join(targetDir, "commands")
+
+	// Create base directory if it doesn't exist
+	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
+		log.Fatal("Failed to create target commands directory:", err)
+	}
+
+	return &CommandDownloader{
+		baseDir:   baseDir,
+		detector:  detector.NewRepositoryDetector(),
+		cloner:    gitpkg.NewDefaultCloner(),
+		formatter: formatter.New(),
+	}
+}
+
 func (cd *CommandDownloader) parseRepoURL(repoURL string) (string, error) {
 	// Normalize URL first (handles GitHub shorthand, etc.)
 	normalizedURL, err := cd.detector.NormalizeURL(repoURL)
