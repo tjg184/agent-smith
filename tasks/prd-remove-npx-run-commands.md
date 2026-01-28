@@ -14,7 +14,7 @@ Remove the `npx` and `run` commands along with the entire executor package from 
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want the npx command removed from Agent Smith so that the CLI doesn't offer functionality that doesn't work with documentation-based components.
+- [x] Story-001: As a developer, I want the npx command removed from Agent Smith so that the CLI doesn't offer functionality that doesn't work with documentation-based components.
 
   **Acceptance Criteria:**
   - `npx` command definition removed from cmd/root.go (lines 169-176)
@@ -35,7 +35,7 @@ Remove the `npx` and `run` commands along with the entire executor package from 
   - Help output verification
   - Command discovery testing
 
-- [ ] Story-002: As a developer, I want the run command removed from Agent Smith so that the CLI has a clear, focused purpose.
+- [x] Story-002: As a developer, I want the run command removed from Agent Smith so that the CLI has a clear, focused purpose.
 
   **Acceptance Criteria:**
   - `run` command definition removed from cmd/root.go (lines 178-185)
@@ -56,7 +56,7 @@ Remove the `npx` and `run` commands along with the entire executor package from 
   - Help output verification
   - Command discovery testing
 
-- [ ] Story-003: As a developer, I want the executor package removed so that the codebase doesn't contain unused infrastructure for executing files.
+- [x] Story-003: As a developer, I want the executor package removed so that the codebase doesn't contain unused infrastructure for executing files.
 
   **Acceptance Criteria:**
   - Delete entire `internal/executor/` directory
@@ -78,7 +78,7 @@ Remove the `npx` and `run` commands along with the entire executor package from 
   - Directory structure verification
   - Import dependency validation
 
-- [ ] Story-004: As a developer, I want the executeComponent function removed from main.go so that there are no orphaned handler functions.
+- [x] Story-004: As a developer, I want the executeComponent function removed from main.go so that there are no orphaned handler functions.
 
   **Acceptance Criteria:**
   - Remove `executeComponent()` function definition from main.go (lines 200-204)
@@ -99,7 +99,7 @@ Remove the `npx` and `run` commands along with the entire executor package from 
   - Handler function verification
   - Build output inspection
 
-- [ ] Story-005: As a developer, I want handleRun handler removed from cmd/root.go so that the command handler infrastructure is clean.
+- [x] Story-005: As a developer, I want handleRun handler removed from cmd/root.go so that the command handler infrastructure is clean.
 
   **Acceptance Criteria:**
   - Remove `handleRun` variable declaration from cmd/root.go (around line 777)
@@ -121,7 +121,7 @@ Remove the `npx` and `run` commands along with the entire executor package from 
   - Handler chain verification
   - Function parameter validation
 
-- [ ] Story-006: As a user, I want the main help text updated so that it accurately describes what Agent Smith does without mentioning execution functionality.
+- [x] Story-006: As a user, I want the main help text updated so that it accurately describes what Agent Smith does without mentioning execution functionality.
 
   **Acceptance Criteria:**
   - Remove "Execute components without installation (npx-like)" from feature list in cmd/root.go (line 17)
@@ -142,7 +142,7 @@ Remove the `npx` and `run` commands along with the entire executor package from 
   - Feature description accuracy check
   - User experience validation
 
-- [ ] Story-007: As a developer, I want comprehensive validation that npx/run removal is complete so that no broken references remain in the codebase.
+- [x] Story-007: As a developer, I want comprehensive validation that npx/run removal is complete so that no broken references remain in the codebase.
 
   **Acceptance Criteria:**
   - Run grep search for "npx" in all Go files: no results
