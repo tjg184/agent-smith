@@ -819,6 +819,101 @@ EXAMPLES:
 
 	rootCmd.AddCommand(unlinkCmd)
 
+	// Create 'uninstall' parent command with subcommands
+	uninstallCmd := &cobra.Command{
+		Use:   "uninstall",
+		Short: "Remove installed components from the system",
+		Long: `Remove installed components (skills, agents, commands) from ~/.agents/.
+
+This command removes components from the system by:
+  1. Automatically unlinking from all detected targets
+  2. Removing the component directory from filesystem
+  3. Removing the entry from lock files
+
+SAFETY:
+  - Components are automatically unlinked before removal
+  - Source directories in ~/.agents/ are permanently deleted
+  - Lock file entries are removed to maintain consistency`,
+	}
+
+	// Individual component uninstall commands
+	uninstallSkillCmd := &cobra.Command{
+		Use:   "skill <name>",
+		Short: "Remove a specific skill",
+		Long: `Remove a specific skill from ~/.agents/skills/.
+
+This command removes the skill from the system by:
+  1. Automatically unlinking from all detected targets
+  2. Removing the skill directory from filesystem
+  3. Removing the entry from .skill-lock.json
+
+EXAMPLES:
+  # Remove a specific skill
+  agent-smith uninstall skill mcp-builder
+
+  # Remove from a profile
+  agent-smith uninstall skill mcp-builder --profile work`,
+		Args: exactArgsWithHelp(1, "agent-smith uninstall skill <name>"),
+		Run: func(cmd *cobra.Command, args []string) {
+			profile, _ := cmd.Flags().GetString("profile")
+			handleUninstall("skills", args[0], profile)
+		},
+	}
+	uninstallSkillCmd.Flags().StringP("profile", "p", "", "Remove from a specific profile instead of ~/.agents/")
+	uninstallCmd.AddCommand(uninstallSkillCmd)
+
+	uninstallAgentCmd := &cobra.Command{
+		Use:   "agent <name>",
+		Short: "Remove a specific agent",
+		Long: `Remove a specific agent from ~/.agents/agents/.
+
+This command removes the agent from the system by:
+  1. Automatically unlinking from all detected targets
+  2. Removing the agent directory from filesystem
+  3. Removing the entry from .agent-lock.json
+
+EXAMPLES:
+  # Remove a specific agent
+  agent-smith uninstall agent coding-assistant
+
+  # Remove from a profile
+  agent-smith uninstall agent coding-assistant --profile work`,
+		Args: exactArgsWithHelp(1, "agent-smith uninstall agent <name>"),
+		Run: func(cmd *cobra.Command, args []string) {
+			profile, _ := cmd.Flags().GetString("profile")
+			handleUninstall("agents", args[0], profile)
+		},
+	}
+	uninstallAgentCmd.Flags().StringP("profile", "p", "", "Remove from a specific profile instead of ~/.agents/")
+	uninstallCmd.AddCommand(uninstallAgentCmd)
+
+	uninstallCommandCmd := &cobra.Command{
+		Use:   "command <name>",
+		Short: "Remove a specific command",
+		Long: `Remove a specific command from ~/.agents/commands/.
+
+This command removes the command from the system by:
+  1. Automatically unlinking from all detected targets
+  2. Removing the command directory from filesystem
+  3. Removing the entry from .command-lock.json
+
+EXAMPLES:
+  # Remove a specific command
+  agent-smith uninstall command json-formatter
+
+  # Remove from a profile
+  agent-smith uninstall command json-formatter --profile work`,
+		Args: exactArgsWithHelp(1, "agent-smith uninstall command <name>"),
+		Run: func(cmd *cobra.Command, args []string) {
+			profile, _ := cmd.Flags().GetString("profile")
+			handleUninstall("commands", args[0], profile)
+		},
+	}
+	uninstallCommandCmd.Flags().StringP("profile", "p", "", "Remove from a specific profile instead of ~/.agents/")
+	uninstallCmd.AddCommand(uninstallCommandCmd)
+
+	rootCmd.AddCommand(uninstallCmd)
+
 	// Create 'profiles' parent command with subcommands
 	profilesCmd := &cobra.Command{
 		Use:   "profile",
@@ -1056,6 +1151,7 @@ var (
 	handleUnlink             func(componentType, componentName string)
 	handleUnlinkAll          func(force bool)
 	handleUnlinkType         func(componentType string, force bool)
+	handleUninstall          func(componentType, componentName, profile string)
 	handleProfilesList       func()
 	handleProfilesShow       func(profileName string)
 	handleProfilesCreate     func(profileName string)
@@ -1083,6 +1179,7 @@ func SetHandlers(
 	unlink func(componentType, componentName string),
 	unlinkAll func(force bool),
 	unlinkType func(componentType string, force bool),
+	uninstall func(componentType, componentName, profile string),
 	profilesList func(),
 	profilesShow func(profileName string),
 	profilesCreate func(profileName string),
@@ -1108,6 +1205,7 @@ func SetHandlers(
 	handleUnlink = unlink
 	handleUnlinkAll = unlinkAll
 	handleUnlinkType = unlinkType
+	handleUninstall = uninstall
 	handleProfilesList = profilesList
 	handleProfilesShow = profilesShow
 	handleProfilesCreate = profilesCreate

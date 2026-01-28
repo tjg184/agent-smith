@@ -14,6 +14,7 @@ import (
 	"github.com/tgaines/agent-smith/internal/linker"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tgaines/agent-smith/internal/uninstaller"
 	"github.com/tgaines/agent-smith/internal/updater"
 	"github.com/tgaines/agent-smith/pkg/config"
 	"github.com/tgaines/agent-smith/pkg/paths"
@@ -429,6 +430,41 @@ func main() {
 			}
 			if err := linker.UnlinkComponentsByType(componentType, force); err != nil {
 				log.Fatal("Failed to unlink components:", err)
+			}
+		},
+		func(componentType, componentName, profile string) {
+			// Determine base directory
+			baseDir, err := paths.GetAgentsDir()
+			if err != nil {
+				log.Fatal("Failed to get agents directory:", err)
+			}
+
+			if profile != "" {
+				// Use profile directory
+				profilesDir, err := paths.GetProfilesDir()
+				if err != nil {
+					log.Fatal("Failed to get profiles directory:", err)
+				}
+				baseDir = filepath.Join(profilesDir, profile)
+
+				// Validate profile exists
+				if _, err := os.Stat(baseDir); os.IsNotExist(err) {
+					log.Fatalf("Profile '%s' does not exist", profile)
+				}
+			}
+
+			// Create linker for unlinking
+			linker, err := NewComponentLinker()
+			if err != nil {
+				log.Fatal("Failed to create component linker:", err)
+			}
+
+			// Create uninstaller
+			uninstaller := uninstaller.NewUninstaller(baseDir, linker)
+
+			// Uninstall component
+			if err := uninstaller.UninstallComponent(componentType, componentName); err != nil {
+				log.Fatal("Failed to uninstall component:", err)
 			}
 		},
 		func() {

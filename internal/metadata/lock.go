@@ -179,3 +179,53 @@ func LoadLockFileEntry(baseDir, componentType, componentName string) (*models.Co
 
 	return &entry, nil
 }
+
+// RemoveLockFileEntry removes a component entry from the lock file
+func RemoveLockFileEntry(baseDir, componentType, componentName string) error {
+	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
+
+	// Read existing lock file
+	lockData, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Lock file doesn't exist, nothing to remove
+			return nil
+		}
+		return fmt.Errorf("failed to read lock file: %w", err)
+	}
+
+	var lockFile ComponentLockFile
+	if err := json.Unmarshal(lockData, &lockFile); err != nil {
+		return fmt.Errorf("failed to unmarshal lock file: %w", err)
+	}
+
+	// Get the appropriate map for this component type
+	var targetMap map[string]ComponentLockEntry
+	switch componentType {
+	case "skills":
+		targetMap = lockFile.Skills
+	case "agents":
+		targetMap = lockFile.Agents
+	case "commands":
+		targetMap = lockFile.Commands
+	default:
+		return fmt.Errorf("unknown component type: %s", componentType)
+	}
+
+	// Check if entry exists
+	if _, exists := targetMap[componentName]; !exists {
+		// Entry doesn't exist, nothing to remove
+		return nil
+	}
+
+	// Remove the entry
+	delete(targetMap, componentName)
+
+	// Write back to file
+	jsonData, err := json.MarshalIndent(lockFile, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal lock file: %w", err)
+	}
+
+	return os.WriteFile(lockFilePath, jsonData, 0644)
+}
