@@ -650,69 +650,102 @@ EXAMPLES:
 
 	// Plural commands - operate on ALL components of a type
 	unlinkSkillsCmd := &cobra.Command{
-		Use:   "skills",
-		Short: "Unlink all skills from targets",
-		Long: `Unlink all skills from detected targets.
+		Use:   "skills [name]",
+		Short: "Unlink all skills from targets, or a specific skill if name provided",
+		Long: `Unlink all skills from detected targets, or a specific skill if name is provided.
 
 This command removes all linked skills from OpenCode, Claude Code, or other
 supported targets. Source files in ~/.agents/skills/ are never touched.
+
+For backward compatibility, you can also provide a skill name to unlink just
+that specific skill (equivalent to 'unlink skill <name>').
 
 EXAMPLES:
   # Unlink all skills with confirmation
   agent-smith unlink skills
 
   # Unlink all skills without confirmation
-  agent-smith unlink skills --force`,
-		Args: noArgsWithHelp,
+  agent-smith unlink skills --force
+
+  # Unlink a specific skill (backward compatibility)
+  agent-smith unlink skills mcp-builder`,
+		Args: rangeArgsWithHelp(0, 1, "agent-smith unlink skills [name]"),
 		Run: func(cmd *cobra.Command, args []string) {
-			force, _ := cmd.Flags().GetBool("force")
-			handleUnlinkType("skills", force)
+			// Backward compatibility: if a name is provided, unlink that specific skill
+			if len(args) == 1 {
+				handleUnlink("skills", args[0])
+			} else {
+				force, _ := cmd.Flags().GetBool("force")
+				handleUnlinkType("skills", force)
+			}
 		},
 	}
 	unlinkSkillsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
 	unlinkCmd.AddCommand(unlinkSkillsCmd)
 
 	unlinkAgentsCmd := &cobra.Command{
-		Use:   "agents",
-		Short: "Unlink all agents from targets",
-		Long: `Unlink all agents from detected targets.
+		Use:   "agents [name]",
+		Short: "Unlink all agents from targets, or a specific agent if name provided",
+		Long: `Unlink all agents from detected targets, or a specific agent if name is provided.
 
 This command removes all linked agents from OpenCode, Claude Code, or other
 supported targets. Source files in ~/.agents/agents/ are never touched.
+
+For backward compatibility, you can also provide an agent name to unlink just
+that specific agent (equivalent to 'unlink agent <name>').
 
 EXAMPLES:
   # Unlink all agents with confirmation
   agent-smith unlink agents
 
   # Unlink all agents without confirmation
-  agent-smith unlink agents --force`,
-		Args: noArgsWithHelp,
+  agent-smith unlink agents --force
+
+  # Unlink a specific agent (backward compatibility)
+  agent-smith unlink agents coding-assistant`,
+		Args: rangeArgsWithHelp(0, 1, "agent-smith unlink agents [name]"),
 		Run: func(cmd *cobra.Command, args []string) {
-			force, _ := cmd.Flags().GetBool("force")
-			handleUnlinkType("agents", force)
+			// Backward compatibility: if a name is provided, unlink that specific agent
+			if len(args) == 1 {
+				handleUnlink("agents", args[0])
+			} else {
+				force, _ := cmd.Flags().GetBool("force")
+				handleUnlinkType("agents", force)
+			}
 		},
 	}
 	unlinkAgentsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
 	unlinkCmd.AddCommand(unlinkAgentsCmd)
 
 	unlinkCommandsCmd := &cobra.Command{
-		Use:   "commands",
-		Short: "Unlink all commands from targets",
-		Long: `Unlink all commands from detected targets.
+		Use:   "commands [name]",
+		Short: "Unlink all commands from targets, or a specific command if name provided",
+		Long: `Unlink all commands from detected targets, or a specific command if name is provided.
 
 This command removes all linked commands from OpenCode, Claude Code, or other
 supported targets. Source files in ~/.agents/commands/ are never touched.
+
+For backward compatibility, you can also provide a command name to unlink just
+that specific command (equivalent to 'unlink command <name>').
 
 EXAMPLES:
   # Unlink all commands with confirmation
   agent-smith unlink commands
 
   # Unlink all commands without confirmation
-  agent-smith unlink commands --force`,
-		Args: noArgsWithHelp,
+  agent-smith unlink commands --force
+
+  # Unlink a specific command (backward compatibility)
+  agent-smith unlink commands json-formatter`,
+		Args: rangeArgsWithHelp(0, 1, "agent-smith unlink commands [name]"),
 		Run: func(cmd *cobra.Command, args []string) {
-			force, _ := cmd.Flags().GetBool("force")
-			handleUnlinkType("commands", force)
+			// Backward compatibility: if a name is provided, unlink that specific command
+			if len(args) == 1 {
+				handleUnlink("commands", args[0])
+			} else {
+				force, _ := cmd.Flags().GetBool("force")
+				handleUnlinkType("commands", force)
+			}
 		},
 	}
 	unlinkCommandsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
