@@ -31,6 +31,14 @@ func isValidComponentType(componentType string) bool {
 	return componentType == "skills" || componentType == "agents" || componentType == "commands"
 }
 
+// validateComponentType validates that a component type is valid and returns a helpful error if not
+func validateComponentType(componentType string) error {
+	if !isValidComponentType(componentType) {
+		return fmt.Errorf("invalid component type '%s'\n\nValid component types:\n  - skills\n  - agents\n  - commands\n\nExample:\n  agent-smith update skills my-skill", componentType)
+	}
+	return nil
+}
+
 // exactArgsWithHelp returns a custom validator that provides helpful error messages
 func exactArgsWithHelp(n int, usage string) cobra.PositionalArgs {
 	return func(cmd *cobra.Command, args []string) error {
@@ -61,6 +69,28 @@ func rangeArgsWithHelp(min, max int, usage string) cobra.PositionalArgs {
 		if len(args) > max {
 			return fmt.Errorf("too many arguments provided\n\nUsage: %s\n\nRun '%s --help' for more information", usage, cmd.CommandPath())
 		}
+		return nil
+	}
+}
+
+// exactArgsWithComponentTypeValidation returns a validator that checks both argument count and component type
+func exactArgsWithComponentTypeValidation(n int, componentTypeIndex int, usage string) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		// First check argument count
+		if len(args) < n {
+			return fmt.Errorf("missing required arguments\n\nUsage: %s\n\nRun '%s --help' for more information", usage, cmd.CommandPath())
+		}
+		if len(args) > n {
+			return fmt.Errorf("too many arguments provided\n\nUsage: %s\n\nRun '%s --help' for more information", usage, cmd.CommandPath())
+		}
+
+		// Then validate component type if specified
+		if componentTypeIndex >= 0 && componentTypeIndex < len(args) {
+			if err := validateComponentType(args[componentTypeIndex]); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	}
 }
@@ -218,15 +248,28 @@ EXAMPLES:
 
   # Update all components
   agent-smith update all`,
-		Args: rangeArgsWithHelp(1, 2, "agent-smith update <type|all> [name]"),
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return fmt.Errorf("missing required arguments\n\nUsage: agent-smith update <type|all> [name]\n\nRun '%s --help' for more information", cmd.CommandPath())
+			}
+			if len(args) > 2 {
+				return fmt.Errorf("too many arguments provided\n\nUsage: agent-smith update <type|all> [name]\n\nRun '%s --help' for more information", cmd.CommandPath())
+			}
+			// If first arg is not "all", validate it's a valid component type and require name
+			if args[0] != "all" {
+				if err := validateComponentType(args[0]); err != nil {
+					return err
+				}
+				if len(args) != 2 {
+					return fmt.Errorf("missing component name\n\nUsage: agent-smith update <type> <name>\n\nExample:\n  agent-smith update skills my-skill\n\nRun '%s --help' for more information", cmd.CommandPath())
+				}
+			}
+			return nil
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			if args[0] == "all" {
 				handleUpdateAll()
 			} else {
-				if len(args) != 2 {
-					cmd.PrintErrln("Error: update requires both type and name (or use 'update all')")
-					os.Exit(1)
-				}
 				handleUpdate(args[0], args[1])
 			}
 		},
@@ -933,7 +976,7 @@ EXAMPLES:
 
   # Add a command to a profile
   agent-smith profile add commands dev-profile test-runner`,
-		Args: exactArgsWithHelp(3, "agent-smith profile add <type> <profile-name> <component-name>"),
+		Args: exactArgsWithComponentTypeValidation(3, 0, "agent-smith profile add <type> <profile-name> <component-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesAdd(args[0], args[1], args[2])
 		},
@@ -959,7 +1002,7 @@ EXAMPLES:
 
   # Remove a command from a profile
   agent-smith profile remove commands dev-profile test-runner`,
-		Args: exactArgsWithHelp(3, "agent-smith profile remove <type> <profile-name> <component-name>"),
+		Args: exactArgsWithComponentTypeValidation(3, 0, "agent-smith profile remove <type> <profile-name> <component-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesRemove(args[0], args[1], args[2])
 		},
