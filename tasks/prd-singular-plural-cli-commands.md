@@ -14,7 +14,7 @@ Standardize the agent-smith CLI command syntax to use both singular and plural f
 
 ## User Stories
 
-- [ ] Story-001: As a CLI user, I want singular commands to operate on one specific component so that the grammar matches the operation.
+- [x] Story-001: As a CLI user, I want singular commands to operate on one specific component so that the grammar matches the operation.
 
   **Acceptance Criteria:**
   - `link skill <name>` links one specific skill
@@ -38,7 +38,7 @@ Standardize the agent-smith CLI command syntax to use both singular and plural f
   **Component Browser Tests:**
   - N/A (CLI tool, no browser components)
 
-- [ ] Story-002: As a CLI user, I want plural commands to operate on all components of a type so that the grammar clearly indicates bulk operations.
+- [x] Story-002: As a CLI user, I want plural commands to operate on all components of a type so that the grammar clearly indicates bulk operations.
 
   **Acceptance Criteria:**
   - `link skills` links all skills
@@ -62,7 +62,7 @@ Standardize the agent-smith CLI command syntax to use both singular and plural f
   **Component Browser Tests:**
   - N/A (CLI tool, no browser components)
 
-- [ ] Story-003: As a CLI user, I want helpful error messages when I use the wrong form so that I can quickly correct my command.
+- [x] Story-003: As a CLI user, I want helpful error messages when I use the wrong form so that I can quickly correct my command.
 
   **Acceptance Criteria:**
   - When running `link skills <name>`, show: "Error: 'skills' is for linking all skills. To link one skill, use: agent-smith link skill <name>"
@@ -83,7 +83,7 @@ Standardize the agent-smith CLI command syntax to use both singular and plural f
   **Component Browser Tests:**
   - N/A (CLI tool, no browser components)
 
-- [ ] Story-004: As an existing user, I want my current `unlink skills <name>` commands to continue working so that I don't have breaking changes.
+- [x] Story-004: As an existing user, I want my current `unlink skills <name>` commands to continue working so that I don't have breaking changes.
 
   **Acceptance Criteria:**
   - `unlink skills <name>` continues to work (backward compatible)
@@ -106,7 +106,7 @@ Standardize the agent-smith CLI command syntax to use both singular and plural f
   **Component Browser Tests:**
   - N/A (CLI tool, no browser components)
 
-- [ ] Story-005: As a developer, I want clear command argument validation so that invalid usage is caught early with helpful feedback.
+- [x] Story-005: As a developer, I want clear command argument validation so that invalid usage is caught early with helpful feedback.
 
   **Acceptance Criteria:**
   - Cobra command validation checks argument count
