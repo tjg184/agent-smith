@@ -694,7 +694,7 @@ func TestGitOperations(t *testing.T) {
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
 
-	if !strings.Contains(string(content), "skillFolderHash") {
-		t.Errorf("Lock file should contain skillFolderHash field")
+	if !strings.Contains(string(content), "commitHash") {
+		t.Errorf("Lock file should contain commitHash field")
 	}
 }
