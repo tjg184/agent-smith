@@ -214,7 +214,7 @@ components are linked to your editor.
   - With active profile: Sources from ~/.agents/profiles/<profile>/
   - No active profile: Sources from ~/.agents/ (base installation)
 
-Use 'agent-smith profiles activate <name>' to activate a profile, then run
+Use 'agent-smith profile activate <name>' to activate a profile, then run
 'link' commands to apply it.
 
 FLAGS (apply to all subcommands):
@@ -365,7 +365,7 @@ PROFILE AWARENESS:
   - No active profile: Links all components from ~/.agents/ (base installation)
 
 TWO-STEP WORKFLOW:
-  1. Activate a profile: agent-smith profiles activate <name>
+  1. Activate a profile: agent-smith profile activate <name>
   2. Apply to editor: agent-smith link all
 
 This gives you explicit control over when changes are applied to your editor.
@@ -534,7 +534,7 @@ EXAMPLES:
 
 	// Create 'profiles' parent command with subcommands
 	profilesCmd := &cobra.Command{
-		Use:   "profiles",
+		Use:   "profile",
 		Short: "Manage profiles for context switching",
 		Long: `Manage profiles to switch between different sets of agents, skills, and commands.
 		
@@ -573,11 +573,11 @@ Use this before activating a profile to see exactly what components it contains.
 
 EXAMPLES:
   # Show details of a profile
-  agent-smith profiles show my-profile
+  agent-smith profile show my-profile
   
   # View contents before activating
-  agent-smith profiles show work-profile
-  agent-smith profiles activate work-profile`,
+  agent-smith profile show work-profile
+  agent-smith profile activate work-profile`,
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesShow(args[0])
@@ -596,7 +596,7 @@ with the following subdirectories:
   - commands/
 
 After creation, you can add components to the profile and activate it with:
-  agent-smith profiles activate <profile-name>`,
+  agent-smith profile activate <profile-name>`,
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesCreate(args[0])
@@ -615,11 +615,11 @@ WARNING: This operation cannot be undone. All components in the profile will be 
 
 EXAMPLES:
   # Delete a profile
-  agent-smith profiles delete my-profile
+  agent-smith profile delete my-profile
 
   # If the profile is active, deactivate it first
-  agent-smith profiles deactivate
-  agent-smith profiles delete my-profile`,
+  agent-smith profile deactivate
+  agent-smith profile delete my-profile`,
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesDelete(args[0])
@@ -682,13 +682,13 @@ COMPONENT TYPES:
 
 EXAMPLES:
   # Add a skill to a profile
-  agent-smith profiles add skills my-profile gpt-skill
+  agent-smith profile add skills my-profile gpt-skill
 
   # Add an agent to a profile
-  agent-smith profiles add agents work-profile coding-agent
+  agent-smith profile add agents work-profile coding-agent
 
   # Add a command to a profile
-  agent-smith profiles add commands dev-profile test-runner`,
+  agent-smith profile add commands dev-profile test-runner`,
 		Args: cobra.ExactArgs(3),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesAdd(args[0], args[1], args[2])
@@ -708,13 +708,13 @@ COMPONENT TYPES:
 
 EXAMPLES:
   # Remove a skill from a profile
-  agent-smith profiles remove skills my-profile gpt-skill
+  agent-smith profile remove skills my-profile gpt-skill
 
   # Remove an agent from a profile
-  agent-smith profiles remove agents work-profile coding-agent
+  agent-smith profile remove agents work-profile coding-agent
 
   # Remove a command from a profile
-  agent-smith profiles remove commands dev-profile test-runner`,
+  agent-smith profile remove commands dev-profile test-runner`,
 		Args: cobra.ExactArgs(3),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesRemove(args[0], args[1], args[2])
