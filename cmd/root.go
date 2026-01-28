@@ -912,6 +912,41 @@ EXAMPLES:
 	uninstallCommandCmd.Flags().StringP("profile", "p", "", "Remove from a specific profile instead of ~/.agents/")
 	uninstallCmd.AddCommand(uninstallCommandCmd)
 
+	// Bulk uninstall from repository
+	uninstallAllCmd := &cobra.Command{
+		Use:   "all <repository-url>",
+		Short: "Remove all components from a repository",
+		Long: `Remove all components installed from a specific repository.
+
+This command finds all components (skills, agents, commands) that were installed
+from the specified repository and removes them from the system.
+
+The repository URL can be in any of these formats:
+  - GitHub shorthand: owner/repo
+  - Full HTTPS URL: https://github.com/owner/repo
+  - SSH URL: git@github.com:owner/repo.git
+
+EXAMPLES:
+  # Remove all components from a repository
+  agent-smith uninstall all anthropics/skills
+
+  # Remove without confirmation prompt
+  agent-smith uninstall all https://github.com/anthropics/skills --force
+
+SAFETY:
+  - Shows a list of components before removal
+  - Prompts for confirmation (unless --force flag is used)
+  - Automatically unlinks components from all targets
+  - Continues with remaining components if some fail`,
+		Args: exactArgsWithHelp(1, "agent-smith uninstall all <repository-url>"),
+		Run: func(cmd *cobra.Command, args []string) {
+			force, _ := cmd.Flags().GetBool("force")
+			handleUninstallAll(args[0], force)
+		},
+	}
+	uninstallAllCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
+	uninstallCmd.AddCommand(uninstallAllCmd)
+
 	rootCmd.AddCommand(uninstallCmd)
 
 	// Create 'profiles' parent command with subcommands
@@ -1152,6 +1187,7 @@ var (
 	handleUnlinkAll          func(force bool)
 	handleUnlinkType         func(componentType string, force bool)
 	handleUninstall          func(componentType, componentName, profile string)
+	handleUninstallAll       func(repoURL string, force bool)
 	handleProfilesList       func()
 	handleProfilesShow       func(profileName string)
 	handleProfilesCreate     func(profileName string)
@@ -1180,6 +1216,7 @@ func SetHandlers(
 	unlinkAll func(force bool),
 	unlinkType func(componentType string, force bool),
 	uninstall func(componentType, componentName, profile string),
+	uninstallAll func(repoURL string, force bool),
 	profilesList func(),
 	profilesShow func(profileName string),
 	profilesCreate func(profileName string),
@@ -1206,6 +1243,7 @@ func SetHandlers(
 	handleUnlinkAll = unlinkAll
 	handleUnlinkType = unlinkType
 	handleUninstall = uninstall
+	handleUninstallAll = uninstallAll
 	handleProfilesList = profilesList
 	handleProfilesShow = profilesShow
 	handleProfilesCreate = profilesCreate
