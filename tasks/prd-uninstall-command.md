@@ -457,8 +457,8 @@ Examples:
 - [x] Success messages indicate what was removed
 - [x] No orphaned files or symlinks after uninstall
 - [x] All edge cases are handled gracefully
-- [ ] Integration tests pass
-- [ ] Documentation is updated
+- [x] Integration tests pass
+- [x] Documentation is updated
 
 ## Open Questions
 
