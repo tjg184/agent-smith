@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -28,6 +29,40 @@ func Execute() {
 // isValidComponentType checks if a string is a valid component type
 func isValidComponentType(componentType string) bool {
 	return componentType == "skills" || componentType == "agents" || componentType == "commands"
+}
+
+// exactArgsWithHelp returns a custom validator that provides helpful error messages
+func exactArgsWithHelp(n int, usage string) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) < n {
+			return fmt.Errorf("missing required arguments\n\nUsage: %s\n\nRun '%s --help' for more information", usage, cmd.CommandPath())
+		}
+		if len(args) > n {
+			return fmt.Errorf("too many arguments provided\n\nUsage: %s\n\nRun '%s --help' for more information", usage, cmd.CommandPath())
+		}
+		return nil
+	}
+}
+
+// noArgsWithHelp returns a custom validator for commands that accept no arguments
+func noArgsWithHelp(cmd *cobra.Command, args []string) error {
+	if len(args) > 0 {
+		return fmt.Errorf("this command does not accept arguments\n\nUsage: %s\n\nRun '%s --help' for more information", cmd.Use, cmd.CommandPath())
+	}
+	return nil
+}
+
+// rangeArgsWithHelp returns a custom validator for commands with a range of arguments
+func rangeArgsWithHelp(min, max int, usage string) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) < min {
+			return fmt.Errorf("missing required arguments\n\nUsage: %s\n\nRun '%s --help' for more information", usage, cmd.CommandPath())
+		}
+		if len(args) > max {
+			return fmt.Errorf("too many arguments provided\n\nUsage: %s\n\nRun '%s --help' for more information", usage, cmd.CommandPath())
+		}
+		return nil
+	}
 }
 
 func init() {
@@ -73,7 +108,7 @@ EXAMPLES:
 
   # Install directly to a profile
   agent-smith install skill openai/cookbook gpt-skill --profile work`,
-		Args: cobra.ExactArgs(2),
+		Args: exactArgsWithHelp(2, "agent-smith install skill <repository-url> <skill-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
 			handleAddSkill(args[0], args[1], profile)
@@ -103,7 +138,7 @@ EXAMPLES:
 
   # Install directly to a profile
   agent-smith install agent openai/assistant coding-agent --profile work`,
-		Args: cobra.ExactArgs(2),
+		Args: exactArgsWithHelp(2, "agent-smith install agent <repository-url> <agent-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
 			handleAddAgent(args[0], args[1], profile)
@@ -133,7 +168,7 @@ EXAMPLES:
 
   # Install directly to a profile
   agent-smith install command cli-tools/formatter json-formatter --profile work`,
-		Args: cobra.ExactArgs(2),
+		Args: exactArgsWithHelp(2, "agent-smith install command <repository-url> <command-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
 			handleAddCommand(args[0], args[1], profile)
@@ -160,7 +195,7 @@ EXAMPLES:
 
   # Download from local repository
   agent-smith install all /path/to/local/repo`,
-		Args: cobra.ExactArgs(1),
+		Args: exactArgsWithHelp(1, "agent-smith install all <repository-url>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleAddAll(args[0])
 		},
@@ -183,7 +218,7 @@ EXAMPLES:
 
   # Update all components
   agent-smith update all`,
-		Args: cobra.RangeArgs(1, 2),
+		Args: rangeArgsWithHelp(1, 2, "agent-smith update <type|all> [name]"),
 		Run: func(cmd *cobra.Command, args []string) {
 			if args[0] == "all" {
 				handleUpdateAll()
@@ -238,7 +273,7 @@ EXAMPLES:
 
   # Link a specific skill to OpenCode only
   agent-smith link skill mcp-builder --target opencode`,
-		Args: cobra.ExactArgs(1),
+		Args: exactArgsWithHelp(1, "agent-smith link skill <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
@@ -271,7 +306,7 @@ EXAMPLES:
 
   # Link all skills to Claude Code only
   agent-smith link skills --target claudecode`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
@@ -303,7 +338,7 @@ EXAMPLES:
 
   # Link a specific agent to OpenCode only
   agent-smith link agent coding-assistant --target opencode`,
-		Args: cobra.ExactArgs(1),
+		Args: exactArgsWithHelp(1, "agent-smith link agent <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
@@ -336,7 +371,7 @@ EXAMPLES:
 
   # Link all agents to Claude Code only
   agent-smith link agents --target claudecode`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
@@ -368,7 +403,7 @@ EXAMPLES:
 
   # Link a specific command to OpenCode only
   agent-smith link command json-formatter --target opencode`,
-		Args: cobra.ExactArgs(1),
+		Args: exactArgsWithHelp(1, "agent-smith link command <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
@@ -401,7 +436,7 @@ EXAMPLES:
 
   # Link all commands to Claude Code only
   agent-smith link commands --target claudecode`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
@@ -446,7 +481,7 @@ EXAMPLES:
 
   # Link all components to all targets explicitly
   agent-smith link all --all-targets`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
@@ -485,7 +520,7 @@ EXAMPLES:
   # Typically used from within a repository containing component definitions
   cd /path/to/my-components
   agent-smith link auto`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			handleAutoLink()
 		},
@@ -508,7 +543,7 @@ The output shows:
   ✓ - Valid symlink
   ◆ - Copied directory
   ✗ - Broken link`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			handleListLinks()
 		},
@@ -533,7 +568,7 @@ The output shows:
   ✗ - Broken link
   - - Not linked
   ? - Unknown status`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			handleLinkStatus()
 		},
@@ -570,7 +605,7 @@ supported targets. Source files in ~/.agents/skills/ are never touched.
 EXAMPLES:
   # Unlink a specific skill
   agent-smith unlink skill mcp-builder`,
-		Args: cobra.ExactArgs(1),
+		Args: exactArgsWithHelp(1, "agent-smith unlink skill <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleUnlink("skills", args[0])
 		},
@@ -588,7 +623,7 @@ supported targets. Source files in ~/.agents/agents/ are never touched.
 EXAMPLES:
   # Unlink a specific agent
   agent-smith unlink agent coding-assistant`,
-		Args: cobra.ExactArgs(1),
+		Args: exactArgsWithHelp(1, "agent-smith unlink agent <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleUnlink("agents", args[0])
 		},
@@ -606,7 +641,7 @@ supported targets. Source files in ~/.agents/commands/ are never touched.
 EXAMPLES:
   # Unlink a specific command
   agent-smith unlink command json-formatter`,
-		Args: cobra.ExactArgs(1),
+		Args: exactArgsWithHelp(1, "agent-smith unlink command <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleUnlink("commands", args[0])
 		},
@@ -628,7 +663,7 @@ EXAMPLES:
 
   # Unlink all skills without confirmation
   agent-smith unlink skills --force`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			force, _ := cmd.Flags().GetBool("force")
 			handleUnlinkType("skills", force)
@@ -651,7 +686,7 @@ EXAMPLES:
 
   # Unlink all agents without confirmation
   agent-smith unlink agents --force`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			force, _ := cmd.Flags().GetBool("force")
 			handleUnlinkType("agents", force)
@@ -674,7 +709,7 @@ EXAMPLES:
 
   # Unlink all commands without confirmation
   agent-smith unlink commands --force`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			force, _ := cmd.Flags().GetBool("force")
 			handleUnlinkType("commands", force)
@@ -697,7 +732,7 @@ EXAMPLES:
 
   # Unlink all components without confirmation
   agent-smith unlink all --force`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			force, _ := cmd.Flags().GetBool("force")
 			handleUnlinkAll(force)
@@ -727,7 +762,7 @@ and commands, making it easy to switch contexts for different projects or tasks.
 This command shows all valid profiles (those containing at least one component
 directory), indicates which profile is currently active, and displays component
 counts for each profile.`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesList()
 		},
@@ -754,7 +789,7 @@ EXAMPLES:
   # View contents before activating
   agent-smith profile show work-profile
   agent-smith profile activate work-profile`,
-		Args: cobra.ExactArgs(1),
+		Args: exactArgsWithHelp(1, "agent-smith profile show <profile-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesShow(args[0])
 		},
@@ -773,7 +808,7 @@ with the following subdirectories:
 
 After creation, you can add components to the profile and activate it with:
   agent-smith profile activate <profile-name>`,
-		Args: cobra.ExactArgs(1),
+		Args: exactArgsWithHelp(1, "agent-smith profile create <profile-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesCreate(args[0])
 		},
@@ -796,7 +831,7 @@ EXAMPLES:
   # If the profile is active, deactivate it first
   agent-smith profile deactivate
   agent-smith profile delete my-profile`,
-		Args: cobra.ExactArgs(1),
+		Args: exactArgsWithHelp(1, "agent-smith profile delete <profile-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesDelete(args[0])
 		},
@@ -816,7 +851,7 @@ to your editor, run:
   agent-smith link all
 
 Only one profile can be active at a time. The active profile persists across sessions.`,
-		Args: cobra.ExactArgs(1),
+		Args: exactArgsWithHelp(1, "agent-smith profile activate <profile-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesActivate(args[0])
 		},
@@ -836,7 +871,7 @@ to your editor, run:
   agent-smith link all
 
 This allows you to control when changes are applied to your editor.`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesDeactivate()
 		},
@@ -865,7 +900,7 @@ EXAMPLES:
 
   # Add a command to a profile
   agent-smith profile add commands dev-profile test-runner`,
-		Args: cobra.ExactArgs(3),
+		Args: exactArgsWithHelp(3, "agent-smith profile add <type> <profile-name> <component-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesAdd(args[0], args[1], args[2])
 		},
@@ -891,7 +926,7 @@ EXAMPLES:
 
   # Remove a command from a profile
   agent-smith profile remove commands dev-profile test-runner`,
-		Args: cobra.ExactArgs(3),
+		Args: exactArgsWithHelp(3, "agent-smith profile remove <type> <profile-name> <component-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			handleProfilesRemove(args[0], args[1], args[2])
 		},
@@ -918,7 +953,7 @@ EXAMPLES:
   - Quick summary of system state
 
 This provides a dashboard view of your agent-smith installation.`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			handleStatus()
 		},
