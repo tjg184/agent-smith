@@ -9,7 +9,6 @@ import (
 	"github.com/tgaines/agent-smith/cmd"
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/downloader"
-	"github.com/tgaines/agent-smith/internal/executor"
 	"github.com/tgaines/agent-smith/internal/fileutil"
 	"github.com/tgaines/agent-smith/internal/formatter"
 	"github.com/tgaines/agent-smith/internal/linker"
@@ -197,12 +196,6 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 	return linker.NewComponentLinker(agentsDir, targets, det)
 }
 
-// executeComponent provides npx-like functionality to run components without explicit installation
-func executeComponent(target string, args []string) error {
-	exec := executor.NewComponentExecutor()
-	return exec.Execute(target, args)
-}
-
 // joinStrings joins a slice of strings with a separator
 func joinStrings(strings []string, separator string) string {
 	if len(strings) == 0 {
@@ -336,11 +329,6 @@ func main() {
 			bulkDownloader := downloader.NewBulkDownloader()
 			if err := bulkDownloader.AddAll(repoURL); err != nil {
 				log.Fatal("Failed to bulk download components:", err)
-			}
-		},
-		func(target string, args []string) {
-			if err := executeComponent(target, args); err != nil {
-				log.Fatal("Failed to execute component:", err)
 			}
 		},
 		func(componentType, componentName string) {
