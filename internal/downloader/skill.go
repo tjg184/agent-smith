@@ -68,6 +68,24 @@ func NewSkillDownloaderForProfile(profileName string) *SkillDownloader {
 	}
 }
 
+// NewSkillDownloaderWithTargetDir creates a new SkillDownloader instance that installs to a custom target directory
+func NewSkillDownloaderWithTargetDir(targetDir string) *SkillDownloader {
+	// Build path to target directory's skills subdirectory
+	baseDir := filepath.Join(targetDir, "skills")
+
+	// Create base directory if it doesn't exist
+	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
+		log.Fatal("Failed to create target skills directory:", err)
+	}
+
+	return &SkillDownloader{
+		baseDir:   baseDir,
+		detector:  detector.NewRepositoryDetector(),
+		cloner:    gitpkg.NewDefaultCloner(),
+		formatter: formatter.New(),
+	}
+}
+
 func (sd *SkillDownloader) parseRepoURL(repoURL string) (string, error) {
 	// Normalize URL first (handles GitHub shorthand, etc.)
 	normalizedURL, err := sd.detector.NormalizeURL(repoURL)

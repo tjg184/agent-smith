@@ -70,6 +70,24 @@ func NewAgentDownloaderForProfile(profileName string) *AgentDownloader {
 	}
 }
 
+// NewAgentDownloaderWithTargetDir creates a new AgentDownloader instance that installs to a custom target directory
+func NewAgentDownloaderWithTargetDir(targetDir string) *AgentDownloader {
+	// Build path to target directory's agents subdirectory
+	baseDir := filepath.Join(targetDir, "agents")
+
+	// Create base directory if it doesn't exist
+	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
+		log.Fatal("Failed to create target agents directory:", err)
+	}
+
+	return &AgentDownloader{
+		baseDir:   baseDir,
+		detector:  detector.NewRepositoryDetector(),
+		cloner:    gitpkg.NewDefaultCloner(),
+		formatter: formatter.New(),
+	}
+}
+
 // NewAgentDownloaderWithParams creates a new AgentDownloader with custom parameters (for testing)
 func NewAgentDownloaderWithParams(baseDir string, detect *detector.RepositoryDetector) *AgentDownloader {
 	return &AgentDownloader{

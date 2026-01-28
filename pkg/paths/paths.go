@@ -1,6 +1,7 @@
 package paths
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -164,4 +165,26 @@ func GetProfileDir(profileName string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(profilesDir, profileName), nil
+}
+
+// ResolveTargetDir resolves a custom target directory path
+// Supports relative paths, absolute paths, and tilde expansion
+func ResolveTargetDir(targetDir string) (string, error) {
+	if targetDir == "" {
+		return "", fmt.Errorf("target directory cannot be empty")
+	}
+
+	// First expand tilde if present
+	expanded, err := expandHome(targetDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to expand home directory: %w", err)
+	}
+
+	// Convert to absolute path if relative
+	absPath, err := filepath.Abs(expanded)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve absolute path: %w", err)
+	}
+
+	return absPath, nil
 }

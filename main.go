@@ -326,8 +326,28 @@ func main() {
 				}
 			}
 		},
-		func(repoURL string) {
-			bulkDownloader := downloader.NewBulkDownloader()
+		func(repoURL string, targetDir string) {
+			var bulkDownloader *downloader.BulkDownloader
+
+			if targetDir != "" {
+				// Resolve the target directory path
+				resolvedPath, err := paths.ResolveTargetDir(targetDir)
+				if err != nil {
+					log.Fatal("Failed to resolve target directory:", err)
+				}
+
+				// Create the target directory if it doesn't exist
+				if err := fileutil.CreateDirectoryWithPermissions(resolvedPath); err != nil {
+					log.Fatal("Failed to create target directory:", err)
+				}
+
+				fmt.Printf("Installing to custom directory: %s\n", resolvedPath)
+				bulkDownloader = downloader.NewBulkDownloaderWithTargetDir(resolvedPath)
+			} else {
+				// Use default behavior (install to ~/.agents/)
+				bulkDownloader = downloader.NewBulkDownloader()
+			}
+
 			if err := bulkDownloader.AddAll(repoURL); err != nil {
 				log.Fatal("Failed to bulk download components:", err)
 			}
