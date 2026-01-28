@@ -114,7 +114,7 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 	}
 
 	// Check if a profile is active and use its path instead
-	profileManager, err := profiles.NewProfileManager()
+	profileManager, err := profiles.NewProfileManager(nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create profile manager: %w", err)
 	}
@@ -154,7 +154,7 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 	}
 
 	// Check if a profile is active and use its path instead
-	profileManager, err := profiles.NewProfileManager()
+	profileManager, err := profiles.NewProfileManager(nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create profile manager: %w", err)
 	}
@@ -215,7 +215,7 @@ func main() {
 		func(repoURL, name, profile string) {
 			if profile != "" {
 				// Install directly to profile
-				pm, err := profiles.NewProfileManager()
+				pm, err := profiles.NewProfileManager(nil)
 				if err != nil {
 					log.Fatal("Failed to create profile manager:", err)
 				}
@@ -253,7 +253,7 @@ func main() {
 		func(repoURL, name, profile string) {
 			if profile != "" {
 				// Install directly to profile
-				pm, err := profiles.NewProfileManager()
+				pm, err := profiles.NewProfileManager(nil)
 				if err != nil {
 					log.Fatal("Failed to create profile manager:", err)
 				}
@@ -291,7 +291,7 @@ func main() {
 		func(repoURL, name, profile string) {
 			if profile != "" {
 				// Install directly to profile
-				pm, err := profiles.NewProfileManager()
+				pm, err := profiles.NewProfileManager(nil)
 				if err != nil {
 					log.Fatal("Failed to create profile manager:", err)
 				}
@@ -489,7 +489,7 @@ func main() {
 			}
 		},
 		func() {
-			pm, err := profiles.NewProfileManager()
+			pm, err := profiles.NewProfileManager(nil)
 			if err != nil {
 				log.Fatal("Failed to create profile manager:", err)
 			}
@@ -558,7 +558,7 @@ func main() {
 			fmt.Printf("\nTotal: %d profile(s)\n", len(profilesList))
 		},
 		func(profileName string) {
-			pm, err := profiles.NewProfileManager()
+			pm, err := profiles.NewProfileManager(nil)
 			if err != nil {
 				log.Fatal("Failed to create profile manager:", err)
 			}
@@ -638,7 +638,7 @@ func main() {
 			}
 		},
 		func(profileName string) {
-			pm, err := profiles.NewProfileManager()
+			pm, err := profiles.NewProfileManager(nil)
 			if err != nil {
 				log.Fatal("Failed to create profile manager:", err)
 			}
@@ -648,7 +648,13 @@ func main() {
 			}
 		},
 		func(profileName string) {
-			pm, err := profiles.NewProfileManager()
+			// Create component linker for defensive unlinking
+			componentLinker, err := NewComponentLinker()
+			if err != nil {
+				log.Fatal("Failed to create component linker:", err)
+			}
+
+			pm, err := profiles.NewProfileManager(componentLinker)
 			if err != nil {
 				log.Fatal("Failed to create profile manager:", err)
 			}
@@ -658,7 +664,7 @@ func main() {
 			}
 		},
 		func(profileName string) {
-			pm, err := profiles.NewProfileManager()
+			pm, err := profiles.NewProfileManager(nil)
 			if err != nil {
 				log.Fatal("Failed to create profile manager:", err)
 			}
@@ -668,7 +674,7 @@ func main() {
 			}
 		},
 		func() {
-			pm, err := profiles.NewProfileManager()
+			pm, err := profiles.NewProfileManager(nil)
 			if err != nil {
 				log.Fatal("Failed to create profile manager:", err)
 			}
@@ -678,7 +684,7 @@ func main() {
 			}
 		},
 		func(componentType, profileName, componentName string) {
-			pm, err := profiles.NewProfileManager()
+			pm, err := profiles.NewProfileManager(nil)
 			if err != nil {
 				log.Fatal("Failed to create profile manager:", err)
 			}
@@ -688,7 +694,13 @@ func main() {
 			}
 		},
 		func(componentType, profileName, componentName string) {
-			pm, err := profiles.NewProfileManager()
+			// Create component linker to handle auto-unlinking
+			componentLinker, err := NewComponentLinker()
+			if err != nil {
+				log.Fatal("Failed to create component linker:", err)
+			}
+
+			pm, err := profiles.NewProfileManager(componentLinker)
 			if err != nil {
 				log.Fatal("Failed to create profile manager:", err)
 			}
@@ -699,7 +711,7 @@ func main() {
 		},
 		func() {
 			// Status handler - shows current system status
-			pm, err := profiles.NewProfileManager()
+			pm, err := profiles.NewProfileManager(nil)
 			if err != nil {
 				log.Fatal("Failed to create profile manager:", err)
 			}

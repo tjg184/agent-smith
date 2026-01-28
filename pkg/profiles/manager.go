@@ -7,21 +7,27 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/tgaines/agent-smith/internal/linker"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
 
 // ProfileManager handles profile discovery and management
 type ProfileManager struct {
 	profilesDir string
+	linker      *linker.ComponentLinker // Optional - can be nil
 }
 
 // NewProfileManager creates a new ProfileManager instance
-func NewProfileManager() (*ProfileManager, error) {
+// The linker parameter is optional - pass nil if unlinking functionality is not needed
+func NewProfileManager(componentLinker *linker.ComponentLinker) (*ProfileManager, error) {
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get profiles directory: %w", err)
 	}
-	return &ProfileManager{profilesDir: profilesDir}, nil
+	return &ProfileManager{
+		profilesDir: profilesDir,
+		linker:      componentLinker,
+	}, nil
 }
 
 // validateProfileName validates a profile name to prevent file system issues
@@ -378,6 +384,16 @@ func (pm *ProfileManager) RemoveComponentFromProfile(profileName, componentType,
 		return fmt.Errorf("component '%s' not found in profile '%s'", componentName, profileName)
 	}
 
+	// Check if this profile is currently active
+	activeProfile, err := pm.GetActiveProfile()
+	if err == nil && activeProfile == profileName {
+		// Component is linked via active profile, need to unlink it
+		if pm.linker != nil {
+			// Auto-unlink component from all targets (silent if not linked)
+			_ = pm.linker.UnlinkComponent(componentType, componentName)
+		}
+	}
+
 	// Remove component directory
 	if err := os.RemoveAll(componentPath); err != nil {
 		return fmt.Errorf("failed to remove component: %w", err)
@@ -511,6 +527,27 @@ func (pm *ProfileManager) DeleteProfile(profileName string) error {
 
 	if activeProfile == profileName {
 		return fmt.Errorf("cannot delete active profile '%s'. Deactivate it first with: agent-smith profiles deactivate", profileName)
+	}
+
+	// Defensive unlinking: in case profile somehow has linked components
+	// This is a safety net and should not normally be needed since active profiles
+	// must be deactivated first (which handles unlinking)
+	if pm.linker != nil {
+		componentTypes := []string{"skills", "agents", "commands"}
+		for _, componentType := range componentTypes {
+			componentDir := filepath.Join(profile.BasePath, componentType)
+			if _, err := os.Stat(componentDir); !os.IsNotExist(err) {
+				entries, err := os.ReadDir(componentDir)
+				if err == nil {
+					for _, entry := range entries {
+						if !strings.HasPrefix(entry.Name(), ".") {
+							// Silently attempt to unlink (may not be linked, which is fine)
+							_ = pm.linker.UnlinkComponent(componentType, entry.Name())
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// Delete the profile directory
