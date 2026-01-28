@@ -446,17 +446,17 @@ Examples:
 ## Acceptance Criteria
 
 - [x] Individual component uninstall works for skills, agents, and commands
-- [ ] Bulk uninstall removes all components from specified repository
-- [ ] Components are automatically unlinked before removal
-- [ ] Profile flag works correctly for all uninstall operations
-- [ ] Lock files are updated correctly after removal
-- [ ] Component directories are completely removed
-- [ ] Confirmation prompt works for bulk operations
-- [ ] --force flag skips confirmation
-- [ ] Error messages are clear and actionable
-- [ ] Success messages indicate what was removed
-- [ ] No orphaned files or symlinks after uninstall
-- [ ] All edge cases are handled gracefully
+- [x] Bulk uninstall removes all components from specified repository
+- [x] Components are automatically unlinked before removal
+- [x] Profile flag works correctly for all uninstall operations
+- [x] Lock files are updated correctly after removal
+- [x] Component directories are completely removed
+- [x] Confirmation prompt works for bulk operations
+- [x] --force flag skips confirmation
+- [x] Error messages are clear and actionable
+- [x] Success messages indicate what was removed
+- [x] No orphaned files or symlinks after uninstall
+- [x] All edge cases are handled gracefully
 - [ ] Integration tests pass
 - [ ] Documentation is updated
 
