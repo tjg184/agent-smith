@@ -122,3 +122,4 @@
 - [✓] 2026-01-27 13:01 - Story-005: As a user, I want clear guidance on what to do after activation/deactivation, so that I understand the two-step workflow.
 - [✓] 2026-01-27 13:05 - Story-006: As a user, I want to see which profile is active and where components are sourced from, so that I understand the current state.
 - [✓] 2026-01-28 01:06 - Story-001: As a developer, I want the npx command removed from Agent Smith so that the CLI doesn't offer functionality that doesn't work with documentation-based components.
+- [✓] 2026-01-28 01:09 - Story-002: As a developer, I want the run command removed from Agent Smith so that the CLI has a clear, focused purpose.
