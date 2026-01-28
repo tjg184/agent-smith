@@ -14,7 +14,6 @@ AI agents, skills, and commands from git repositories.
 
 It provides npm-like functionality for AI components, allowing you to:
 - Download and install agents, skills, and commands
-- Execute components without installation (npx-like)
 - Update and manage installed components
 - Link components to supported targets (OpenCode, Claude Code, etc.)`,
 }
@@ -165,24 +164,6 @@ EXAMPLES:
 	})
 
 	rootCmd.AddCommand(installCmd)
-
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "npx <repository-or-package> [args...]",
-		Short: "Execute a component without installing (npx-like)",
-		Args:  cobra.MinimumNArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			handleRun(args[0], args[1:])
-		},
-	})
-
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "run <repository-or-package> [args...]",
-		Short: "Execute a component without installing",
-		Args:  cobra.MinimumNArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			handleRun(args[0], args[1:])
-		},
-	})
 
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "update <type|all> [name]",
@@ -774,7 +755,6 @@ var (
 	handleAddAgent           func(repoURL, name, profile string)
 	handleAddCommand         func(repoURL, name, profile string)
 	handleAddAll             func(repoURL string)
-	handleRun                func(target string, args []string)
 	handleUpdate             func(componentType, componentName string)
 	handleUpdateAll          func()
 	handleLink               func(componentType, componentName, targetFilter string)
@@ -802,7 +782,6 @@ func SetHandlers(
 	addAgent func(repoURL, name, profile string),
 	addCommand func(repoURL, name, profile string),
 	addAll func(repoURL string),
-	run func(target string, args []string),
 	update func(componentType, componentName string),
 	updateAll func(),
 	link func(componentType, componentName, targetFilter string),
@@ -828,7 +807,6 @@ func SetHandlers(
 	handleAddAgent = addAgent
 	handleAddCommand = addCommand
 	handleAddAll = addAll
-	handleRun = run
 	handleUpdate = update
 	handleUpdateAll = updateAll
 	handleLink = link
