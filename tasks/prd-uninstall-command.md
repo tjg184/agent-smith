@@ -445,7 +445,7 @@ Examples:
 
 ## Acceptance Criteria
 
-- [ ] Individual component uninstall works for skills, agents, and commands
+- [x] Individual component uninstall works for skills, agents, and commands
 - [ ] Bulk uninstall removes all components from specified repository
 - [ ] Components are automatically unlinked before removal
 - [ ] Profile flag works correctly for all uninstall operations

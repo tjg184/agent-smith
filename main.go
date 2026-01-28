@@ -467,6 +467,27 @@ func main() {
 				log.Fatal("Failed to uninstall component:", err)
 			}
 		},
+		func(repoURL string, force bool) {
+			// Get base directory (always ~/.agents/ for bulk uninstall)
+			baseDir, err := paths.GetAgentsDir()
+			if err != nil {
+				log.Fatal("Failed to get base directory:", err)
+			}
+
+			// Create linker for unlinking
+			linker, err := NewComponentLinker()
+			if err != nil {
+				log.Fatal("Failed to create component linker:", err)
+			}
+
+			// Create uninstaller
+			uninstaller := uninstaller.NewUninstaller(baseDir, linker)
+
+			// Uninstall all components from source
+			if err := uninstaller.UninstallAllFromSource(repoURL, force); err != nil {
+				log.Fatal("Failed to uninstall components:", err)
+			}
+		},
 		func() {
 			pm, err := profiles.NewProfileManager()
 			if err != nil {
