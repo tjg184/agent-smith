@@ -31,6 +31,9 @@ func isValidComponentType(componentType string) bool {
 }
 
 func init() {
+	// Hide completion command from help output
+	rootCmd.CompletionOptions.HiddenDefaultCmd = true
+
 	// Create 'install' parent command with subcommands
 	installCmd := &cobra.Command{
 		Use:   "install",
