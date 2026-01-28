@@ -180,25 +180,15 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		sourceType = "github"
 	}
 
-	// Compute folder hash if it's a GitHub repo
-	var folderHash string
-	if sourceType == "github" {
-		// Extract owner/repo from URL
-		if strings.HasPrefix(fullURL, "https://github.com/") {
-			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
-			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
-			if hash, err := ComputeGitHubTreeSHA(ownerRepo, "SKILL.md"); err == nil {
-				folderHash = hash
-			}
-		}
+	// Get commit hash from the repository
+	var commitHash string
+	if hash, err := gitpkg.GetCommitHashFromPath(sd.cloner, repoPath); err == nil {
+		commitHash = hash
 	} else {
-		// For non-GitHub repos, compute local hash
-		if hash, err := ComputeLocalFolderHash(skillDir); err == nil {
-			folderHash = hash
-		}
+		sd.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, len(skillComponents), "recursive", ""); err != nil {
+	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, commitHash, len(skillComponents), "recursive", ""); err != nil {
 		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -249,25 +239,15 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 		sourceType = "git"
 	}
 
-	// Compute folder hash if it's a GitHub repo
-	var folderHash string
-	if sourceType == "github" {
-		// Extract owner/repo from URL
-		if strings.HasPrefix(fullURL, "https://github.com/") {
-			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
-			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
-			if hash, err := ComputeGitHubTreeSHA(ownerRepo, "SKILL.md"); err == nil {
-				folderHash = hash
-			}
-		}
+	// Get commit hash from the repository
+	var commitHash string
+	if hash, err := gitpkg.GetCommitHashFromPath(sd.cloner, skillDir); err == nil {
+		commitHash = hash
 	} else {
-		// For non-GitHub repos, compute local hash
-		if hash, err := ComputeLocalFolderHash(skillDir); err == nil {
-			folderHash = hash
-		}
+		sd.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, folderHash, 1, "direct", ""); err != nil {
+	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, commitHash, 1, "direct", ""); err != nil {
 		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -283,7 +263,7 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 }
 
 // saveLockFile saves component lock entry in agent-smith install compatible format
-func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, originalPath string) error {
+func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceType string, sourceUrl string, commitHash string, components int, detection string, originalPath string) error {
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
 		return fmt.Errorf("failed to get agents directory: %w", err)
@@ -293,7 +273,7 @@ func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceT
 		return fmt.Errorf("failed to create agents directory: %w", err)
 	}
 
-	return metadataPkg.SaveLockFileEntry(agentsDir, "skills", skillName, source, sourceType, sourceUrl, skillFolderHash, components, detection, originalPath)
+	return metadataPkg.SaveLockFileEntry(agentsDir, "skills", skillName, source, sourceType, sourceUrl, commitHash, components, detection, originalPath)
 }
 
 func (sd *SkillDownloader) createSkillFile(filePath, skillName, source string) error {
@@ -360,25 +340,15 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 		sourceType = "github"
 	}
 
-	// Compute folder hash if it's a GitHub repo
-	var folderHash string
-	if sourceType == "github" {
-		// Extract owner/repo from URL
-		if strings.HasPrefix(fullURL, "https://github.com/") {
-			ownerRepo := strings.TrimPrefix(fullURL, "https://github.com/")
-			ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
-			if hash, err := ComputeGitHubTreeSHA(ownerRepo, targetComponent.SourceFile); err == nil {
-				folderHash = hash
-			}
-		}
+	// Get commit hash from the repository
+	var commitHash string
+	if hash, err := gitpkg.GetCommitHashFromPath(sd.cloner, repoPath); err == nil {
+		commitHash = hash
 	} else {
-		// For non-GitHub repos, compute local hash
-		if hash, err := ComputeLocalFolderHash(skillDir); err == nil {
-			folderHash = hash
-		}
+		sd.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := sd.saveLockFile(destFolderName, fullURL, sourceType, fullURL, folderHash, 1, "single", targetComponent.FilePath); err != nil {
+	if err := sd.saveLockFile(destFolderName, fullURL, sourceType, fullURL, commitHash, 1, "single", targetComponent.FilePath); err != nil {
 		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 

@@ -12,6 +12,7 @@ import (
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/fileutil"
 	"github.com/tgaines/agent-smith/internal/formatter"
+	gitpkg "github.com/tgaines/agent-smith/internal/git"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/paths"
@@ -21,6 +22,7 @@ import (
 type AgentDownloader struct {
 	baseDir   string
 	detector  *detector.RepositoryDetector
+	cloner    gitpkg.Cloner
 	formatter *formatter.Formatter
 }
 
@@ -39,6 +41,7 @@ func NewAgentDownloader() *AgentDownloader {
 	return &AgentDownloader{
 		baseDir:   baseDir,
 		detector:  detector.NewRepositoryDetector(),
+		cloner:    gitpkg.NewDefaultCloner(),
 		formatter: formatter.New(),
 	}
 }
@@ -62,6 +65,7 @@ func NewAgentDownloaderForProfile(profileName string) *AgentDownloader {
 	return &AgentDownloader{
 		baseDir:   baseDir,
 		detector:  detector.NewRepositoryDetector(),
+		cloner:    gitpkg.NewDefaultCloner(),
 		formatter: formatter.New(),
 	}
 }
@@ -70,7 +74,8 @@ func NewAgentDownloaderForProfile(profileName string) *AgentDownloader {
 func NewAgentDownloaderWithParams(baseDir string, detect *detector.RepositoryDetector) *AgentDownloader {
 	return &AgentDownloader{
 		baseDir:   baseDir,
-		detector:  detect,
+		detector:  detector.NewRepositoryDetector(),
+		cloner:    gitpkg.NewDefaultCloner(),
 		formatter: formatter.New(),
 	}
 }
@@ -98,6 +103,7 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 	}
 
 	var repoPath string
+	var commitHashFromRepo string // Store commit hash from clone
 	hasProvidedPath := len(providedRepoPath) > 0 && providedRepoPath[0] != ""
 
 	// Use provided repo path if available, otherwise clone for detection
@@ -115,7 +121,7 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		defer os.RemoveAll(tempDir)
 
 		// Clone repository to temporary location for detection
-		_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
+		repo, err := git.PlainClone(tempDir, false, &git.CloneOptions{
 			URL:           fullURL,
 			Depth:         1,
 			ReferenceName: plumbing.HEAD,
@@ -125,6 +131,13 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 			return fmt.Errorf("failed to clone repository for detection: %w", err)
 		}
 		repoPath = tempDir
+
+		// Get commit hash from the cloned repository
+		ref, err := repo.Head()
+		if err != nil {
+			return fmt.Errorf("failed to get HEAD reference: %w", err)
+		}
+		commitHashFromRepo = ref.Hash().String()
 	}
 
 	// Detect components in the repository
@@ -219,15 +232,21 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		sourceType = "git"
 	}
 
-	// Compute folder hash if it's a GitHub repo
-	var folderHash string
-	if sourceType != "github" {
-		if hash, err := ComputeLocalFolderHash(agentDir); err == nil {
-			folderHash = hash
+	// Get commit hash from repository (already retrieved during clone for remote repos)
+	var commitHash string
+	if hasProvidedPath || ad.detector.DetectProvider(repoURL) == "local" {
+		// For provided path or local repos, try to get hash from path
+		if hash, err := gitpkg.GetCommitHashFromPath(ad.cloner, repoPath); err == nil {
+			commitHash = hash
+		} else {
+			ad.formatter.Warning("failed to get commit hash: %v", err)
 		}
+	} else {
+		// For remote repos, use the hash we got during clone
+		commitHash = commitHashFromRepo
 	}
 
-	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, len(agentComponents), "recursive", ""); err != nil {
+	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, commitHash, len(agentComponents), "recursive", ""); err != nil {
 		ad.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -268,15 +287,15 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 		sourceType = "git"
 	}
 
-	// Compute folder hash if it's a GitHub repo
-	var folderHash string
-	if sourceType != "github" {
-		if hash, err := ComputeLocalFolderHash(agentDir); err == nil {
-			folderHash = hash
-		}
+	// Get commit hash from repository
+	var commitHash string
+	if hash, err := gitpkg.GetCommitHashFromPath(ad.cloner, agentDir); err == nil {
+		commitHash = hash
+	} else {
+		ad.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, folderHash, 1, "direct", ""); err != nil {
+	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, commitHash, 1, "direct", ""); err != nil {
 		ad.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -292,7 +311,7 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 }
 
 // saveLockFile saves agent lock entry in agent-smith install compatible format
-func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceType string, sourceUrl string, skillFolderHash string, components int, detection string, originalPath string) error {
+func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceType string, sourceUrl string, commitHash string, components int, detection string, originalPath string) error {
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
 		return fmt.Errorf("failed to get agents directory: %w", err)
@@ -302,7 +321,7 @@ func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceT
 		return fmt.Errorf("failed to create agents directory: %w", err)
 	}
 
-	return metadataPkg.SaveLockFileEntry(agentsDir, "agents", agentName, source, sourceType, sourceUrl, skillFolderHash, components, detection, originalPath)
+	return metadataPkg.SaveLockFileEntry(agentsDir, "agents", agentName, source, sourceType, sourceUrl, commitHash, components, detection, originalPath)
 }
 
 func (ad *AgentDownloader) createAgentFile(filePath, agentName, source string) error {
@@ -365,15 +384,15 @@ func (ad *AgentDownloader) DownloadAgentWithRepo(fullURL, agentName, repoURL str
 		sourceType = "git"
 	}
 
-	// Compute folder hash if it's a GitHub repo
-	var folderHash string
-	if sourceType != "github" {
-		if hash, err := ComputeLocalFolderHash(agentDir); err == nil {
-			folderHash = hash
-		}
+	// Get commit hash from repository
+	var commitHash string
+	if hash, err := gitpkg.GetCommitHashFromPath(ad.cloner, repoPath); err == nil {
+		commitHash = hash
+	} else {
+		ad.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := ad.saveLockFile(destFolderName, fullURL, sourceType, fullURL, folderHash, 1, "single", targetComponent.FilePath); err != nil {
+	if err := ad.saveLockFile(destFolderName, fullURL, sourceType, fullURL, commitHash, 1, "single", targetComponent.FilePath); err != nil {
 		ad.formatter.Warning("failed to save lock file: %v", err)
 	}
 

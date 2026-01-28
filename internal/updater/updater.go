@@ -50,7 +50,7 @@ func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*mo
 	return &models.ComponentMetadata{
 		Name:   componentName,
 		Source: entry.SourceUrl,
-		Commit: entry.SkillFolderHash,
+		Commit: entry.CommitHash,
 	}, nil
 }
 
@@ -99,6 +99,12 @@ func (ud *UpdateDetector) HasUpdates(componentType, componentName, repoURL strin
 	metadata, err := ud.loadMetadata(componentType, componentName)
 	if err != nil {
 		return false, fmt.Errorf("failed to load metadata: %w", err)
+	}
+
+	// If no commit hash is stored (old lock file format), assume update is needed
+	if metadata.Commit == "" {
+		fmt.Printf("Warning: %s/%s has no commit hash stored, will re-download to update lock file\n", componentType, componentName)
+		return true, nil
 	}
 
 	// Get current repository SHA
@@ -154,6 +160,9 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 func (ud *UpdateDetector) UpdateAll() error {
 	componentTypes := paths.GetComponentTypes()
 
+	// Track update statistics
+	var totalChecked, upToDate, updated, failed int
+
 	for _, componentType := range componentTypes {
 		typeDir := filepath.Join(ud.baseDir, componentType)
 		if _, err := os.Stat(typeDir); os.IsNotExist(err) {
@@ -169,19 +178,77 @@ func (ud *UpdateDetector) UpdateAll() error {
 		for _, entry := range entries {
 			if entry.IsDir() {
 				componentName := entry.Name()
+				totalChecked++
 
 				// Load metadata to get source URL
 				metadata, err := ud.loadMetadata(componentType, componentName)
 				if err != nil {
 					fmt.Printf("Warning: failed to load metadata for %s/%s: %v\n", componentType, componentName, err)
+					failed++
 					continue
 				}
 
-				if err := ud.UpdateComponent(componentType, componentName, metadata.Source); err != nil {
-					fmt.Printf("Warning: failed to update %s/%s: %v\n", componentType, componentName, err)
+				// Check if updates are available
+				hasUpdates, err := ud.HasUpdates(componentType, componentName, metadata.Source)
+				if err != nil {
+					fmt.Printf("Warning: failed to check for updates %s/%s: %v\n", componentType, componentName, err)
+					failed++
+					continue
+				}
+
+				if !hasUpdates {
+					fmt.Printf("Component %s/%s is already up to date\n", componentType, componentName)
+					upToDate++
+					continue
+				}
+
+				// Apply the update
+				fmt.Printf("Updates detected for %s/%s, downloading new version...\n", componentType, componentName)
+
+				// Remove old component directory to ensure clean re-clone
+				componentDir := filepath.Join(ud.baseDir, componentType, componentName)
+				if _, err := os.Stat(componentDir); err == nil {
+					fmt.Printf("Removing old %s/%s directory...\n", componentType, componentName)
+					if err := os.RemoveAll(componentDir); err != nil {
+						fmt.Printf("Warning: failed to remove old component directory %s/%s: %v\n", componentType, componentName, err)
+						failed++
+						continue
+					}
+				}
+
+				// Re-download the component with the latest changes
+				var downloadErr error
+				switch componentType {
+				case "skills":
+					dl := downloader.NewSkillDownloader()
+					downloadErr = dl.DownloadSkill(metadata.Source, componentName)
+				case "agents":
+					dl := downloader.NewAgentDownloader()
+					downloadErr = dl.DownloadAgent(metadata.Source, componentName)
+				case "commands":
+					dl := downloader.NewCommandDownloader()
+					downloadErr = dl.DownloadCommand(metadata.Source, componentName)
+				default:
+					downloadErr = fmt.Errorf("unknown component type: %s", componentType)
+				}
+
+				if downloadErr != nil {
+					fmt.Printf("Warning: failed to update %s/%s: %v\n", componentType, componentName, downloadErr)
+					failed++
+				} else {
+					updated++
 				}
 			}
 		}
+	}
+
+	// Print summary
+	fmt.Println("\n=== Update Summary ===")
+	fmt.Printf("Total components checked: %d\n", totalChecked)
+	fmt.Printf("Already up to date: %d\n", upToDate)
+	fmt.Printf("Successfully updated: %d\n", updated)
+	if failed > 0 {
+		fmt.Printf("Failed: %d\n", failed)
 	}
 
 	return nil

@@ -42,17 +42,17 @@ type ComponentFrontmatter struct {
 
 // ComponentLockEntry represents a single entry in the lock file
 type ComponentLockEntry struct {
-	Source          string `json:"source"`
-	SourceType      string `json:"sourceType"`
-	SourceUrl       string `json:"sourceUrl"`
-	SkillPath       string `json:"skillPath,omitempty"`
-	OriginalPath    string `json:"originalPath,omitempty"` // Original path in repo (e.g., "plugins/ui-design/agents/expert.md")
-	SkillFolderHash string `json:"skillFolderHash"`
-	InstalledAt     string `json:"installedAt"`
-	UpdatedAt       string `json:"updatedAt"`
-	Version         int    `json:"version"`
-	Components      int    `json:"components,omitempty"`
-	Detection       string `json:"detection,omitempty"`
+	Source       string `json:"source"`
+	SourceType   string `json:"sourceType"`
+	SourceUrl    string `json:"sourceUrl"`
+	SkillPath    string `json:"skillPath,omitempty"`
+	OriginalPath string `json:"originalPath,omitempty"` // Original path in repo (e.g., "plugins/ui-design/agents/expert.md")
+	CommitHash   string `json:"commitHash"`
+	InstalledAt  string `json:"installedAt"`
+	UpdatedAt    string `json:"updatedAt"`
+	Version      int    `json:"version"`
+	Components   int    `json:"components,omitempty"`
+	Detection    string `json:"detection,omitempty"`
 }
 
 // ComponentLockFile tracks all installed components
