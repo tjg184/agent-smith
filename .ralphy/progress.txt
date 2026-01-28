@@ -128,3 +128,8 @@
 - [✓] 2026-01-28 12:14 - Story-003: As a CLI user, I want helpful error messages when I use the wrong form so that I can quickly correct my command.
 - [✓] 2026-01-28 12:17 - Story-004: As an existing user, I want my current `unlink skills <name>` commands to continue working so that I don't have breaking changes.
 - [✓] 2026-01-28 12:22 - Story-005: As a developer, I want clear command argument validation so that invalid usage is caught early with helpful feedback.
+- [✓] 2026-01-28 12:33 - Individual component uninstall works for skills, agents, and commands
+- [✓] 2026-01-28 12:39 - Bulk uninstall removes all components from specified repository
+- [✓] 2026-01-28 12:44 - Components are automatically unlinked before removal
+- [✓] 2026-01-28 12:48 - Integration tests pass
+- [✓] 2026-01-28 12:49 - Documentation is updated
