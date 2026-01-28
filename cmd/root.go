@@ -223,10 +223,11 @@ FLAGS (apply to all subcommands):
 	}
 
 	// Add subcommands to 'link' command
+	// Singular commands - operate on ONE component
 	linkSkillCmd := &cobra.Command{
-		Use:   "skill [name]",
-		Short: "Link a skill or all skills to detected targets",
-		Long: `Link a specific skill or all skills to detected targets.
+		Use:   "skill <name>",
+		Short: "Link a specific skill to detected targets",
+		Long: `Link a specific skill to detected targets.
 
 This command links a downloaded skill from ~/.agents/skills/ to the appropriate
 directories for OpenCode, Claude Code, or other supported targets.
@@ -236,14 +237,8 @@ EXAMPLES:
   agent-smith link skill mcp-builder
 
   # Link a specific skill to OpenCode only
-  agent-smith link skill mcp-builder --target opencode
-
-  # Link all skills to all detected targets
-  agent-smith link skill
-
-  # Link all skills to Claude Code only
-  agent-smith link skill --target claudecode`,
-		Args: cobra.MaximumNArgs(1),
+  agent-smith link skill mcp-builder --target opencode`,
+		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
@@ -253,23 +248,51 @@ EXAMPLES:
 				targetFilter = "all"
 			}
 
-			if len(args) == 0 {
-				// Link all skills
-				handleLinkType("skills", targetFilter)
-			} else {
-				// Link specific skill
-				handleLink("skills", args[0], targetFilter)
-			}
+			// Link specific skill
+			handleLink("skills", args[0], targetFilter)
 		},
 	}
 	linkSkillCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
 	linkSkillCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
 	linkCmd.AddCommand(linkSkillCmd)
 
+	// Plural command - operate on ALL skills
+	linkSkillsCmd := &cobra.Command{
+		Use:   "skills",
+		Short: "Link all skills to detected targets",
+		Long: `Link all skills to detected targets.
+
+This command links all downloaded skills from ~/.agents/skills/ to the appropriate
+directories for OpenCode, Claude Code, or other supported targets.
+
+EXAMPLES:
+  # Link all skills to all detected targets
+  agent-smith link skills
+
+  # Link all skills to Claude Code only
+  agent-smith link skills --target claudecode`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			targetFilter, _ := cmd.Flags().GetString("target")
+			allTargets, _ := cmd.Flags().GetBool("all-targets")
+
+			// If --all-targets is specified, override targetFilter to "all"
+			if allTargets {
+				targetFilter = "all"
+			}
+
+			// Link all skills
+			handleLinkType("skills", targetFilter)
+		},
+	}
+	linkSkillsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkSkillsCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkCmd.AddCommand(linkSkillsCmd)
+
 	linkAgentCmd := &cobra.Command{
-		Use:   "agent [name]",
-		Short: "Link an agent or all agents to detected targets",
-		Long: `Link a specific agent or all agents to detected targets.
+		Use:   "agent <name>",
+		Short: "Link a specific agent to detected targets",
+		Long: `Link a specific agent to detected targets.
 
 This command links a downloaded agent from ~/.agents/agents/ to the appropriate
 directories for OpenCode, Claude Code, or other supported targets.
@@ -279,14 +302,8 @@ EXAMPLES:
   agent-smith link agent coding-assistant
 
   # Link a specific agent to OpenCode only
-  agent-smith link agent coding-assistant --target opencode
-
-  # Link all agents to all detected targets
-  agent-smith link agent
-
-  # Link all agents to Claude Code only
-  agent-smith link agent --target claudecode`,
-		Args: cobra.MaximumNArgs(1),
+  agent-smith link agent coding-assistant --target opencode`,
+		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
@@ -296,23 +313,51 @@ EXAMPLES:
 				targetFilter = "all"
 			}
 
-			if len(args) == 0 {
-				// Link all agents
-				handleLinkType("agents", targetFilter)
-			} else {
-				// Link specific agent
-				handleLink("agents", args[0], targetFilter)
-			}
+			// Link specific agent
+			handleLink("agents", args[0], targetFilter)
 		},
 	}
 	linkAgentCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
 	linkAgentCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
 	linkCmd.AddCommand(linkAgentCmd)
 
+	// Plural command - operate on ALL agents
+	linkAgentsCmd := &cobra.Command{
+		Use:   "agents",
+		Short: "Link all agents to detected targets",
+		Long: `Link all agents to detected targets.
+
+This command links all downloaded agents from ~/.agents/agents/ to the appropriate
+directories for OpenCode, Claude Code, or other supported targets.
+
+EXAMPLES:
+  # Link all agents to all detected targets
+  agent-smith link agents
+
+  # Link all agents to Claude Code only
+  agent-smith link agents --target claudecode`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			targetFilter, _ := cmd.Flags().GetString("target")
+			allTargets, _ := cmd.Flags().GetBool("all-targets")
+
+			// If --all-targets is specified, override targetFilter to "all"
+			if allTargets {
+				targetFilter = "all"
+			}
+
+			// Link all agents
+			handleLinkType("agents", targetFilter)
+		},
+	}
+	linkAgentsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkAgentsCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkCmd.AddCommand(linkAgentsCmd)
+
 	linkCommandCmd := &cobra.Command{
-		Use:   "command [name]",
-		Short: "Link a command or all commands to detected targets",
-		Long: `Link a specific command or all commands to detected targets.
+		Use:   "command <name>",
+		Short: "Link a specific command to detected targets",
+		Long: `Link a specific command to detected targets.
 
 This command links a downloaded command from ~/.agents/commands/ to the appropriate
 directories for OpenCode, Claude Code, or other supported targets.
@@ -322,14 +367,8 @@ EXAMPLES:
   agent-smith link command json-formatter
 
   # Link a specific command to OpenCode only
-  agent-smith link command json-formatter --target opencode
-
-  # Link all commands to all detected targets
-  agent-smith link command
-
-  # Link all commands to Claude Code only
-  agent-smith link command --target claudecode`,
-		Args: cobra.MaximumNArgs(1),
+  agent-smith link command json-formatter --target opencode`,
+		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
@@ -339,18 +378,46 @@ EXAMPLES:
 				targetFilter = "all"
 			}
 
-			if len(args) == 0 {
-				// Link all commands
-				handleLinkType("commands", targetFilter)
-			} else {
-				// Link specific command
-				handleLink("commands", args[0], targetFilter)
-			}
+			// Link specific command
+			handleLink("commands", args[0], targetFilter)
 		},
 	}
 	linkCommandCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
 	linkCommandCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
 	linkCmd.AddCommand(linkCommandCmd)
+
+	// Plural command - operate on ALL commands
+	linkCommandsCmd := &cobra.Command{
+		Use:   "commands",
+		Short: "Link all commands to detected targets",
+		Long: `Link all commands to detected targets.
+
+This command links all downloaded commands from ~/.agents/commands/ to the appropriate
+directories for OpenCode, Claude Code, or other supported targets.
+
+EXAMPLES:
+  # Link all commands to all detected targets
+  agent-smith link commands
+
+  # Link all commands to Claude Code only
+  agent-smith link commands --target claudecode`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			targetFilter, _ := cmd.Flags().GetString("target")
+			allTargets, _ := cmd.Flags().GetBool("all-targets")
+
+			// If --all-targets is specified, override targetFilter to "all"
+			if allTargets {
+				targetFilter = "all"
+			}
+
+			// Link all commands
+			handleLinkType("commands", targetFilter)
+		},
+	}
+	linkCommandsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkCommandsCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkCmd.AddCommand(linkCommandsCmd)
 
 	linkAllCmd := &cobra.Command{
 		Use:   "all",
@@ -475,61 +542,170 @@ The output shows:
 
 	rootCmd.AddCommand(linkCmd)
 
+	// Create 'unlink' parent command with subcommands
 	unlinkCmd := &cobra.Command{
-		Use:   "unlink <type|all> [name]",
-		Short: "Remove a linked component or all components from targets",
-		Long: `Remove a specific linked component or all linked components from detected targets.
+		Use:   "unlink",
+		Short: "Remove linked components from targets",
+		Long: `Remove linked components (skills, agents, commands) from detected targets.
 
-USAGE:
-  agent-smith unlink <type> <name>  - Unlink a specific component
-  agent-smith unlink <type>         - Unlink all components of a specific type
-  agent-smith unlink all            - Unlink all components (with --force to skip confirmation)
-
-COMPONENT TYPES:
-  skills    - Remove linked skills
-  agents    - Remove linked agents
-  commands  - Remove linked commands
+This command provides a modern interface for unlinking downloaded AI components
+from supported targets (OpenCode, Claude Code, etc.).
 
 SAFETY:
   - Symlinks are removed immediately
   - Copied directories require confirmation before deletion
   - Source files in ~/.agents/ are never touched
-  - 'unlink all' and 'unlink <type>' prompt for confirmation unless --force is used
+  - Bulk operations (skills, agents, commands, all) prompt for confirmation unless --force is used`,
+	}
+
+	// Singular commands - operate on ONE component
+	unlinkSkillCmd := &cobra.Command{
+		Use:   "skill <name>",
+		Short: "Unlink a specific skill from targets",
+		Long: `Unlink a specific skill from detected targets.
+
+This command removes the linked skill from OpenCode, Claude Code, or other
+supported targets. Source files in ~/.agents/skills/ are never touched.
 
 EXAMPLES:
   # Unlink a specific skill
-  agent-smith unlink skills mcp-builder
+  agent-smith unlink skill mcp-builder`,
+		Args: cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleUnlink("skills", args[0])
+		},
+	}
+	unlinkCmd.AddCommand(unlinkSkillCmd)
 
-  # Unlink all skills
+	unlinkAgentCmd := &cobra.Command{
+		Use:   "agent <name>",
+		Short: "Unlink a specific agent from targets",
+		Long: `Unlink a specific agent from detected targets.
+
+This command removes the linked agent from OpenCode, Claude Code, or other
+supported targets. Source files in ~/.agents/agents/ are never touched.
+
+EXAMPLES:
+  # Unlink a specific agent
+  agent-smith unlink agent coding-assistant`,
+		Args: cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleUnlink("agents", args[0])
+		},
+	}
+	unlinkCmd.AddCommand(unlinkAgentCmd)
+
+	unlinkCommandCmd := &cobra.Command{
+		Use:   "command <name>",
+		Short: "Unlink a specific command from targets",
+		Long: `Unlink a specific command from detected targets.
+
+This command removes the linked command from OpenCode, Claude Code, or other
+supported targets. Source files in ~/.agents/commands/ are never touched.
+
+EXAMPLES:
+  # Unlink a specific command
+  agent-smith unlink command json-formatter`,
+		Args: cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleUnlink("commands", args[0])
+		},
+	}
+	unlinkCmd.AddCommand(unlinkCommandCmd)
+
+	// Plural commands - operate on ALL components of a type
+	unlinkSkillsCmd := &cobra.Command{
+		Use:   "skills",
+		Short: "Unlink all skills from targets",
+		Long: `Unlink all skills from detected targets.
+
+This command removes all linked skills from OpenCode, Claude Code, or other
+supported targets. Source files in ~/.agents/skills/ are never touched.
+
+EXAMPLES:
+  # Unlink all skills with confirmation
   agent-smith unlink skills
 
+  # Unlink all skills without confirmation
+  agent-smith unlink skills --force`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			force, _ := cmd.Flags().GetBool("force")
+			handleUnlinkType("skills", force)
+		},
+	}
+	unlinkSkillsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
+	unlinkCmd.AddCommand(unlinkSkillsCmd)
+
+	unlinkAgentsCmd := &cobra.Command{
+		Use:   "agents",
+		Short: "Unlink all agents from targets",
+		Long: `Unlink all agents from detected targets.
+
+This command removes all linked agents from OpenCode, Claude Code, or other
+supported targets. Source files in ~/.agents/agents/ are never touched.
+
+EXAMPLES:
   # Unlink all agents with confirmation
   agent-smith unlink agents
 
-  # Unlink all commands without confirmation
-  agent-smith unlink commands --force
+  # Unlink all agents without confirmation
+  agent-smith unlink agents --force`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			force, _ := cmd.Flags().GetBool("force")
+			handleUnlinkType("agents", force)
+		},
+	}
+	unlinkAgentsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
+	unlinkCmd.AddCommand(unlinkAgentsCmd)
 
+	unlinkCommandsCmd := &cobra.Command{
+		Use:   "commands",
+		Short: "Unlink all commands from targets",
+		Long: `Unlink all commands from detected targets.
+
+This command removes all linked commands from OpenCode, Claude Code, or other
+supported targets. Source files in ~/.agents/commands/ are never touched.
+
+EXAMPLES:
+  # Unlink all commands with confirmation
+  agent-smith unlink commands
+
+  # Unlink all commands without confirmation
+  agent-smith unlink commands --force`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			force, _ := cmd.Flags().GetBool("force")
+			handleUnlinkType("commands", force)
+		},
+	}
+	unlinkCommandsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
+	unlinkCmd.AddCommand(unlinkCommandsCmd)
+
+	unlinkAllCmd := &cobra.Command{
+		Use:   "all",
+		Short: "Unlink all components from targets",
+		Long: `Unlink all components (skills, agents, and commands) from detected targets.
+
+This command removes all linked components from OpenCode, Claude Code, or other
+supported targets. Source files in ~/.agents/ are never touched.
+
+EXAMPLES:
   # Unlink all components with confirmation
   agent-smith unlink all
 
   # Unlink all components without confirmation
   agent-smith unlink all --force`,
-		Args: cobra.RangeArgs(1, 2),
+		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			force, _ := cmd.Flags().GetBool("force")
-			if args[0] == "all" {
-				handleUnlinkAll(force)
-			} else if len(args) == 1 && isValidComponentType(args[0]) {
-				handleUnlinkType(args[0], force)
-			} else if len(args) == 2 {
-				handleUnlink(args[0], args[1])
-			} else {
-				cmd.PrintErrln("Error: unlink requires type and name, or just type, or 'all'")
-				os.Exit(1)
-			}
+			handleUnlinkAll(force)
 		},
 	}
-	unlinkCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt (only for 'unlink all')")
+	unlinkAllCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
+	unlinkCmd.AddCommand(unlinkAllCmd)
+
 	rootCmd.AddCommand(unlinkCmd)
 
 	// Create 'profiles' parent command with subcommands
