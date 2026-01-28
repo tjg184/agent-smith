@@ -332,11 +332,6 @@ func main() {
 			}
 		},
 		func(componentType, componentName string) {
-			// Validate component type
-			if componentType != "skills" && componentType != "agents" && componentType != "commands" {
-				log.Fatal("Invalid component type. Use: skills, agents, or commands")
-			}
-
 			detector := NewUpdateDetector()
 
 			// Load metadata to get source URL
@@ -374,11 +369,6 @@ func main() {
 			}
 		},
 		func(componentType, targetFilter string) {
-			// Validate component type
-			if componentType != "skills" && componentType != "agents" && componentType != "commands" {
-				log.Fatal("Invalid component type. Use: skills, agents, or commands")
-			}
-
 			linker, err := NewComponentLinkerWithFilter(targetFilter)
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
@@ -433,11 +423,6 @@ func main() {
 			}
 		},
 		func(componentType string, force bool) {
-			// Validate component type
-			if componentType != "skills" && componentType != "agents" && componentType != "commands" {
-				log.Fatal("Invalid component type. Use: skills, agents, or commands")
-			}
-
 			linker, err := NewComponentLinker()
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
