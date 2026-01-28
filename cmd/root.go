@@ -137,14 +137,19 @@ EXAMPLES:
   agent-smith install skill /path/to/local/skill local-skill
 
   # Install directly to a profile
-  agent-smith install skill openai/cookbook gpt-skill --profile work`,
+  agent-smith install skill openai/cookbook gpt-skill --profile work
+
+  # Install to custom directory for testing (isolated from ~/.agents/)
+  agent-smith install skill ./my-skill test-skill --target-dir ./test-components`,
 		Args: exactArgsWithHelp(2, "agent-smith install skill <repository-url> <skill-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
-			handleAddSkill(args[0], args[1], profile)
+			targetDir, _ := cmd.Flags().GetString("target-dir")
+			handleAddSkill(args[0], args[1], profile, targetDir)
 		},
 	}
 	installSkillCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agents/")
+	installSkillCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory (isolated from ~/.agents/)")
 	installCmd.AddCommand(installSkillCmd)
 
 	installAgentCmd := &cobra.Command{
@@ -167,14 +172,19 @@ EXAMPLES:
   agent-smith install agent /path/to/local/agent local-agent
 
   # Install directly to a profile
-  agent-smith install agent openai/assistant coding-agent --profile work`,
+  agent-smith install agent openai/assistant coding-agent --profile work
+
+  # Install to custom directory for testing (isolated from ~/.agents/)
+  agent-smith install agent ./my-agent test-agent --target-dir ./test-components`,
 		Args: exactArgsWithHelp(2, "agent-smith install agent <repository-url> <agent-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
-			handleAddAgent(args[0], args[1], profile)
+			targetDir, _ := cmd.Flags().GetString("target-dir")
+			handleAddAgent(args[0], args[1], profile, targetDir)
 		},
 	}
 	installAgentCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agents/")
+	installAgentCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory (isolated from ~/.agents/)")
 	installCmd.AddCommand(installAgentCmd)
 
 	installCommandCmd := &cobra.Command{
@@ -197,14 +207,19 @@ EXAMPLES:
   agent-smith install command /path/to/local/command local-cmd
 
   # Install directly to a profile
-  agent-smith install command cli-tools/formatter json-formatter --profile work`,
+  agent-smith install command cli-tools/formatter json-formatter --profile work
+
+  # Install to custom directory for testing (isolated from ~/.agents/)
+  agent-smith install command ./my-command test-command --target-dir ./test-components`,
 		Args: exactArgsWithHelp(2, "agent-smith install command <repository-url> <command-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
-			handleAddCommand(args[0], args[1], profile)
+			targetDir, _ := cmd.Flags().GetString("target-dir")
+			handleAddCommand(args[0], args[1], profile, targetDir)
 		},
 	}
 	installCommandCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agents/")
+	installCommandCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory (isolated from ~/.agents/)")
 	installCmd.AddCommand(installCommandCmd)
 
 	installAllCmd := &cobra.Command{
@@ -1180,9 +1195,9 @@ This provides a dashboard view of your agent-smith installation.`,
 
 // These functions will be implemented in main.go to keep existing logic
 var (
-	handleAddSkill           func(repoURL, name, profile string)
-	handleAddAgent           func(repoURL, name, profile string)
-	handleAddCommand         func(repoURL, name, profile string)
+	handleAddSkill           func(repoURL, name, profile, targetDir string)
+	handleAddAgent           func(repoURL, name, profile, targetDir string)
+	handleAddCommand         func(repoURL, name, profile, targetDir string)
 	handleAddAll             func(repoURL string, targetDir string)
 	handleUpdate             func(componentType, componentName string)
 	handleUpdateAll          func()
@@ -1209,9 +1224,9 @@ var (
 )
 
 func SetHandlers(
-	addSkill func(repoURL, name, profile string),
-	addAgent func(repoURL, name, profile string),
-	addCommand func(repoURL, name, profile string),
+	addSkill func(repoURL, name, profile, targetDir string),
+	addAgent func(repoURL, name, profile, targetDir string),
+	addCommand func(repoURL, name, profile, targetDir string),
 	addAll func(repoURL string, targetDir string),
 	update func(componentType, componentName string),
 	updateAll func(),

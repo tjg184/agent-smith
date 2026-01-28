@@ -212,8 +212,28 @@ func joinStrings(strings []string, separator string) string {
 func main() {
 	// Set up handlers for Cobra commands
 	cmd.SetHandlers(
-		func(repoURL, name, profile string) {
-			if profile != "" {
+		func(repoURL, name, profile, targetDir string) {
+			if profile != "" && targetDir != "" {
+				log.Fatal("Cannot specify both --profile and --target-dir flags")
+			}
+
+			if targetDir != "" {
+				// Install to custom target directory (isolated testing)
+				resolvedPath, err := paths.ResolveTargetDir(targetDir)
+				if err != nil {
+					log.Fatal("Failed to resolve target directory:", err)
+				}
+
+				if err := fileutil.CreateDirectoryWithPermissions(resolvedPath); err != nil {
+					log.Fatal("Failed to create target directory:", err)
+				}
+
+				fmt.Printf("Installing to custom directory: %s\n", resolvedPath)
+				dl := downloader.NewSkillDownloaderWithTargetDir(resolvedPath)
+				if err := dl.DownloadSkill(repoURL, name); err != nil {
+					log.Fatal("Failed to download skill:", err)
+				}
+			} else if profile != "" {
 				// Install directly to profile
 				pm, err := profiles.NewProfileManager(nil)
 				if err != nil {
@@ -250,8 +270,28 @@ func main() {
 				}
 			}
 		},
-		func(repoURL, name, profile string) {
-			if profile != "" {
+		func(repoURL, name, profile, targetDir string) {
+			if profile != "" && targetDir != "" {
+				log.Fatal("Cannot specify both --profile and --target-dir flags")
+			}
+
+			if targetDir != "" {
+				// Install to custom target directory (isolated testing)
+				resolvedPath, err := paths.ResolveTargetDir(targetDir)
+				if err != nil {
+					log.Fatal("Failed to resolve target directory:", err)
+				}
+
+				if err := fileutil.CreateDirectoryWithPermissions(resolvedPath); err != nil {
+					log.Fatal("Failed to create target directory:", err)
+				}
+
+				fmt.Printf("Installing to custom directory: %s\n", resolvedPath)
+				dl := downloader.NewAgentDownloaderWithTargetDir(resolvedPath)
+				if err := dl.DownloadAgent(repoURL, name); err != nil {
+					log.Fatal("Failed to download agent:", err)
+				}
+			} else if profile != "" {
 				// Install directly to profile
 				pm, err := profiles.NewProfileManager(nil)
 				if err != nil {
@@ -288,8 +328,28 @@ func main() {
 				}
 			}
 		},
-		func(repoURL, name, profile string) {
-			if profile != "" {
+		func(repoURL, name, profile, targetDir string) {
+			if profile != "" && targetDir != "" {
+				log.Fatal("Cannot specify both --profile and --target-dir flags")
+			}
+
+			if targetDir != "" {
+				// Install to custom target directory (isolated testing)
+				resolvedPath, err := paths.ResolveTargetDir(targetDir)
+				if err != nil {
+					log.Fatal("Failed to resolve target directory:", err)
+				}
+
+				if err := fileutil.CreateDirectoryWithPermissions(resolvedPath); err != nil {
+					log.Fatal("Failed to create target directory:", err)
+				}
+
+				fmt.Printf("Installing to custom directory: %s\n", resolvedPath)
+				dl := downloader.NewCommandDownloaderWithTargetDir(resolvedPath)
+				if err := dl.DownloadCommand(repoURL, name); err != nil {
+					log.Fatal("Failed to download command:", err)
+				}
+			} else if profile != "" {
 				// Install directly to profile
 				pm, err := profiles.NewProfileManager(nil)
 				if err != nil {
