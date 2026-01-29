@@ -898,6 +898,46 @@ func main() {
 			fmt.Println("  - Run 'agent-smith link status' for link information")
 			fmt.Println("  - Run 'agent-smith profiles list' to see all profiles")
 		},
+		func(name, path string) {
+			// Load existing config
+			cfg, err := config.LoadConfig()
+			if err != nil {
+				log.Fatal("Failed to load config:", err)
+			}
+
+			// Validate that target name doesn't already exist
+			for _, target := range cfg.CustomTargets {
+				if target.Name == name {
+					log.Fatalf("Target '%s' already exists in config", name)
+				}
+			}
+
+			// Create new custom target config
+			newTarget := config.CustomTargetConfig{
+				Name:        name,
+				BaseDir:     path,
+				SkillsDir:   "skills",
+				AgentsDir:   "agents",
+				CommandsDir: "commands",
+			}
+
+			// Add to config
+			cfg.CustomTargets = append(cfg.CustomTargets, newTarget)
+
+			// Save config
+			if err := config.SaveConfig(cfg); err != nil {
+				log.Fatal("Failed to save config:", err)
+			}
+
+			fmt.Printf("%s Successfully added custom target '%s'\n", formatter.SymbolSuccess, name)
+			fmt.Printf("  Base directory: %s\n", path)
+			fmt.Println("\nSubdirectories:")
+			fmt.Printf("  Skills:   %s/skills\n", path)
+			fmt.Printf("  Agents:   %s/agents\n", path)
+			fmt.Printf("  Commands: %s/commands\n", path)
+			fmt.Println("\nYou can now link components to this target:")
+			fmt.Printf("  agent-smith link all --target %s\n", name)
+		},
 	)
 
 	// Execute Cobra command
