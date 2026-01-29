@@ -141,3 +141,8 @@
 - [✓] 2026-01-29 12:03 - Story-004: As a developer, I want to use `agent-smith target list` to see all available targets so that I can understand which targets are configured.
 - [✓] 2026-01-29 12:09 - Story-005: As a developer, I want custom targets to work seamlessly with existing link commands so that I can link components to custom targets using the same workflow as built-in targets.
 - [✓] 2026-01-29 12:15 - Story-006: As a developer, I want the config file to have a clear, documented structure so that I can understand and modify it if needed.
+- [✓] 2026-01-29 14:03 - Story-001: As a developer, I want to learn about the `link auto` command so that I can automatically detect and link components from my current repository.
+- [✓] 2026-01-29 14:04 - Story-002: As a developer, I want to learn about the `link list` command so that I can see which components are linked where.
+- [✓] 2026-01-29 14:06 - Story-003: As a developer, I want to know about the `--target-dir` flag for install commands so that I can use project-local installations for testing.
+- [✓] 2026-01-29 14:06 - Story-004: As a developer, I want the directory structure documentation to be accurate so that I understand where agent-smith stores configuration files.
+- [✓] 2026-01-29 14:08 - Story-005: As a developer, I want the install command documentation to clarify required parameters so that I don't get errors from missing arguments.
