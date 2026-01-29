@@ -282,13 +282,15 @@ agent-smith status
 
 ## Directory Structure
 
-Agent Smith stores components in the following locations:
+Agent Smith stores components and configuration in the following locations:
 
 ```
 ~/.agents/
 ├── skills/              # Installed skills
 ├── agents/              # Installed agents
 ├── commands/            # Installed commands
+├── config.json          # User configuration (custom targets)
+├── .active-profile      # Currently active profile name
 ├── .skill-lock.json     # Skill lock file
 ├── .agent-lock.json     # Agent lock file
 ├── .command-lock.json   # Command lock file
