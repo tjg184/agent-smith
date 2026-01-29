@@ -1190,6 +1190,47 @@ This provides a dashboard view of your agent-smith installation.`,
 	}
 	rootCmd.AddCommand(statusCmd)
 
+	// Create 'target' parent command with subcommands
+	targetCmd := &cobra.Command{
+		Use:   "target",
+		Short: "Manage custom targets",
+		Long: `Manage custom targets for linking components.
+
+Custom targets allow you to link components to additional editors or tools
+beyond the built-in OpenCode and Claude Code targets.`,
+	}
+
+	targetAddCmd := &cobra.Command{
+		Use:   "add <name> <path>",
+		Short: "Register a new custom target",
+		Long: `Register a new custom target for linking components.
+
+This command adds a custom target to your configuration file, allowing you
+to link components to additional editors or tools beyond the built-in targets.
+
+The target will use the following subdirectories (relative to the path):
+  - skills/   - For skills
+  - agents/   - For agents
+  - commands/ - For commands
+
+EXAMPLES:
+  # Add a custom target for Cursor
+  agent-smith target add cursor ~/.cursor
+
+  # Add a custom target for VS Code
+  agent-smith target add vscode ~/.vscode/agent-smith
+
+After adding a target, you can link components to it using:
+  agent-smith link all --target <name>`,
+		Args: exactArgsWithHelp(2, "agent-smith target add <name> <path>"),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleTargetAdd(args[0], args[1])
+		},
+	}
+	targetCmd.AddCommand(targetAddCmd)
+
+	rootCmd.AddCommand(targetCmd)
+
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
 }
 
@@ -1221,6 +1262,7 @@ var (
 	handleProfilesAdd        func(componentType, profileName, componentName string)
 	handleProfilesRemove     func(componentType, profileName, componentName string)
 	handleStatus             func()
+	handleTargetAdd          func(name, path string)
 )
 
 func SetHandlers(
@@ -1250,6 +1292,7 @@ func SetHandlers(
 	profilesAdd func(componentType, profileName, componentName string),
 	profilesRemove func(componentType, profileName, componentName string),
 	status func(),
+	targetAdd func(name, path string),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
@@ -1277,4 +1320,5 @@ func SetHandlers(
 	handleProfilesAdd = profilesAdd
 	handleProfilesRemove = profilesRemove
 	handleStatus = status
+	handleTargetAdd = targetAdd
 }
