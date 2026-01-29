@@ -15,7 +15,7 @@ Add a `--target-dir` flag to the `agent-smith install all` command that allows i
 
 ## User Stories
 
-- [ ] Story-001: As a developer working on a specific project, I want to install AI components directly into my project directory so they're version-controlled with my code.
+- [x] Story-001: As a developer working on a specific project, I want to install AI components directly into my project directory so they're version-controlled with my code.
 
   **Acceptance Criteria:**
   - Add `--target-dir` flag to `agent-smith install all` command with short form `-t`
@@ -41,7 +41,7 @@ Add a `--target-dir` flag to the `agent-smith install all` command that allows i
   - Help text display for new flag
   - Error message clarity for invalid paths
 
-- [ ] Story-002: As a component author, I want to test components in isolation without affecting my main `~/.agents/` installation.
+- [x] Story-002: As a component author, I want to test components in isolation without affecting my main `~/.agents/` installation.
 
   **Acceptance Criteria:**
   - Custom target directories are completely isolated from `~/.agents/` directory

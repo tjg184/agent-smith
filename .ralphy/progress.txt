@@ -133,3 +133,5 @@
 - [✓] 2026-01-28 12:44 - Components are automatically unlinked before removal
 - [✓] 2026-01-28 12:48 - Integration tests pass
 - [✓] 2026-01-28 12:49 - Documentation is updated
+- [✓] 2026-01-28 13:55 - Story-001: As a developer working on a specific project, I want to install AI components directly into my project directory so they're version-controlled with my code.
+- [✓] 2026-01-28 14:00 - Story-002: As a component author, I want to test components in isolation without affecting my main `~/.agents/` installation.
