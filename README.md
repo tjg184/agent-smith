@@ -48,16 +48,20 @@ Download and install components from git repositories.
 
 ```bash
 # Install a specific skill
-agent-smith install skill owner/repo
+agent-smith install skill owner/repo skill-name
 
 # Install a specific agent
-agent-smith install agent owner/repo
+agent-smith install agent owner/repo agent-name
 
 # Install a specific command
-agent-smith install command owner/repo
+agent-smith install command owner/repo command-name
 
 # Install all components from a repository
 agent-smith install all owner/repo
+
+# Install to a custom directory (project-local, isolated from ~/.agents/)
+agent-smith install all owner/repo --target-dir ./tools
+agent-smith install skill owner/repo skill-name --target-dir ./my-components
 ```
 
 **Repository URL formats:**
@@ -66,6 +70,34 @@ agent-smith install all owner/repo
 - GitLab URL: `https://gitlab.com/owner/repo`
 - SSH URL: `git@github.com:owner/repo.git`
 - Local path: `/path/to/local/repo`
+
+**Custom target directories (`--target-dir` flag):**
+
+The `--target-dir` (or `-t`) flag allows installing components to a custom directory instead of the default `~/.agents/`. This is useful for:
+- **Project-local installations**: Keep components version-controlled with your project
+- **Isolated testing**: Test components without affecting your main `~/.agents/` installation
+- **Offline distribution**: Package components for air-gapped systems
+
+```bash
+# Install to a project directory
+agent-smith install all github.com/org/tools --target-dir ./tools
+
+# Install with relative path
+agent-smith install skill ./my-skill local-skill --target-dir ./test-components
+
+# Install with absolute path
+agent-smith install all github.com/org/tools --target-dir /opt/ai-components
+
+# Install with tilde expansion
+agent-smith install all github.com/org/tools --target-dir ~/my-project/agents
+```
+
+**Important notes about custom directories:**
+- Custom directories are **standalone and isolated** from `~/.agents/`
+- They create their own subdirectories: `skills/`, `agents/`, `commands/`
+- Lock files are stored in the target directory root
+- Custom directories are **NOT managed** by `link`, `update`, or `profile` commands
+- Use this for testing, distribution, or project-local installations
 
 ### Link
 
@@ -340,6 +372,36 @@ agent-smith update skill mcp-builder
 
 # Update all installed components
 agent-smith update all
+```
+
+### Test components in isolation
+
+```bash
+# Install components to a test directory without affecting ~/.agents/
+agent-smith install all github.com/org/experimental-tools --target-dir ./test-components
+
+# Verify the installation
+ls -la ./test-components/skills/
+ls -la ./test-components/agents/
+ls -la ./test-components/commands/
+
+# Clean up when done
+rm -rf ./test-components
+```
+
+### Package components for offline distribution
+
+```bash
+# Install components to a distribution directory
+agent-smith install all github.com/org/ai-toolkit --target-dir ./dist/ai-components
+
+# Archive for distribution
+tar -czf ai-components.tar.gz -C ./dist ai-components
+
+# On air-gapped system, extract and use
+tar -xzf ai-components.tar.gz
+ls -la ai-components/skills/
+ls -la ai-components/agents/
 ```
 
 ## Testing
