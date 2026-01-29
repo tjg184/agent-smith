@@ -64,7 +64,7 @@ agent-smith install all owner/repo
 
 ### Link
 
-Link installed components to detected targets (OpenCode, Claude Code, etc.).
+Link installed components to detected targets (OpenCode, Claude Code, or custom targets).
 
 ```bash
 # Link a specific skill
@@ -79,8 +79,9 @@ agent-smith link command format-json
 # Link all components
 agent-smith link all
 
-# Link to specific target
+# Link to specific target (built-in or custom)
 agent-smith link skill mcp-builder --target opencode
+agent-smith link all --target cursor
 
 # Show link status
 agent-smith link status
@@ -91,6 +92,9 @@ agent-smith link list
 
 **Profile awareness:**
 When a profile is active, link commands automatically use components from the active profile directory.
+
+**Custom targets:**
+Link commands work seamlessly with custom targets defined via `agent-smith target add`. Use the `--target` flag to link to a specific custom target, or `link all` to link to all detected targets (including custom ones).
 
 ### Unlink
 
@@ -171,6 +175,53 @@ When a profile is active:
 - Link commands use components from the active profile
 - Uninstall commands remove components from the active profile
 
+### Target
+
+Manage custom target directories for linking components beyond built-in OpenCode and Claude Code targets.
+
+```bash
+# Add a custom target (e.g., Cursor, VS Code)
+agent-smith target add cursor ~/.cursor
+
+# List all targets (built-in and custom)
+agent-smith target list
+
+# Remove a custom target
+agent-smith target remove cursor
+```
+
+**What are targets?**
+Targets are directories where agent-smith links your components. Built-in targets (opencode, claudecode) are auto-detected. Custom targets let you integrate agent-smith with any editor or tool.
+
+**Using custom targets with link commands:**
+```bash
+# Link all components to a custom target
+agent-smith link all --target cursor
+
+# Link specific component to custom target
+agent-smith link skill my-skill --target cursor
+
+# Check link status (shows all targets including custom)
+agent-smith link status
+```
+
+**Custom target configuration:**
+Custom targets are stored in `~/.agents/config.json`:
+```json
+{
+  "version": 1,
+  "customTargets": [
+    {
+      "name": "cursor",
+      "baseDir": "~/.cursor",
+      "skillsDir": "skills",
+      "agentsDir": "agents",
+      "commandsDir": "commands"
+    }
+  ]
+}
+```
+
 ### Update
 
 Check for updates and update installed components.
@@ -226,6 +277,22 @@ agent-smith link all
 
 # Check what's linked
 agent-smith link status
+```
+
+### Use custom targets for additional editors
+
+```bash
+# Add Cursor as a custom target
+agent-smith target add cursor ~/.cursor
+
+# Link all components to Cursor
+agent-smith link all --target cursor
+
+# Verify the links
+agent-smith link status
+
+# List all targets
+agent-smith target list
 ```
 
 ### Use profiles for different contexts
