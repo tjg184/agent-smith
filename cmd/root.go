@@ -1229,6 +1229,30 @@ After adding a target, you can link components to it using:
 	}
 	targetCmd.AddCommand(targetAddCmd)
 
+	targetRemoveCmd := &cobra.Command{
+		Use:   "remove <name>",
+		Short: "Unregister a custom target",
+		Long: `Unregister a custom target from your configuration.
+
+This command removes a custom target from your configuration file. Only custom
+targets can be removed - built-in targets (opencode, claudecode) cannot be removed.
+
+EXAMPLES:
+  # Remove a custom target
+  agent-smith target remove cursor
+
+  # Remove a custom target for VS Code
+  agent-smith target remove vscode
+
+Note: This only removes the target from the configuration. It does not unlink
+any components that are currently linked to this target.`,
+		Args: exactArgsWithHelp(1, "agent-smith target remove <name>"),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleTargetRemove(args[0])
+		},
+	}
+	targetCmd.AddCommand(targetRemoveCmd)
+
 	rootCmd.AddCommand(targetCmd)
 
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
@@ -1263,6 +1287,7 @@ var (
 	handleProfilesRemove     func(componentType, profileName, componentName string)
 	handleStatus             func()
 	handleTargetAdd          func(name, path string)
+	handleTargetRemove       func(name string)
 )
 
 func SetHandlers(
@@ -1293,6 +1318,7 @@ func SetHandlers(
 	profilesRemove func(componentType, profileName, componentName string),
 	status func(),
 	targetAdd func(name, path string),
+	targetRemove func(name string),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
@@ -1321,4 +1347,5 @@ func SetHandlers(
 	handleProfilesRemove = profilesRemove
 	handleStatus = status
 	handleTargetAdd = targetAdd
+	handleTargetRemove = targetRemove
 }

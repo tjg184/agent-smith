@@ -938,6 +938,40 @@ func main() {
 			fmt.Println("\nYou can now link components to this target:")
 			fmt.Printf("  agent-smith link all --target %s\n", name)
 		},
+		func(name string) {
+			// Load existing config
+			cfg, err := config.LoadConfig()
+			if err != nil {
+				log.Fatal("Failed to load config:", err)
+			}
+
+			// Check if target exists and is a custom target
+			found := false
+			targetIndex := -1
+			for i, target := range cfg.CustomTargets {
+				if target.Name == name {
+					found = true
+					targetIndex = i
+					break
+				}
+			}
+
+			if !found {
+				log.Fatalf("Target '%s' not found in custom targets", name)
+			}
+
+			// Remove the target from the slice
+			cfg.CustomTargets = append(cfg.CustomTargets[:targetIndex], cfg.CustomTargets[targetIndex+1:]...)
+
+			// Save config
+			if err := config.SaveConfig(cfg); err != nil {
+				log.Fatal("Failed to save config:", err)
+			}
+
+			fmt.Printf("%s Successfully removed custom target '%s'\n", formatter.SymbolSuccess, name)
+			fmt.Println("\nNote: This only removes the target from configuration.")
+			fmt.Println("Components linked to this target are not automatically unlinked.")
+		},
 	)
 
 	// Execute Cobra command
