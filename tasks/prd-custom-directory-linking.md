@@ -14,7 +14,7 @@ Add support for linking agent-smith components (skills, agents, commands) to cus
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want to define a custom target directory so that I can link agent-smith components to editors/tools beyond OpenCode and Claude Code.
+- [x] Story-001: As a developer, I want to define a custom target directory so that I can link agent-smith components to editors/tools beyond OpenCode and Claude Code.
 
   **Acceptance Criteria:**
   - Config file at `~/.agents/config.json` supports custom target definitions
@@ -33,7 +33,7 @@ Add support for linking agent-smith components (skills, agents, commands) to cus
   - Multiple custom targets in config file tests
   - Invalid config file handling tests
 
-- [ ] Story-002: As a developer, I want to use `agent-smith target add <name> <path>` to register a new custom target so that I don't have to manually edit the config file.
+- [x] Story-002: As a developer, I want to use `agent-smith target add <name> <path>` to register a new custom target so that I don't have to manually edit the config file.
 
   **Acceptance Criteria:**
   - Command accepts target name and base directory path
@@ -60,7 +60,7 @@ Add support for linking agent-smith components (skills, agents, commands) to cus
   - Error message display for various failure scenarios
   - Success confirmation message verification
 
-- [ ] Story-003: As a developer, I want to use `agent-smith target remove <name>` to unregister a custom target so that I can clean up targets I no longer use.
+- [x] Story-003: As a developer, I want to use `agent-smith target remove <name>` to unregister a custom target so that I can clean up targets I no longer use.
 
   **Acceptance Criteria:**
   - Command accepts target name to remove
@@ -86,7 +86,7 @@ Add support for linking agent-smith components (skills, agents, commands) to cus
   - Error message for built-in target removal attempt
   - Success message verification
 
-- [ ] Story-004: As a developer, I want to use `agent-smith target list` to see all available targets so that I can understand which targets are configured.
+- [x] Story-004: As a developer, I want to use `agent-smith target list` to see all available targets so that I can understand which targets are configured.
 
   **Acceptance Criteria:**
   - Lists all built-in targets (OpenCode, Claude Code) with [built-in] indicator
@@ -112,7 +112,7 @@ Add support for linking agent-smith components (skills, agents, commands) to cus
   - Visual distinction between built-in and custom targets
   - Status indicator accuracy tests
 
-- [ ] Story-005: As a developer, I want custom targets to work seamlessly with existing link commands so that I can link components to custom targets using the same workflow as built-in targets.
+- [x] Story-005: As a developer, I want custom targets to work seamlessly with existing link commands so that I can link components to custom targets using the same workflow as built-in targets.
 
   **Acceptance Criteria:**
   - `agent-smith link skill <name> --target <custom-target>` works for custom targets
@@ -265,7 +265,7 @@ tasks:
     completed: false
     parallel_group: 1
   - title: "Story-005: As a developer, I want custom targets to work seamlessly with existing link commands so that I can link components to custom targets using the same workflow as built-in targets - Works with --target flag, Included in 'link all' detection, Shows in link status/list, Appears in target selection prompts, Clear error messages"
-    completed: false
+    completed: true
     parallel_group: 2
   - title: "Story-006: As a developer, I want the config file to have a clear, documented structure so that I can understand and modify it if needed - Standard JSON format with clear schema, Version field for compatibility, Required fields documented, Supports absolute paths and tilde expansion, Example config in documentation"
     completed: false
