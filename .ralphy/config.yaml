@@ -1,32 +1,141 @@
-# Ralphy Configuration
-# https://github.com/michaelshimeles/ralphy
+# ============================================================================
+# Ralphy AI Assistant Configuration
+# ============================================================================
+# Documentation: https://github.com/michaelshimeles/ralphy
+# Project Config Guide: See CONFIG.md in this repository
+#
+# This file defines project-specific rules and settings for AI assistants.
+# These settings help AI understand your project conventions and constraints.
+# ============================================================================
 
-# Project info (auto-detected, edit if needed)
+# ----------------------------------------------------------------------------
+# Project Information
+# ----------------------------------------------------------------------------
+# Describes your project to help AI assistants understand the context
+# Auto-detected values can be overridden by editing these fields
 project:
   name: "agent-smith"
-  language: "Unknown"
-  framework: ""
-  description: "" # Add a brief description
+  language: "Go"  # Primary programming language
+  framework: "cobra"  # Main framework (cobra CLI framework)
+  description: "Component management system for AI coding assistants"
 
-# Commands (auto-detected from package.json/pyproject.toml)
+# ----------------------------------------------------------------------------
+# Commands
+# ----------------------------------------------------------------------------
+# Common commands AI assistants can run for testing, linting, and building
+# These may be auto-detected from package.json/pyproject.toml
 commands:
-  test: ""
-  lint: ""
-  build: ""
+  test: "go test -v ./..."  # Run tests
+  lint: "golangci-lint run"  # Run linter
+  build: "go build -o bin/agent-smith"  # Build the project
 
-# Rules - instructions the AI MUST follow
-# These are injected into every prompt
-rules: []
-  # Examples:
-  # - "Always use TypeScript strict mode"
-  # - "Follow the error handling pattern in src/utils/errors.ts"
-  # - "All API endpoints must have input validation with Zod"
-  # - "Use server actions instead of API routes in Next.js"
+# ----------------------------------------------------------------------------
+# Rules
+# ----------------------------------------------------------------------------
+# Instructions that AI assistants MUST follow
+# These are injected into every prompt to ensure consistent code quality
+#
+# Use rules for:
+# - Code style requirements (e.g., "Use TypeScript strict mode")
+# - Architecture patterns (e.g., "Follow the repository pattern")
+# - Required validations (e.g., "All inputs must be validated")
+# - Technology preferences (e.g., "Use server actions over API routes")
+#
+rules:
+  - "Use Go 1.23 features and follow Go best practices"
+  - "Follow the existing cobra command structure in cmd/"
+  - "All new commands must include comprehensive help text and examples"
+  - "Public functions and types must have GoDoc comments"
+  - "Error messages should be actionable and user-friendly"
+  - "New features require integration tests in pkg/"
+  - "Use the existing config validation patterns in pkg/config/"
+  - "Follow the error handling pattern: return errors, don't panic"
+  - "Use filepath.Join for cross-platform path handling"
+  - "Symlink operations should check for existing links before creating"
 
-# Boundaries - files/folders the AI should not modify
+# ----------------------------------------------------------------------------
+# Boundaries
+# ----------------------------------------------------------------------------
+# Files and directories that AI should NEVER modify
+# Protects generated files, lock files, and sensitive areas
+#
+# Use boundaries for:
+# - Generated files (e.g., "generated/**")
+# - Lock files (e.g., "*.lock", "go.sum")
+# - Vendor dependencies (e.g., "vendor/**")
+# - Legacy code (e.g., "src/legacy/**")
+# - Build artifacts (e.g., "bin/**", "dist/**")
+# - Environment files (e.g., ".env*")
+#
 boundaries:
-  never_touch: []
-    # Examples:
-    # - "src/legacy/**"
-    # - "migrations/**"
-    # - "*.lock"
+  never_touch:
+    - "vendor/**"          # Go vendor directory
+    - "bin/**"             # Build output directory
+    - "go.sum"             # Go dependency checksums
+    - ".git/**"            # Git internal files
+    - "*.lock.json"        # Component lock files
+    - ".ralphy/cache/**"   # Ralphy cache files
+
+# ============================================================================
+# Configuration Examples
+# ============================================================================
+#
+# Example: TypeScript/React Project
+# ----------------------------------
+# project:
+#   name: "my-react-app"
+#   language: "TypeScript"
+#   framework: "React"
+#   description: "Customer dashboard application"
+#
+# commands:
+#   test: "npm test"
+#   lint: "npm run lint"
+#   build: "npm run build"
+#
+# rules:
+#   - "Use TypeScript strict mode"
+#   - "Follow React hooks best practices"
+#   - "All components must be functional components"
+#   - "Use Tailwind CSS for styling"
+#   - "API calls must use the fetchApi wrapper"
+#   - "New features require unit tests with Jest"
+#
+# boundaries:
+#   never_touch:
+#     - "node_modules/**"
+#     - "build/**"
+#     - "*.lock"
+#     - "src/generated/**"
+#     - ".env*"
+#
+# Example: Python/FastAPI Project
+# --------------------------------
+# project:
+#   name: "my-api"
+#   language: "Python"
+#   framework: "FastAPI"
+#   description: "REST API for customer management"
+#
+# commands:
+#   test: "pytest"
+#   lint: "ruff check ."
+#   build: "python -m build"
+#
+# rules:
+#   - "Use Python 3.11+ type hints"
+#   - "Follow PEP 8 style guide"
+#   - "All endpoints must have OpenAPI documentation"
+#   - "Use Pydantic models for validation"
+#   - "Database queries must use SQLAlchemy ORM"
+#   - "New endpoints require integration tests"
+#
+# boundaries:
+#   never_touch:
+#     - "venv/**"
+#     - ".pytest_cache/**"
+#     - "*.pyc"
+#     - "migrations/**"
+#     - ".env*"
+#
+# ============================================================================

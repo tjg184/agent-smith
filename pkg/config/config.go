@@ -11,34 +11,102 @@ import (
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
 
-// Config represents the agent-smith configuration file structure
+// Config represents the agent-smith configuration file structure.
+//
+// The configuration file is stored at ~/.agents/config.json and contains
+// settings for custom targets and other global preferences.
+//
+// Example config.json:
+//
+//	{
+//	  "version": 1,
+//	  "customTargets": [
+//	    {
+//	      "name": "cursor",
+//	      "baseDir": "~/.cursor",
+//	      "skillsDir": "skills",
+//	      "agentsDir": "agents",
+//	      "commandsDir": "commands"
+//	    }
+//	  ]
+//	}
+//
+// Schema:
+//   - version (int): Configuration file format version. Currently must be 1.
+//   - customTargets (array): List of custom target configurations for linking
+//     components to additional editors or tools.
 type Config struct {
-	Version       int                  `json:"version"`
-	CustomTargets []CustomTargetConfig `json:"customTargets"`
+	Version       int                  `json:"version"`       // Configuration schema version (currently 1)
+	CustomTargets []CustomTargetConfig `json:"customTargets"` // List of custom target configurations
 }
 
-// CustomTargetConfig represents a custom target configuration in the config file
+// CustomTargetConfig represents a custom target configuration in the config file.
+//
+// Custom targets allow you to link agent-smith components (skills, agents, commands)
+// to additional editors or tools beyond the built-in OpenCode and ClaudeCode targets.
+//
+// Field descriptions:
+//   - name: Unique identifier for the target (alphanumeric, hyphens, underscores only).
+//     Must not conflict with built-in targets "opencode" or "claudecode".
+//   - baseDir: Root directory where the target stores its configuration.
+//     Supports tilde (~) expansion for home directory.
+//   - skillsDir: Subdirectory name (relative to baseDir) for skills.
+//     Must be a simple directory name without path separators.
+//   - agentsDir: Subdirectory name (relative to baseDir) for agents.
+//     Must be a simple directory name without path separators.
+//   - commandsDir: Subdirectory name (relative to baseDir) for commands.
+//     Must be a simple directory name without path separators.
+//
+// Example:
+//
+//	{
+//	  "name": "vscode-insiders",
+//	  "baseDir": "~/.vscode-insiders",
+//	  "skillsDir": "skills",
+//	  "agentsDir": "agents",
+//	  "commandsDir": "commands"
+//	}
+//
+// Validation rules:
+//   - name: Cannot be empty, must match ^[a-zA-Z0-9_-]+$, case-insensitive unique
+//   - baseDir: Cannot be empty, must be a valid path (absolute or with ~)
+//   - skillsDir/agentsDir/commandsDir: Cannot be empty, no path separators, not "." or ".."
 type CustomTargetConfig struct {
-	Name        string `json:"name"`
-	BaseDir     string `json:"baseDir"`
-	SkillsDir   string `json:"skillsDir"`
-	AgentsDir   string `json:"agentsDir"`
-	CommandsDir string `json:"commandsDir"`
+	Name        string `json:"name"`        // Unique target identifier
+	BaseDir     string `json:"baseDir"`     // Root directory for target configuration
+	SkillsDir   string `json:"skillsDir"`   // Skills subdirectory name
+	AgentsDir   string `json:"agentsDir"`   // Agents subdirectory name
+	CommandsDir string `json:"commandsDir"` // Commands subdirectory name
 }
 
 const (
-	// ConfigVersion is the current version of the config file format
+	// ConfigVersion is the current version of the config file format.
+	// This version number should be incremented when making breaking changes
+	// to the configuration schema. The application will reject config files
+	// with unsupported version numbers.
 	ConfigVersion = 1
-	// ConfigFileName is the name of the config file
+
+	// ConfigFileName is the name of the config file stored in the agents directory.
+	// Full path: ~/.agents/config.json
 	ConfigFileName = "config.json"
 )
 
 var (
-	// targetNameRegex validates target names (alphanumeric, hyphens, underscores only)
+	// targetNameRegex validates target names (alphanumeric, hyphens, underscores only).
+	// This ensures target names are filesystem-safe and URL-safe.
+	// Examples of valid names: "cursor", "vscode-insiders", "my_editor"
+	// Examples of invalid names: "my.editor", "editor#1", "editor/name"
 	targetNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 )
 
-// GetConfigPath returns the path to the config file
+// GetConfigPath returns the path to the config file.
+//
+// The config file is stored at ~/.agents/config.json by default.
+// This location is determined by the GetAgentsDir() function.
+//
+// Returns:
+//   - string: Absolute path to the config file
+//   - error: If the agents directory cannot be determined
 func GetConfigPath() (string, error) {
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
@@ -47,8 +115,29 @@ func GetConfigPath() (string, error) {
 	return filepath.Join(agentsDir, ConfigFileName), nil
 }
 
-// LoadConfig loads the configuration from the config file
-// Returns an empty config if the file doesn't exist (not an error)
+// LoadConfig loads the configuration from the config file.
+//
+// If the config file doesn't exist, this is not considered an error.
+// Instead, an empty config with default values is returned.
+//
+// The config file is loaded from ~/.agents/config.json and must:
+//   - Be valid JSON
+//   - Match the ConfigVersion (currently 1)
+//   - Pass all validation rules (unique target names, valid paths, etc.)
+//
+// Returns:
+//   - *Config: Loaded configuration (or empty config if file doesn't exist)
+//   - error: If the file exists but cannot be read, parsed, or is invalid
+//
+// Example usage:
+//
+//	config, err := LoadConfig()
+//	if err != nil {
+//	    log.Fatalf("Failed to load config: %v", err)
+//	}
+//	for _, target := range config.CustomTargets {
+//	    fmt.Printf("Target: %s at %s\n", target.Name, target.BaseDir)
+//	}
 func LoadConfig() (*Config, error) {
 	configPath, err := GetConfigPath()
 	if err != nil {
@@ -83,7 +172,37 @@ func LoadConfig() (*Config, error) {
 	return &config, nil
 }
 
-// SaveConfig saves the configuration to the config file
+// SaveConfig saves the configuration to the config file.
+//
+// The configuration is validated before saving to ensure it meets all requirements.
+// The config file is written to ~/.agents/config.json with indented JSON formatting
+// for readability.
+//
+// The parent directory (~/.agents) is automatically created if it doesn't exist.
+//
+// Parameters:
+//   - config: The configuration to save (must not be nil and must be valid)
+//
+// Returns:
+//   - error: If validation fails, the directory cannot be created, or writing fails
+//
+// Example usage:
+//
+//	config := &Config{
+//	    Version: ConfigVersion,
+//	    CustomTargets: []CustomTargetConfig{
+//	        {
+//	            Name:        "cursor",
+//	            BaseDir:     "~/.cursor",
+//	            SkillsDir:   "skills",
+//	            AgentsDir:   "agents",
+//	            CommandsDir: "commands",
+//	        },
+//	    },
+//	}
+//	if err := SaveConfig(config); err != nil {
+//	    log.Fatalf("Failed to save config: %v", err)
+//	}
 func SaveConfig(config *Config) error {
 	// Validate config before saving
 	if err := validateConfig(config); err != nil {
@@ -114,7 +233,17 @@ func SaveConfig(config *Config) error {
 	return nil
 }
 
-// validateConfig validates the configuration structure
+// validateConfig validates the configuration structure.
+//
+// This function performs comprehensive validation including:
+//   - Config is not nil
+//   - Version matches ConfigVersion (currently 1)
+//   - Each custom target passes validation
+//   - No duplicate target names (case-insensitive)
+//   - No conflicts with built-in target names (opencode, claudecode)
+//
+// Returns:
+//   - error: Describes the first validation failure encountered, or nil if valid
 func validateConfig(config *Config) error {
 	if config == nil {
 		return fmt.Errorf("config cannot be nil")
@@ -154,7 +283,16 @@ func validateConfig(config *Config) error {
 	return nil
 }
 
-// validateCustomTargetConfig validates a single custom target configuration
+// validateCustomTargetConfig validates a single custom target configuration.
+//
+// Validation rules:
+//   - name: Cannot be empty, must match pattern ^[a-zA-Z0-9_-]+$
+//   - baseDir: Cannot be empty, must be a valid path (supports ~ expansion)
+//   - skillsDir, agentsDir, commandsDir: Cannot be empty, must be simple directory
+//     names without path separators, cannot be "." or ".."
+//
+// Returns:
+//   - error: Describes the validation failure, or nil if valid
 func validateCustomTargetConfig(target *CustomTargetConfig) error {
 	// Validate name
 	if target.Name == "" {
@@ -196,7 +334,23 @@ func validateCustomTargetConfig(target *CustomTargetConfig) error {
 	return nil
 }
 
-// validateSubdirectoryName validates a subdirectory name
+// validateSubdirectoryName validates a subdirectory name.
+//
+// Subdirectory names must be simple directory names that will be joined with
+// baseDir to create the full path. They cannot contain path separators or
+// special directory names.
+//
+// Validation rules:
+//   - Cannot be empty
+//   - Cannot contain "/" or "\" (path separators)
+//   - Cannot be "." or ".." (special directory names)
+//
+// Parameters:
+//   - name: The subdirectory name to validate
+//   - fieldName: The field name for error messages (e.g., "skillsDir")
+//
+// Returns:
+//   - error: Describes the validation failure, or nil if valid
 func validateSubdirectoryName(name, fieldName string) error {
 	if name == "" {
 		return fmt.Errorf("%s cannot be empty", fieldName)
@@ -215,7 +369,20 @@ func validateSubdirectoryName(name, fieldName string) error {
 	return nil
 }
 
-// expandHomePath expands ~ to the user's home directory
+// expandHomePath expands ~ to the user's home directory.
+//
+// This function handles tilde expansion for paths like:
+//   - "~" -> user's home directory
+//   - "~/Documents" -> user's home directory + /Documents
+//   - "/absolute/path" -> unchanged
+//   - "relative/path" -> unchanged
+//
+// Parameters:
+//   - path: The path to expand
+//
+// Returns:
+//   - string: The expanded path
+//   - error: If the home directory cannot be determined
 func expandHomePath(path string) (string, error) {
 	if len(path) == 0 || path[0] != '~' {
 		return path, nil
