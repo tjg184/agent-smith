@@ -139,7 +139,7 @@ Add support for linking agent-smith components (skills, agents, commands) to cus
   - Status display with mixed built-in and custom targets
   - Error messages for non-existent custom targets
 
-- [ ] Story-006: As a developer, I want the config file to have a clear, documented structure so that I can understand and modify it if needed.
+- [x] Story-006: As a developer, I want the config file to have a clear, documented structure so that I can understand and modify it if needed.
 
   **Acceptance Criteria:**
   - Config file uses standard JSON format with clear schema
