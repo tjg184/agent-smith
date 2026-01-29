@@ -416,7 +416,8 @@ func (cl *ComponentLinker) DetectAndLinkLocalRepositories() error {
 
 	// Link each detected component
 	for _, component := range components {
-		componentTypeStr := string(component.Type)
+		// Convert component type to plural form for directory structure
+		componentTypeStr := string(component.Type) + "s"
 		componentPath := filepath.Join(cwd, component.Path)
 
 		// Create a temporary link to the detected component
