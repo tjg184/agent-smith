@@ -108,12 +108,29 @@ func init() {
 This command provides a modern interface for downloading and installing AI components
 from any git repository (GitHub, GitLab, Bitbucket, or private repositories).
 
+USAGE:
+  You must specify a subcommand and provide the required parameters:
+    agent-smith install skill <repository-url> <skill-name>
+    agent-smith install agent <repository-url> <agent-name>
+    agent-smith install command <repository-url> <command-name>
+    agent-smith install all <repository-url>
+
 REPOSITORY URL FORMATS:
   GitHub shorthand:     owner/repo
   Full GitHub URL:      https://github.com/owner/repo
   GitLab URL:           https://gitlab.com/owner/repo
   SSH URL:              git@github.com:owner/repo.git
-  Local path:           /path/to/local/repo`,
+  Local path:           /path/to/local/repo
+
+EXAMPLES:
+  # Install a skill from GitHub
+  agent-smith install skill openai/cookbook gpt-skill
+
+  # Install an agent from a full URL
+  agent-smith install agent https://github.com/example/agent my-agent
+
+  # Install all components from a repository
+  agent-smith install all openai/cookbook`,
 	}
 
 	// Add subcommands to 'install' command
@@ -125,6 +142,10 @@ REPOSITORY URL FORMATS:
 This command fetches a skill from any git repository (GitHub, GitLab, Bitbucket, or private)
 and installs it to ~/.agents/skills/<skill-name>. The skill can include multiple components
 and will be automatically detected if it contains a SKILL.md file.
+
+REQUIRED PARAMETERS:
+  <repository-url>  The URL or path to the git repository containing the skill
+  <skill-name>      The name to use when installing the skill locally
 
 EXAMPLES:
   # Download from GitHub using shorthand
@@ -161,6 +182,10 @@ This command fetches an agent from any git repository (GitHub, GitLab, Bitbucket
 and installs it to ~/.agents/agents/<agent-name>. The agent will be automatically detected
 based on path patterns and file extensions.
 
+REQUIRED PARAMETERS:
+  <repository-url>  The URL or path to the git repository containing the agent
+  <agent-name>      The name to use when installing the agent locally
+
 EXAMPLES:
   # Download from GitHub using shorthand
   agent-smith install agent openai/assistant coding-agent
@@ -196,6 +221,10 @@ This command fetches a command from any git repository (GitHub, GitLab, Bitbucke
 and installs it to ~/.agents/commands/<command-name>. The command will be automatically detected
 based on path patterns and file extensions.
 
+REQUIRED PARAMETERS:
+  <repository-url>  The URL or path to the git repository containing the command
+  <command-name>    The name to use when installing the command locally
+
 EXAMPLES:
   # Download from GitHub using shorthand
   agent-smith install command cli-tools/formatter json-formatter
@@ -230,6 +259,9 @@ EXAMPLES:
 This command fetches a repository and automatically detects all AI components
 within it, then downloads them to their respective directories. Components are
 detected based on the presence of SKILL.md files or path patterns.
+
+REQUIRED PARAMETERS:
+  <repository-url>  The URL or path to the git repository containing components
 
 EXAMPLES:
   # Download all components from GitHub using shorthand
