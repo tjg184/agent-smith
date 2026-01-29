@@ -9,6 +9,11 @@ It provides npm-like functionality for AI components, allowing you to:
 - Update and maintain installed components
 - Remove components cleanly when no longer needed
 
+## Documentation
+
+- [CONFIG.md](CONFIG.md) - Comprehensive configuration guide
+- [TESTING.md](TESTING.md) - Testing guide
+
 ## Installation
 
 ```bash
@@ -206,7 +211,8 @@ agent-smith link status
 ```
 
 **Custom target configuration:**
-Custom targets are stored in `~/.agents/config.json`:
+Custom targets are stored in `~/.agents/config.json`. See [CONFIG.md](CONFIG.md) for detailed documentation.
+
 ```json
 {
   "version": 1,

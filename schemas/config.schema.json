@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/tgaines/agent-smith/schemas/config.json",
+  "title": "Agent Smith Configuration",
+  "description": "Configuration schema for agent-smith custom targets",
+  "type": "object",
+  "required": ["version", "customTargets"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Configuration file format version. Currently must be 1."
+    },
+    "customTargets": {
+      "type": "array",
+      "description": "List of custom target configurations for linking components to additional editors or tools",
+      "items": {
+        "$ref": "#/definitions/customTarget"
+      },
+      "default": []
+    }
+  },
+  "definitions": {
+    "customTarget": {
+      "type": "object",
+      "description": "Custom target configuration for linking components to an editor or tool",
+      "required": ["name", "baseDir", "skillsDir", "agentsDir", "commandsDir"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique identifier for the target (alphanumeric, hyphens, underscores only)",
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "minLength": 1,
+          "examples": ["cursor", "vscode-insiders", "my_editor"]
+        },
+        "baseDir": {
+          "type": "string",
+          "description": "Root directory where the target stores its configuration. Supports tilde (~) expansion.",
+          "minLength": 1,
+          "examples": ["~/.cursor", "~/.vscode-insiders", "/opt/my-editor"]
+        },
+        "skillsDir": {
+          "type": "string",
+          "description": "Subdirectory name (relative to baseDir) for skills. Must be a simple directory name without path separators.",
+          "pattern": "^[^/\\\\]+$",
+          "not": {
+            "enum": [".", ".."]
+          },
+          "minLength": 1,
+          "examples": ["skills", "custom-skills", "my_skills"]
+        },
+        "agentsDir": {
+          "type": "string",
+          "description": "Subdirectory name (relative to baseDir) for agents. Must be a simple directory name without path separators.",
+          "pattern": "^[^/\\\\]+$",
+          "not": {
+            "enum": [".", ".."]
+          },
+          "minLength": 1,
+          "examples": ["agents", "custom-agents", "my_agents"]
+        },
+        "commandsDir": {
+          "type": "string",
+          "description": "Subdirectory name (relative to baseDir) for commands. Must be a simple directory name without path separators.",
+          "pattern": "^[^/\\\\]+$",
+          "not": {
+            "enum": [".", ".."]
+          },
+          "minLength": 1,
+          "examples": ["commands", "custom-commands", "my_commands"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "version": 1,
+      "customTargets": [
+        {
+          "name": "cursor",
+          "baseDir": "~/.cursor",
+          "skillsDir": "skills",
+          "agentsDir": "agents",
+          "commandsDir": "commands"
+        }
+      ]
+    },
+    {
+      "version": 1,
+      "customTargets": [
+        {
+          "name": "cursor",
+          "baseDir": "~/.cursor",
+          "skillsDir": "skills",
+          "agentsDir": "agents",
+          "commandsDir": "commands"
+        },
+        {
+          "name": "vscode-insiders",
+          "baseDir": "~/.vscode-insiders/User/globalStorage",
+          "skillsDir": "agent-skills",
+          "agentsDir": "agent-agents",
+          "commandsDir": "agent-commands"
+        }
+      ]
+    }
+  ]
+}
