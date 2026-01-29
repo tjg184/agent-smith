@@ -1253,6 +1253,30 @@ any components that are currently linked to this target.`,
 	}
 	targetCmd.AddCommand(targetRemoveCmd)
 
+	targetListCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List all available targets",
+		Long: `List all available targets for linking components.
+
+This command displays all targets that are configured in your system, including:
+  - Built-in targets (OpenCode, Claude Code)
+  - Custom targets from your configuration
+
+For each target, it shows:
+  - Target name
+  - Base directory path
+  - Whether the directory currently exists
+
+EXAMPLES:
+  # List all available targets
+  agent-smith target list`,
+		Args: noArgsWithHelp,
+		Run: func(cmd *cobra.Command, args []string) {
+			handleTargetList()
+		},
+	}
+	targetCmd.AddCommand(targetListCmd)
+
 	rootCmd.AddCommand(targetCmd)
 
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
@@ -1288,6 +1312,7 @@ var (
 	handleStatus             func()
 	handleTargetAdd          func(name, path string)
 	handleTargetRemove       func(name string)
+	handleTargetList         func()
 )
 
 func SetHandlers(
@@ -1319,6 +1344,7 @@ func SetHandlers(
 	status func(),
 	targetAdd func(name, path string),
 	targetRemove func(name string),
+	targetList func(),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
@@ -1348,4 +1374,5 @@ func SetHandlers(
 	handleStatus = status
 	handleTargetAdd = targetAdd
 	handleTargetRemove = targetRemove
+	handleTargetList = targetList
 }

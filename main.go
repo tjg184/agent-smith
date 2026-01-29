@@ -972,6 +972,120 @@ func main() {
 			fmt.Println("\nNote: This only removes the target from configuration.")
 			fmt.Println("Components linked to this target are not automatically unlinked.")
 		},
+		func() {
+			// Load config to distinguish between built-in and custom targets
+			cfg, err := config.LoadConfig()
+			if err != nil {
+				log.Fatal("Failed to load config:", err)
+			}
+
+			// Get all built-in targets (even if not detected)
+			builtInNames := []string{"opencode", "claudecode"}
+
+			fmt.Println("Available Targets:")
+			fmt.Println()
+
+			// Display built-in targets
+			fmt.Println("Built-in Targets:")
+			for _, name := range builtInNames {
+				var target config.Target
+				var err error
+
+				if name == "opencode" {
+					target, err = config.NewOpencodeTarget()
+				} else if name == "claudecode" {
+					target, err = config.NewClaudeCodeTarget()
+				}
+
+				if err != nil {
+					continue
+				}
+
+				baseDir, _ := target.GetBaseDir()
+				exists := false
+				if _, err := os.Stat(baseDir); err == nil {
+					exists = true
+				}
+
+				symbol := formatter.SymbolNotLinked
+				status := "[not found]"
+				if exists {
+					symbol = formatter.SymbolSuccess
+					status = "[detected]"
+				}
+
+				fmt.Printf("  %s %-15s %-30s %s\n", symbol, name, baseDir, status)
+			}
+
+			// Display custom targets
+			if len(cfg.CustomTargets) > 0 {
+				fmt.Println()
+				fmt.Println("Custom Targets:")
+				for _, customTargetConfig := range cfg.CustomTargets {
+					customTarget, err := config.NewCustomTarget(customTargetConfig)
+					if err != nil {
+						fmt.Printf("  %s %-15s <error loading target>\n", formatter.SymbolError, customTargetConfig.Name)
+						continue
+					}
+
+					baseDir, _ := customTarget.GetBaseDir()
+					exists := false
+					if _, err := os.Stat(baseDir); err == nil {
+						exists = true
+					}
+
+					symbol := formatter.SymbolNotLinked
+					status := "[not found]"
+					if exists {
+						symbol = formatter.SymbolSuccess
+						status = "[detected]"
+					}
+
+					fmt.Printf("  %s %-15s %-30s %s\n", symbol, customTargetConfig.Name, baseDir, status)
+				}
+			}
+
+			// Display legend
+			fmt.Println()
+			fmt.Println("Legend:")
+			fmt.Printf("  %s - Target directory exists\n", formatter.SymbolSuccess)
+			fmt.Printf("  %s - Target directory not found\n", formatter.SymbolNotLinked)
+
+			// Count available targets
+			availableCount := 0
+			totalCount := len(builtInNames) + len(cfg.CustomTargets)
+
+			for _, name := range builtInNames {
+				var target config.Target
+				var err error
+
+				if name == "opencode" {
+					target, err = config.NewOpencodeTarget()
+				} else if name == "claudecode" {
+					target, err = config.NewClaudeCodeTarget()
+				}
+
+				if err == nil {
+					baseDir, _ := target.GetBaseDir()
+					if _, err := os.Stat(baseDir); err == nil {
+						availableCount++
+					}
+				}
+			}
+
+			for _, customTargetConfig := range cfg.CustomTargets {
+				customTarget, err := config.NewCustomTarget(customTargetConfig)
+				if err == nil {
+					baseDir, _ := customTarget.GetBaseDir()
+					if _, err := os.Stat(baseDir); err == nil {
+						availableCount++
+					}
+				}
+			}
+
+			fmt.Println()
+			fmt.Printf("Total: %d target(s) (%d available)\n", totalCount, availableCount)
+		},
 	)
 
 	// Execute Cobra command
