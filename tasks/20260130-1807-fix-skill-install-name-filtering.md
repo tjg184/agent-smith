@@ -92,7 +92,7 @@ Fix a bug in the skill installation logic where specifying a skill name in `agen
   - User experience consistency verification
   - Error message format comparison
 
-- [ ] Story-004: As a user, I want the installation to maintain proper directory structure when installing a single skill from a multi-skill repository so that I don't get nested monorepo directories.
+- [x] Story-004: As a user, I want the installation to maintain proper directory structure when installing a single skill from a multi-skill repository so that I don't get nested monorepo directories.
 
   **Acceptance Criteria:**
   - Single skill installed directly to target directory (no nesting)
@@ -116,7 +116,7 @@ Fix a bug in the skill installation logic where specifying a skill name in `agen
   - Success message verification
   - Target directory flag behavior with `-t`
 
-- [ ] Story-005: As a user, I want the installer to clean up properly on errors so that I don't have empty or partial directories left behind.
+- [x] Story-005: As a user, I want the installer to clean up properly on errors so that I don't have empty or partial directories left behind.
 
   **Acceptance Criteria:**
   - Call `os.RemoveAll(skillDir)` before returning error for non-matching names
