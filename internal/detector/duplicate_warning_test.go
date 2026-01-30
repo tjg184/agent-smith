@@ -2,13 +2,13 @@ package detector_test
 
 import (
 	"bytes"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/tgaines/agent-smith/internal/detector"
+	"github.com/tgaines/agent-smith/pkg/logger"
 )
 
 // TestDuplicateComponentWarnings tests Story-005: Clear warnings when duplicate component names are detected
@@ -123,14 +123,16 @@ func TestDuplicateComponentWarnings(t *testing.T) {
 				}
 			}
 
-			// Capture log output
+			// Capture log output using a logger
 			var logBuf bytes.Buffer
-			log.SetOutput(&logBuf)
-			defer log.SetOutput(os.Stderr) // Restore default
+			testLogger := logger.New(logger.LevelWarn)
+			testLogger.SetErrorOutput(&logBuf)
+			testLogger.SetShowTags(false)
 
 			// Create detector and find components
-			detector := detector.NewRepositoryDetector()
-			components, err := detector.DetectComponentsInRepo(tempDir)
+			det := detector.NewRepositoryDetector()
+			det.SetLogger(testLogger)
+			components, err := det.DetectComponentsInRepo(tempDir)
 			if err != nil {
 				t.Fatalf("Failed to detect components: %v", err)
 			}
@@ -214,10 +216,11 @@ func TestDuplicateWarningFormat(t *testing.T) {
 		}
 	}
 
-	// Capture both stdout and log output
+	// Capture both stdout and log output using a logger
 	var logBuf bytes.Buffer
-	log.SetOutput(&logBuf)
-	defer log.SetOutput(os.Stderr)
+	testLogger := logger.New(logger.LevelWarn)
+	testLogger.SetErrorOutput(&logBuf)
+	testLogger.SetShowTags(false)
 
 	// Capture stdout (for the summary display)
 	oldStdout := os.Stdout
@@ -228,8 +231,9 @@ func TestDuplicateWarningFormat(t *testing.T) {
 	}()
 
 	// Create detector and find components
-	detector := detector.NewRepositoryDetector()
-	_, err = detector.DetectComponentsInRepo(tempDir)
+	det := detector.NewRepositoryDetector()
+	det.SetLogger(testLogger)
+	_, err = det.DetectComponentsInRepo(tempDir)
 	if err != nil {
 		t.Fatalf("Failed to detect components: %v", err)
 	}

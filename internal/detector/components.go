@@ -2,7 +2,6 @@ package detector
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,12 +13,16 @@ import (
 // DetectComponentForPattern checks if a file matches a component detection pattern
 func (rd *RepositoryDetector) DetectComponentForPattern(fileName, relPath, fullRelPath, repoPath string, pattern models.ComponentDetectionPattern, componentType models.ComponentType) (string, string, bool) {
 	// Debug logging for component detection process
-	log.Printf("DEBUG: Processing file: %s, relPath: %s, fileName: %s", fullRelPath, relPath, fileName)
-	log.Printf("DEBUG: Component pattern: %s, exactFiles: %v", pattern.Name, pattern.ExactFiles)
+	if rd.logger != nil {
+		rd.logger.Debug("Processing file: %s, relPath: %s, fileName: %s", fullRelPath, relPath, fileName)
+		rd.logger.Debug("Component pattern: %s, exactFiles: %v", pattern.Name, pattern.ExactFiles)
+	}
 
 	// Check if path should be ignored
 	if rd.ShouldIgnorePath(relPath, pattern.IgnorePaths) {
-		log.Printf("DEBUG: Path ignored: %s", relPath)
+		if rd.logger != nil {
+			rd.logger.Debug("Path ignored: %s", relPath)
+		}
 		return "", "", false
 	}
 
@@ -29,10 +32,14 @@ func (rd *RepositoryDetector) DetectComponentForPattern(fileName, relPath, fullR
 		fullFilePath := filepath.Join(repoPath, fullRelPath)
 		parsedFrontmatter, err := fileutil.ParseFrontmatter(fullFilePath)
 		if err != nil {
-			log.Printf("DEBUG: Failed to parse frontmatter from %s: %v", fullFilePath, err)
+			if rd.logger != nil {
+				rd.logger.Debug("Failed to parse frontmatter from %s: %v", fullFilePath, err)
+			}
 		} else if parsedFrontmatter != nil {
 			frontmatter = parsedFrontmatter
-			log.Printf("DEBUG: Parsed frontmatter from %s: name=%s", fullFilePath, frontmatter.Name)
+			if rd.logger != nil {
+				rd.logger.Debug("Parsed frontmatter from %s: name=%s", fullFilePath, frontmatter.Name)
+			}
 		}
 	}
 
@@ -40,11 +47,15 @@ func (rd *RepositoryDetector) DetectComponentForPattern(fileName, relPath, fullR
 	if rd.MatchesExactFile(fileName, pattern.ExactFiles) {
 		// Use fullRelPath to get the correct directory containing the component file
 		componentDir := filepath.Dir(fullRelPath)
-		log.Printf("DEBUG: Exact file match, componentDir: %s", componentDir)
+		if rd.logger != nil {
+			rd.logger.Debug("Exact file match, componentDir: %s", componentDir)
+		}
 
 		if componentDir == "." {
 			componentName := "root-" + pattern.Name
-			log.Printf("DEBUG: Root component, name: %s", componentName)
+			if rd.logger != nil {
+				rd.logger.Debug("Root component, name: %s", componentName)
+			}
 			return componentName, componentDir, true
 		}
 
@@ -56,8 +67,10 @@ func (rd *RepositoryDetector) DetectComponentForPattern(fileName, relPath, fullR
 			componentName = filepath.Base(componentDir)
 		}
 
-		log.Printf("DEBUG: Extracted component name: %s from directory: %s (frontmatter: %v)", componentName, componentDir, frontmatter != nil)
-		log.Printf("DEBUG: Component name: '%s', componentKey: '%s-%s'", componentName, pattern.Name, componentName)
+		if rd.logger != nil {
+			rd.logger.Debug("Extracted component name: %s from directory: %s (frontmatter: %v)", componentName, componentDir, frontmatter != nil)
+			rd.logger.Debug("Component name: '%s', componentKey: '%s-%s'", componentName, pattern.Name, componentName)
+		}
 		return componentName, componentDir, true
 	}
 
@@ -69,14 +82,20 @@ func (rd *RepositoryDetector) DetectComponentForPattern(fileName, relPath, fullR
 
 			// Skip if determineComponentName returns empty (special files like README.md)
 			if componentName == "" {
-				log.Printf("DEBUG: Path pattern + extension match, but component name is empty (special file), skipping")
+				if rd.logger != nil {
+					rd.logger.Debug("Path pattern + extension match, but component name is empty (special file), skipping")
+				}
 				return "", "", false
 			}
 
-			log.Printf("DEBUG: Path pattern + extension match, name: %s (frontmatter: %v)", componentName, frontmatter != nil)
+			if rd.logger != nil {
+				rd.logger.Debug("Path pattern + extension match, name: %s (frontmatter: %v)", componentName, frontmatter != nil)
+			}
 			return componentName, relPath, true
 		}
-		log.Printf("DEBUG: Path pattern + extension check failed")
+		if rd.logger != nil {
+			rd.logger.Debug("Path pattern + extension check failed")
+		}
 	}
 
 	// Check just path patterns (lower priority)
@@ -86,16 +105,24 @@ func (rd *RepositoryDetector) DetectComponentForPattern(fileName, relPath, fullR
 
 		// Skip if determineComponentName returns empty (special files like README.md)
 		if componentName == "" {
-			log.Printf("DEBUG: Path pattern match, but component name is empty (special file), skipping")
+			if rd.logger != nil {
+				rd.logger.Debug("Path pattern match, but component name is empty (special file), skipping")
+			}
 			return "", "", false
 		}
 
-		log.Printf("DEBUG: Path pattern match, name: %s (frontmatter: %v)", componentName, frontmatter != nil)
+		if rd.logger != nil {
+			rd.logger.Debug("Path pattern match, name: %s (frontmatter: %v)", componentName, frontmatter != nil)
+		}
 		return componentName, relPath, true
 	}
-	log.Printf("DEBUG: Path pattern check failed")
+	if rd.logger != nil {
+		rd.logger.Debug("Path pattern check failed")
+	}
 
-	log.Printf("DEBUG: No pattern matched for file: %s", fileName)
+	if rd.logger != nil {
+		rd.logger.Debug("No pattern matched for file: %s", fileName)
+	}
 	return "", "", false
 }
 
@@ -139,24 +166,32 @@ func (rd *RepositoryDetector) DetectComponentsInRepo(repoPath string) ([]models.
 			componentType := models.ComponentType(componentTypeStr)
 
 			if componentName, componentPath, matched := rd.DetectComponentForPattern(fileName, relPath, fullRelPath, repoPath, pattern, componentType); matched {
-				log.Printf("DEBUG: Match result: true for componentType: %s", componentTypeStr)
+				if rd.logger != nil {
+					rd.logger.Debug("Match result: true for componentType: %s", componentTypeStr)
+				}
 
 				// Handle default component names
 				if componentName == "" || componentName == "." {
 					componentName = fmt.Sprintf("root-%s", pattern.Name)
-					log.Printf("DEBUG: Applied default component name: %s", componentName)
+					if rd.logger != nil {
+						rd.logger.Debug("Applied default component name: %s", componentName)
+					}
 				}
 
 				componentKey := fmt.Sprintf("%s-%s", pattern.Name, componentName)
-				log.Printf("DEBUG: Component key: %s", componentKey)
+				if rd.logger != nil {
+					rd.logger.Debug("Component key: %s", componentKey)
+				}
 
 				if existing, exists := seenComponents[componentKey]; exists {
 					// Duplicate detected - log warning immediately
 					duplicatesFound = true
-					log.Printf("⚠️  WARNING: Duplicate component name detected!")
-					log.Printf("    Component: %s (%s)", componentName, pattern.Name)
-					log.Printf("    First occurrence: %s", existing[0].path)
-					log.Printf("    Duplicate at: %s (WILL BE SKIPPED)", fullRelPath)
+					if rd.logger != nil {
+						rd.logger.Warn("⚠️  WARNING: Duplicate component name detected!")
+						rd.logger.Warn("    Component: %s (%s)", componentName, pattern.Name)
+						rd.logger.Warn("    First occurrence: %s", existing[0].path)
+						rd.logger.Warn("    Duplicate at: %s (WILL BE SKIPPED)", fullRelPath)
+					}
 
 					// Track this duplicate occurrence
 					seenComponents[componentKey] = append(seenComponents[componentKey], ComponentOccurrence{
@@ -183,7 +218,9 @@ func (rd *RepositoryDetector) DetectComponentsInRepo(repoPath string) ([]models.
 						component: component,
 						path:      fullRelPath,
 					}}
-					log.Printf("DEBUG: Added component: %s (key: %s)", componentName, componentKey)
+					if rd.logger != nil {
+						rd.logger.Debug("Added component: %s (key: %s)", componentName, componentKey)
+					}
 				}
 			}
 		}
@@ -191,7 +228,9 @@ func (rd *RepositoryDetector) DetectComponentsInRepo(repoPath string) ([]models.
 		return nil
 	})
 
-	log.Printf("DEBUG: Total components detected: %d", len(components))
+	if rd.logger != nil {
+		rd.logger.Debug("Total components detected: %d", len(components))
+	}
 
 	// Count components by type for debugging
 	skillCount := 0
@@ -207,7 +246,9 @@ func (rd *RepositoryDetector) DetectComponentsInRepo(repoPath string) ([]models.
 			commandCount++
 		}
 	}
-	log.Printf("DEBUG: Component breakdown - Skills: %d, Agents: %d, Commands: %d", skillCount, agentCount, commandCount)
+	if rd.logger != nil {
+		rd.logger.Debug("Component breakdown - Skills: %d, Agents: %d, Commands: %d", skillCount, agentCount, commandCount)
+	}
 
 	// Display duplicate warnings summary if any duplicates were found
 	if duplicatesFound {

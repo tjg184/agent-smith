@@ -10,6 +10,7 @@ import (
 
 	"github.com/tgaines/agent-smith/internal/fileutil"
 	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tgaines/agent-smith/pkg/logger"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
 
@@ -17,6 +18,7 @@ import (
 type RepositoryDetector struct {
 	patterns        map[string]string
 	detectionConfig *models.DetectionConfig
+	logger          *logger.Logger
 }
 
 // NewRepositoryDetector creates a new RepositoryDetector with default config
@@ -48,6 +50,7 @@ func NewRepositoryDetectorWithConfig(configPath string) *RepositoryDetector {
 			"git_ssh":  `^(ssh://|git@).+$`,
 			"git":      `^(https?://|git@|ssh://).+\.git$`,
 		},
+		logger: nil, // Logger is optional, will use default logging if not set
 	}
 
 	// Load detection configuration
@@ -61,6 +64,11 @@ func NewRepositoryDetectorWithConfig(configPath string) *RepositoryDetector {
 	}
 
 	return rd
+}
+
+// SetLogger sets the logger for this detector
+func (rd *RepositoryDetector) SetLogger(l *logger.Logger) {
+	rd.logger = l
 }
 
 // createDefaultDetectionConfig returns the default component detection patterns
