@@ -9,7 +9,7 @@ import (
 	"github.com/tgaines/agent-smith/internal/models"
 )
 
-func TestCopyComponentFilesNonRecursive(t *testing.T) {
+func TestCopyComponentFilesRecursive(t *testing.T) {
 	// Create temporary directories
 	srcDir, err := os.MkdirTemp("", "src-*")
 	if err != nil {
@@ -29,9 +29,9 @@ func TestCopyComponentFilesNonRecursive(t *testing.T) {
 	//   SKILL.md (should be copied)
 	//   README.md (should be copied)
 	//   resources/
-	//     image.png (should NOT be copied - in subdirectory)
+	//     image.png (should be copied - in subdirectory)
 	//   subdirectory/
-	//     file.txt (should NOT be copied - in subdirectory)
+	//     file.txt (should be copied - in subdirectory)
 
 	skillFile := filepath.Join(srcDir, "SKILL.md")
 	readmeFile := filepath.Join(srcDir, "README.md")
@@ -78,7 +78,7 @@ func TestCopyComponentFilesNonRecursive(t *testing.T) {
 		t.Fatalf("copyComponentFiles failed: %v", err)
 	}
 
-	// Verify that ONLY files in the component directory were copied
+	// Verify that ALL files including subdirectories were copied
 	// SKILL.md should exist
 	if _, err := os.Stat(filepath.Join(dstDir, "SKILL.md")); os.IsNotExist(err) {
 		t.Errorf("SKILL.md was not copied")
@@ -89,35 +89,40 @@ func TestCopyComponentFilesNonRecursive(t *testing.T) {
 		t.Errorf("README.md was not copied")
 	}
 
-	// resources/ directory should NOT exist
-	if _, err := os.Stat(filepath.Join(dstDir, "resources")); !os.IsNotExist(err) {
-		t.Errorf("resources/ directory should not have been copied")
+	// resources/ directory should exist
+	if _, err := os.Stat(filepath.Join(dstDir, "resources")); os.IsNotExist(err) {
+		t.Errorf("resources/ directory was not copied")
 	}
 
-	// subdirectory/ should NOT exist
-	if _, err := os.Stat(filepath.Join(dstDir, "subdirectory")); !os.IsNotExist(err) {
-		t.Errorf("subdirectory/ should not have been copied")
+	// resources/image.png should exist
+	if _, err := os.Stat(filepath.Join(dstDir, "resources", "image.png")); os.IsNotExist(err) {
+		t.Errorf("resources/image.png was not copied")
 	}
 
-	// Verify only 2 files in destination
-	entries, err := os.ReadDir(dstDir)
+	// subdirectory/ should exist
+	if _, err := os.Stat(filepath.Join(dstDir, "subdirectory")); os.IsNotExist(err) {
+		t.Errorf("subdirectory/ was not copied")
+	}
+
+	// subdirectory/file.txt should exist
+	if _, err := os.Stat(filepath.Join(dstDir, "subdirectory", "file.txt")); os.IsNotExist(err) {
+		t.Errorf("subdirectory/file.txt was not copied")
+	}
+
+	// Verify content of nested files
+	imageContent, err := os.ReadFile(filepath.Join(dstDir, "resources", "image.png"))
 	if err != nil {
-		t.Fatalf("Failed to read destination directory: %v", err)
+		t.Errorf("Failed to read resources/image.png: %v", err)
+	} else if string(imageContent) != "image data" {
+		t.Errorf("Expected 'image data' in resources/image.png, got '%s'", string(imageContent))
 	}
 
-	fileCount := 0
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			fileCount++
-		}
+	nestedContent, err := os.ReadFile(filepath.Join(dstDir, "subdirectory", "file.txt"))
+	if err != nil {
+		t.Errorf("Failed to read subdirectory/file.txt: %v", err)
+	} else if string(nestedContent) != "nested content" {
+		t.Errorf("Expected 'nested content' in subdirectory/file.txt, got '%s'", string(nestedContent))
 	}
 
-	if fileCount != 2 {
-		t.Errorf("Expected exactly 2 files in destination, got %d", fileCount)
-		for _, entry := range entries {
-			t.Logf("  - %s (isDir: %v)", entry.Name(), entry.IsDir())
-		}
-	}
-
-	t.Logf("SUCCESS: copyComponentFiles correctly copied only files in component directory (non-recursive)")
+	t.Logf("SUCCESS: CopyComponentFiles correctly copied all files and subdirectories recursively")
 }
