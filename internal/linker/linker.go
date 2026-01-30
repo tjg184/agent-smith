@@ -808,6 +808,7 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 
 	successCount := 0
 	var errors []string
+	var unlinkedTargets []string
 
 	for _, target := range targetsToUnlink {
 		componentDir, err := target.GetComponentDir(componentType)
@@ -857,7 +858,7 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 			}
 		}
 
-		fmt.Printf("Successfully unlinked %s '%s' from %s\n", componentType, componentName, targetName)
+		unlinkedTargets = append(unlinkedTargets, targetName)
 
 		if linkType == "symlink" && targetPath != "" {
 			fmt.Printf("  Source still available at: %s\n", targetPath)
@@ -877,6 +878,10 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 	if successCount == 0 {
 		return fmt.Errorf("component %s/%s is not linked to any target", componentType, componentName)
 	}
+
+	// Display summary of affected targets
+	fmt.Printf("Successfully unlinked %s '%s' from %d target(s): %s\n",
+		componentType, componentName, successCount, strings.Join(unlinkedTargets, ", "))
 
 	return nil
 }
