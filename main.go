@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -20,6 +21,29 @@ import (
 	"github.com/tgaines/agent-smith/pkg/paths"
 	"github.com/tgaines/agent-smith/pkg/profiles"
 )
+
+// infoWriter is used for informational output that can be suppressed
+// By default, informational output is suppressed (quiet mode)
+var infoWriter io.Writer = io.Discard
+
+// SetVerboseMode enables informational output
+func SetVerboseMode(verbose bool) {
+	if verbose {
+		infoWriter = os.Stdout
+	} else {
+		infoWriter = io.Discard
+	}
+}
+
+// infoPrintf prints informational messages that can be suppressed
+func infoPrintf(format string, a ...interface{}) {
+	fmt.Fprintf(infoWriter, format, a...)
+}
+
+// infoPrintln prints informational messages that can be suppressed
+func infoPrintln(a ...interface{}) {
+	fmt.Fprintln(infoWriter, a...)
+}
 
 type BulkDownloader = downloader.BulkDownloader
 
@@ -131,7 +155,7 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
 		}
 		agentsDir = filepath.Join(profilesDir, activeProfile)
-		fmt.Printf("Using active profile: %s\n", activeProfile)
+		infoPrintf("Using active profile: %s\n", activeProfile)
 	}
 
 	// Detect all available targets
@@ -171,7 +195,7 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
 		}
 		agentsDir = filepath.Join(profilesDir, activeProfile)
-		fmt.Printf("Using active profile: %s\n", activeProfile)
+		infoPrintf("Using active profile: %s\n", activeProfile)
 	}
 
 	var targets []config.Target
@@ -227,6 +251,15 @@ func joinStrings(strings []string, separator string) string {
 }
 
 func main() {
+	// Check for --verbose flag before setting up handlers
+	// By default, we suppress informational output (show only errors)
+	for _, arg := range os.Args {
+		if arg == "--verbose" || arg == "-v" {
+			SetVerboseMode(true)
+			break
+		}
+	}
+
 	// Set up handlers for Cobra commands
 	cmd.SetHandlers(
 		func(repoURL, name, profile, targetDir string) {
@@ -245,7 +278,7 @@ func main() {
 					log.Fatal("Failed to create target directory:", err)
 				}
 
-				fmt.Printf("Installing to custom directory: %s\n", resolvedPath)
+				infoPrintf("Installing to custom directory: %s\n", resolvedPath)
 				dl := downloader.NewSkillDownloaderWithTargetDir(resolvedPath)
 				if err := dl.DownloadSkill(repoURL, name); err != nil {
 					log.Fatal("Failed to download skill:", err)
@@ -303,7 +336,7 @@ func main() {
 					log.Fatal("Failed to create target directory:", err)
 				}
 
-				fmt.Printf("Installing to custom directory: %s\n", resolvedPath)
+				infoPrintf("Installing to custom directory: %s\n", resolvedPath)
 				dl := downloader.NewAgentDownloaderWithTargetDir(resolvedPath)
 				if err := dl.DownloadAgent(repoURL, name); err != nil {
 					log.Fatal("Failed to download agent:", err)
@@ -361,7 +394,7 @@ func main() {
 					log.Fatal("Failed to create target directory:", err)
 				}
 
-				fmt.Printf("Installing to custom directory: %s\n", resolvedPath)
+				infoPrintf("Installing to custom directory: %s\n", resolvedPath)
 				dl := downloader.NewCommandDownloaderWithTargetDir(resolvedPath)
 				if err := dl.DownloadCommand(repoURL, name); err != nil {
 					log.Fatal("Failed to download command:", err)
@@ -418,7 +451,7 @@ func main() {
 					log.Fatal("Failed to create target directory:", err)
 				}
 
-				fmt.Printf("Installing to custom directory: %s\n", resolvedPath)
+				infoPrintf("Installing to custom directory: %s\n", resolvedPath)
 				bulkDownloader = downloader.NewBulkDownloaderWithTargetDir(resolvedPath)
 			} else {
 				// Use default behavior (install to ~/.agent-smith/)
@@ -604,14 +637,14 @@ func main() {
 
 			// Display results
 			if len(profilesList) == 0 {
-				fmt.Println("No profiles found in ~/.agent-smith/profiles/")
-				fmt.Println("\nTo create a profile, run:")
-				fmt.Println("  ./agent-smith profile create <profile-name>")
+				infoPrintln("No profiles found in ~/.agent-smith/profiles/")
+				infoPrintln("\nTo create a profile, run:")
+				infoPrintln("  ./agent-smith profile create <profile-name>")
 				return
 			}
 
-			fmt.Println("Available Profiles:")
-			fmt.Println()
+			infoPrintln("Available Profiles:")
+			infoPrintln()
 
 			for _, profile := range profilesList {
 				// Count components
@@ -642,15 +675,15 @@ func main() {
 					activeLabel = " [active]"
 				}
 
-				fmt.Printf("%s%-15s%s%s\n", activeIndicator, profile.Name, activeLabel, componentStr)
+				infoPrintf("%s%-15s%s%s\n", activeIndicator, profile.Name, activeLabel, componentStr)
 			}
 
 			// Display legend
-			fmt.Println("\nLegend:")
-			fmt.Printf("  %s - Currently active profile\n", formatter.SymbolSuccess)
+			infoPrintln("\nLegend:")
+			infoPrintf("  %s - Currently active profile\n", formatter.SymbolSuccess)
 
 			// Display total count
-			fmt.Printf("\nTotal: %d profile(s)\n", len(profilesList))
+			infoPrintf("\nTotal: %d profile(s)\n", len(profilesList))
 		},
 		func(profileName string) {
 			pm, err := profiles.NewProfileManager(nil)
@@ -683,53 +716,53 @@ func main() {
 			}
 
 			// Display profile information
-			fmt.Printf("Profile: %s", targetProfile.Name)
+			infoPrintf("Profile: %s", targetProfile.Name)
 			if targetProfile.Name == activeProfile {
-				fmt.Printf(" %s [active]", formatter.SymbolSuccess)
+				infoPrintf(" %s [active]", formatter.SymbolSuccess)
 			}
-			fmt.Println()
-			fmt.Printf("Location: %s\n", targetProfile.BasePath)
-			fmt.Println()
+			infoPrintln()
+			infoPrintf("Location: %s\n", targetProfile.BasePath)
+			infoPrintln()
 
 			// Get component names
 			agents, skills, commands := pm.GetComponentNames(targetProfile)
 
 			// Display agents
 			if len(agents) > 0 {
-				fmt.Printf("Agents (%d):\n", len(agents))
+				infoPrintf("Agents (%d):\n", len(agents))
 				for _, agent := range agents {
-					fmt.Printf("  - %s\n", agent)
+					infoPrintf("  - %s\n", agent)
 				}
-				fmt.Println()
+				infoPrintln()
 			}
 
 			// Display skills
 			if len(skills) > 0 {
-				fmt.Printf("Skills (%d):\n", len(skills))
+				infoPrintf("Skills (%d):\n", len(skills))
 				for _, skill := range skills {
-					fmt.Printf("  - %s\n", skill)
+					infoPrintf("  - %s\n", skill)
 				}
-				fmt.Println()
+				infoPrintln()
 			}
 
 			// Display commands
 			if len(commands) > 0 {
-				fmt.Printf("Commands (%d):\n", len(commands))
+				infoPrintf("Commands (%d):\n", len(commands))
 				for _, command := range commands {
-					fmt.Printf("  - %s\n", command)
+					infoPrintf("  - %s\n", command)
 				}
-				fmt.Println()
+				infoPrintln()
 			}
 
 			// Show empty state if no components
 			if len(agents) == 0 && len(skills) == 0 && len(commands) == 0 {
-				fmt.Println("This profile is empty.")
-				fmt.Println("\nAdd components with:")
-				fmt.Printf("  agent-smith profiles add <type> %s <component-name>\n", profileName)
+				infoPrintln("This profile is empty.")
+				infoPrintln("\nAdd components with:")
+				infoPrintf("  agent-smith profiles add <type> %s <component-name>\n", profileName)
 			} else if targetProfile.Name != activeProfile {
 				// Show activation hint if not active
-				fmt.Println("To activate this profile:")
-				fmt.Printf("  agent-smith profiles activate %s\n", profileName)
+				infoPrintln("To activate this profile:")
+				infoPrintf("  agent-smith profiles activate %s\n", profileName)
 			}
 		},
 		func(profileName string) {
@@ -863,14 +896,14 @@ func main() {
 			}
 
 			// Display status
-			fmt.Println("Current Configuration:")
-			fmt.Println()
+			infoPrintln("Current Configuration:")
+			infoPrintln()
 
 			// Show active profile
 			if activeProfile != "" {
-				fmt.Printf("  Active Profile: %s %s\n", activeProfile, formatter.SymbolSuccess)
+				infoPrintf("  Active Profile: %s %s\n", activeProfile, formatter.SymbolSuccess)
 			} else {
-				fmt.Println("  Active Profile: None")
+				infoPrintln("  Active Profile: None")
 			}
 
 			// Show detected targets
@@ -879,16 +912,16 @@ func main() {
 				for _, target := range targets {
 					targetNames = append(targetNames, target.GetName())
 				}
-				fmt.Printf("  Detected Targets: %s\n", joinStrings(targetNames, ", "))
+				infoPrintf("  Detected Targets: %s\n", joinStrings(targetNames, ", "))
 			} else {
-				fmt.Println("  Detected Targets: None")
+				infoPrintln("  Detected Targets: None")
 			}
 
-			fmt.Println()
-			fmt.Println("Components in ~/.agent-smith/:")
-			fmt.Printf("  Agents: %d\n", agentsCount)
-			fmt.Printf("  Skills: %d\n", skillsCount)
-			fmt.Printf("  Commands: %d\n", commandsCount)
+			infoPrintln()
+			infoPrintln("Components in ~/.agent-smith/:")
+			infoPrintf("  Agents: %d\n", agentsCount)
+			infoPrintf("  Skills: %d\n", skillsCount)
+			infoPrintf("  Commands: %d\n", commandsCount)
 
 			// If there's an active profile, show its components
 			if activeProfile != "" {
@@ -897,21 +930,21 @@ func main() {
 					for _, profile := range profilesList {
 						if profile.Name == activeProfile {
 							agents, skills, commands := pm.CountComponents(profile)
-							fmt.Println()
-							fmt.Printf("Active Profile (%s):\n", activeProfile)
-							fmt.Printf("  Agents: %d\n", agents)
-							fmt.Printf("  Skills: %d\n", skills)
-							fmt.Printf("  Commands: %d\n", commands)
+							infoPrintln()
+							infoPrintf("Active Profile (%s):\n", activeProfile)
+							infoPrintf("  Agents: %d\n", agents)
+							infoPrintf("  Skills: %d\n", skills)
+							infoPrintf("  Commands: %d\n", commands)
 							break
 						}
 					}
 				}
 			}
 
-			fmt.Println()
-			fmt.Println("For more details:")
-			fmt.Println("  - Run 'agent-smith link status' for link information")
-			fmt.Println("  - Run 'agent-smith profiles list' to see all profiles")
+			infoPrintln()
+			infoPrintln("For more details:")
+			infoPrintln("  - Run 'agent-smith link status' for link information")
+			infoPrintln("  - Run 'agent-smith profiles list' to see all profiles")
 		},
 		func(name, path string) {
 			// Load existing config
@@ -944,14 +977,14 @@ func main() {
 				log.Fatal("Failed to save config:", err)
 			}
 
-			fmt.Printf("%s Successfully added custom target '%s'\n", formatter.SymbolSuccess, name)
-			fmt.Printf("  Base directory: %s\n", path)
-			fmt.Println("\nSubdirectories:")
-			fmt.Printf("  Skills:   %s/skills\n", path)
-			fmt.Printf("  Agents:   %s/agents\n", path)
-			fmt.Printf("  Commands: %s/commands\n", path)
-			fmt.Println("\nYou can now link components to this target:")
-			fmt.Printf("  agent-smith link all --target %s\n", name)
+			infoPrintf("%s Successfully added custom target '%s'\n", formatter.SymbolSuccess, name)
+			infoPrintf("  Base directory: %s\n", path)
+			infoPrintln("\nSubdirectories:")
+			infoPrintf("  Skills:   %s/skills\n", path)
+			infoPrintf("  Agents:   %s/agents\n", path)
+			infoPrintf("  Commands: %s/commands\n", path)
+			infoPrintln("\nYou can now link components to this target:")
+			infoPrintf("  agent-smith link all --target %s\n", name)
 		},
 		func(name string) {
 			// Load existing config
@@ -983,9 +1016,9 @@ func main() {
 				log.Fatal("Failed to save config:", err)
 			}
 
-			fmt.Printf("%s Successfully removed custom target '%s'\n", formatter.SymbolSuccess, name)
-			fmt.Println("\nNote: This only removes the target from configuration.")
-			fmt.Println("Components linked to this target are not automatically unlinked.")
+			infoPrintf("%s Successfully removed custom target '%s'\n", formatter.SymbolSuccess, name)
+			infoPrintln("\nNote: This only removes the target from configuration.")
+			infoPrintln("Components linked to this target are not automatically unlinked.")
 		},
 		func() {
 			// Load config to distinguish between built-in and custom targets
@@ -997,11 +1030,11 @@ func main() {
 			// Get all built-in targets (even if not detected)
 			builtInNames := []string{"opencode", "claudecode"}
 
-			fmt.Println("Available Targets:")
-			fmt.Println()
+			infoPrintln("Available Targets:")
+			infoPrintln()
 
 			// Display built-in targets
-			fmt.Println("Built-in Targets:")
+			infoPrintln("Built-in Targets:")
 			for _, name := range builtInNames {
 				var target config.Target
 				var err error
@@ -1029,17 +1062,17 @@ func main() {
 					status = "[detected]"
 				}
 
-				fmt.Printf("  %s %-15s %-30s %s\n", symbol, name, baseDir, status)
+				infoPrintf("  %s %-15s %-30s %s\n", symbol, name, baseDir, status)
 			}
 
 			// Display custom targets
 			if len(cfg.CustomTargets) > 0 {
-				fmt.Println()
-				fmt.Println("Custom Targets:")
+				infoPrintln()
+				infoPrintln("Custom Targets:")
 				for _, customTargetConfig := range cfg.CustomTargets {
 					customTarget, err := config.NewCustomTarget(customTargetConfig)
 					if err != nil {
-						fmt.Printf("  %s %-15s <error loading target>\n", formatter.SymbolError, customTargetConfig.Name)
+						infoPrintf("  %s %-15s <error loading target>\n", formatter.SymbolError, customTargetConfig.Name)
 						continue
 					}
 
@@ -1056,15 +1089,15 @@ func main() {
 						status = "[detected]"
 					}
 
-					fmt.Printf("  %s %-15s %-30s %s\n", symbol, customTargetConfig.Name, baseDir, status)
+					infoPrintf("  %s %-15s %-30s %s\n", symbol, customTargetConfig.Name, baseDir, status)
 				}
 			}
 
 			// Display legend
-			fmt.Println()
-			fmt.Println("Legend:")
-			fmt.Printf("  %s - Target directory exists\n", formatter.SymbolSuccess)
-			fmt.Printf("  %s - Target directory not found\n", formatter.SymbolNotLinked)
+			infoPrintln()
+			infoPrintln("Legend:")
+			infoPrintf("  %s - Target directory exists\n", formatter.SymbolSuccess)
+			infoPrintf("  %s - Target directory not found\n", formatter.SymbolNotLinked)
 
 			// Count available targets
 			availableCount := 0
@@ -1098,8 +1131,8 @@ func main() {
 				}
 			}
 
-			fmt.Println()
-			fmt.Printf("Total: %d target(s) (%d available)\n", totalCount, availableCount)
+			infoPrintln()
+			infoPrintf("Total: %d target(s) (%d available)\n", totalCount, availableCount)
 		},
 	)
 
