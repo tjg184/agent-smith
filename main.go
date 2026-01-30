@@ -485,30 +485,30 @@ func main() {
 				log.Fatal("Failed to show link status:", err)
 			}
 		},
-		func(componentType, componentName string) {
-			linker, err := NewComponentLinker()
+		func(componentType, componentName, targetFilter string) {
+			linker, err := NewComponentLinkerWithFilter(targetFilter)
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
 			}
-			if err := linker.UnlinkComponent(componentType, componentName); err != nil {
+			if err := linker.UnlinkComponent(componentType, componentName, targetFilter); err != nil {
 				log.Fatal("Failed to unlink component:", err)
 			}
 		},
-		func(force bool) {
-			linker, err := NewComponentLinker()
+		func(targetFilter string, force bool) {
+			linker, err := NewComponentLinkerWithFilter(targetFilter)
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
 			}
-			if err := linker.UnlinkAllComponents(force); err != nil {
+			if err := linker.UnlinkAllComponents(targetFilter, force); err != nil {
 				log.Fatal("Failed to unlink all components:", err)
 			}
 		},
-		func(componentType string, force bool) {
-			linker, err := NewComponentLinker()
+		func(componentType, targetFilter string, force bool) {
+			linker, err := NewComponentLinkerWithFilter(targetFilter)
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
 			}
-			if err := linker.UnlinkComponentsByType(componentType, force); err != nil {
+			if err := linker.UnlinkComponentsByType(componentType, targetFilter, force); err != nil {
 				log.Fatal("Failed to unlink components:", err)
 			}
 		},
