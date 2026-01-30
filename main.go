@@ -605,10 +605,8 @@ func main() {
 			// Display results
 			if len(profilesList) == 0 {
 				fmt.Println("No profiles found in ~/.agents/profiles/")
-				fmt.Println("\nTo create a profile, create a directory structure like:")
-				fmt.Println("  ~/.agents/profiles/<profile-name>/agents/")
-				fmt.Println("  ~/.agents/profiles/<profile-name>/skills/")
-				fmt.Println("  ~/.agents/profiles/<profile-name>/commands/")
+				fmt.Println("\nTo create a profile, run:")
+				fmt.Println("  ./agent-smith profile create <profile-name>")
 				return
 			}
 
