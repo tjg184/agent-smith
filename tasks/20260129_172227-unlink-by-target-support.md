@@ -84,14 +84,14 @@ Add `--target` flag support to all unlink commands to provide feature parity wit
   - Pass targetFilter parameter to handleUnlinkAll function
   - Update handler to use NewComponentLinkerWithFilter
 
-- [ ] Story-011: As a developer, I want the handler function signatures updated to accept targetFilter so the flag values can be passed through.
+- [x] Story-011: As a developer, I want the handler function signatures updated to accept targetFilter so the flag values can be passed through.
 
   **Acceptance Criteria:**
   - Update handleUnlink signature in main.go to accept targetFilter parameter (line 1363)
   - Update handleUnlinkAll signature in main.go to accept targetFilter parameter (line 1364)
   - Update handleUnlinkType signature in main.go to accept targetFilter parameter (line 1365)
 
-- [ ] Story-012: As a developer, I want SetHandlers to work with the new signatures so the unlink commands integrate properly.
+- [x] Story-012: As a developer, I want SetHandlers to work with the new signatures so the unlink commands integrate properly.
 
   **Acceptance Criteria:**
   - Update SetHandlers function in cmd/root.go to accept targetFilter in unlink function signature
