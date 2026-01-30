@@ -98,7 +98,7 @@ Add `--target` flag support to all unlink commands to provide feature parity wit
   - Update SetHandlers function to accept targetFilter in unlinkAll function signature
   - Update SetHandlers function to accept targetFilter in unlinkType function signature
 
-- [ ] Story-013: As a user, I want updated help text for all unlink commands so I know how to use the new --target flag.
+- [x] Story-013: As a user, I want updated help text for all unlink commands so I know how to use the new --target flag.
 
   **Acceptance Criteria:**
   - Add --target flag documentation to unlinkSkillCmd help text with examples
@@ -107,7 +107,7 @@ Add `--target` flag support to all unlink commands to provide feature parity wit
   - Add --target flag documentation to plural unlink commands help text
   - Add --target flag documentation to unlink all command help text
 
-- [ ] Story-014: As a developer, I want comprehensive test coverage for unlink by target so the feature is reliable.
+- [x] Story-014: As a developer, I want comprehensive test coverage for unlink by target so the feature is reliable.
 
   **Acceptance Criteria:**
   - Test unlinking from specific target leaves other targets untouched
@@ -221,14 +221,14 @@ agent-smith unlink all --target all
 
 ## Success Criteria
 
-- [ ] All unlink commands accept --target flag
-- [ ] Default behavior (no flag) maintains backward compatibility
-- [ ] Invalid targets show helpful error messages with available target list
-- [ ] Unlinking from specific target leaves other targets untouched
-- [ ] Output messages clearly indicate which target(s) were affected
-- [ ] Help text documents the --target flag with examples
-- [ ] All tests pass including new test cases for target filtering
-- [ ] Feature parity achieved with link command behavior
+- [x] All unlink commands accept --target flag
+- [x] Default behavior (no flag) maintains backward compatibility
+- [x] Invalid targets show helpful error messages with available target list
+- [x] Unlinking from specific target leaves other targets untouched
+- [x] Output messages clearly indicate which target(s) were affected
+- [x] Help text documents the --target flag with examples
+- [x] All tests pass including new test cases for target filtering
+- [x] Feature parity achieved with link command behavior
 
 ## Non-Goals (Out of Scope)
 
