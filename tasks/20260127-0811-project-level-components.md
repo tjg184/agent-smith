@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Implement project-level component management to allow users to define dependencies in a manifest file (`agent-smith.json`), install them locally to the project, and automatically generate an XML-based `agents.md` file for AI context. This moves `agent-smith` closer to an `npm`-like experience for AI tools.
+Implement project-level component management to allow users to define dependencies in a manifest file (`agent-smith.json`), install them locally to the project, and automatically generate an XML-based `agents.md` file for AI context. This provides a streamlined experience for managing AI tools at the project level.
 
 ## Goals
 

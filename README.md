@@ -2,7 +2,7 @@
 
 Agent Smith is a powerful CLI tool for downloading, managing, and executing AI agents, skills, and commands from git repositories.
 
-It provides npm-like functionality for AI components, allowing you to:
+Install, manage, and link AI components with ease:
 - Download and install agents, skills, and commands from any git repository
 - Link components to supported targets (OpenCode, Claude Code, etc.)
 - Manage multiple profiles for context switching
