@@ -958,7 +958,18 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 	// Require force flag or confirmation
 	if !force {
 		if totalLinks > 0 {
-			fmt.Printf("This will unlink %d %s from all targets", totalLinks, componentType)
+			// Build target names string
+			targetNames := make([]string, 0, len(targetsToUnlink))
+			for _, target := range targetsToUnlink {
+				targetNames = append(targetNames, target.GetName())
+			}
+			targetStr := strings.Join(targetNames, ", ")
+
+			if targetFilter != "" && targetFilter != "all" {
+				fmt.Printf("This will unlink %d %s from: %s", totalLinks, componentType, targetStr)
+			} else {
+				fmt.Printf("This will unlink %d %s from all targets", totalLinks, componentType)
+			}
 			fmt.Println()
 		}
 		if copiedDirs > 0 {
