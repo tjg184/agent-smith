@@ -21,35 +21,35 @@ Add `--target` flag support to all unlink commands to provide feature parity wit
   - Flag accepts same values as link command (opencode, claudecode, all, custom target names)
   - Default behavior unlinks from all targets when flag is omitted for backward compatibility
 
-- [ ] Story-002: As a user running unlink with --target flag, I want clear error messages when the target doesn't exist so I know what went wrong.
+- [x] Story-002: As a user running unlink with --target flag, I want clear error messages when the target doesn't exist so I know what went wrong.
 
   **Acceptance Criteria:**
   - Validate specified target exists before attempting unlink
   - Show helpful error message with list of available targets when invalid target specified
   - Exit with non-zero status code on validation failure
 
-- [ ] Story-003: As a developer, I want the unlink command to display which target(s) were affected so I can verify the operation worked correctly.
+- [x] Story-003: As a developer, I want the unlink command to display which target(s) were affected so I can verify the operation worked correctly.
 
   **Acceptance Criteria:**
   - Show target name in success messages for each unlink operation
   - Display skip messages when component not found in specified target
   - Maintain current output format for unlink operations
 
-- [ ] Story-004: As a developer, I want `unlink skill <name> --target <target>` to work so I can unlink individual skills from specific targets.
+- [x] Story-004: As a developer, I want `unlink skill <name> --target <target>` to work so I can unlink individual skills from specific targets.
 
   **Acceptance Criteria:**
   - Add --target flag to unlinkSkillCmd in cmd/root.go
   - Pass targetFilter parameter to handleUnlink function
   - Update handler to use NewComponentLinkerWithFilter instead of NewComponentLinker
 
-- [ ] Story-005: As a developer, I want `unlink agent <name> --target <target>` to work so I can unlink individual agents from specific targets.
+- [x] Story-005: As a developer, I want `unlink agent <name> --target <target>` to work so I can unlink individual agents from specific targets.
 
   **Acceptance Criteria:**
   - Add --target flag to unlinkAgentCmd in cmd/root.go
   - Pass targetFilter parameter to handleUnlink function
   - Update handler to use NewComponentLinkerWithFilter
 
-- [ ] Story-006: As a developer, I want `unlink command <name> --target <target>` to work so I can unlink individual commands from specific targets.
+- [x] Story-006: As a developer, I want `unlink command <name> --target <target>` to work so I can unlink individual commands from specific targets.
 
   **Acceptance Criteria:**
   - Add --target flag to unlinkCommandCmd in cmd/root.go
