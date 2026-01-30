@@ -167,3 +167,9 @@
 - [✓] 2026-01-30 01:10 - Story-010: As a developer, I want `unlink all --target <target>` to work so I can unlink all components from a specific target.
 - [✓] 2026-01-30 01:12 - Story-011: As a developer, I want the handler function signatures updated to accept targetFilter so the flag values can be passed through.
 - [✓] 2026-01-30 01:14 - Story-012: As a developer, I want SetHandlers to work with the new signatures so the unlink commands integrate properly.
+- [✓] 2026-01-30 01:15 - Story-012: As a developer, I want SetHandlers to work with the new signatures so the unlink commands integrate properly.
+- [✓] 2026-01-30 01:16 - Story-013: As a user, I want updated help text for all unlink commands so I know how to use the new --target flag.
+- [✓] 2026-01-30 01:19 - Story-014: As a developer, I want comprehensive test coverage for unlink by target so the feature is reliable.
+- [✓] 2026-01-30 01:21 - All unlink commands accept --target flag
+- [✓] 2026-01-30 01:23 - Verified backward compatibility: default behavior (no --target flag) unlinks from all targets
+- [✓] 2026-01-30 01:23 - All success criteria met: feature complete and tested
