@@ -300,6 +300,81 @@ func TestUnlinkComponent_SkillsAndCommands(t *testing.T) {
 	}
 }
 
+func TestUnlinkComponentsByType_SpecificTarget(t *testing.T) {
+	sourceDir, target1Dir, target2Dir, targets, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	det := detector.NewRepositoryDetector()
+	linker, err := NewComponentLinker(sourceDir, targets, det)
+	if err != nil {
+		t.Fatalf("Failed to create linker: %v", err)
+	}
+
+	// Create multiple command symlinks in both targets
+	createSymlink(t, filepath.Join(sourceDir, "commands", "test-command"),
+		filepath.Join(target1Dir, "commands", "test-command"))
+
+	// Create a second command
+	secondCommandDir := filepath.Join(sourceDir, "commands", "test-command-2")
+	if err := os.MkdirAll(secondCommandDir, 0755); err != nil {
+		t.Fatalf("Failed to create second command dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(secondCommandDir, "README.md"), []byte("# Test Command 2"), 0644); err != nil {
+		t.Fatalf("Failed to create second command file: %v", err)
+	}
+
+	createSymlink(t, secondCommandDir,
+		filepath.Join(target1Dir, "commands", "test-command-2"))
+	createSymlink(t, filepath.Join(sourceDir, "commands", "test-command"),
+		filepath.Join(target2Dir, "commands", "test-command"))
+	createSymlink(t, secondCommandDir,
+		filepath.Join(target2Dir, "commands", "test-command-2"))
+
+	// Verify symlinks exist in both targets
+	if _, err := os.Lstat(filepath.Join(target1Dir, "commands", "test-command")); err != nil {
+		t.Fatalf("Symlink should exist in target1 before unlinking: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(target1Dir, "commands", "test-command-2")); err != nil {
+		t.Fatalf("Symlink should exist in target1 before unlinking: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(target2Dir, "commands", "test-command")); err != nil {
+		t.Fatalf("Symlink should exist in target2 before unlinking: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(target2Dir, "commands", "test-command-2")); err != nil {
+		t.Fatalf("Symlink should exist in target2 before unlinking: %v", err)
+	}
+
+	// Unlink all commands from target1 only (with force=true to skip confirmation)
+	err = linker.UnlinkComponentsByType("commands", "target1", true)
+	if err != nil {
+		t.Fatalf("UnlinkComponentsByType failed: %v", err)
+	}
+
+	// Verify symlinks are removed from target1
+	if _, err := os.Lstat(filepath.Join(target1Dir, "commands", "test-command")); !os.IsNotExist(err) {
+		t.Errorf("Symlink should be removed from target1")
+	}
+	if _, err := os.Lstat(filepath.Join(target1Dir, "commands", "test-command-2")); !os.IsNotExist(err) {
+		t.Errorf("Second symlink should be removed from target1")
+	}
+
+	// Verify symlinks still exist in target2 (should not be affected)
+	if _, err := os.Lstat(filepath.Join(target2Dir, "commands", "test-command")); err != nil {
+		t.Errorf("Symlink should still exist in target2: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(target2Dir, "commands", "test-command-2")); err != nil {
+		t.Errorf("Second symlink should still exist in target2: %v", err)
+	}
+
+	// Verify source still exists
+	if _, err := os.Stat(filepath.Join(sourceDir, "commands", "test-command")); err != nil {
+		t.Errorf("Source directory should still exist: %v", err)
+	}
+	if _, err := os.Stat(secondCommandDir); err != nil {
+		t.Errorf("Second source directory should still exist: %v", err)
+	}
+}
+
 func TestFilterTargets(t *testing.T) {
 	sourceDir, _, _, targets, cleanup := setupTestEnvironment(t)
 	defer cleanup()
