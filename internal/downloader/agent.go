@@ -183,6 +183,14 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		return fmt.Errorf("failed to create agent directory: %w", err)
 	}
 
+	// Set up cleanup on error - will remove directory if we return with an error
+	shouldCleanup := true
+	defer func() {
+		if shouldCleanup {
+			os.RemoveAll(agentDir)
+		}
+	}()
+
 	// Check if the requested agentName matches one of the detected components
 	var matchingComponent *models.DetectedComponent
 	for _, comp := range agentComponents {
@@ -211,7 +219,6 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		// Copy component files (non-recursive) using FilePath to agent directory
 		err = fileutil.CopyComponentFiles(repoPath, component, agentDir)
 		if err != nil {
-			os.RemoveAll(agentDir)
 			return fmt.Errorf("failed to copy agent files: %w", err)
 		}
 	} else if matchingComponent != nil {
@@ -221,7 +228,6 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 
 		// If heuristic name differs from agentName, recreate directory with proper name
 		if destFolderName != agentName {
-			os.RemoveAll(agentDir)
 			agentDir = filepath.Join(ad.baseDir, destFolderName)
 			if err := fileutil.CreateDirectoryWithPermissions(agentDir); err != nil {
 				return fmt.Errorf("failed to create agent directory: %w", err)
@@ -231,7 +237,6 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		// Copy component files (non-recursive) using FilePath to agent directory
 		err = fileutil.CopyComponentFiles(repoPath, *matchingComponent, agentDir)
 		if err != nil {
-			os.RemoveAll(agentDir)
 			return fmt.Errorf("failed to copy agent files: %w", err)
 		}
 
@@ -244,7 +249,6 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		for _, comp := range agentComponents {
 			agentNames = append(agentNames, comp.Name)
 		}
-		os.RemoveAll(agentDir)
 		return fmt.Errorf("agent '%s' not found in repository. Available agents: %s", agentName, strings.Join(agentNames, ", "))
 	}
 
@@ -288,6 +292,9 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		os.RemoveAll(agentDir + ".git")
 	}
 
+	// Success - don't clean up the directory
+	shouldCleanup = false
+
 	ad.formatter.Success("agent", agentName)
 
 	return nil
@@ -300,6 +307,14 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 		return fmt.Errorf("failed to create agent directory: %w", err)
 	}
 
+	// Set up cleanup on error
+	shouldCleanup := true
+	defer func() {
+		if shouldCleanup {
+			os.RemoveAll(agentDir)
+		}
+	}()
+
 	// Clone repository directly
 	_, err := git.PlainClone(agentDir, false, &git.CloneOptions{
 		URL:           fullURL,
@@ -308,7 +323,6 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 		SingleBranch:  true,
 	})
 	if err != nil {
-		os.RemoveAll(agentDir)
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
 
@@ -339,6 +353,9 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 			ad.formatter.Warning("failed to create %s.md: %v", agentName, err)
 		}
 	}
+
+	// Success - don't clean up the directory
+	shouldCleanup = false
 
 	return nil
 }
@@ -402,10 +419,17 @@ func (ad *AgentDownloader) DownloadAgentWithRepo(fullURL, agentName, repoURL str
 		return fmt.Errorf("failed to create agent directory: %w", err)
 	}
 
+	// Set up cleanup on error
+	shouldCleanup := true
+	defer func() {
+		if shouldCleanup {
+			os.RemoveAll(agentDir)
+		}
+	}()
+
 	// Copy the entire component directory recursively
 	err := fileutil.CopyComponentFiles(repoPath, *targetComponent, agentDir)
 	if err != nil {
-		os.RemoveAll(agentDir)
 		return fmt.Errorf("failed to copy agent files: %w", err)
 	}
 
@@ -433,6 +457,9 @@ func (ad *AgentDownloader) DownloadAgentWithRepo(fullURL, agentName, repoURL str
 	if _, err := os.Stat(agentDir + ".git"); err == nil {
 		os.RemoveAll(agentDir + ".git")
 	}
+
+	// Success - don't clean up the directory
+	shouldCleanup = false
 
 	ad.formatter.Success("agent", agentName)
 

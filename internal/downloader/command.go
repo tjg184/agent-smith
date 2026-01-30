@@ -165,6 +165,14 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		return fmt.Errorf("failed to create command directory: %w", err)
 	}
 
+	// Set up cleanup on error
+	shouldCleanup := true
+	defer func() {
+		if shouldCleanup {
+			os.RemoveAll(commandDir)
+		}
+	}()
+
 	// Check if the requested commandName matches one of the detected components
 	var matchingComponent *models.DetectedComponent
 	for _, comp := range commandComponents {
@@ -193,7 +201,6 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		// Copy component files (non-recursive) using FilePath to command directory
 		err = fileutil.CopyComponentFiles(repoPath, component, commandDir)
 		if err != nil {
-			os.RemoveAll(commandDir)
 			return fmt.Errorf("failed to copy command files: %w", err)
 		}
 	} else if matchingComponent != nil {
@@ -203,7 +210,6 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 
 		// If heuristic name differs from commandName, recreate directory with proper name
 		if destFolderName != commandName {
-			os.RemoveAll(commandDir)
 			commandDir = filepath.Join(cd.baseDir, destFolderName)
 			if err := fileutil.CreateDirectoryWithPermissions(commandDir); err != nil {
 				return fmt.Errorf("failed to create command directory: %w", err)
@@ -213,7 +219,6 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		// Copy component files (non-recursive) using FilePath to command directory
 		err = fileutil.CopyComponentFiles(repoPath, *matchingComponent, commandDir)
 		if err != nil {
-			os.RemoveAll(commandDir)
 			return fmt.Errorf("failed to copy command files: %w", err)
 		}
 
@@ -226,7 +231,6 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		for _, comp := range commandComponents {
 			commandNames = append(commandNames, comp.Name)
 		}
-		os.RemoveAll(commandDir)
 		return fmt.Errorf("command '%s' not found in repository. Available commands: %s", commandName, strings.Join(commandNames, ", "))
 	}
 
@@ -264,6 +268,9 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		os.RemoveAll(commandDir + ".git")
 	}
 
+	// Success - don't clean up the directory
+	shouldCleanup = false
+
 	cd.formatter.Success("command", commandName)
 
 	return nil
@@ -276,6 +283,14 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		return fmt.Errorf("failed to create command directory: %w", err)
 	}
 
+	// Set up cleanup on error
+	shouldCleanup := true
+	defer func() {
+		if shouldCleanup {
+			os.RemoveAll(commandDir)
+		}
+	}()
+
 	// Clone repository directly
 	_, err := git.PlainClone(commandDir, false, &git.CloneOptions{
 		URL:           fullURL,
@@ -284,7 +299,6 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		SingleBranch:  true,
 	})
 	if err != nil {
-		os.RemoveAll(commandDir)
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
 
@@ -315,6 +329,9 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 			cd.formatter.Warning("failed to create %s.md: %v", commandName, err)
 		}
 	}
+
+	// Success - don't clean up the directory
+	shouldCleanup = false
 
 	return nil
 }
@@ -378,10 +395,17 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 		return fmt.Errorf("failed to create command directory: %w", err)
 	}
 
+	// Set up cleanup on error
+	shouldCleanup := true
+	defer func() {
+		if shouldCleanup {
+			os.RemoveAll(commandDir)
+		}
+	}()
+
 	// Copy the entire component directory recursively
 	err := fileutil.CopyComponentFiles(repoPath, *targetComponent, commandDir)
 	if err != nil {
-		os.RemoveAll(commandDir)
 		return fmt.Errorf("failed to copy command files: %w", err)
 	}
 
@@ -409,6 +433,9 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 	if _, err := os.Stat(commandDir + ".git"); err == nil {
 		os.RemoveAll(commandDir + ".git")
 	}
+
+	// Success - don't clean up the directory
+	shouldCleanup = false
 
 	cd.formatter.Success("command", commandName)
 
