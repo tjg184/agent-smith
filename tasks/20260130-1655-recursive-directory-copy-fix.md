@@ -19,7 +19,7 @@ The root cause is in the `CopyComponentFiles` function in `internal/fileutil/fil
 
 ## User Stories
 
-- [ ] Story-001: As a user, I want all subdirectories and files to be copied when installing a component so that the component has all necessary assets to function properly.
+- [x] Story-001: As a user, I want all subdirectories and files to be copied when installing a component so that the component has all necessary assets to function properly.
 
   **Acceptance Criteria:**
   - Component installation recursively copies all subdirectories and their contents
