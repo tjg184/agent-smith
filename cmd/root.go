@@ -759,6 +759,7 @@ EXAMPLES:
 			handleUnlink("commands", args[0], targetFilter)
 		},
 	}
+	unlinkCommandCmd.Flags().StringP("target", "t", "", "Specify target to unlink from (opencode, claudecode, or all)")
 	unlinkCmd.AddCommand(unlinkCommandCmd)
 
 	// Plural commands - operate on ALL components of a type
