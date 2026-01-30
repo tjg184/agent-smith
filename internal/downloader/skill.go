@@ -167,6 +167,14 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
+	// Set up cleanup on error
+	shouldCleanup := true
+	defer func() {
+		if shouldCleanup {
+			os.RemoveAll(skillDir)
+		}
+	}()
+
 	// Check if the requested skillName matches one of the detected components
 	var matchingComponent *models.DetectedComponent
 	for _, comp := range skillComponents {
@@ -195,7 +203,6 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		// Copy component files (non-recursive) using FilePath to skill directory
 		err = fileutil.CopyComponentFiles(repoPath, component, skillDir)
 		if err != nil {
-			os.RemoveAll(skillDir)
 			return fmt.Errorf("failed to copy skill files: %w", err)
 		}
 	} else if matchingComponent != nil {
@@ -205,7 +212,6 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 
 		// If heuristic name differs from skillName, recreate directory with proper name
 		if destFolderName != skillName {
-			os.RemoveAll(skillDir)
 			skillDir = filepath.Join(sd.baseDir, destFolderName)
 			if err := fileutil.CreateDirectoryWithPermissions(skillDir); err != nil {
 				return fmt.Errorf("failed to create skill directory: %w", err)
@@ -215,7 +221,6 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		// Copy component files (non-recursive) using FilePath to skill directory
 		err = fileutil.CopyComponentFiles(repoPath, *matchingComponent, skillDir)
 		if err != nil {
-			os.RemoveAll(skillDir)
 			return fmt.Errorf("failed to copy skill files: %w", err)
 		}
 
@@ -228,7 +233,6 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		for _, comp := range skillComponents {
 			skillNames = append(skillNames, comp.Name)
 		}
-		os.RemoveAll(skillDir)
 		return fmt.Errorf("skill '%s' not found in repository. Available skills: %s", skillName, strings.Join(skillNames, ", "))
 	}
 
@@ -272,6 +276,9 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		os.RemoveAll(skillDir + ".git")
 	}
 
+	// Success - don't clean up the directory
+	shouldCleanup = false
+
 	sd.formatter.Success("skill", skillName)
 
 	return nil
@@ -284,6 +291,14 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
+	// Set up cleanup on error
+	shouldCleanup := true
+	defer func() {
+		if shouldCleanup {
+			os.RemoveAll(skillDir)
+		}
+	}()
+
 	// Clone repository for local or remote
 	var err error
 
@@ -292,14 +307,12 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 		// For local repositories, copy directory contents directly
 		err = fileutil.CopyDirectoryContents(fullURL, skillDir)
 		if err != nil {
-			os.RemoveAll(skillDir)
 			return fmt.Errorf("failed to copy local repository: %w", err)
 		}
 	} else {
 		// For remote repositories, clone directly
 		_, err = gitpkg.CloneShallow(sd.cloner, skillDir, fullURL)
 		if err != nil {
-			os.RemoveAll(skillDir)
 			return fmt.Errorf("failed to clone repository: %w", err)
 		}
 	}
@@ -331,6 +344,9 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 			sd.formatter.Warning("failed to create SKILL.md: %v", err)
 		}
 	}
+
+	// Success - don't clean up the directory
+	shouldCleanup = false
 
 	return nil
 }
@@ -394,10 +410,17 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
+	// Set up cleanup on error
+	shouldCleanup := true
+	defer func() {
+		if shouldCleanup {
+			os.RemoveAll(skillDir)
+		}
+	}()
+
 	// Copy the entire component directory recursively
 	err := fileutil.CopyComponentFiles(repoPath, *targetComponent, skillDir)
 	if err != nil {
-		os.RemoveAll(skillDir)
 		return fmt.Errorf("failed to copy skill files: %w", err)
 	}
 
@@ -425,6 +448,9 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 	if _, err := os.Stat(skillDir + ".git"); err == nil {
 		os.RemoveAll(skillDir + ".git")
 	}
+
+	// Success - don't clean up the directory
+	shouldCleanup = false
 
 	sd.formatter.Success("skill", skillName)
 
