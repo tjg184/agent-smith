@@ -109,6 +109,7 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 	}
 
 	var repoPath string
+	var commitHashFromRepo string // Store commit hash from clone
 	hasProvidedPath := len(providedRepoPath) > 0 && providedRepoPath[0] != ""
 
 	// Use provided repo path if available, otherwise clone for detection
@@ -126,11 +127,19 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		defer os.RemoveAll(tempDir)
 
 		// Clone repository to temporary location for detection
-		_, err = gitpkg.CloneShallow(sd.cloner, tempDir, fullURL)
+		repo, err := gitpkg.CloneShallow(sd.cloner, tempDir, fullURL)
 		if err != nil {
 			return fmt.Errorf("failed to clone repository for detection: %w", err)
 		}
 		repoPath = tempDir
+
+		// Get commit hash from the cloned repository
+		if repo != nil {
+			ref, err := repo.Head()
+			if err == nil {
+				commitHashFromRepo = ref.Hash().String()
+			}
+		}
 	}
 
 	// Detect components in the repository
@@ -158,7 +167,28 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
-	// If only one skill component found, use it directly
+	// Check if the requested skillName matches one of the detected components
+	var matchingComponent *models.DetectedComponent
+	for _, comp := range skillComponents {
+		if comp.Name == skillName {
+			matchingComponent = &comp
+			break
+		}
+	}
+
+	// Additional check: if we found a matching component but it's part of a larger directory structure,
+	// prefer components that have their own directory (more specific)
+	if matchingComponent != nil && len(skillComponents) > 1 {
+		for _, comp := range skillComponents {
+			if comp.Name == skillName && comp.Path != matchingComponent.Path {
+				// Found a more specific version (different path)
+				matchingComponent = &comp
+				break
+			}
+		}
+	}
+
+	// If only one skill component found, copy its contents
 	if len(skillComponents) == 1 {
 		component := skillComponents[0]
 
@@ -168,71 +198,63 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 			os.RemoveAll(skillDir)
 			return fmt.Errorf("failed to copy skill files: %w", err)
 		}
-	} else {
-		// Multiple skills found - try to find the one matching skillName
-		var targetComponent *models.DetectedComponent
-		for _, comp := range skillComponents {
-			if comp.Name == skillName {
-				targetComponent = &comp
-				break
-			}
-		}
+	} else if matchingComponent != nil {
+		// Downloading a specific component from a multi-component directory
+		// Use direct copy to avoid double nesting
 
-		if targetComponent == nil {
-			// Skill not found - list available skills and return error
-			var skillNames []string
-			for _, comp := range skillComponents {
-				skillNames = append(skillNames, comp.Name)
-			}
-			os.RemoveAll(skillDir)
-			return fmt.Errorf("skill '%s' not found in repository. Available skills: %s", skillName, strings.Join(skillNames, ", "))
-		}
-
-		// Install only the specified skill
-		// Copy component files (non-recursive) using FilePath
-		err = fileutil.CopyComponentFiles(repoPath, *targetComponent, skillDir)
+		// Copy component files (non-recursive) using FilePath to skill directory
+		err = fileutil.CopyComponentFiles(repoPath, *matchingComponent, skillDir)
 		if err != nil {
 			os.RemoveAll(skillDir)
 			return fmt.Errorf("failed to copy skill files: %w", err)
 		}
+	} else {
+		// Multiple skills found, create a monorepo structure
+		for _, component := range skillComponents {
+			componentDir := filepath.Join(skillDir, component.Name)
+
+			err = fileutil.CreateDirectoryWithPermissions(componentDir)
+			if err != nil {
+				continue
+			}
+
+			// Copy component files (non-recursive) using FilePath
+			err = fileutil.CopyComponentFiles(repoPath, component, componentDir)
+			if err != nil {
+				sd.formatter.Warning("failed to copy skill %s: %v", component.Name, err)
+			}
+		}
 	}
 
 	// Save to lock file
-	var sourceType string
-	if sd.detector.DetectProvider(repoURL) == "local" {
-		sourceType = "local"
-	} else if strings.Contains(fullURL, "gitlab") {
+	sourceType := "github"
+	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
 	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
 		sourceType = "git"
-	} else {
-		sourceType = "github"
 	}
 
-	// Get commit hash from the repository
+	// Get commit hash from repository (already retrieved during clone for remote repos)
 	var commitHash string
-	if hash, err := gitpkg.GetCommitHashFromPath(sd.cloner, repoPath); err == nil {
-		commitHash = hash
+	if hasProvidedPath || sd.detector.DetectProvider(repoURL) == "local" {
+		// For provided path or local repos, try to get hash from path
+		if hash, err := gitpkg.GetCommitHashFromPath(sd.cloner, repoPath); err == nil {
+			commitHash = hash
+		} else {
+			sd.formatter.Warning("failed to get commit hash: %v", err)
+		}
 	} else {
-		sd.formatter.Warning("failed to get commit hash: %v", err)
+		// For remote repos, use the hash we got during clone
+		commitHash = commitHashFromRepo
 	}
 
-	// Determine detection mode based on whether we filtered from multiple skills
-	detectionMode := "direct"
-	componentsCount := 1
-	if len(skillComponents) > 1 {
-		detectionMode = "single"
-	}
-
-	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, commitHash, componentsCount, detectionMode, ""); err != nil {
+	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, commitHash, len(skillComponents), "recursive", ""); err != nil {
 		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
-	// Clean up git clone only for remote repositories
-	if sd.detector.DetectProvider(repoURL) != "local" {
-		if _, err := os.Stat(skillDir + ".git"); err == nil {
-			os.RemoveAll(skillDir + ".git")
-		}
+	// Clean up git clone if it exists
+	if _, err := os.Stat(skillDir + ".git"); err == nil {
+		os.RemoveAll(skillDir + ".git")
 	}
 
 	sd.formatter.Success("skill", skillName)
@@ -365,15 +387,11 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 	}
 
 	// Save to lock file
-	var sourceType string
-	if sd.detector.DetectProvider(repoURL) == "local" {
-		sourceType = "local"
-	} else if strings.Contains(fullURL, "gitlab") {
+	sourceType := "github"
+	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
 	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
 		sourceType = "git"
-	} else {
-		sourceType = "github"
 	}
 
 	// Get commit hash from the repository
@@ -388,11 +406,9 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
-	// Clean up git clone only for remote repositories
-	if sd.detector.DetectProvider(repoURL) != "local" {
-		if _, err := os.Stat(skillDir + ".git"); err == nil {
-			os.RemoveAll(skillDir + ".git")
-		}
+	// Clean up git clone if it exists
+	if _, err := os.Stat(skillDir + ".git"); err == nil {
+		os.RemoveAll(skillDir + ".git")
 	}
 
 	sd.formatter.Success("skill", skillName)
