@@ -1358,6 +1358,7 @@ EXAMPLES:
 	rootCmd.AddCommand(targetCmd)
 
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
+	rootCmd.PersistentFlags().Bool("verbose", false, "Show informational output (default: show only errors)")
 }
 
 // These functions will be implemented in main.go to keep existing logic
