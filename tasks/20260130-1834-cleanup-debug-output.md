@@ -17,7 +17,7 @@ Reduce noisy debug output by default to improve user experience and reduce conso
 
 ## User Stories
 
-- [ ] Story-001: As an end user, I want to see only error messages by default so that I can quickly identify critical issues without noise.
+- [x] Story-001: As an end user, I want to see only error messages by default so that I can quickly identify critical issues without noise.
 
   **Acceptance Criteria:**
   - By default, only error-level messages are displayed to the console
@@ -37,7 +37,7 @@ Reduce noisy debug output by default to improve user experience and reduce conso
   **Component Browser Tests:**
   - N/A (CLI/backend feature)
 
-- [ ] Story-002: As a developer, I want to enable verbose debug output with a --debug flag so that I can troubleshoot issues when needed.
+- [x] Story-002: As a developer, I want to enable verbose debug output with a --debug flag so that I can troubleshoot issues when needed.
 
   **Acceptance Criteria:**
   - --debug flag enables all debug output (debug, info, warning, error)
@@ -57,7 +57,7 @@ Reduce noisy debug output by default to improve user experience and reduce conso
   **Component Browser Tests:**
   - N/A (CLI/backend feature)
 
-- [ ] Story-003: As a developer, I want a consistent log level system across the codebase so that I can control output granularity uniformly.
+- [x] Story-003: As a developer, I want a consistent log level system across the codebase so that I can control output granularity uniformly.
 
   **Acceptance Criteria:**
   - Centralized logging utility/module that all code uses
