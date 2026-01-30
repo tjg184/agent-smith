@@ -786,7 +786,22 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 	targetsToUnlink := cl.filterTargets(targetFilter)
 	if len(targetsToUnlink) == 0 {
 		if targetFilter != "" && targetFilter != "all" {
-			return fmt.Errorf("target '%s' not found", targetFilter)
+			// Build list of available target names for the error message
+			availableTargets := make([]string, 0, len(cl.targets))
+			for _, target := range cl.targets {
+				availableTargets = append(availableTargets, target.GetName())
+			}
+
+			if len(availableTargets) == 0 {
+				return fmt.Errorf("target '%s' does not exist and no targets are configured", targetFilter)
+			}
+
+			return fmt.Errorf("target '%s' does not exist\n\nAvailable targets:\n  - %s\n\nExample:\n  agent-smith unlink %s %s --target %s",
+				targetFilter,
+				strings.Join(availableTargets, "\n  - "),
+				componentType,
+				componentName,
+				availableTargets[0])
 		}
 		return fmt.Errorf("no targets available")
 	}
@@ -876,7 +891,21 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 	targetsToUnlink := cl.filterTargets(targetFilter)
 	if len(targetsToUnlink) == 0 {
 		if targetFilter != "" && targetFilter != "all" {
-			return fmt.Errorf("target '%s' not found", targetFilter)
+			// Build list of available target names for the error message
+			availableTargets := make([]string, 0, len(cl.targets))
+			for _, target := range cl.targets {
+				availableTargets = append(availableTargets, target.GetName())
+			}
+
+			if len(availableTargets) == 0 {
+				return fmt.Errorf("target '%s' does not exist and no targets are configured", targetFilter)
+			}
+
+			return fmt.Errorf("target '%s' does not exist\n\nAvailable targets:\n  - %s\n\nExample:\n  agent-smith unlink %s --target %s",
+				targetFilter,
+				strings.Join(availableTargets, "\n  - "),
+				componentType,
+				availableTargets[0])
 		}
 		return fmt.Errorf("no targets available")
 	}
@@ -1014,7 +1043,20 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool) 
 	targetsToUnlink := cl.filterTargets(targetFilter)
 	if len(targetsToUnlink) == 0 {
 		if targetFilter != "" && targetFilter != "all" {
-			return fmt.Errorf("target '%s' not found", targetFilter)
+			// Build list of available target names for the error message
+			availableTargets := make([]string, 0, len(cl.targets))
+			for _, target := range cl.targets {
+				availableTargets = append(availableTargets, target.GetName())
+			}
+
+			if len(availableTargets) == 0 {
+				return fmt.Errorf("target '%s' does not exist and no targets are configured", targetFilter)
+			}
+
+			return fmt.Errorf("target '%s' does not exist\n\nAvailable targets:\n  - %s\n\nExample:\n  agent-smith unlink all --target %s",
+				targetFilter,
+				strings.Join(availableTargets, "\n  - "),
+				availableTargets[0])
 		}
 		return fmt.Errorf("no targets available")
 	}
