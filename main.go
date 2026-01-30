@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,56 +17,69 @@ import (
 	"github.com/tgaines/agent-smith/internal/uninstaller"
 	"github.com/tgaines/agent-smith/internal/updater"
 	"github.com/tgaines/agent-smith/pkg/config"
+	"github.com/tgaines/agent-smith/pkg/logger"
 	"github.com/tgaines/agent-smith/pkg/paths"
 	"github.com/tgaines/agent-smith/pkg/profiles"
 )
 
-// infoWriter is used for informational output that can be suppressed
-// By default, informational output is suppressed (quiet mode)
-var infoWriter io.Writer = io.Discard
-
-// debugWriter is used for debug output that can be enabled with --debug flag
-var debugWriter io.Writer = io.Discard
+// appLogger is the global logger instance used throughout the application
+var appLogger *logger.Logger
 
 // SetVerboseMode enables informational output
+// Deprecated: Use appLogger.SetLevel(logger.LevelInfo) instead
 func SetVerboseMode(verbose bool) {
-	if verbose {
-		infoWriter = os.Stdout
-	} else {
-		infoWriter = io.Discard
+	if appLogger != nil {
+		if verbose {
+			appLogger.SetLevel(logger.LevelInfo)
+		} else {
+			appLogger.SetLevel(logger.LevelWarn)
+		}
 	}
 }
 
 // SetDebugMode enables debug output
 // When debug mode is enabled, it also enables verbose mode
+// Deprecated: Use appLogger.SetLevel(logger.LevelDebug) instead
 func SetDebugMode(debug bool) {
-	if debug {
-		debugWriter = os.Stdout
-		// Debug mode implies verbose mode
-		SetVerboseMode(true)
-	} else {
-		debugWriter = io.Discard
+	if appLogger != nil {
+		if debug {
+			appLogger.SetLevel(logger.LevelDebug)
+		} else {
+			appLogger.SetLevel(logger.LevelWarn)
+		}
 	}
 }
 
 // infoPrintf prints informational messages that can be suppressed
+// Deprecated: Use appLogger.Info() instead
 func infoPrintf(format string, a ...interface{}) {
-	fmt.Fprintf(infoWriter, format, a...)
+	if appLogger != nil {
+		appLogger.Info(format, a...)
+	}
 }
 
 // infoPrintln prints informational messages that can be suppressed
+// Deprecated: Use appLogger.Info() instead
 func infoPrintln(a ...interface{}) {
-	fmt.Fprintln(infoWriter, a...)
+	if appLogger != nil {
+		appLogger.Info(fmt.Sprint(a...))
+	}
 }
 
 // debugPrintf prints debug messages that can be enabled with --debug flag
+// Deprecated: Use appLogger.Debug() instead
 func debugPrintf(format string, a ...interface{}) {
-	fmt.Fprintf(debugWriter, format, a...)
+	if appLogger != nil {
+		appLogger.Debug(format, a...)
+	}
 }
 
 // debugPrintln prints debug messages that can be enabled with --debug flag
+// Deprecated: Use appLogger.Debug() instead
 func debugPrintln(a ...interface{}) {
-	fmt.Fprintln(debugWriter, a...)
+	if appLogger != nil {
+		appLogger.Debug(fmt.Sprint(a...))
+	}
 }
 
 type BulkDownloader = downloader.BulkDownloader
@@ -201,6 +213,10 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 	}
 
 	det := detector.NewRepositoryDetector()
+	// Pass the logger to the detector so it uses consistent logging
+	if appLogger != nil {
+		det.SetLogger(appLogger)
+	}
 
 	return linker.NewComponentLinker(agentsDir, targets, det)
 }
@@ -274,6 +290,10 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 	debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Using %d target(s)\n", len(targets))
 
 	det := detector.NewRepositoryDetector()
+	// Pass the logger to the detector so it uses consistent logging
+	if appLogger != nil {
+		det.SetLogger(appLogger)
+	}
 
 	return linker.NewComponentLinker(agentsDir, targets, det)
 }
@@ -313,6 +333,11 @@ func main() {
 			verboseMode = true
 		}
 	}
+
+	// Initialize the global logger with appropriate level
+	appLogger = logger.Default(debugMode, verboseMode)
+	// Disable log level tags to maintain clean output format
+	appLogger.SetShowTags(false)
 
 	if debugMode {
 		SetDebugMode(true)
