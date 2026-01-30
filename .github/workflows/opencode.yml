@@ -30,4 +30,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.AI_TOKEN }}
         with:
-          model: github-models/openai/gpt-4.1
+          model: github-copilot/claude-sonnet-4.5
