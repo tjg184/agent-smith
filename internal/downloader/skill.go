@@ -158,7 +158,7 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
-	// If only one skill component found, copy its files
+	// If only one skill component found, use it directly
 	if len(skillComponents) == 1 {
 		component := skillComponents[0]
 
@@ -169,20 +169,31 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 			return fmt.Errorf("failed to copy skill files: %w", err)
 		}
 	} else {
-		// Multiple skills found, create a monorepo structure
-		for _, component := range skillComponents {
-			componentDir := filepath.Join(skillDir, component.Name)
-
-			err = fileutil.CreateDirectoryWithPermissions(componentDir)
-			if err != nil {
-				continue
+		// Multiple skills found - try to find the one matching skillName
+		var targetComponent *models.DetectedComponent
+		for _, comp := range skillComponents {
+			if comp.Name == skillName {
+				targetComponent = &comp
+				break
 			}
+		}
 
-			// Copy component files (non-recursive) using FilePath
-			err = fileutil.CopyComponentFiles(repoPath, component, componentDir)
-			if err != nil {
-				sd.formatter.Warning("failed to copy skill %s: %v", component.Name, err)
+		if targetComponent == nil {
+			// Skill not found - list available skills and return error
+			var skillNames []string
+			for _, comp := range skillComponents {
+				skillNames = append(skillNames, comp.Name)
 			}
+			os.RemoveAll(skillDir)
+			return fmt.Errorf("skill '%s' not found in repository. Available skills: %s", skillName, strings.Join(skillNames, ", "))
+		}
+
+		// Install only the specified skill
+		// Copy component files (non-recursive) using FilePath
+		err = fileutil.CopyComponentFiles(repoPath, *targetComponent, skillDir)
+		if err != nil {
+			os.RemoveAll(skillDir)
+			return fmt.Errorf("failed to copy skill files: %w", err)
 		}
 	}
 
@@ -206,7 +217,14 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		sd.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, commitHash, len(skillComponents), "recursive", ""); err != nil {
+	// Determine detection mode based on whether we filtered from multiple skills
+	detectionMode := "direct"
+	componentsCount := 1
+	if len(skillComponents) > 1 {
+		detectionMode = "single"
+	}
+
+	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, commitHash, componentsCount, detectionMode, ""); err != nil {
 		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 

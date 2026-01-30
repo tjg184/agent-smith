@@ -115,6 +115,9 @@ USAGE:
     agent-smith install command <repository-url> <command-name>
     agent-smith install all <repository-url>
 
+  When installing a specific component (skill/agent/command), the name parameter is used
+  to select which component to install from repositories containing multiple components.
+
 REPOSITORY URL FORMATS:
   GitHub shorthand:     owner/repo
   Full GitHub URL:      https://github.com/owner/repo
@@ -123,7 +126,7 @@ REPOSITORY URL FORMATS:
   Local path:           /path/to/local/repo
 
 EXAMPLES:
-  # Install a skill from GitHub
+  # Install a specific skill from GitHub
   agent-smith install skill openai/cookbook gpt-skill
 
   # Install an agent from a full URL
@@ -140,16 +143,24 @@ EXAMPLES:
 		Long: `Download and install a skill from a git repository to your local agents directory.
 
 This command fetches a skill from any git repository (GitHub, GitLab, Bitbucket, or private)
-and installs it to ~/.agent-smith/skills/<skill-name>. The skill can include multiple components
-and will be automatically detected if it contains a SKILL.md file.
+and installs it to ~/.agent-smith/skills/<skill-name>. The skill will be automatically detected
+if it contains a SKILL.md file.
+
+BEHAVIOR WITH MULTIPLE SKILLS:
+When a repository contains multiple skills, the <skill-name> parameter is used to select
+which skill to install. If the specified skill name is not found, the command will fail
+and list all available skills in the repository.
 
 REQUIRED PARAMETERS:
   <repository-url>  The URL or path to the git repository containing the skill
-  <skill-name>      The name to use when installing the skill locally
+  <skill-name>      The name of the skill to install (also used as the local directory name)
 
 EXAMPLES:
   # Download from GitHub using shorthand
   agent-smith install skill openai/cookbook gpt-skill
+
+  # Download a specific skill from a repository with multiple skills
+  agent-smith install skill example/skills-repo my-specific-skill
 
   # Download using full URL
   agent-smith install skill https://github.com/example/repo my-skill
