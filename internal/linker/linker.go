@@ -1124,7 +1124,19 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool) 
 	// Require force flag or confirmation
 	if !force {
 		if totalLinks > 0 {
-			fmt.Printf("This will unlink %d symlinked components from all targets", totalLinks)
+			// Build target description for confirmation message
+			targetStr := "all targets"
+			if targetFilter != "" && targetFilter != "all" {
+				targetStr = targetFilter
+			} else if len(targetsToUnlink) > 0 {
+				// List specific targets
+				targetNames := make([]string, 0, len(targetsToUnlink))
+				for _, target := range targetsToUnlink {
+					targetNames = append(targetNames, target.GetName())
+				}
+				targetStr = strings.Join(targetNames, ", ")
+			}
+			fmt.Printf("This will unlink %d symlinked components from: %s", totalLinks, targetStr)
 			fmt.Println()
 		}
 		if copiedDirs > 0 {
