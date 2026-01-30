@@ -44,7 +44,8 @@ func (u *Uninstaller) UninstallComponent(componentType, name string) error {
 	// Auto-unlink component from all targets (silent if not linked)
 	if u.linker != nil {
 		// Try to unlink, but don't fail if it's not linked
-		_ = u.linker.UnlinkComponent(componentType, name)
+		// Pass empty targetFilter to unlink from all targets
+		_ = u.linker.UnlinkComponent(componentType, name, "")
 	}
 
 	// Remove component directory from filesystem
@@ -136,7 +137,8 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 		for _, name := range names {
 			// Auto-unlink component from all targets (silent if not linked)
 			if u.linker != nil {
-				_ = u.linker.UnlinkComponent(componentType, name)
+				// Pass empty targetFilter to unlink from all targets
+				_ = u.linker.UnlinkComponent(componentType, name, "")
 			}
 
 			// Remove component directory from filesystem

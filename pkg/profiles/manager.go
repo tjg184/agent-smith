@@ -390,7 +390,8 @@ func (pm *ProfileManager) RemoveComponentFromProfile(profileName, componentType,
 		// Component is linked via active profile, need to unlink it
 		if pm.linker != nil {
 			// Auto-unlink component from all targets (silent if not linked)
-			_ = pm.linker.UnlinkComponent(componentType, componentName)
+			// Pass empty targetFilter to unlink from all targets
+			_ = pm.linker.UnlinkComponent(componentType, componentName, "")
 		}
 	}
 
@@ -542,7 +543,8 @@ func (pm *ProfileManager) DeleteProfile(profileName string) error {
 					for _, entry := range entries {
 						if !strings.HasPrefix(entry.Name(), ".") {
 							// Silently attempt to unlink (may not be linked, which is fine)
-							_ = pm.linker.UnlinkComponent(componentType, entry.Name())
+							// Pass empty targetFilter to unlink from all targets
+							_ = pm.linker.UnlinkComponent(componentType, entry.Name(), "")
 						}
 					}
 				}

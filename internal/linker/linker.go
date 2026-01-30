@@ -54,6 +54,25 @@ func NewComponentLinker(agentsDir string, targets []config.Target, det *detector
 	}, nil
 }
 
+// filterTargets filters the targets based on the targetFilter parameter.
+// Returns all targets if targetFilter is empty or "all", otherwise returns only the matching target.
+func (cl *ComponentLinker) filterTargets(targetFilter string) []config.Target {
+	// If no filter or "all", return all targets
+	if targetFilter == "" || targetFilter == "all" {
+		return cl.targets
+	}
+
+	// Filter for specific target
+	filtered := make([]config.Target, 0)
+	for _, target := range cl.targets {
+		if target.GetName() == targetFilter {
+			filtered = append(filtered, target)
+		}
+	}
+
+	return filtered
+}
+
 // createSymlink creates a symbolic link from src to dst
 func (cl *ComponentLinker) createSymlink(src, dst string) error {
 	// Remove existing destination if it exists
@@ -752,17 +771,30 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 	return nil
 }
 
-// UnlinkComponent removes a linked component from all configured targets
-func (cl *ComponentLinker) UnlinkComponent(componentType, componentName string) error {
+// UnlinkComponent removes a linked component from configured targets
+// targetFilter can be:
+//   - "" (empty): unlink from all targets
+//   - "all": unlink from all targets
+//   - specific target name (e.g., "opencode", "claudecode"): unlink from only that target
+func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetFilter string) error {
 	// Validate component type
 	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
 		return fmt.Errorf("invalid component type: %s (must be skills, agents, or commands)", componentType)
 	}
 
+	// Filter targets based on targetFilter parameter
+	targetsToUnlink := cl.filterTargets(targetFilter)
+	if len(targetsToUnlink) == 0 {
+		if targetFilter != "" && targetFilter != "all" {
+			return fmt.Errorf("target '%s' not found", targetFilter)
+		}
+		return fmt.Errorf("no targets available")
+	}
+
 	successCount := 0
 	var errors []string
 
-	for _, target := range cl.targets {
+	for _, target := range targetsToUnlink {
 		componentDir, err := target.GetComponentDir(componentType)
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("failed to get target component directory for %s: %v", target.GetName(), err))
@@ -834,13 +866,26 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName string) 
 	return nil
 }
 
-// UnlinkComponentsByType removes all linked components of a specific type from all configured targets
-func (cl *ComponentLinker) UnlinkComponentsByType(componentType string, force bool) error {
+// UnlinkComponentsByType removes all linked components of a specific type from configured targets
+// targetFilter can be:
+//   - "" (empty): unlink from all targets
+//   - "all": unlink from all targets
+//   - specific target name (e.g., "opencode", "claudecode"): unlink from only that target
+func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter string, force bool) error {
+	// Filter targets based on targetFilter parameter
+	targetsToUnlink := cl.filterTargets(targetFilter)
+	if len(targetsToUnlink) == 0 {
+		if targetFilter != "" && targetFilter != "all" {
+			return fmt.Errorf("target '%s' not found", targetFilter)
+		}
+		return fmt.Errorf("no targets available")
+	}
+
 	totalLinks := 0
 	copiedDirs := 0
 
 	// First, collect all symlinks across all targets
-	for _, target := range cl.targets {
+	for _, target := range targetsToUnlink {
 		componentDir, err := target.GetComponentDir(componentType)
 		if err != nil {
 			return fmt.Errorf("failed to get target component directory: %w", err)
@@ -905,7 +950,7 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType string, force bo
 	skippedCount := 0
 	errorCount := 0
 
-	for _, target := range cl.targets {
+	for _, target := range targetsToUnlink {
 		componentDir, err := target.GetComponentDir(componentType)
 		if err != nil {
 			return fmt.Errorf("failed to get target component directory: %w", err)
@@ -959,15 +1004,28 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType string, force bo
 	return nil
 }
 
-// UnlinkAllComponents removes all linked components from all configured targets
-func (cl *ComponentLinker) UnlinkAllComponents(force bool) error {
+// UnlinkAllComponents removes all linked components from configured targets
+// targetFilter can be:
+//   - "" (empty): unlink from all targets
+//   - "all": unlink from all targets
+//   - specific target name (e.g., "opencode", "claudecode"): unlink from only that target
+func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool) error {
+	// Filter targets based on targetFilter parameter
+	targetsToUnlink := cl.filterTargets(targetFilter)
+	if len(targetsToUnlink) == 0 {
+		if targetFilter != "" && targetFilter != "all" {
+			return fmt.Errorf("target '%s' not found", targetFilter)
+		}
+		return fmt.Errorf("no targets available")
+	}
+
 	componentTypes := paths.GetComponentTypes()
 
 	// First, collect all symlinks across all targets
 	totalLinks := 0
 	copiedDirs := 0
 
-	for _, target := range cl.targets {
+	for _, target := range targetsToUnlink {
 		for _, componentType := range componentTypes {
 			componentDir, err := target.GetComponentDir(componentType)
 			if err != nil {
@@ -1034,7 +1092,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(force bool) error {
 	skippedCount := 0
 	errorCount := 0
 
-	for _, target := range cl.targets {
+	for _, target := range targetsToUnlink {
 		for _, componentType := range componentTypes {
 			componentDir, err := target.GetComponentDir(componentType)
 			if err != nil {
