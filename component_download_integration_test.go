@@ -698,3 +698,110 @@ func TestGitOperations(t *testing.T) {
 		t.Errorf("Lock file should contain commitHash field")
 	}
 }
+
+// TestSkillNotFoundError tests that when a skill name doesn't exist, a clear error message with available skills is returned
+func TestSkillNotFoundError(t *testing.T) {
+	// Create temp directory for test
+	tempDir, err := os.MkdirTemp("", "agent-smith-error-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create mock repository with multiple skills
+	repoPath := filepath.Join(tempDir, "test-repo")
+	if err := os.MkdirAll(repoPath, 0755); err != nil {
+		t.Fatalf("Failed to create repo directory: %v", err)
+	}
+
+	// Initialize git repository
+	repo, err := git.PlainInit(repoPath, false)
+	if err != nil {
+		t.Fatalf("Failed to initialize git repo: %v", err)
+	}
+
+	// Create multiple skill directories
+	skills := map[string]string{
+		"skills/skill-one/SKILL.md": `---
+name: skill-one
+---
+# Skill One
+First skill`,
+		"skills/skill-two/SKILL.md": `---
+name: skill-two
+---
+# Skill Two
+Second skill`,
+		"skills/skill-three/SKILL.md": `---
+name: skill-three
+---
+# Skill Three
+Third skill`,
+	}
+
+	for filePath, content := range skills {
+		fullPath := filepath.Join(repoPath, filePath)
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+			t.Fatalf("Failed to create directory for %s: %v", filePath, err)
+		}
+		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to write file %s: %v", filePath, err)
+		}
+	}
+
+	// Add all files to git
+	worktree, err := repo.Worktree()
+	if err != nil {
+		t.Fatalf("Failed to get worktree: %v", err)
+	}
+
+	if err := worktree.AddGlob("."); err != nil {
+		t.Fatalf("Failed to add files to git: %v", err)
+	}
+
+	// Commit files
+	_, err = worktree.Commit("Initial commit", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Test User",
+			Email: "test@example.com",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to commit files: %v", err)
+	}
+
+	// Create installation directory
+	installDir := filepath.Join(tempDir, "install")
+
+	// Create downloader
+	dl := downloader.NewSkillDownloaderWithTargetDir(installDir)
+
+	// Try to download a non-existent skill (use repo path directly for local repos)
+	err = dl.DownloadSkill(repoPath, "non-existent-skill", repoPath)
+
+	// Verify error message
+	if err == nil {
+		t.Fatal("Expected error when downloading non-existent skill, but got nil")
+	}
+
+	errMsg := err.Error()
+	t.Logf("Error message: %s", errMsg)
+
+	// Check if error message contains "not found"
+	if !strings.Contains(errMsg, "not found") {
+		t.Errorf("Error message should contain 'not found', got: %s", errMsg)
+	}
+
+	// Check if error message lists available skills
+	if !strings.Contains(errMsg, "Available skills:") {
+		t.Errorf("Error message should contain 'Available skills:', got: %s", errMsg)
+	}
+
+	// Check if all available skills are listed
+	expectedSkills := []string{"skill-one", "skill-two", "skill-three"}
+	for _, skill := range expectedSkills {
+		if !strings.Contains(errMsg, skill) {
+			t.Errorf("Error message should list skill '%s', got: %s", skill, errMsg)
+		}
+	}
+}
