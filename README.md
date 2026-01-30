@@ -9,8 +9,6 @@ Install, manage, and link AI components with ease:
 - Update and maintain installed components
 - Remove components cleanly when no longer needed
 
-
-
 ## Documentation
 
 - [CONFIG.md](CONFIG.md) - Comprehensive configuration guide
