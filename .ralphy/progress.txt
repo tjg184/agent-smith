@@ -147,3 +147,21 @@
 - [✓] 2026-01-29 14:06 - Story-004: As a developer, I want the directory structure documentation to be accurate so that I understand where agent-smith stores configuration files.
 - [✓] 2026-01-29 14:08 - Story-005: As a developer, I want the install command documentation to clarify required parameters so that I don't get errors from missing arguments.
 - [✓] 2026-01-30 00:37 - Story-001: As a developer, I want to specify which target to unlink from so that I can maintain links to some targets while removing others.
+- [✓] 2026-01-30 00:39 - Story-002: As a user running unlink with --target flag, I want clear error messages when the target doesn't exist so I know what went wrong.
+- [✓] 2026-01-30 00:41 - Story-003: As a developer, I want the unlink command to display which target(s) were affected so I can verify the operation worked correctly.
+- [✓] 2026-01-30 00:43 - Story-004: As a developer, I want `unlink skill <name> --target <target>` to work so I can unlink individual skills from specific targets.
+- [✓] 2026-01-30 00:46 - Story-005: As a developer, I want `unlink agent <name> --target <target>` to work so I can unlink individual agents from specific targets.
+- [✓] 2026-01-30 00:47 - Story-006: As a developer, I want `unlink command <name> --target <target>` to work so I can unlink individual commands from specific targets.
+- [✓] 2026-01-30 00:49 - Story-007: As a developer, I want `unlink skills --target <target>` to work so I can unlink all skills from a specific target.
+- [✗] 2026-01-30 00:49 - Story-008: As a developer, I want `unlink agents --target <target>` to work so I can unlink all agents from a specific target.
+- [✗] 2026-01-30 00:49 - Story-008: As a developer, I want `unlink agents --target <target>` to work so I can unlink all agents from a specific target.
+- [✗] 2026-01-30 00:49 - Story-008: As a developer, I want `unlink agents --target <target>` to work so I can unlink all agents from a specific target.
+- [✗] 2026-01-30 01:01 - Story-008: As a developer, I want `unlink agents --target <target>` to work so I can unlink all agents from a specific target.
+- [✗] 2026-01-30 01:01 - Story-008: As a developer, I want `unlink agents --target <target>` to work so I can unlink all agents from a specific target.
+- [✗] 2026-01-30 01:01 - Story-008: As a developer, I want `unlink agents --target <target>` to work so I can unlink all agents from a specific target.
+- [✗] 2026-01-30 01:01 - Story-008: As a developer, I want `unlink agents --target <target>` to work so I can unlink all agents from a specific target.
+- [✗] 2026-01-30 01:01 - Story-008: As a developer, I want `unlink agents --target <target>` to work so I can unlink all agents from a specific target.
+- [✗] 2026-01-30 01:01 - Story-008: As a developer, I want `unlink agents --target <target>` to work so I can unlink all agents from a specific target.
+- [✓] 2026-01-30 01:05 - Story-008: As a developer, I want `unlink agents --target <target>` to work so I can unlink all agents from a specific target.
+- [✓] 2026-01-30 01:07 - Story-009: As a developer, I want `unlink commands --target <target>` to work so I can unlink all commands from a specific target.
+- [✓] 2026-01-30 01:10 - Story-010: As a developer, I want `unlink all --target <target>` to work so I can unlink all components from a specific target.
