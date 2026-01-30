@@ -16,11 +16,11 @@ This document provides a comprehensive guide to configuring agent-smith.
 
 Agent Smith uses multiple configuration files for different purposes:
 
-### 1. User Configuration: `~/.agents/config.json`
+### 1. User Configuration: `~/.agent-smith/config.json`
 
 **Purpose**: Global user preferences and custom target definitions
 
-**Location**: `~/.agents/config.json`
+**Location**: `~/.agent-smith/config.json`
 
 **Format**: JSON
 
@@ -44,7 +44,7 @@ Agent Smith uses multiple configuration files for different purposes:
 
 **Purpose**: Track installed components and their versions
 
-**Location**: `~/.agents/` and `~/.agents/profiles/<profile-name>/`
+**Location**: `~/.agent-smith/` and `~/.agent-smith/profiles/<profile-name>/`
 
 **Files**:
 - `.skill-lock.json` - Installed skills
@@ -442,7 +442,7 @@ AGENT_SMITH_TARGET=cursor agent-smith link all
 
 ### Config file not found
 
-**Problem**: `~/.agents/config.json` doesn't exist
+**Problem**: `~/.agent-smith/config.json` doesn't exist
 
 **Solution**: This is normal! The file is created automatically when you add your first custom target:
 
@@ -455,7 +455,7 @@ agent-smith target add cursor
 **Problem**: Error message: "failed to parse config file: invalid character..."
 
 **Solution**: 
-1. Open `~/.agents/config.json` in a text editor
+1. Open `~/.agent-smith/config.json` in a text editor
 2. Validate JSON at https://jsonlint.com
 3. Common issues:
    - Missing comma between array items
@@ -513,8 +513,8 @@ agent-smith target add cursor
 
 **Solution**: Check directory permissions:
 ```bash
-ls -la ~/.agents/
-chmod 755 ~/.agents/
+ls -la ~/.agent-smith/
+chmod 755 ~/.agent-smith/
 ```
 
 ## Examples

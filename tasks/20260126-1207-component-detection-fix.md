@@ -42,7 +42,7 @@ The wshobson/agents repository uses this pattern:
   - Skills use directory name as component name (existing behavior)
   - Agents use filename without .md extension as component name
   - Commands use filename without .md extension as component name
-  - Downloaded components have correct names in ~/.agents/ directory structure
+  - Downloaded components have correct names in ~/.agent-smith/ directory structure
 
 - [x] Story-003: As a developer, I want maintainable detection logic so that future repository patterns can be added easily.
 

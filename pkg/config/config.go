@@ -13,7 +13,7 @@ import (
 
 // Config represents the agent-smith configuration file structure.
 //
-// The configuration file is stored at ~/.agents/config.json and contains
+// The configuration file is stored at ~/.agent-smith/config.json and contains
 // settings for custom targets and other global preferences.
 //
 // Example config.json:
@@ -87,7 +87,7 @@ const (
 	ConfigVersion = 1
 
 	// ConfigFileName is the name of the config file stored in the agents directory.
-	// Full path: ~/.agents/config.json
+	// Full path: ~/.agent-smith/config.json
 	ConfigFileName = "config.json"
 )
 
@@ -101,7 +101,7 @@ var (
 
 // GetConfigPath returns the path to the config file.
 //
-// The config file is stored at ~/.agents/config.json by default.
+// The config file is stored at ~/.agent-smith/config.json by default.
 // This location is determined by the GetAgentsDir() function.
 //
 // Returns:
@@ -120,7 +120,7 @@ func GetConfigPath() (string, error) {
 // If the config file doesn't exist, this is not considered an error.
 // Instead, an empty config with default values is returned.
 //
-// The config file is loaded from ~/.agents/config.json and must:
+// The config file is loaded from ~/.agent-smith/config.json and must:
 //   - Be valid JSON
 //   - Match the ConfigVersion (currently 1)
 //   - Pass all validation rules (unique target names, valid paths, etc.)
@@ -175,10 +175,10 @@ func LoadConfig() (*Config, error) {
 // SaveConfig saves the configuration to the config file.
 //
 // The configuration is validated before saving to ensure it meets all requirements.
-// The config file is written to ~/.agents/config.json with indented JSON formatting
+// The config file is written to ~/.agent-smith/config.json with indented JSON formatting
 // for readability.
 //
-// The parent directory (~/.agents) is automatically created if it doesn't exist.
+// The parent directory (~/.agent-smith) is automatically created if it doesn't exist.
 //
 // Parameters:
 //   - config: The configuration to save (must not be nil and must be valid)

@@ -59,7 +59,7 @@ agent-smith install command owner/repo command-name
 # Install all components from a repository
 agent-smith install all owner/repo
 
-# Install to a custom directory (project-local, isolated from ~/.agents/)
+# Install to a custom directory (project-local, isolated from ~/.agent-smith/)
 agent-smith install all owner/repo --target-dir ./tools
 agent-smith install skill owner/repo skill-name --target-dir ./my-components
 ```
@@ -73,9 +73,9 @@ agent-smith install skill owner/repo skill-name --target-dir ./my-components
 
 **Custom target directories (`--target-dir` flag):**
 
-The `--target-dir` (or `-t`) flag allows installing components to a custom directory instead of the default `~/.agents/`. This is useful for:
+The `--target-dir` (or `-t`) flag allows installing components to a custom directory instead of the default `~/.agent-smith/`. This is useful for:
 - **Project-local installations**: Keep components version-controlled with your project
-- **Isolated testing**: Test components without affecting your main `~/.agents/` installation
+- **Isolated testing**: Test components without affecting your main `~/.agent-smith/` installation
 - **Offline distribution**: Package components for air-gapped systems
 
 ```bash
@@ -93,7 +93,7 @@ agent-smith install all github.com/org/tools --target-dir ~/my-project/agents
 ```
 
 **Important notes about custom directories:**
-- Custom directories are **standalone and isolated** from `~/.agents/`
+- Custom directories are **standalone and isolated** from `~/.agent-smith/`
 - They create their own subdirectories: `skills/`, `agents/`, `commands/`
 - Lock files are stored in the target directory root
 - Custom directories are **NOT managed** by `link`, `update`, or `profile` commands
@@ -243,7 +243,7 @@ agent-smith link status
 ```
 
 **Custom target configuration:**
-Custom targets are stored in `~/.agents/config.json`. See [CONFIG.md](CONFIG.md) for detailed documentation.
+Custom targets are stored in `~/.agent-smith/config.json`. See [CONFIG.md](CONFIG.md) for detailed documentation.
 
 ```json
 {
@@ -285,7 +285,7 @@ agent-smith status
 Agent Smith stores components and configuration in the following locations:
 
 ```
-~/.agents/
+~/.agent-smith/
 ├── skills/              # Installed skills
 ├── agents/              # Installed agents
 ├── commands/            # Installed commands
@@ -379,7 +379,7 @@ agent-smith update all
 ### Test components in isolation
 
 ```bash
-# Install components to a test directory without affecting ~/.agents/
+# Install components to a test directory without affecting ~/.agent-smith/
 agent-smith install all github.com/org/experimental-tools --target-dir ./test-components
 
 # Verify the installation

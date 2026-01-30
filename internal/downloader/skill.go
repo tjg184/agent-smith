@@ -283,8 +283,8 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 // saveLockFile saves component lock entry in agent-smith install compatible format
 func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceType string, sourceUrl string, commitHash string, components int, detection string, originalPath string) error {
 	// Use the parent directory of baseDir for lock file
-	// baseDir is the skills directory (e.g., ~/.agents/skills)
-	// We want the lock file in the parent (e.g., ~/.agents)
+	// baseDir is the skills directory (e.g., ~/.agent-smith/skills)
+	// We want the lock file in the parent (e.g., ~/.agent-smith)
 	lockBaseDir := filepath.Dir(sd.baseDir)
 
 	if err := fileutil.CreateDirectoryWithPermissions(lockBaseDir); err != nil {

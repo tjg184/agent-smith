@@ -73,7 +73,7 @@ agent-smith uninstall command <name> [--profile <name>]
 - `<name>`: Component name (required)
 
 **Flags:**
-- `--profile, -p <name>`: Target specific profile instead of ~/.agents/
+- `--profile, -p <name>`: Target specific profile instead of ~/.agent-smith/
 
 ### Bulk Uninstall
 
@@ -177,10 +177,10 @@ Removed 12 components from repository
 **Behavior:**
 - When `--profile` flag provided:
   - Validate profile exists
-  - Use profile directory: `~/.agents/profiles/<profile>/`
+  - Use profile directory: `~/.agent-smith/profiles/<profile>/`
   - Use profile-specific lock files
 - When no profile flag:
-  - Use base directory: `~/.agents/`
+  - Use base directory: `~/.agent-smith/`
   - Use base lock files
 
 **Error Handling:**
@@ -414,7 +414,7 @@ Usage: agent-smith uninstall [command]
 
 Remove installed components from the system.
 
-This command removes components (skills, agents, commands) from ~/.agents/
+This command removes components (skills, agents, commands) from ~/.agent-smith/
 or from specific profiles. Components are automatically unlinked from all
 detected targets before removal.
 

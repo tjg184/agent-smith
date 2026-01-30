@@ -2,15 +2,15 @@
 
 ## Introduction
 
-This PRD refactors the profile activation/deactivation system to separate concerns between state management (activate/deactivate) and linking operations (link commands). Currently, profile activation immediately creates symlinks in `~/.agents/`, which causes issues when users have existing base installations. The new design makes activation/deactivation lightweight metadata operations, while linking commands become profile-aware and handle the actual symlinking.
+This PRD refactors the profile activation/deactivation system to separate concerns between state management (activate/deactivate) and linking operations (link commands). Currently, profile activation immediately creates symlinks in `~/.agent-smith/`, which causes issues when users have existing base installations. The new design makes activation/deactivation lightweight metadata operations, while linking commands become profile-aware and handle the actual symlinking.
 
 ## Problem Statement
 
 ### Current Issues
 
-1. **Destructive Activation**: When activating a profile, `ActivateProfile()` attempts to remove all components from `~/.agents/` and replace them with symlinks to the profile. This fails with "directory not empty" errors when real directories exist.
+1. **Destructive Activation**: When activating a profile, `ActivateProfile()` attempts to remove all components from `~/.agent-smith/` and replace them with symlinks to the profile. This fails with "directory not empty" errors when real directories exist.
 
-2. **Loss of Base Installation**: Users who install components to `~/.agents/` and then create profiles lose access to their base installation when activating a profile, with no way to restore it.
+2. **Loss of Base Installation**: Users who install components to `~/.agent-smith/` and then create profiles lose access to their base installation when activating a profile, with no way to restore it.
 
 3. **Coupling of Concerns**: Profile activation mixes state management (tracking which profile is active) with linking operations (creating symlinks), making the code complex and error-prone.
 
@@ -19,7 +19,7 @@ This PRD refactors the profile activation/deactivation system to separate concer
 ### User Workflow Example
 
 A user wants to:
-1. Install 131 skills from a repository to `~/.agents/`
+1. Install 131 skills from a repository to `~/.agent-smith/`
 2. Create subset profiles (e.g., "engineer" with 10 skills, "writer" with 5 skills)
 3. Switch between profiles without losing the base installation
 4. Deactivate to restore access to all 131 skills
@@ -29,7 +29,7 @@ Currently this workflow fails at step 2-3 due to the issues above.
 ## Goals
 
 - **Separate State from Action**: Make `activate` only set metadata, make `link` handle symlinking
-- **Preserve Base Installation**: Never modify `~/.agents/` during activation/deactivation
+- **Preserve Base Installation**: Never modify `~/.agent-smith/` during activation/deactivation
 - **Profile-Aware Linking**: Link commands automatically use active profile when present
 - **Explicit Control**: Users explicitly run `link` commands to apply profile changes
 - **Backward Compatibility**: Existing link commands work unchanged
@@ -40,9 +40,9 @@ Currently this workflow fails at step 2-3 due to the issues above.
 - [x] Story-001: As a user, I want to activate a profile without immediately affecting my editor, so that I can control when changes are applied.
 
   **Acceptance Criteria:**
-  - `agent-smith profiles activate <name>` only updates state file (`~/.agents/.active_profile`)
+  - `agent-smith profiles activate <name>` only updates state file (`~/.agent-smith/.active_profile`)
   - Does not create or remove any symlinks
-  - Does not modify `~/.agents/` directory contents
+  - Does not modify `~/.agent-smith/` directory contents
   - Validates profile exists before updating state
   - Returns error if same profile already active
   - Prints guidance message: "Run 'agent-smith link all' to apply changes to your editor."
@@ -51,19 +51,19 @@ Currently this workflow fails at step 2-3 due to the issues above.
   **Unit Tests:**
   - Verify state file written correctly
   - Verify no symlinks created
-  - Verify `~/.agents/` directory unchanged
+  - Verify `~/.agent-smith/` directory unchanged
   - Verify error on duplicate activation
   
   **Integration Tests:**
   - Activate profile, verify only state file changes
-  - Verify `~/.agents/` contents identical before/after
+  - Verify `~/.agent-smith/` contents identical before/after
 
 - [x] Story-002: As a user, I want to deactivate a profile without immediately affecting my editor, so that I can control when changes are applied.
 
   **Acceptance Criteria:**
   - `agent-smith profiles deactivate` only clears state file
   - Does not create or remove any symlinks
-  - Does not modify `~/.agents/` directory contents
+  - Does not modify `~/.agent-smith/` directory contents
   - Returns error if no profile is active
   - Prints guidance message: "Run 'agent-smith link all' to restore base installation to your editor."
 
@@ -71,18 +71,18 @@ Currently this workflow fails at step 2-3 due to the issues above.
   **Unit Tests:**
   - Verify state file deleted
   - Verify no symlinks removed
-  - Verify `~/.agents/` directory unchanged
+  - Verify `~/.agent-smith/` directory unchanged
   - Verify error when no active profile
   
   **Integration Tests:**
   - Deactivate profile, verify only state file removed
-  - Verify `~/.agents/` contents identical before/after
+  - Verify `~/.agent-smith/` contents identical before/after
 
 - [x] Story-003: As a user, I want link commands to automatically use my active profile, so that linking matches my current context.
 
   **Acceptance Criteria:**
-  - When profile active, `link` commands source from `~/.agents/profiles/<profile>/` (main.go:133, 173)
-  - When no profile active, `link` commands source from `~/.agents/` (main.go:111-135, 151-175)
+  - When profile active, `link` commands source from `~/.agent-smith/profiles/<profile>/` (main.go:133, 173)
+  - When no profile active, `link` commands source from `~/.agent-smith/` (main.go:111-135, 151-175)
   - Displays message "Using active profile: <name>" when profile active (main.go:134, 174)
   - Works for all link commands: `link skills`, `link agents`, `link commands`, `link all`
   - No breaking changes to existing link command syntax
@@ -97,21 +97,21 @@ Currently this workflow fails at step 2-3 due to the issues above.
   - Deactivate profile, run `link all`, verify sources from base
   - Verify correct message displayed
 
-- [x] Story-004: As a user, I want to install components to `~/.agents/`, create profiles from them, and switch between profiles without losing my base installation.
+- [x] Story-004: As a user, I want to install components to `~/.agent-smith/`, create profiles from them, and switch between profiles without losing my base installation.
 
   **Acceptance Criteria:**
-  - Can install 100+ components to `~/.agents/`
+  - Can install 100+ components to `~/.agent-smith/`
   - Can create multiple profiles using `profiles add` to copy components
-  - Can activate profile without affecting `~/.agents/` contents
+  - Can activate profile without affecting `~/.agent-smith/` contents
   - Can run `link all` to link only profile components
-  - Can deactivate profile without affecting `~/.agents/` contents
+  - Can deactivate profile without affecting `~/.agent-smith/` contents
   - Can run `link all` after deactivate to restore all base components
-  - Base installation in `~/.agents/` remains intact throughout
+  - Base installation in `~/.agent-smith/` remains intact throughout
 
   **Testing Criteria:**
   **Integration Tests:**
   - Full workflow test with 10+ components
-  - Verify `~/.agents/` unchanged after multiple activate/deactivate cycles
+  - Verify `~/.agent-smith/` unchanged after multiple activate/deactivate cycles
   - Verify linking works correctly at each step
 
 - [x] Story-005: As a user, I want clear guidance on what to do after activation/deactivation, so that I understand the two-step workflow.
@@ -143,24 +143,24 @@ Currently this workflow fails at step 2-3 due to the issues above.
 ## Functional Requirements
 
 ### Profile Activation
-- **FR-001**: `ActivateProfile()` must only write to `~/.agents/.active_profile` state file
-- **FR-002**: `ActivateProfile()` must NOT create symlinks in `~/.agents/`
-- **FR-003**: `ActivateProfile()` must NOT modify `~/.agents/` directory contents
+- **FR-001**: `ActivateProfile()` must only write to `~/.agent-smith/.active_profile` state file
+- **FR-002**: `ActivateProfile()` must NOT create symlinks in `~/.agent-smith/`
+- **FR-003**: `ActivateProfile()` must NOT modify `~/.agent-smith/` directory contents
 - **FR-004**: `ActivateProfile()` must validate profile exists before updating state
 - **FR-005**: `ActivateProfile()` must return error if profile already active
 - **FR-006**: `ActivateProfile()` must print guidance message about running `link all`
 
 ### Profile Deactivation
-- **FR-007**: `DeactivateProfile()` must only delete `~/.agents/.active_profile` state file
-- **FR-008**: `DeactivateProfile()` must NOT remove symlinks from `~/.agents/`
-- **FR-009**: `DeactivateProfile()` must NOT modify `~/.agents/` directory contents
+- **FR-007**: `DeactivateProfile()` must only delete `~/.agent-smith/.active_profile` state file
+- **FR-008**: `DeactivateProfile()` must NOT remove symlinks from `~/.agent-smith/`
+- **FR-009**: `DeactivateProfile()` must NOT modify `~/.agent-smith/` directory contents
 - **FR-010**: `DeactivateProfile()` must return error if no profile is active
 - **FR-011**: `DeactivateProfile()` must print guidance message about running `link all`
 
 ### Profile-Aware Linking
 - **FR-012**: Link commands must check for active profile before determining source (main.go:117-125, 157-165)
-- **FR-013**: Link commands must use `~/.agents/profiles/<profile>/` when profile active (main.go:133, 173)
-- **FR-014**: Link commands must use `~/.agents/` when no profile active (main.go:111, 151)
+- **FR-013**: Link commands must use `~/.agent-smith/profiles/<profile>/` when profile active (main.go:133, 173)
+- **FR-014**: Link commands must use `~/.agent-smith/` when no profile active (main.go:111, 151)
 - **FR-015**: Link commands must display message when using active profile (main.go:134, 174)
 - **FR-016**: Link behavior must be identical whether profile active or not (only source changes)
 
@@ -175,7 +175,7 @@ Currently this workflow fails at step 2-3 due to the issues above.
 - No automatic linking after activation (explicit step required)
 - No automatic unlinking before deactivation (user responsibility)
 - No migration of existing active profiles (clean slate approach)
-- No preservation of symlinks in `~/.agents/` (profiles don't manage them)
+- No preservation of symlinks in `~/.agent-smith/` (profiles don't manage them)
 - No validation that user ran `link` after activation (trust user)
 - No shorthand commands like `profiles activate --link` (can add later)
 
@@ -289,7 +289,7 @@ Update help text:
 Long: `Activate a profile to mark it as the active configuration.
 
 When a profile is active, the 'link' command will use components from
-the profile directory instead of ~/.agents/.
+the profile directory instead of ~/.agent-smith/.
 
 After activating a profile, run 'agent-smith link all' to apply the
 changes to your editor(s).
@@ -308,7 +308,7 @@ Update help text:
 Long: `Deactivate the currently active profile.
 
 After deactivating, the 'link' command will use components from 
-~/.agents/ (base installation) instead of a profile.
+~/.agent-smith/ (base installation) instead of a profile.
 
 Run 'agent-smith link all' after deactivating to restore the base
 installation to your editor(s).
@@ -350,7 +350,7 @@ if activeProfile != "" {
     fmt.Printf("Note: Link commands will source from profile '%s'\n", activeProfile)
     fmt.Printf("      Run 'agent-smith profiles deactivate' to use base installation\n")
 } else {
-    fmt.Println("Note: Link commands will source from ~/.agents/ (base installation)")
+    fmt.Println("Note: Link commands will source from ~/.agent-smith/ (base installation)")
     fmt.Println("      Run 'agent-smith profiles activate <name>' to use a profile")
 }
 ```
@@ -383,9 +383,9 @@ if activeProfile != "" {
 
 ## Success Criteria
 
-- User can activate/deactivate profiles without modifying `~/.agents/`
+- User can activate/deactivate profiles without modifying `~/.agent-smith/`
 - User can run full workflow: install → create profile → activate → link → deactivate → link
-- Base installation in `~/.agents/` preserved through all operations
+- Base installation in `~/.agent-smith/` preserved through all operations
 - Link commands automatically use profile when active
 - All existing tests pass (with updated expectations)
 - Help text clearly guides users through two-step process
@@ -398,8 +398,8 @@ if activeProfile != "" {
 **New tests:**
 1. `TestActivateProfileOnlyUpdatesState` - Verify only `.active_profile` written
 2. `TestDeactivateProfileOnlyClearsState` - Verify only `.active_profile` removed
-3. `TestActivateProfileDoesNotModifyAgentsDir` - Verify `~/.agents/` unchanged
-4. `TestDeactivateProfileDoesNotModifyAgentsDir` - Verify `~/.agents/` unchanged
+3. `TestActivateProfileDoesNotModifyAgentsDir` - Verify `~/.agent-smith/` unchanged
+4. `TestDeactivateProfileDoesNotModifyAgentsDir` - Verify `~/.agent-smith/` unchanged
 5. `TestActivateProfileTwiceError` - Verify error on duplicate activation
 
 **Modified tests:**
@@ -411,19 +411,19 @@ if activeProfile != "" {
 **New tests:**
 1. `TestFullProfileWorkflow` - Install → create → activate → link → verify
 2. `TestProfileSwitching` - Create 2 profiles, switch between them
-3. `TestBasePreservation` - Verify `~/.agents/` unchanged through activate/deactivate
+3. `TestBasePreservation` - Verify `~/.agent-smith/` unchanged through activate/deactivate
 4. `TestDeactivateRestore` - Verify deactivate + link restores all components
 
 ### Manual Testing Checklist
 
-- Install 10+ skills to `~/.agents/`
+- Install 10+ skills to `~/.agent-smith/`
 - Create profile with 2 skills
-- Activate profile (verify no changes to `~/.agents/`)
+- Activate profile (verify no changes to `~/.agent-smith/`)
 - Run `link all` (verify only 2 skills linked)
 - Create second profile with 3 skills
-- Activate second profile (verify `~/.agents/` still has all 10 skills)
+- Activate second profile (verify `~/.agent-smith/` still has all 10 skills)
 - Run `link all` (verify 3 skills linked, replacing previous 2)
-- Deactivate profile (verify `~/.agents/` still has all 10 skills)
+- Deactivate profile (verify `~/.agent-smith/` still has all 10 skills)
 - Run `link all` (verify all 10 skills linked)
 - Run `agent-smith status` at each step (verify correct profile shown)
 - Run `agent-smith link status` at each step (verify correct links)
@@ -438,7 +438,7 @@ Users who have active profiles before this change will need to:
 3. Run `agent-smith link all` (creates new profile-aware links)
 
 **Note:** We could add a migration detection:
-- Check if active profile exists but `~/.agents/` contains profile symlinks
+- Check if active profile exists but `~/.agent-smith/` contains profile symlinks
 - Print warning: "Old-style profile activation detected. Please deactivate and reactivate."
 - This is outside scope of this PRD but could be added as follow-up
 

@@ -629,7 +629,7 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 	}
 
 	if len(allComponents) == 0 {
-		fmt.Println("No components found in ~/.agents/")
+		fmt.Println("No components found in ~/.agent-smith/")
 		return nil
 	}
 

@@ -307,8 +307,8 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 // saveLockFile saves command lock entry in agent-smith install compatible format
 func (cd *CommandDownloader) saveLockFile(commandName string, source string, sourceType string, sourceUrl string, commitHash string, components int, detection string, originalPath string) error {
 	// Use the parent directory of baseDir for lock file
-	// baseDir is the commands directory (e.g., ~/.agents/commands)
-	// We want the lock file in the parent (e.g., ~/.agents)
+	// baseDir is the commands directory (e.g., ~/.agent-smith/commands)
+	// We want the lock file in the parent (e.g., ~/.agent-smith)
 	lockBaseDir := filepath.Dir(cd.baseDir)
 
 	if err := fileutil.CreateDirectoryWithPermissions(lockBaseDir); err != nil {

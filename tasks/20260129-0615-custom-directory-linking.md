@@ -17,7 +17,7 @@ Add support for linking agent-smith components (skills, agents, commands) to cus
 - [x] Story-001: As a developer, I want to define a custom target directory so that I can link agent-smith components to editors/tools beyond OpenCode and Claude Code.
 
   **Acceptance Criteria:**
-  - Config file at `~/.agents/config.json` supports custom target definitions
+  - Config file at `~/.agent-smith/config.json` supports custom target definitions
   - Each custom target has a unique name, base directory, and component subdirectories
   - Config is validated on load with clear error messages for invalid entries
   - Custom targets coexist with built-in OpenCode and Claude Code targets
@@ -167,7 +167,7 @@ Add support for linking agent-smith components (skills, agents, commands) to cus
 
 ## Functional Requirements
 
-- FR-1: The system shall support a configuration file at `~/.agents/config.json` that defines custom targets
+- FR-1: The system shall support a configuration file at `~/.agent-smith/config.json` that defines custom targets
 - FR-2: The config file shall use JSON format with version field and custom targets array
 - FR-3: Each custom target shall have required fields: name, baseDir, skillsDir, agentsDir, commandsDir
 - FR-4: The system shall support tilde (~/) path expansion and both relative and absolute paths
@@ -252,7 +252,7 @@ To execute this PRD using Ralphy's autonomous parallel execution system, use the
 
 ```yaml
 tasks:
-  - title: "Story-001: As a developer, I want to define a custom target directory so that I can link agent-smith components to editors/tools beyond OpenCode and Claude Code - Config file at ~/.agents/config.json supports custom target definitions, Each custom target has unique name/base directory/component subdirectories, Config validated on load with clear error messages, Custom targets coexist with built-in targets"
+  - title: "Story-001: As a developer, I want to define a custom target directory so that I can link agent-smith components to editors/tools beyond OpenCode and Claude Code - Config file at ~/.agent-smith/config.json supports custom target definitions, Each custom target has unique name/base directory/component subdirectories, Config validated on load with clear error messages, Custom targets coexist with built-in targets"
     completed: false
     parallel_group: 0
   - title: "Story-002: As a developer, I want to use 'agent-smith target add <name> <path>' to register a new custom target so that I don't have to manually edit the config file - Command accepts target name and base directory path, Validates uniqueness and path validity, Creates config file if needed, Prompts for subdirectory names with defaults, Reports success"
