@@ -70,7 +70,7 @@ Fix a bug in the skill installation logic where specifying a skill name in `agen
   - Available skills list readability
   - No leftover directories after error
 
-- [ ] Story-003: As a user, I want the skill installer to behave consistently with agent and command installers so that I have a predictable experience across all component types.
+- [x] Story-003: As a user, I want the skill installer to behave consistently with agent and command installers so that I have a predictable experience across all component types.
 
   **Acceptance Criteria:**
   - Skill installation logic matches agent installation logic (agent.go:186-225)

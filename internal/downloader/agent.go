@@ -216,7 +216,17 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		}
 	} else if matchingComponent != nil {
 		// Downloading a specific component from a multi-component directory
-		// Use direct copy to avoid double nesting
+		// Use heuristic to determine proper folder name to avoid nested monorepo directories
+		destFolderName := DetermineDestinationFolderName(matchingComponent.FilePath)
+
+		// If heuristic name differs from agentName, recreate directory with proper name
+		if destFolderName != agentName {
+			os.RemoveAll(agentDir)
+			agentDir = filepath.Join(ad.baseDir, destFolderName)
+			if err := fileutil.CreateDirectoryWithPermissions(agentDir); err != nil {
+				return fmt.Errorf("failed to create agent directory: %w", err)
+			}
+		}
 
 		// Copy component files (non-recursive) using FilePath to agent directory
 		err = fileutil.CopyComponentFiles(repoPath, *matchingComponent, agentDir)
@@ -224,22 +234,18 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 			os.RemoveAll(agentDir)
 			return fmt.Errorf("failed to copy agent files: %w", err)
 		}
+
+		// Update agentName to match the actual directory name for lock file
+		agentName = destFolderName
 	} else {
-		// Multiple agents found, create a monorepo structure
-		for _, component := range agentComponents {
-			componentDir := filepath.Join(agentDir, component.Name)
-
-			err = fileutil.CreateDirectoryWithPermissions(componentDir)
-			if err != nil {
-				continue
-			}
-
-			// Copy component files (non-recursive) using FilePath
-			err = fileutil.CopyComponentFiles(repoPath, component, componentDir)
-			if err != nil {
-				ad.formatter.Warning("failed to copy agent %s: %v", component.Name, err)
-			}
+		// Multiple agents found but none match the requested agent name
+		// Return error with list of available agents
+		var agentNames []string
+		for _, comp := range agentComponents {
+			agentNames = append(agentNames, comp.Name)
 		}
+		os.RemoveAll(agentDir)
+		return fmt.Errorf("agent '%s' not found in repository. Available agents: %s", agentName, strings.Join(agentNames, ", "))
 	}
 
 	// Save to lock file
@@ -264,7 +270,16 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		commitHash = commitHashFromRepo
 	}
 
-	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, commitHash, len(agentComponents), "recursive", ""); err != nil {
+	// Determine detection type and original path for lock file
+	detectionType := "recursive"
+	originalPath := ""
+	if matchingComponent != nil && len(agentComponents) > 1 {
+		// Single agent from multi-agent repo
+		detectionType = "single"
+		originalPath = matchingComponent.FilePath
+	}
+
+	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, commitHash, len(agentComponents), detectionType, originalPath); err != nil {
 		ad.formatter.Warning("failed to save lock file: %v", err)
 	}
 

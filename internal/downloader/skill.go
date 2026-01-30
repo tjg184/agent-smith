@@ -200,7 +200,17 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		}
 	} else if matchingComponent != nil {
 		// Downloading a specific component from a multi-component directory
-		// Use direct copy to avoid double nesting
+		// Use heuristic to determine proper folder name to avoid nested monorepo directories
+		destFolderName := DetermineDestinationFolderName(matchingComponent.FilePath)
+
+		// If heuristic name differs from skillName, recreate directory with proper name
+		if destFolderName != skillName {
+			os.RemoveAll(skillDir)
+			skillDir = filepath.Join(sd.baseDir, destFolderName)
+			if err := fileutil.CreateDirectoryWithPermissions(skillDir); err != nil {
+				return fmt.Errorf("failed to create skill directory: %w", err)
+			}
+		}
 
 		// Copy component files (non-recursive) using FilePath to skill directory
 		err = fileutil.CopyComponentFiles(repoPath, *matchingComponent, skillDir)
@@ -208,22 +218,18 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 			os.RemoveAll(skillDir)
 			return fmt.Errorf("failed to copy skill files: %w", err)
 		}
+
+		// Update skillName to match the actual directory name for lock file
+		skillName = destFolderName
 	} else {
-		// Multiple skills found, create a monorepo structure
-		for _, component := range skillComponents {
-			componentDir := filepath.Join(skillDir, component.Name)
-
-			err = fileutil.CreateDirectoryWithPermissions(componentDir)
-			if err != nil {
-				continue
-			}
-
-			// Copy component files (non-recursive) using FilePath
-			err = fileutil.CopyComponentFiles(repoPath, component, componentDir)
-			if err != nil {
-				sd.formatter.Warning("failed to copy skill %s: %v", component.Name, err)
-			}
+		// Multiple skills found but none match the requested skill name
+		// Return error with list of available skills
+		var skillNames []string
+		for _, comp := range skillComponents {
+			skillNames = append(skillNames, comp.Name)
 		}
+		os.RemoveAll(skillDir)
+		return fmt.Errorf("skill '%s' not found in repository. Available skills: %s", skillName, strings.Join(skillNames, ", "))
 	}
 
 	// Save to lock file
@@ -248,7 +254,16 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		commitHash = commitHashFromRepo
 	}
 
-	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, commitHash, len(skillComponents), "recursive", ""); err != nil {
+	// Determine detection type and original path for lock file
+	detectionType := "recursive"
+	originalPath := ""
+	if matchingComponent != nil && len(skillComponents) > 1 {
+		// Single skill from multi-skill repo
+		detectionType = "single"
+		originalPath = matchingComponent.FilePath
+	}
+
+	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, commitHash, len(skillComponents), detectionType, originalPath); err != nil {
 		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
