@@ -375,6 +375,149 @@ func TestUnlinkComponentsByType_SpecificTarget(t *testing.T) {
 	}
 }
 
+func TestUnlinkAllComponents_SpecificTarget(t *testing.T) {
+	sourceDir, target1Dir, target2Dir, targets, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	det := detector.NewRepositoryDetector()
+	linker, err := NewComponentLinker(sourceDir, targets, det)
+	if err != nil {
+		t.Fatalf("Failed to create linker: %v", err)
+	}
+
+	// Create symlinks for all component types in both targets
+	createSymlink(t, filepath.Join(sourceDir, "agents", "test-agent"),
+		filepath.Join(target1Dir, "agents", "test-agent"))
+	createSymlink(t, filepath.Join(sourceDir, "skills", "test-skill"),
+		filepath.Join(target1Dir, "skills", "test-skill"))
+	createSymlink(t, filepath.Join(sourceDir, "commands", "test-command"),
+		filepath.Join(target1Dir, "commands", "test-command"))
+	createSymlink(t, filepath.Join(sourceDir, "agents", "test-agent"),
+		filepath.Join(target2Dir, "agents", "test-agent"))
+	createSymlink(t, filepath.Join(sourceDir, "skills", "test-skill"),
+		filepath.Join(target2Dir, "skills", "test-skill"))
+	createSymlink(t, filepath.Join(sourceDir, "commands", "test-command"),
+		filepath.Join(target2Dir, "commands", "test-command"))
+
+	// Unlink all components from target1 only (with force=true to skip confirmation)
+	err = linker.UnlinkAllComponents("target1", true)
+	if err != nil {
+		t.Fatalf("UnlinkAllComponents failed: %v", err)
+	}
+
+	// Verify symlinks are removed from target1
+	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "test-agent")); !os.IsNotExist(err) {
+		t.Errorf("Agent symlink should be removed from target1")
+	}
+	if _, err := os.Lstat(filepath.Join(target1Dir, "skills", "test-skill")); !os.IsNotExist(err) {
+		t.Errorf("Skill symlink should be removed from target1")
+	}
+	if _, err := os.Lstat(filepath.Join(target1Dir, "commands", "test-command")); !os.IsNotExist(err) {
+		t.Errorf("Command symlink should be removed from target1")
+	}
+
+	// Verify symlinks still exist in target2 (should not be affected)
+	if _, err := os.Lstat(filepath.Join(target2Dir, "agents", "test-agent")); err != nil {
+		t.Errorf("Agent symlink should still exist in target2: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(target2Dir, "skills", "test-skill")); err != nil {
+		t.Errorf("Skill symlink should still exist in target2: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(target2Dir, "commands", "test-command")); err != nil {
+		t.Errorf("Command symlink should still exist in target2: %v", err)
+	}
+
+	// Verify source still exists
+	if _, err := os.Stat(filepath.Join(sourceDir, "agents", "test-agent")); err != nil {
+		t.Errorf("Agent source directory should still exist: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(sourceDir, "skills", "test-skill")); err != nil {
+		t.Errorf("Skill source directory should still exist: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(sourceDir, "commands", "test-command")); err != nil {
+		t.Errorf("Command source directory should still exist: %v", err)
+	}
+}
+
+func TestUnlinkAllComponents_AllTargets(t *testing.T) {
+	sourceDir, target1Dir, target2Dir, targets, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	det := detector.NewRepositoryDetector()
+	linker, err := NewComponentLinker(sourceDir, targets, det)
+	if err != nil {
+		t.Fatalf("Failed to create linker: %v", err)
+	}
+
+	// Create symlinks for all component types in both targets
+	createSymlink(t, filepath.Join(sourceDir, "agents", "test-agent"),
+		filepath.Join(target1Dir, "agents", "test-agent"))
+	createSymlink(t, filepath.Join(sourceDir, "skills", "test-skill"),
+		filepath.Join(target1Dir, "skills", "test-skill"))
+	createSymlink(t, filepath.Join(sourceDir, "commands", "test-command"),
+		filepath.Join(target1Dir, "commands", "test-command"))
+	createSymlink(t, filepath.Join(sourceDir, "agents", "test-agent"),
+		filepath.Join(target2Dir, "agents", "test-agent"))
+	createSymlink(t, filepath.Join(sourceDir, "skills", "test-skill"),
+		filepath.Join(target2Dir, "skills", "test-skill"))
+	createSymlink(t, filepath.Join(sourceDir, "commands", "test-command"),
+		filepath.Join(target2Dir, "commands", "test-command"))
+
+	// Unlink all components from all targets (with force=true to skip confirmation)
+	err = linker.UnlinkAllComponents("", true)
+	if err != nil {
+		t.Fatalf("UnlinkAllComponents failed: %v", err)
+	}
+
+	// Verify symlinks are removed from both targets
+	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "test-agent")); !os.IsNotExist(err) {
+		t.Errorf("Agent symlink should be removed from target1")
+	}
+	if _, err := os.Lstat(filepath.Join(target1Dir, "skills", "test-skill")); !os.IsNotExist(err) {
+		t.Errorf("Skill symlink should be removed from target1")
+	}
+	if _, err := os.Lstat(filepath.Join(target1Dir, "commands", "test-command")); !os.IsNotExist(err) {
+		t.Errorf("Command symlink should be removed from target1")
+	}
+	if _, err := os.Lstat(filepath.Join(target2Dir, "agents", "test-agent")); !os.IsNotExist(err) {
+		t.Errorf("Agent symlink should be removed from target2")
+	}
+	if _, err := os.Lstat(filepath.Join(target2Dir, "skills", "test-skill")); !os.IsNotExist(err) {
+		t.Errorf("Skill symlink should be removed from target2")
+	}
+	if _, err := os.Lstat(filepath.Join(target2Dir, "commands", "test-command")); !os.IsNotExist(err) {
+		t.Errorf("Command symlink should be removed from target2")
+	}
+
+	// Verify source still exists
+	if _, err := os.Stat(filepath.Join(sourceDir, "agents", "test-agent")); err != nil {
+		t.Errorf("Agent source directory should still exist: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(sourceDir, "skills", "test-skill")); err != nil {
+		t.Errorf("Skill source directory should still exist: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(sourceDir, "commands", "test-command")); err != nil {
+		t.Errorf("Command source directory should still exist: %v", err)
+	}
+}
+
+func TestUnlinkAllComponents_NonExistentTarget(t *testing.T) {
+	sourceDir, _, _, targets, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	det := detector.NewRepositoryDetector()
+	linker, err := NewComponentLinker(sourceDir, targets, det)
+	if err != nil {
+		t.Fatalf("Failed to create linker: %v", err)
+	}
+
+	// Try to unlink from non-existent target
+	err = linker.UnlinkAllComponents("nonexistent", true)
+	if err == nil {
+		t.Errorf("Expected error when unlinking from non-existent target")
+	}
+}
+
 func TestFilterTargets(t *testing.T) {
 	sourceDir, _, _, targets, cleanup := setupTestEnvironment(t)
 	defer cleanup()
