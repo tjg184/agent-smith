@@ -713,7 +713,7 @@ EXAMPLES:
 			handleUnlink("skills", args[0], targetFilter)
 		},
 	}
-	unlinkSkillCmd.Flags().StringP("target", "t", "", "Specify target to unlink from (opencode, claudecode, or all)")
+	unlinkSkillCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
 	unlinkCmd.AddCommand(unlinkSkillCmd)
 
 	unlinkAgentCmd := &cobra.Command{
@@ -736,7 +736,7 @@ EXAMPLES:
 			handleUnlink("agents", args[0], targetFilter)
 		},
 	}
-	unlinkAgentCmd.Flags().StringP("target", "t", "", "Specify target to unlink from (opencode, claudecode, or all)")
+	unlinkAgentCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
 	unlinkCmd.AddCommand(unlinkAgentCmd)
 
 	unlinkCommandCmd := &cobra.Command{
@@ -759,7 +759,7 @@ EXAMPLES:
 			handleUnlink("commands", args[0], targetFilter)
 		},
 	}
-	unlinkCommandCmd.Flags().StringP("target", "t", "", "Specify target to unlink from (opencode, claudecode, or all)")
+	unlinkCommandCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
 	unlinkCmd.AddCommand(unlinkCommandCmd)
 
 	// Plural commands - operate on ALL components of a type
@@ -799,7 +799,7 @@ EXAMPLES:
 		},
 	}
 	unlinkSkillsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
-	unlinkSkillsCmd.Flags().StringP("target", "t", "", "Specify target to unlink from (opencode, claudecode, or all)")
+	unlinkSkillsCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
 	unlinkCmd.AddCommand(unlinkSkillsCmd)
 
 	unlinkAgentsCmd := &cobra.Command{
@@ -838,7 +838,7 @@ EXAMPLES:
 		},
 	}
 	unlinkAgentsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
-	unlinkAgentsCmd.Flags().StringP("target", "t", "", "Specify target to unlink from (opencode, claudecode, or all)")
+	unlinkAgentsCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
 	unlinkCmd.AddCommand(unlinkAgentsCmd)
 
 	unlinkCommandsCmd := &cobra.Command{
@@ -877,7 +877,7 @@ EXAMPLES:
 		},
 	}
 	unlinkCommandsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
-	unlinkCommandsCmd.Flags().StringP("target", "t", "", "Specify target to unlink from (opencode, claudecode, or all)")
+	unlinkCommandsCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
 	unlinkCmd.AddCommand(unlinkCommandsCmd)
 
 	unlinkAllCmd := &cobra.Command{
@@ -905,7 +905,7 @@ EXAMPLES:
 		},
 	}
 	unlinkAllCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
-	unlinkAllCmd.Flags().StringP("target", "t", "", "Specify target to unlink from (opencode, claudecode, or all)")
+	unlinkAllCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
 	unlinkCmd.AddCommand(unlinkAllCmd)
 
 	rootCmd.AddCommand(unlinkCmd)
