@@ -1359,6 +1359,7 @@ EXAMPLES:
 
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
 	rootCmd.PersistentFlags().Bool("verbose", false, "Show informational output (default: show only errors)")
+	rootCmd.PersistentFlags().Bool("debug", false, "Enable verbose debug output for troubleshooting")
 }
 
 // These functions will be implemented in main.go to keep existing logic

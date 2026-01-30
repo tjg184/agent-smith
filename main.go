@@ -26,12 +26,27 @@ import (
 // By default, informational output is suppressed (quiet mode)
 var infoWriter io.Writer = io.Discard
 
+// debugWriter is used for debug output that can be enabled with --debug flag
+var debugWriter io.Writer = io.Discard
+
 // SetVerboseMode enables informational output
 func SetVerboseMode(verbose bool) {
 	if verbose {
 		infoWriter = os.Stdout
 	} else {
 		infoWriter = io.Discard
+	}
+}
+
+// SetDebugMode enables debug output
+// When debug mode is enabled, it also enables verbose mode
+func SetDebugMode(debug bool) {
+	if debug {
+		debugWriter = os.Stdout
+		// Debug mode implies verbose mode
+		SetVerboseMode(true)
+	} else {
+		debugWriter = io.Discard
 	}
 }
 
@@ -43,6 +58,16 @@ func infoPrintf(format string, a ...interface{}) {
 // infoPrintln prints informational messages that can be suppressed
 func infoPrintln(a ...interface{}) {
 	fmt.Fprintln(infoWriter, a...)
+}
+
+// debugPrintf prints debug messages that can be enabled with --debug flag
+func debugPrintf(format string, a ...interface{}) {
+	fmt.Fprintf(debugWriter, format, a...)
+}
+
+// debugPrintln prints debug messages that can be enabled with --debug flag
+func debugPrintln(a ...interface{}) {
+	fmt.Fprintln(debugWriter, a...)
 }
 
 type BulkDownloader = downloader.BulkDownloader
@@ -132,10 +157,12 @@ func NewBulkDownloader() *BulkDownloader {
 
 // NewComponentLinker creates a new ComponentLinker with dependencies injected
 func NewComponentLinker() (*linker.ComponentLinker, error) {
+	debugPrintln("[DEBUG] NewComponentLinker: Creating component linker")
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
+	debugPrintf("[DEBUG] NewComponentLinker: Base agents directory: %s\n", agentsDir)
 
 	// Check if a profile is active and use its path instead
 	profileManager, err := profiles.NewProfileManager(nil)
@@ -150,18 +177,27 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 
 	// If a profile is active, use the profile's base path instead
 	if activeProfile != "" {
+		debugPrintf("[DEBUG] NewComponentLinker: Active profile detected: %s\n", activeProfile)
 		profilesDir, err := paths.GetProfilesDir()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
 		}
 		agentsDir = filepath.Join(profilesDir, activeProfile)
+		debugPrintf("[DEBUG] NewComponentLinker: Using profile directory: %s\n", agentsDir)
 		infoPrintf("Using active profile: %s\n", activeProfile)
+	} else {
+		debugPrintln("[DEBUG] NewComponentLinker: No active profile")
 	}
 
 	// Detect all available targets
+	debugPrintln("[DEBUG] NewComponentLinker: Detecting available targets")
 	targets, err := config.DetectAllTargets()
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect targets: %w", err)
+	}
+	debugPrintf("[DEBUG] NewComponentLinker: Detected %d target(s)\n", len(targets))
+	for i, target := range targets {
+		debugPrintf("[DEBUG] NewComponentLinker: Target %d: %s\n", i+1, target.GetName())
 	}
 
 	det := detector.NewRepositoryDetector()
@@ -172,10 +208,12 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 // NewComponentLinkerWithFilter creates a new ComponentLinker with filtered targets
 // targetFilter can be: "opencode", "claudecode", "all", or "" (defaults to all)
 func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker, error) {
+	debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Creating component linker with filter=%s\n", targetFilter)
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
+	debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Base agents directory: %s\n", agentsDir)
 
 	// Check if a profile is active and use its path instead
 	profileManager, err := profiles.NewProfileManager(nil)
@@ -190,39 +228,50 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 
 	// If a profile is active, use the profile's base path instead
 	if activeProfile != "" {
+		debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Active profile detected: %s\n", activeProfile)
 		profilesDir, err := paths.GetProfilesDir()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
 		}
 		agentsDir = filepath.Join(profilesDir, activeProfile)
+		debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Using profile directory: %s\n", agentsDir)
 		infoPrintf("Using active profile: %s\n", activeProfile)
+	} else {
+		debugPrintln("[DEBUG] NewComponentLinkerWithFilter: No active profile")
 	}
 
 	var targets []config.Target
 
 	// Detect all targets first
+	debugPrintln("[DEBUG] NewComponentLinkerWithFilter: Detecting all targets")
 	allTargets, err := config.DetectAllTargets()
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect targets: %w", err)
 	}
+	debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Detected %d target(s)\n", len(allTargets))
 
 	// Filter targets based on targetFilter parameter
 	if targetFilter == "" || targetFilter == "all" {
 		// No filter or "all" - use all detected targets
+		debugPrintln("[DEBUG] NewComponentLinkerWithFilter: Using all detected targets")
 		targets = allTargets
 	} else {
 		// Filter for specific target
+		debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Filtering for target: %s\n", targetFilter)
 		for _, target := range allTargets {
 			if target.GetName() == targetFilter {
 				targets = append(targets, target)
+				debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Found matching target: %s\n", targetFilter)
 				break
 			}
 		}
 		// If no matching target found, return error
 		if len(targets) == 0 {
+			debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Target '%s' not found\n", targetFilter)
 			return nil, fmt.Errorf("target '%s' not found. Available targets: %v", targetFilter, getTargetNames(allTargets))
 		}
 	}
+	debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Using %d target(s)\n", len(targets))
 
 	det := detector.NewRepositoryDetector()
 
@@ -251,28 +300,43 @@ func joinStrings(strings []string, separator string) string {
 }
 
 func main() {
-	// Check for --verbose flag before setting up handlers
-	// By default, we suppress informational output (show only errors)
+	// Check for --debug flag before setting up handlers
+	// Debug mode takes precedence and enables verbose mode automatically
+	debugMode := false
+	verboseMode := false
 	for _, arg := range os.Args {
-		if arg == "--verbose" || arg == "-v" {
-			SetVerboseMode(true)
+		if arg == "--debug" {
+			debugMode = true
 			break
 		}
+		if arg == "--verbose" {
+			verboseMode = true
+		}
+	}
+
+	if debugMode {
+		SetDebugMode(true)
+	} else if verboseMode {
+		SetVerboseMode(true)
 	}
 
 	// Set up handlers for Cobra commands
 	cmd.SetHandlers(
 		func(repoURL, name, profile, targetDir string) {
+			debugPrintf("[DEBUG] handleAddSkill called with repoURL=%s, name=%s, profile=%s, targetDir=%s\n", repoURL, name, profile, targetDir)
+
 			if profile != "" && targetDir != "" {
 				log.Fatal("Cannot specify both --profile and --target-dir flags")
 			}
 
 			if targetDir != "" {
 				// Install to custom target directory (isolated testing)
+				debugPrintln("[DEBUG] Installing to custom target directory")
 				resolvedPath, err := paths.ResolveTargetDir(targetDir)
 				if err != nil {
 					log.Fatal("Failed to resolve target directory:", err)
 				}
+				debugPrintf("[DEBUG] Resolved target directory: %s\n", resolvedPath)
 
 				if err := fileutil.CreateDirectoryWithPermissions(resolvedPath); err != nil {
 					log.Fatal("Failed to create target directory:", err)
@@ -283,8 +347,10 @@ func main() {
 				if err := dl.DownloadSkill(repoURL, name); err != nil {
 					log.Fatal("Failed to download skill:", err)
 				}
+				debugPrintln("[DEBUG] Skill download completed successfully")
 			} else if profile != "" {
 				// Install directly to profile
+				debugPrintf("[DEBUG] Installing to profile: %s\n", profile)
 				pm, err := profiles.NewProfileManager(nil)
 				if err != nil {
 					log.Fatal("Failed to create profile manager:", err)
@@ -295,6 +361,7 @@ func main() {
 				if err != nil {
 					log.Fatal("Failed to scan profiles:", err)
 				}
+				debugPrintf("[DEBUG] Found %d profiles\n", len(profilesList))
 
 				profileExists := false
 				for _, p := range profilesList {
@@ -312,12 +379,15 @@ func main() {
 				if err := dl.DownloadSkill(repoURL, name); err != nil {
 					log.Fatal("Failed to download skill:", err)
 				}
+				debugPrintln("[DEBUG] Skill download to profile completed successfully")
 			} else {
 				// Standard installation to ~/.agent-smith/
+				debugPrintln("[DEBUG] Installing to standard directory (~/.agent-smith/)")
 				dl := downloader.NewSkillDownloader()
 				if err := dl.DownloadSkill(repoURL, name); err != nil {
 					log.Fatal("Failed to download skill:", err)
 				}
+				debugPrintln("[DEBUG] Skill download completed successfully")
 			}
 		},
 		func(repoURL, name, profile, targetDir string) {
@@ -482,22 +552,28 @@ func main() {
 			}
 		},
 		func(componentType, componentName, targetFilter string) {
+			debugPrintf("[DEBUG] handleLink called with componentType=%s, componentName=%s, targetFilter=%s\n", componentType, componentName, targetFilter)
 			linker, err := NewComponentLinkerWithFilter(targetFilter)
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
 			}
+			debugPrintln("[DEBUG] Component linker created successfully")
 			if err := linker.LinkComponent(componentType, componentName); err != nil {
 				log.Fatal("Failed to link component:", err)
 			}
+			debugPrintln("[DEBUG] Component linked successfully")
 		},
 		func(targetFilter string) {
+			debugPrintf("[DEBUG] handleLinkAll called with targetFilter=%s\n", targetFilter)
 			linker, err := NewComponentLinkerWithFilter(targetFilter)
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
 			}
+			debugPrintln("[DEBUG] Component linker created successfully")
 			if err := linker.LinkAllComponents(); err != nil {
 				log.Fatal("Failed to link all components:", err)
 			}
+			debugPrintln("[DEBUG] All components linked successfully")
 		},
 		func(componentType, targetFilter string) {
 			linker, err := NewComponentLinkerWithFilter(targetFilter)
@@ -839,6 +915,7 @@ func main() {
 		},
 		func() {
 			// Status handler - shows current system status
+			debugPrintln("[DEBUG] handleStatus called")
 			pm, err := profiles.NewProfileManager(nil)
 			if err != nil {
 				log.Fatal("Failed to create profile manager:", err)
@@ -849,18 +926,22 @@ func main() {
 			if err != nil {
 				log.Fatal("Failed to get active profile:", err)
 			}
+			debugPrintf("[DEBUG] Active profile: %s\n", activeProfile)
 
 			// Detect all available targets
+			debugPrintln("[DEBUG] Detecting targets")
 			targets, err := config.DetectAllTargets()
 			if err != nil {
 				log.Fatal("Failed to detect targets:", err)
 			}
+			debugPrintf("[DEBUG] Detected %d target(s)\n", len(targets))
 
 			// Get agents directory
 			agentsDir, err := paths.GetAgentsDir()
 			if err != nil {
 				log.Fatal("Failed to get agents directory:", err)
 			}
+			debugPrintf("[DEBUG] Agents directory: %s\n", agentsDir)
 
 			// Count components in ~/.agent-smith/
 			agentsPath := filepath.Join(agentsDir, "agents")
