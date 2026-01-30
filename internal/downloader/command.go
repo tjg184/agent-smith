@@ -198,7 +198,17 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		}
 	} else if matchingComponent != nil {
 		// Downloading a specific component from a multi-component directory
-		// Use direct copy to avoid double nesting
+		// Use heuristic to determine proper folder name to avoid nested monorepo directories
+		destFolderName := DetermineDestinationFolderName(matchingComponent.FilePath)
+
+		// If heuristic name differs from commandName, recreate directory with proper name
+		if destFolderName != commandName {
+			os.RemoveAll(commandDir)
+			commandDir = filepath.Join(cd.baseDir, destFolderName)
+			if err := fileutil.CreateDirectoryWithPermissions(commandDir); err != nil {
+				return fmt.Errorf("failed to create command directory: %w", err)
+			}
+		}
 
 		// Copy component files (non-recursive) using FilePath to command directory
 		err = fileutil.CopyComponentFiles(repoPath, *matchingComponent, commandDir)
@@ -206,22 +216,18 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 			os.RemoveAll(commandDir)
 			return fmt.Errorf("failed to copy command files: %w", err)
 		}
+
+		// Update commandName to match the actual directory name for lock file
+		commandName = destFolderName
 	} else {
-		// Multiple commands found, create a monorepo structure
-		for _, component := range commandComponents {
-			componentDir := filepath.Join(commandDir, component.Name)
-
-			err = fileutil.CreateDirectoryWithPermissions(componentDir)
-			if err != nil {
-				continue
-			}
-
-			// Copy component files (non-recursive) using FilePath
-			err = fileutil.CopyComponentFiles(repoPath, component, componentDir)
-			if err != nil {
-				cd.formatter.Warning("failed to copy command %s: %v", component.Name, err)
-			}
+		// Multiple commands found but none match the requested command name
+		// Return error with list of available commands
+		var commandNames []string
+		for _, comp := range commandComponents {
+			commandNames = append(commandNames, comp.Name)
 		}
+		os.RemoveAll(commandDir)
+		return fmt.Errorf("command '%s' not found in repository. Available commands: %s", commandName, strings.Join(commandNames, ", "))
 	}
 
 	// Save to lock file
@@ -240,7 +246,16 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		cd.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, commitHash, len(commandComponents), "recursive", ""); err != nil {
+	// Determine detection type and original path for lock file
+	detectionType := "recursive"
+	originalPath := ""
+	if matchingComponent != nil && len(commandComponents) > 1 {
+		// Single command from multi-command repo
+		detectionType = "single"
+		originalPath = matchingComponent.FilePath
+	}
+
+	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, commitHash, len(commandComponents), detectionType, originalPath); err != nil {
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
