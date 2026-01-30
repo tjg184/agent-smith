@@ -176,16 +176,42 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 
 	var targets []config.Target
 
-	// Always detect all targets, then let the linker filter them
-	// This allows the linker to provide better error messages if the target doesn't exist
-	targets, err = config.DetectAllTargets()
+	// Detect all targets first
+	allTargets, err := config.DetectAllTargets()
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect targets: %w", err)
+	}
+
+	// Filter targets based on targetFilter parameter
+	if targetFilter == "" || targetFilter == "all" {
+		// No filter or "all" - use all detected targets
+		targets = allTargets
+	} else {
+		// Filter for specific target
+		for _, target := range allTargets {
+			if target.GetName() == targetFilter {
+				targets = append(targets, target)
+				break
+			}
+		}
+		// If no matching target found, return error
+		if len(targets) == 0 {
+			return nil, fmt.Errorf("target '%s' not found. Available targets: %v", targetFilter, getTargetNames(allTargets))
+		}
 	}
 
 	det := detector.NewRepositoryDetector()
 
 	return linker.NewComponentLinker(agentsDir, targets, det)
+}
+
+// getTargetNames returns a slice of target names for error reporting
+func getTargetNames(targets []config.Target) []string {
+	names := make([]string, len(targets))
+	for i, target := range targets {
+		names[i] = target.GetName()
+	}
+	return names
 }
 
 // joinStrings joins a slice of strings with a separator
