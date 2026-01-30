@@ -18,7 +18,7 @@ Fix a bug in the skill installation logic where specifying a skill name in `agen
 
 ## User Stories
 
-- [ ] Story-001: As a user, when I run `agent-smith install skill <repo> <skill-name>` on a repository with multiple skills, I want only the named skill installed so that I don't get unwanted skills.
+- [x] Story-001: As a user, when I run `agent-smith install skill <repo> <skill-name>` on a repository with multiple skills, I want only the named skill installed so that I don't get unwanted skills.
 
   **Acceptance Criteria:**
   - Command syntax: `agent-smith install skill <repo-url> <skill-name>`
@@ -45,7 +45,7 @@ Fix a bug in the skill installation logic where specifying a skill name in `agen
   - Error message display for non-matching names
   - Directory structure verification (no monorepo nesting)
 
-- [ ] Story-002: As a user, when I specify a skill name that doesn't exist in the repository, I want a clear error message listing available skills so that I know what options are valid.
+- [x] Story-002: As a user, when I specify a skill name that doesn't exist in the repository, I want a clear error message listing available skills so that I know what options are valid.
 
   **Acceptance Criteria:**
   - Error message format: "skill '<name>' not found in repository. Available skills: <list>"
