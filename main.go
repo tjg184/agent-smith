@@ -176,20 +176,11 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 
 	var targets []config.Target
 
-	// Filter targets based on the provided filter
-	if targetFilter == "" || targetFilter == "all" {
-		// Default behavior: link to all detected targets
-		targets, err = config.DetectAllTargets()
-		if err != nil {
-			return nil, fmt.Errorf("failed to detect targets: %w", err)
-		}
-	} else {
-		// Create a specific target based on the filter
-		target, err := config.NewTarget(targetFilter)
-		if err != nil {
-			return nil, fmt.Errorf("invalid target: %w", err)
-		}
-		targets = []config.Target{target}
+	// Always detect all targets, then let the linker filter them
+	// This allows the linker to provide better error messages if the target doesn't exist
+	targets, err = config.DetectAllTargets()
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect targets: %w", err)
 	}
 
 	det := detector.NewRepositoryDetector()

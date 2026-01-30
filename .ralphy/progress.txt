@@ -146,3 +146,4 @@
 - [✓] 2026-01-29 14:06 - Story-003: As a developer, I want to know about the `--target-dir` flag for install commands so that I can use project-local installations for testing.
 - [✓] 2026-01-29 14:06 - Story-004: As a developer, I want the directory structure documentation to be accurate so that I understand where agent-smith stores configuration files.
 - [✓] 2026-01-29 14:08 - Story-005: As a developer, I want the install command documentation to clarify required parameters so that I don't get errors from missing arguments.
+- [✓] 2026-01-30 00:37 - Story-001: As a developer, I want to specify which target to unlink from so that I can maintain links to some targets while removing others.

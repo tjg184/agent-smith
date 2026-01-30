@@ -14,7 +14,7 @@ Add `--target` flag support to all unlink commands to provide feature parity wit
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want to specify which target to unlink from so that I can maintain links to some targets while removing others.
+- [x] Story-001: As a developer, I want to specify which target to unlink from so that I can maintain links to some targets while removing others.
 
   **Acceptance Criteria:**
   - Add --target flag to all unlink commands (skill/agent/command, skills/agents/commands, all)
