@@ -173,3 +173,4 @@
 - [✓] 2026-01-30 01:21 - All unlink commands accept --target flag
 - [✓] 2026-01-30 01:23 - Verified backward compatibility: default behavior (no --target flag) unlinks from all targets
 - [✓] 2026-01-30 01:23 - All success criteria met: feature complete and tested
+- [✓] 2026-01-30 01:22 - Default behavior (no flag) maintains backward compatibility
