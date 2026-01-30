@@ -56,28 +56,28 @@ Add `--target` flag support to all unlink commands to provide feature parity wit
   - Pass targetFilter parameter to handleUnlink function
   - Update handler to use NewComponentLinkerWithFilter
 
-- [ ] Story-007: As a developer, I want `unlink skills --target <target>` to work so I can unlink all skills from a specific target.
+- [x] Story-007: As a developer, I want `unlink skills --target <target>` to work so I can unlink all skills from a specific target.
 
   **Acceptance Criteria:**
   - Add --target flag to unlinkSkillsCmd in cmd/root.go
   - Pass targetFilter parameter to handleUnlinkType function
   - Update handler to use NewComponentLinkerWithFilter
 
-- [ ] Story-008: As a developer, I want `unlink agents --target <target>` to work so I can unlink all agents from a specific target.
+- [x] Story-008: As a developer, I want `unlink agents --target <target>` to work so I can unlink all agents from a specific target.
 
   **Acceptance Criteria:**
   - Add --target flag to unlinkAgentsCmd in cmd/root.go
   - Pass targetFilter parameter to handleUnlinkType function
   - Update handler to use NewComponentLinkerWithFilter
 
-- [ ] Story-009: As a developer, I want `unlink commands --target <target>` to work so I can unlink all commands from a specific target.
+- [x] Story-009: As a developer, I want `unlink commands --target <target>` to work so I can unlink all commands from a specific target.
 
   **Acceptance Criteria:**
   - Add --target flag to unlinkCommandsCmd in cmd/root.go
   - Pass targetFilter parameter to handleUnlinkType function
   - Update handler to use NewComponentLinkerWithFilter
 
-- [ ] Story-010: As a developer, I want `unlink all --target <target>` to work so I can unlink all components from a specific target.
+- [x] Story-010: As a developer, I want `unlink all --target <target>` to work so I can unlink all components from a specific target.
 
   **Acceptance Criteria:**
   - Add --target flag to unlinkAllCmd in cmd/root.go
