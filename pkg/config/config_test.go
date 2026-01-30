@@ -282,11 +282,11 @@ func TestSaveAndLoadConfig(t *testing.T) {
 
 	os.Setenv("HOME", tempHome)
 
-	// Create .agents directory
-	agentsDir := filepath.Join(tempHome, ".agents")
+	// Create .agent-smith directory
+	agentsDir := filepath.Join(tempHome, ".agent-smith")
 	err = os.MkdirAll(agentsDir, 0755)
 	if err != nil {
-		t.Fatalf("Failed to create .agents dir: %v", err)
+		t.Fatalf("Failed to create .agent-smith dir: %v", err)
 	}
 
 	// Create a test config
@@ -369,11 +369,11 @@ func TestSaveConfig_InvalidConfig(t *testing.T) {
 
 	os.Setenv("HOME", tempHome)
 
-	// Create .agents directory
-	agentsDir := filepath.Join(tempHome, ".agents")
+	// Create .agent-smith directory
+	agentsDir := filepath.Join(tempHome, ".agent-smith")
 	err = os.MkdirAll(agentsDir, 0755)
 	if err != nil {
-		t.Fatalf("Failed to create .agents dir: %v", err)
+		t.Fatalf("Failed to create .agent-smith dir: %v", err)
 	}
 
 	// Try to save an invalid config
@@ -408,11 +408,11 @@ func TestLoadConfig_MalformedJSON(t *testing.T) {
 
 	os.Setenv("HOME", tempHome)
 
-	// Create .agents directory
-	agentsDir := filepath.Join(tempHome, ".agents")
+	// Create .agent-smith directory
+	agentsDir := filepath.Join(tempHome, ".agent-smith")
 	err = os.MkdirAll(agentsDir, 0755)
 	if err != nil {
-		t.Fatalf("Failed to create .agents dir: %v", err)
+		t.Fatalf("Failed to create .agent-smith dir: %v", err)
 	}
 
 	// Write malformed JSON

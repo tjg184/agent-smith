@@ -274,7 +274,7 @@ func (pm *ProfileManager) ActivateProfile(profileName string) error {
 	return nil
 }
 
-// AddComponentToProfile copies an existing component from ~/.agents/ to a profile
+// AddComponentToProfile copies an existing component from ~/.agent-smith/ to a profile
 func (pm *ProfileManager) AddComponentToProfile(profileName, componentType, componentName string) error {
 	// Validate profile name
 	if err := validateProfileName(profileName); err != nil {
@@ -302,7 +302,7 @@ func (pm *ProfileManager) AddComponentToProfile(profileName, componentType, comp
 
 	// Check if source component exists
 	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
-		return fmt.Errorf("component '%s' not found in ~/.agents/%s/", componentName, componentType)
+		return fmt.Errorf("component '%s' not found in ~/.agent-smith/%s/", componentName, componentType)
 	}
 
 	// Check if component is a symlink (from active profile)

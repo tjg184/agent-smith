@@ -16,7 +16,7 @@ The "Agent-Smith Profiles" feature introduces the ability to manage and switch b
 
 - [x] Story-001: As a user, I want to define profiles in a specific directory so that the system can recognize them.
   **Acceptance Criteria:**
-  - Profiles are located in `~/.agents/profiles/<profile_name>/`.
+  - Profiles are located in `~/.agent-smith/profiles/<profile_name>/`.
   - Each profile directory mirrors the standard structure (agents/, commands/, skills/).
   - The system ignores incomplete or malformed profile directories gracefully.
   
@@ -26,12 +26,12 @@ The "Agent-Smith Profiles" feature introduces the ability to manage and switch b
   - Test handling of empty or missing profile directories.
   
   **Integration Tests:**
-  - Verify filesystem reads from `~/.agents/profiles/`.
+  - Verify filesystem reads from `~/.agent-smith/profiles/`.
 
 - [x] Story-002: As a user, I want to list available profiles so that I can see what configurations are available.
   **Acceptance Criteria:**
   - New command `agent-smith profiles list` (or similar).
-  - output shows the names of all valid profiles found in `~/.agents/profiles/`.
+  - output shows the names of all valid profiles found in `~/.agent-smith/profiles/`.
   - Indicates which profile (if any) is currently active.
   
   **Testing Criteria:**
@@ -48,7 +48,7 @@ The "Agent-Smith Profiles" feature introduces the ability to manage and switch b
   - If another profile is active, it is automatically deactivated (unlinked) first.
   - Validates that the target profile exists.
   - Symlinks the profile's contents (agents, skills, commands) to the source of truth locations.
-  - Updates a state file (e.g., `~/.agents/active_profile`) to reflect the new active profile.
+  - Updates a state file (e.g., `~/.agent-smith/active_profile`) to reflect the new active profile.
   - **Crucial**: Activation is isolated; it does not merge with the previous profile.
   
   **Testing Criteria:**
@@ -58,7 +58,7 @@ The "Agent-Smith Profiles" feature introduces the ability to manage and switch b
   
   **Integration Tests:**
   - Full cycle: Activate A -> Check Links -> Activate B -> Check Links (A gone, B present).
-  - Verify `~/.agents/active_profile` updates.
+  - Verify `~/.agent-smith/active_profile` updates.
 
 - [x] Story-004: As a user, I want to deactivate the current profile so that I can return to a base state.
   **Acceptance Criteria:**
@@ -89,8 +89,8 @@ The "Agent-Smith Profiles" feature introduces the ability to manage and switch b
 
 ## Functional Requirements
 
-- **FR-1 Storage**: Profile definitions must be stored in `~/.agents/profiles/`.
-- **FR-2 Global Scope**: Changing a profile affects the global environment for all consumers of the `~/.agents` bin/source.
+- **FR-1 Storage**: Profile definitions must be stored in `~/.agent-smith/profiles/`.
+- **FR-2 Global Scope**: Changing a profile affects the global environment for all consumers of the `~/.agent-smith` bin/source.
 - **FR-3 Linking Mechanism**: The system must use symlinks to "activate" tools from a profile into the main execution path.
 - **FR-4 Auto-Cleanup**: Before linking a new profile, the system must identify and unlink the artifacts of the previously active profile.
 - **FR-5 Persistence**: The active profile selection must persist across sessions (via a state file).

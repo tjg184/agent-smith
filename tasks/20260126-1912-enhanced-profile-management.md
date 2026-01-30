@@ -7,8 +7,8 @@ Enhance the existing profiles feature in agent-smith to support creating profile
 ## Goals
 
 - Enable users to create new empty profiles via CLI
-- Allow copying existing components from ~/.agents/ into specific profiles
-- Support installing components directly to profiles (bypassing ~/.agents/)
+- Allow copying existing components from ~/.agent-smith/ into specific profiles
+- Support installing components directly to profiles (bypassing ~/.agent-smith/)
 - Make link commands automatically use active profile as source when applicable
 - Provide component management within profiles (add, remove, list)
 - Maintain backward compatibility with existing commands and workflows
@@ -21,7 +21,7 @@ Enhance the existing profiles feature in agent-smith to support creating profile
   **Acceptance Criteria:**
   - Command `agent-smith profiles create <name>` creates new profile
   - Profile name validation allows alphanumeric characters and dashes only
-  - Creates directory structure at ~/.agents/profiles/<name>/{agents,skills,commands}
+  - Creates directory structure at ~/.agent-smith/profiles/<name>/{agents,skills,commands}
   - Error if profile name already exists
   - Error if profile name is invalid (empty, contains invalid characters, path traversal)
   - Success message shows created profile location
@@ -41,16 +41,16 @@ Enhance the existing profiles feature in agent-smith to support creating profile
   **Component Browser Tests:**
   - N/A (CLI-only feature)
 
-- [x] Story-002: As a developer, I want to add an existing component from ~/.agents/ to a profile so that I can reuse components across profiles.
+- [x] Story-002: As a developer, I want to add an existing component from ~/.agent-smith/ to a profile so that I can reuse components across profiles.
 
   **Acceptance Criteria:**
   - Commands: `agent-smith profiles add skill <profile> <name>`, `agent-smith profiles add agent <profile> <name>`, `agent-smith profiles add command <profile> <name>`
   - Validates profile exists before copying
-  - Validates source component exists in ~/.agents/<type>/
+  - Validates source component exists in ~/.agent-smith/<type>/
   - Copies entire component directory to profile directory
   - Error and abort if component already exists in profile (no overwrite)
   - Success message shows what was copied and where
-  - Source component in ~/.agents/ remains unchanged
+  - Source component in ~/.agent-smith/ remains unchanged
   
   **Testing Criteria:**
   **Unit Tests:**
@@ -59,7 +59,7 @@ Enhance the existing profiles feature in agent-smith to support creating profile
   - Source validation
   
   **Integration Tests:**
-  - Copy component from ~/.agents/ to profile
+  - Copy component from ~/.agent-smith/ to profile
   - Verify directory structure after copy
   - Error handling for missing components
   
@@ -92,14 +92,14 @@ Enhance the existing profiles feature in agent-smith to support creating profile
   **Component Browser Tests:**
   - N/A (CLI-only feature)
 
-- [x] Story-004: As a developer, I want to install a component directly to a profile so that I can skip installing to ~/.agents/ first.
+- [x] Story-004: As a developer, I want to install a component directly to a profile so that I can skip installing to ~/.agent-smith/ first.
 
   **Acceptance Criteria:**
   - Add --profile flag to install commands: `agent-smith install skill <repo> <name> --profile <profile>`
   - Works for skill, agent, and command install commands
   - Validates profile exists before installing
-  - Downloads and installs directly to ~/.agents/profiles/<profile>/<type>/<name>
-  - Does not create component in ~/.agents/<type>/
+  - Downloads and installs directly to ~/.agent-smith/profiles/<profile>/<type>/<name>
+  - Does not create component in ~/.agent-smith/<type>/
   - Error if profile doesn't exist
   - Success message shows installation to profile
   - Maintains same download and detection behavior as regular installs
@@ -112,7 +112,7 @@ Enhance the existing profiles feature in agent-smith to support creating profile
   
   **Integration Tests:**
   - Install component to profile
-  - Verify component only exists in profile, not in ~/.agents/
+  - Verify component only exists in profile, not in ~/.agent-smith/
   - Error handling for invalid profiles
   
   **Component Browser Tests:**
@@ -121,8 +121,8 @@ Enhance the existing profiles feature in agent-smith to support creating profile
 - [x] Story-005: As a developer, I want the link commands to automatically use my active profile so that linking matches my current context.
 
   **Acceptance Criteria:**
-  - When profile is active, link commands source from profile instead of ~/.agents/
-  - When no profile is active, link commands use ~/.agents/ (current behavior)
+  - When profile is active, link commands source from profile instead of ~/.agent-smith/
+  - When no profile is active, link commands use ~/.agent-smith/ (current behavior)
   - Works for all link commands: skill, agent, command, all, auto
   - Link status and list commands show source (profile name or base)
   - Always display whether linking from profile or base directory
@@ -313,15 +313,15 @@ Profile names must:
 - Profile doesn't exist: "Profile '<name>' not found"
 - Profile already exists: "Profile '<name>' already exists"
 - Invalid profile name: "Invalid profile name '<name>': must contain only letters, numbers, and dashes"
-- Component doesn't exist in source: "Component '<type>/<name>' not found in ~/.agents/"
+- Component doesn't exist in source: "Component '<type>/<name>' not found in ~/.agent-smith/"
 - Component already exists in profile: "Component '<type>/<name>' already exists in profile '<profile>'"
 - Cannot delete active profile: "Cannot delete active profile '<name>'. Please deactivate it first."
 
 ### Backward Compatibility
 
 All existing commands work unchanged:
-- `agent-smith install skill <repo> <name>` - Still installs to ~/.agents/
-- `agent-smith link skill` - Uses active profile if present, otherwise ~/.agents/
+- `agent-smith install skill <repo> <name>` - Still installs to ~/.agent-smith/
+- `agent-smith link skill` - Uses active profile if present, otherwise ~/.agent-smith/
 - `agent-smith profiles list|activate|deactivate` - No changes
 - Empty profiles now valid (change from current behavior)
 

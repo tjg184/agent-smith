@@ -8,7 +8,7 @@ import (
 
 // Base directory constants
 const (
-	AgentsDir     = "~/.agents"
+	AgentsDir     = "~/.agent-smith"
 	OpencodeDir   = "~/.config/opencode"
 	ClaudeCodeDir = "~/.claude"
 )

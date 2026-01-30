@@ -59,7 +59,7 @@ The agent-smith README.md currently has several critical omissions and inaccurac
   **Acceptance Criteria:**
   - Documentation added to the "Install" command section (lines 44-68)
   - Example showing `agent-smith install skill owner/repo skill-name --target-dir ./test-components`
-  - Brief explanation of use cases (testing, project-local components, isolated from ~/.agents/)
+  - Brief explanation of use cases (testing, project-local components, isolated from ~/.agent-smith/)
   - Available on all install commands (skill, agent, command, all)
   
   **Testing Criteria:**

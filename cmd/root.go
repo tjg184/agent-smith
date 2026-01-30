@@ -140,7 +140,7 @@ EXAMPLES:
 		Long: `Download and install a skill from a git repository to your local agents directory.
 
 This command fetches a skill from any git repository (GitHub, GitLab, Bitbucket, or private)
-and installs it to ~/.agents/skills/<skill-name>. The skill can include multiple components
+and installs it to ~/.agent-smith/skills/<skill-name>. The skill can include multiple components
 and will be automatically detected if it contains a SKILL.md file.
 
 REQUIRED PARAMETERS:
@@ -160,7 +160,7 @@ EXAMPLES:
   # Install directly to a profile
   agent-smith install skill openai/cookbook gpt-skill --profile work
 
-  # Install to custom directory for testing (isolated from ~/.agents/)
+  # Install to custom directory for testing (isolated from ~/.agent-smith/)
   agent-smith install skill ./my-skill test-skill --target-dir ./test-components`,
 		Args: exactArgsWithHelp(2, "agent-smith install skill <repository-url> <skill-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -169,8 +169,8 @@ EXAMPLES:
 			handleAddSkill(args[0], args[1], profile, targetDir)
 		},
 	}
-	installSkillCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agents/")
-	installSkillCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory (isolated from ~/.agents/)")
+	installSkillCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agent-smith/")
+	installSkillCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory (isolated from ~/.agent-smith/)")
 	installCmd.AddCommand(installSkillCmd)
 
 	installAgentCmd := &cobra.Command{
@@ -179,7 +179,7 @@ EXAMPLES:
 		Long: `Download and install an AI agent from a git repository to your local agents directory.
 
 This command fetches an agent from any git repository (GitHub, GitLab, Bitbucket, or private)
-and installs it to ~/.agents/agents/<agent-name>. The agent will be automatically detected
+and installs it to ~/.agent-smith/agents/<agent-name>. The agent will be automatically detected
 based on path patterns and file extensions.
 
 REQUIRED PARAMETERS:
@@ -199,7 +199,7 @@ EXAMPLES:
   # Install directly to a profile
   agent-smith install agent openai/assistant coding-agent --profile work
 
-  # Install to custom directory for testing (isolated from ~/.agents/)
+  # Install to custom directory for testing (isolated from ~/.agent-smith/)
   agent-smith install agent ./my-agent test-agent --target-dir ./test-components`,
 		Args: exactArgsWithHelp(2, "agent-smith install agent <repository-url> <agent-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -208,8 +208,8 @@ EXAMPLES:
 			handleAddAgent(args[0], args[1], profile, targetDir)
 		},
 	}
-	installAgentCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agents/")
-	installAgentCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory (isolated from ~/.agents/)")
+	installAgentCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agent-smith/")
+	installAgentCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory (isolated from ~/.agent-smith/)")
 	installCmd.AddCommand(installAgentCmd)
 
 	installCommandCmd := &cobra.Command{
@@ -218,7 +218,7 @@ EXAMPLES:
 		Long: `Download and install a command-line tool from a git repository to your local agents directory.
 
 This command fetches a command from any git repository (GitHub, GitLab, Bitbucket, or private)
-and installs it to ~/.agents/commands/<command-name>. The command will be automatically detected
+and installs it to ~/.agent-smith/commands/<command-name>. The command will be automatically detected
 based on path patterns and file extensions.
 
 REQUIRED PARAMETERS:
@@ -238,7 +238,7 @@ EXAMPLES:
   # Install directly to a profile
   agent-smith install command cli-tools/formatter json-formatter --profile work
 
-  # Install to custom directory for testing (isolated from ~/.agents/)
+  # Install to custom directory for testing (isolated from ~/.agent-smith/)
   agent-smith install command ./my-command test-command --target-dir ./test-components`,
 		Args: exactArgsWithHelp(2, "agent-smith install command <repository-url> <command-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -247,8 +247,8 @@ EXAMPLES:
 			handleAddCommand(args[0], args[1], profile, targetDir)
 		},
 	}
-	installCommandCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agents/")
-	installCommandCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory (isolated from ~/.agents/)")
+	installCommandCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agent-smith/")
+	installCommandCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory (isolated from ~/.agent-smith/)")
 	installCmd.AddCommand(installCommandCmd)
 
 	installAllCmd := &cobra.Command{
@@ -284,7 +284,7 @@ EXAMPLES:
 			handleAddAll(args[0], targetDir)
 		},
 	}
-	installAllCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory instead of ~/.agents/")
+	installAllCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory instead of ~/.agent-smith/")
 	installCmd.AddCommand(installAllCmd)
 
 	rootCmd.AddCommand(installCmd)
@@ -342,11 +342,11 @@ to supported targets (OpenCode, Claude Code, etc.).
 
 PROFILE AWARENESS:
 When a profile is active, link commands automatically use components from the
-active profile directory instead of ~/.agents/. This allows you to control which
+active profile directory instead of ~/.agent-smith/. This allows you to control which
 components are linked to your editor.
 
-  - With active profile: Sources from ~/.agents/profiles/<profile>/
-  - No active profile: Sources from ~/.agents/ (base installation)
+  - With active profile: Sources from ~/.agent-smith/profiles/<profile>/
+  - No active profile: Sources from ~/.agent-smith/ (base installation)
 
 Use 'agent-smith profile activate <name>' to activate a profile, then run
 'link' commands to apply it.
@@ -363,7 +363,7 @@ FLAGS (apply to all subcommands):
 		Short: "Link a specific skill to detected targets",
 		Long: `Link a specific skill to detected targets.
 
-This command links a downloaded skill from ~/.agents/skills/ to the appropriate
+This command links a downloaded skill from ~/.agent-smith/skills/ to the appropriate
 directories for OpenCode, Claude Code, or other supported targets.
 
 EXAMPLES:
@@ -396,7 +396,7 @@ EXAMPLES:
 		Short: "Link all skills to detected targets",
 		Long: `Link all skills to detected targets.
 
-This command links all downloaded skills from ~/.agents/skills/ to the appropriate
+This command links all downloaded skills from ~/.agent-smith/skills/ to the appropriate
 directories for OpenCode, Claude Code, or other supported targets.
 
 EXAMPLES:
@@ -428,7 +428,7 @@ EXAMPLES:
 		Short: "Link a specific agent to detected targets",
 		Long: `Link a specific agent to detected targets.
 
-This command links a downloaded agent from ~/.agents/agents/ to the appropriate
+This command links a downloaded agent from ~/.agent-smith/agents/ to the appropriate
 directories for OpenCode, Claude Code, or other supported targets.
 
 EXAMPLES:
@@ -461,7 +461,7 @@ EXAMPLES:
 		Short: "Link all agents to detected targets",
 		Long: `Link all agents to detected targets.
 
-This command links all downloaded agents from ~/.agents/agents/ to the appropriate
+This command links all downloaded agents from ~/.agent-smith/agents/ to the appropriate
 directories for OpenCode, Claude Code, or other supported targets.
 
 EXAMPLES:
@@ -493,7 +493,7 @@ EXAMPLES:
 		Short: "Link a specific command to detected targets",
 		Long: `Link a specific command to detected targets.
 
-This command links a downloaded command from ~/.agents/commands/ to the appropriate
+This command links a downloaded command from ~/.agent-smith/commands/ to the appropriate
 directories for OpenCode, Claude Code, or other supported targets.
 
 EXAMPLES:
@@ -526,7 +526,7 @@ EXAMPLES:
 		Short: "Link all commands to detected targets",
 		Long: `Link all commands to detected targets.
 
-This command links all downloaded commands from ~/.agents/commands/ to the appropriate
+This command links all downloaded commands from ~/.agent-smith/commands/ to the appropriate
 directories for OpenCode, Claude Code, or other supported targets.
 
 EXAMPLES:
@@ -563,7 +563,7 @@ Claude Code, or other supported targets.
 
 PROFILE AWARENESS:
   - With active profile: Links components from the active profile
-  - No active profile: Links all components from ~/.agents/ (base installation)
+  - No active profile: Links all components from ~/.agent-smith/ (base installation)
 
 TWO-STEP WORKFLOW:
   1. Activate a profile: agent-smith profile activate <name>
@@ -688,7 +688,7 @@ from supported targets (OpenCode, Claude Code, etc.).
 SAFETY:
   - Symlinks are removed immediately
   - Copied directories require confirmation before deletion
-  - Source files in ~/.agents/ are never touched
+  - Source files in ~/.agent-smith/ are never touched
   - Bulk operations (skills, agents, commands, all) prompt for confirmation unless --force is used`,
 	}
 
@@ -699,7 +699,7 @@ SAFETY:
 		Long: `Unlink a specific skill from detected targets.
 
 This command removes the linked skill from OpenCode, Claude Code, or other
-supported targets. Source files in ~/.agents/skills/ are never touched.
+supported targets. Source files in ~/.agent-smith/skills/ are never touched.
 
 EXAMPLES:
   # Unlink a specific skill from all targets
@@ -722,7 +722,7 @@ EXAMPLES:
 		Long: `Unlink a specific agent from detected targets.
 
 This command removes the linked agent from OpenCode, Claude Code, or other
-supported targets. Source files in ~/.agents/agents/ are never touched.
+supported targets. Source files in ~/.agent-smith/agents/ are never touched.
 
 EXAMPLES:
   # Unlink a specific agent from all targets
@@ -745,7 +745,7 @@ EXAMPLES:
 		Long: `Unlink a specific command from detected targets.
 
 This command removes the linked command from OpenCode, Claude Code, or other
-supported targets. Source files in ~/.agents/commands/ are never touched.
+supported targets. Source files in ~/.agent-smith/commands/ are never touched.
 
 EXAMPLES:
   # Unlink a specific command from all targets
@@ -769,7 +769,7 @@ EXAMPLES:
 		Long: `Unlink all skills from detected targets, or a specific skill if name is provided.
 
 This command removes all linked skills from OpenCode, Claude Code, or other
-supported targets. Source files in ~/.agents/skills/ are never touched.
+supported targets. Source files in ~/.agent-smith/skills/ are never touched.
 
 For backward compatibility, you can also provide a skill name to unlink just
 that specific skill (equivalent to 'unlink skill <name>').
@@ -808,7 +808,7 @@ EXAMPLES:
 		Long: `Unlink all agents from detected targets, or a specific agent if name is provided.
 
 This command removes all linked agents from OpenCode, Claude Code, or other
-supported targets. Source files in ~/.agents/agents/ are never touched.
+supported targets. Source files in ~/.agent-smith/agents/ are never touched.
 
 For backward compatibility, you can also provide an agent name to unlink just
 that specific agent (equivalent to 'unlink agent <name>').
@@ -847,7 +847,7 @@ EXAMPLES:
 		Long: `Unlink all commands from detected targets, or a specific command if name is provided.
 
 This command removes all linked commands from OpenCode, Claude Code, or other
-supported targets. Source files in ~/.agents/commands/ are never touched.
+supported targets. Source files in ~/.agent-smith/commands/ are never touched.
 
 For backward compatibility, you can also provide a command name to unlink just
 that specific command (equivalent to 'unlink command <name>').
@@ -886,7 +886,7 @@ EXAMPLES:
 		Long: `Unlink all components (skills, agents, and commands) from detected targets.
 
 This command removes all linked components from OpenCode, Claude Code, or other
-supported targets. Source files in ~/.agents/ are never touched.
+supported targets. Source files in ~/.agent-smith/ are never touched.
 
 EXAMPLES:
   # Unlink all components with confirmation
@@ -914,7 +914,7 @@ EXAMPLES:
 	uninstallCmd := &cobra.Command{
 		Use:   "uninstall",
 		Short: "Remove installed components from the system",
-		Long: `Remove installed components (skills, agents, commands) from ~/.agents/.
+		Long: `Remove installed components (skills, agents, commands) from ~/.agent-smith/.
 
 This command removes components from the system by:
   1. Automatically unlinking from all detected targets
@@ -923,7 +923,7 @@ This command removes components from the system by:
 
 SAFETY:
   - Components are automatically unlinked before removal
-  - Source directories in ~/.agents/ are permanently deleted
+  - Source directories in ~/.agent-smith/ are permanently deleted
   - Lock file entries are removed to maintain consistency`,
 	}
 
@@ -931,7 +931,7 @@ SAFETY:
 	uninstallSkillCmd := &cobra.Command{
 		Use:   "skill <name>",
 		Short: "Remove a specific skill",
-		Long: `Remove a specific skill from ~/.agents/skills/.
+		Long: `Remove a specific skill from ~/.agent-smith/skills/.
 
 This command removes the skill from the system by:
   1. Automatically unlinking from all detected targets
@@ -950,13 +950,13 @@ EXAMPLES:
 			handleUninstall("skills", args[0], profile)
 		},
 	}
-	uninstallSkillCmd.Flags().StringP("profile", "p", "", "Remove from a specific profile instead of ~/.agents/")
+	uninstallSkillCmd.Flags().StringP("profile", "p", "", "Remove from a specific profile instead of ~/.agent-smith/")
 	uninstallCmd.AddCommand(uninstallSkillCmd)
 
 	uninstallAgentCmd := &cobra.Command{
 		Use:   "agent <name>",
 		Short: "Remove a specific agent",
-		Long: `Remove a specific agent from ~/.agents/agents/.
+		Long: `Remove a specific agent from ~/.agent-smith/agents/.
 
 This command removes the agent from the system by:
   1. Automatically unlinking from all detected targets
@@ -975,13 +975,13 @@ EXAMPLES:
 			handleUninstall("agents", args[0], profile)
 		},
 	}
-	uninstallAgentCmd.Flags().StringP("profile", "p", "", "Remove from a specific profile instead of ~/.agents/")
+	uninstallAgentCmd.Flags().StringP("profile", "p", "", "Remove from a specific profile instead of ~/.agent-smith/")
 	uninstallCmd.AddCommand(uninstallAgentCmd)
 
 	uninstallCommandCmd := &cobra.Command{
 		Use:   "command <name>",
 		Short: "Remove a specific command",
-		Long: `Remove a specific command from ~/.agents/commands/.
+		Long: `Remove a specific command from ~/.agent-smith/commands/.
 
 This command removes the command from the system by:
   1. Automatically unlinking from all detected targets
@@ -1000,7 +1000,7 @@ EXAMPLES:
 			handleUninstall("commands", args[0], profile)
 		},
 	}
-	uninstallCommandCmd.Flags().StringP("profile", "p", "", "Remove from a specific profile instead of ~/.agents/")
+	uninstallCommandCmd.Flags().StringP("profile", "p", "", "Remove from a specific profile instead of ~/.agent-smith/")
 	uninstallCmd.AddCommand(uninstallCommandCmd)
 
 	// Bulk uninstall from repository
@@ -1054,7 +1054,7 @@ and commands, making it easy to switch contexts for different projects or tasks.
 	profilesListCmd := &cobra.Command{
 		Use:   "list",
 		Short: "List available profiles",
-		Long: `List all available profiles found in ~/.agents/profiles/.
+		Long: `List all available profiles found in ~/.agent-smith/profiles/.
 
 This command shows all valid profiles (those containing at least one component
 directory), indicates which profile is currently active, and displays component
@@ -1097,7 +1097,7 @@ EXAMPLES:
 		Short: "Create a new empty profile",
 		Long: `Create a new profile with empty component directories.
 
-This command creates a new profile directory structure at ~/.agents/profiles/<profile-name>/
+This command creates a new profile directory structure at ~/.agent-smith/profiles/<profile-name>/
 with the following subdirectories:
   - agents/
   - skills/
@@ -1177,11 +1177,11 @@ This allows you to control when changes are applied to your editor.`,
 	profilesAddCmd := &cobra.Command{
 		Use:   "add <type> <profile-name> <component-name>",
 		Short: "Add an existing component to a profile",
-		Long: `Add an existing component from ~/.agents/ to a profile.
+		Long: `Add an existing component from ~/.agent-smith/ to a profile.
 
 This command copies a component (skill, agent, or command) from your base
-~/.agents/ directory to a specific profile. The component must already exist
-in ~/.agents/ before it can be added to a profile.
+~/.agent-smith/ directory to a specific profile. The component must already exist
+in ~/.agent-smith/ before it can be added to a profile.
 
 COMPONENT TYPES:
   skills   - Copy a skill to the profile
@@ -1246,7 +1246,7 @@ EXAMPLES:
 		Long: `Display the current configuration status including:
   - Active profile (if any)
   - Detected targets (OpenCode, Claude Code, etc.)
-  - Component counts in ~/.agents/
+  - Component counts in ~/.agent-smith/
   - Quick summary of system state
 
 This provides a dashboard view of your agent-smith installation.`,

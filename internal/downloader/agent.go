@@ -331,8 +331,8 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 // saveLockFile saves agent lock entry in agent-smith install compatible format
 func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceType string, sourceUrl string, commitHash string, components int, detection string, originalPath string) error {
 	// Use the parent directory of baseDir for lock file
-	// baseDir is the agents directory (e.g., ~/.agents/agents)
-	// We want the lock file in the parent (e.g., ~/.agents)
+	// baseDir is the agents directory (e.g., ~/.agent-smith/agents)
+	// We want the lock file in the parent (e.g., ~/.agent-smith)
 	lockBaseDir := filepath.Dir(ad.baseDir)
 
 	if err := fileutil.CreateDirectoryWithPermissions(lockBaseDir); err != nil {

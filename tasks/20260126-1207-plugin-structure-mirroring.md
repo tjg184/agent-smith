@@ -2,12 +2,12 @@
 
 ## Introduction
 
-Fix the multi-component agent download duplication issue in agent-smith by implementing plugin-aware structure mirroring. Currently, when downloading agents from repositories with plugin structures (like `plugins/ui-design/agents/*.md`), agent-smith creates duplicate nested directories with replicated files. This results in 27 duplicate files for the three UI design agents. The system should auto-detect `plugins/` directories in repositories and preserve their structure in `~/.agents/`, while maintaining backward compatibility with flat repository structures.
+Fix the multi-component agent download duplication issue in agent-smith by implementing plugin-aware structure mirroring. Currently, when downloading agents from repositories with plugin structures (like `plugins/ui-design/agents/*.md`), agent-smith creates duplicate nested directories with replicated files. This results in 27 duplicate files for the three UI design agents. The system should auto-detect `plugins/` directories in repositories and preserve their structure in `~/.agent-smith/`, while maintaining backward compatibility with flat repository structures.
 
 ## Goals
 
 - Eliminate file duplication in multi-component plugin downloads (currently 27 duplicate files for ui-design agents)
-- Mirror source repository structure in `~/.agents/` for plugin-based repos
+- Mirror source repository structure in `~/.agent-smith/` for plugin-based repos
 - Auto-detect both plugin-based and flat repository structures
 - Apply consistent logic to agents, commands, and skills
 - Maintain backward compatibility with existing flat repository installations
@@ -79,7 +79,7 @@ Fix the multi-component agent download duplication issue in agent-smith by imple
 
   **Acceptance Criteria:**
   - Rewrite `downloadAgentWithRepo()` to detect plugin structures using `detectCommonPluginPath()`
-  - When plugin detected, copy entire plugin directory once to `~/.agents/plugins/{plugin-name}/`
+  - When plugin detected, copy entire plugin directory once to `~/.agent-smith/plugins/{plugin-name}/`
   - Save metadata with `pluginPath` field to track plugin structure
   - Update lock file entries for all components in plugin with pluginPath information
   - Maintain existing behavior for single-agent downloads (no plugin structure)
@@ -98,7 +98,7 @@ Fix the multi-component agent download duplication issue in agent-smith by imple
   - Download flat repository agent and verify existing behavior maintained
   
   **Component Browser Tests:**
-  - Manual verification of directory structure in ~/.agents/plugins/
+  - Manual verification of directory structure in ~/.agent-smith/plugins/
   - Verify no duplicate .md files exist in plugin structure
 
 - [x] Story-005: As an agent-smith developer, I want to apply identical plugin mirroring logic to skills and commands so that all component types benefit from structure preservation.
@@ -153,7 +153,7 @@ Fix the multi-component agent download duplication issue in agent-smith by imple
 - [ ] Story-007: As an agent-smith user, I want comprehensive integration testing so that the plugin mirroring system works correctly for real-world repositories.
 
   **Acceptance Criteria:**
-  - Test downloading accessibility-expert from wshobson/agents creates `~/.agents/plugins/ui-design/` structure
+  - Test downloading accessibility-expert from wshobson/agents creates `~/.agent-smith/plugins/ui-design/` structure
   - Verify plugin directory contains all three agent .md files, commands, and skills
   - Verify metadata file includes `pluginPath: "plugins/ui-design"`
   - Test downloading design-system-architect reuses existing plugin structure
@@ -182,7 +182,7 @@ Fix the multi-component agent download duplication issue in agent-smith by imple
 ## Functional Requirements
 
 - FR-1: The system must detect plugin-based repository structures by identifying "plugins/" in component paths
-- FR-2: When downloading components from plugin structures, the system must copy the entire plugin directory once to `~/.agents/plugins/{plugin-name}/`
+- FR-2: When downloading components from plugin structures, the system must copy the entire plugin directory once to `~/.agent-smith/plugins/{plugin-name}/`
 - FR-3: The system must store plugin path information in metadata and lock files using the `pluginPath` field
 - FR-4: The system must create symlinks to individual component files within plugin directories
 - FR-5: The system must apply plugin mirroring logic consistently to agents, commands, and skills

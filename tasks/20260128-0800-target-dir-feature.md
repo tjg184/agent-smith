@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Add a `--target-dir` flag to the `agent-smith install all` command that allows installing components to a custom base directory instead of the default `~/.agents/`. Custom directories will be standalone and independent from the managed `~/.agents/` ecosystem, enabling project-local installations, isolated testing, and offline distribution packaging.
+Add a `--target-dir` flag to the `agent-smith install all` command that allows installing components to a custom base directory instead of the default `~/.agent-smith/`. Custom directories will be standalone and independent from the managed `~/.agent-smith/` ecosystem, enabling project-local installations, isolated testing, and offline distribution packaging.
 
 ## Goals
 
@@ -41,11 +41,11 @@ Add a `--target-dir` flag to the `agent-smith install all` command that allows i
   - Help text display for new flag
   - Error message clarity for invalid paths
 
-- [x] Story-002: As a component author, I want to test components in isolation without affecting my main `~/.agents/` installation.
+- [x] Story-002: As a component author, I want to test components in isolation without affecting my main `~/.agent-smith/` installation.
 
   **Acceptance Criteria:**
-  - Custom target directories are completely isolated from `~/.agents/` directory
-  - No modifications to existing `~/.agents/` when using `--target-dir`
+  - Custom target directories are completely isolated from `~/.agent-smith/` directory
+  - No modifications to existing `~/.agent-smith/` when using `--target-dir`
   - Lock files (`.skill-lock.json`, `.agent-lock.json`, `.command-lock.json`) stored in target directory root
   - Lock files contain source repository, commit hash, and metadata
   - Custom directories are NOT managed by `link`, `update`, or `profile` commands
@@ -59,7 +59,7 @@ Add a `--target-dir` flag to the `agent-smith install all` command that allows i
 
   **Integration Tests:**
   - Installation to temporary directory
-  - Verification of no side effects to `~/.agents/`
+  - Verification of no side effects to `~/.agent-smith/`
   - Lock file persistence and content accuracy
 
   **Component Browser Tests:**
@@ -73,7 +73,7 @@ Add a `--target-dir` flag to the `agent-smith install all` command that allows i
   - Components installed to custom directory are fully self-contained
   - All necessary files and subdirectories created in target directory
   - Target directory can be archived (tar/zip) and distributed
-  - No external dependencies on `~/.agents/` or other system directories
+  - No external dependencies on `~/.agent-smith/` or other system directories
   - Clear documentation on using custom directories for distribution
   - Support for very long paths and paths with special characters (spaces, unicode)
 
@@ -123,10 +123,10 @@ Add a `--target-dir` flag to the `agent-smith install all` command that allows i
 - [ ] Story-005: As a developer, I want backward compatibility with existing commands so my current workflows continue to work without changes.
 
   **Acceptance Criteria:**
-  - `install all` without `--target-dir` flag installs to `~/.agents/` (current behavior unchanged)
+  - `install all` without `--target-dir` flag installs to `~/.agent-smith/` (current behavior unchanged)
   - Individual `install skill/agent/command` commands remain unchanged
   - `--profile` flag for individual installs continues to work as before
-  - Link, update, and profile commands operate only on `~/.agents/` and profiles, not custom directories
+  - Link, update, and profile commands operate only on `~/.agent-smith/` and profiles, not custom directories
   - All existing tests continue to pass
   - No breaking changes to existing CLI interface
 
@@ -156,11 +156,11 @@ Add a `--target-dir` flag to the `agent-smith install all` command that allows i
 - FR-6: The system MUST install components to appropriate subdirectories: `<target-dir>/skills/<name>/`, `<target-dir>/agents/<name>/`, `<target-dir>/commands/<name>/`
 - FR-7: The system MUST store lock files (`.skill-lock.json`, `.agent-lock.json`, `.command-lock.json`) in target directory root
 - FR-8: Lock files MUST contain source repository URL, commit hash, and installation metadata
-- FR-9: Custom target directories MUST be isolated from `~/.agents/` directory (no cross-contamination)
+- FR-9: Custom target directories MUST be isolated from `~/.agent-smith/` directory (no cross-contamination)
 - FR-10: Custom target directories MUST NOT be managed by `link`, `update`, or `profile` commands
 - FR-11: The system MUST provide clear error messages for invalid paths, permission errors, and target-is-file errors
 - FR-12: The system MUST handle edge cases: empty string (use default), paths with spaces, unicode paths, very long paths
-- FR-13: The system MUST maintain backward compatibility: `install all` without flag installs to `~/.agents/`
+- FR-13: The system MUST maintain backward compatibility: `install all` without flag installs to `~/.agent-smith/`
 - FR-14: The system MUST update help text and CLI documentation to describe new flag and its behavior
 
 

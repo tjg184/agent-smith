@@ -280,7 +280,7 @@ func main() {
 					log.Fatal("Failed to download skill:", err)
 				}
 			} else {
-				// Standard installation to ~/.agents/
+				// Standard installation to ~/.agent-smith/
 				dl := downloader.NewSkillDownloader()
 				if err := dl.DownloadSkill(repoURL, name); err != nil {
 					log.Fatal("Failed to download skill:", err)
@@ -338,7 +338,7 @@ func main() {
 					log.Fatal("Failed to download agent:", err)
 				}
 			} else {
-				// Standard installation to ~/.agents/
+				// Standard installation to ~/.agent-smith/
 				dl := downloader.NewAgentDownloader()
 				if err := dl.DownloadAgent(repoURL, name); err != nil {
 					log.Fatal("Failed to download agent:", err)
@@ -396,7 +396,7 @@ func main() {
 					log.Fatal("Failed to download command:", err)
 				}
 			} else {
-				// Standard installation to ~/.agents/
+				// Standard installation to ~/.agent-smith/
 				dl := downloader.NewCommandDownloader()
 				if err := dl.DownloadCommand(repoURL, name); err != nil {
 					log.Fatal("Failed to download command:", err)
@@ -421,7 +421,7 @@ func main() {
 				fmt.Printf("Installing to custom directory: %s\n", resolvedPath)
 				bulkDownloader = downloader.NewBulkDownloaderWithTargetDir(resolvedPath)
 			} else {
-				// Use default behavior (install to ~/.agents/)
+				// Use default behavior (install to ~/.agent-smith/)
 				bulkDownloader = downloader.NewBulkDownloader()
 			}
 
@@ -565,7 +565,7 @@ func main() {
 			}
 		},
 		func(repoURL string, force bool) {
-			// Get base directory (always ~/.agents/ for bulk uninstall)
+			// Get base directory (always ~/.agent-smith/ for bulk uninstall)
 			baseDir, err := paths.GetAgentsDir()
 			if err != nil {
 				log.Fatal("Failed to get base directory:", err)
@@ -604,7 +604,7 @@ func main() {
 
 			// Display results
 			if len(profilesList) == 0 {
-				fmt.Println("No profiles found in ~/.agents/profiles/")
+				fmt.Println("No profiles found in ~/.agent-smith/profiles/")
 				fmt.Println("\nTo create a profile, run:")
 				fmt.Println("  ./agent-smith profile create <profile-name>")
 				return
@@ -829,7 +829,7 @@ func main() {
 				log.Fatal("Failed to get agents directory:", err)
 			}
 
-			// Count components in ~/.agents/
+			// Count components in ~/.agent-smith/
 			agentsPath := filepath.Join(agentsDir, "agents")
 			skillsPath := filepath.Join(agentsDir, "skills")
 			commandsPath := filepath.Join(agentsDir, "commands")
@@ -885,7 +885,7 @@ func main() {
 			}
 
 			fmt.Println()
-			fmt.Println("Components in ~/.agents/:")
+			fmt.Println("Components in ~/.agent-smith/:")
 			fmt.Printf("  Agents: %d\n", agentsCount)
 			fmt.Printf("  Skills: %d\n", skillsCount)
 			fmt.Printf("  Commands: %d\n", commandsCount)

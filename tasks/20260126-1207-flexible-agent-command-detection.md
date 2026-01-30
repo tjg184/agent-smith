@@ -8,7 +8,7 @@ Implement a flexible, frontmatter-based detection system for AI agents and comma
 
 - Support multiple repository formats (plugins, flat, nested structures)
 - Parse YAML frontmatter for component metadata (name, description, model, etc.)
-- Store agents/commands in flat directory structure (`~/.agents/agents/`, `~/.agents/commands/`)
+- Store agents/commands in flat directory structure (`~/.agent-smith/agents/`, `~/.agent-smith/commands/`)
 - Copy entire component directories to preserve context and resources
 - Provide clear warnings for duplicate component names
 - Remove dependency on marker files (`AGENT.md`, `COMMAND.md`)
@@ -77,8 +77,8 @@ Implement a flexible, frontmatter-based detection system for AI agents and comma
 - [x] Story-004: As a developer, I want agents/commands stored in flat directory structure so that linking to OpenCode is straightforward.
 
   **Acceptance Criteria:**
-  - Store agents in `~/.agents/agents/{name}/{name}.md`
-  - Store commands in `~/.agents/commands/{name}/{name}.md`
+  - Store agents in `~/.agent-smith/agents/{name}/{name}.md`
+  - Store commands in `~/.agent-smith/commands/{name}/{name}.md`
   - Copy entire source directory to preserve resources
   - Create parent directories if they don't exist
   
@@ -188,8 +188,8 @@ Implement a flexible, frontmatter-based detection system for AI agents and comma
 
 ### Storage
 
-- FR-16: The system must store agents in `~/.agents/agents/{component-name}/`
-- FR-17: The system must store commands in `~/.agents/commands/{component-name}/`
+- FR-16: The system must store agents in `~/.agent-smith/agents/{component-name}/`
+- FR-17: The system must store commands in `~/.agent-smith/commands/{component-name}/`
 - FR-18: The system must copy the entire source directory to destination
 - FR-19: The system must create parent directories if they don't exist
 - FR-20: The system must use component name for directory name (kebab-case or as-is)
@@ -204,8 +204,8 @@ Implement a flexible, frontmatter-based detection system for AI agents and comma
 
 ### Linking
 
-- FR-26: The system must create symlinks from `~/.config/opencode/agents/{name}` to `~/.agents/agents/{name}/{name}.md`
-- FR-27: The system must create symlinks from `~/.config/opencode/commands/{name}` to `~/.agents/commands/{name}/{name}.md`
+- FR-26: The system must create symlinks from `~/.config/opencode/agents/{name}` to `~/.agent-smith/agents/{name}/{name}.md`
+- FR-27: The system must create symlinks from `~/.config/opencode/commands/{name}` to `~/.agent-smith/commands/{name}/{name}.md`
 - FR-28: The system must handle existing symlinks gracefully (recreate or skip)
 
 ### Lock File
@@ -367,8 +367,8 @@ go build -o agent-smith main.go
 ./agent-smith install all wshobson/agents
 
 # Verify storage
-ls -la ~/.agents/agents/
-ls -la ~/.agents/commands/
+ls -la ~/.agent-smith/agents/
+ls -la ~/.agent-smith/commands/
 
 # Test linking
 ./agent-smith link-all
