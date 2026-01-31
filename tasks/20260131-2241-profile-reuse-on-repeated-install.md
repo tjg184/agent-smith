@@ -140,7 +140,7 @@ This PRD defines a solution to detect and reuse existing profiles when installin
   **Component Browser Tests:**
   - N/A (CLI-only feature)
 
-- [ ] Story-006: As a developer, I want the ProfileManager to expose methods for finding profiles by source URL so that the installation logic can detect duplicates.
+- [x] Story-006: As a developer, I want the ProfileManager to expose methods for finding profiles by source URL so that the installation logic can detect duplicates.
 
   **Acceptance Criteria:**
   - ProfileManager has a `FindProfileBySourceURL(repoURL string) (*Profile, error)` method
