@@ -405,6 +405,20 @@ func main() {
 					log.Fatal("Failed to download skill:", err)
 				}
 				debugPrintln("[DEBUG] Skill download to profile completed successfully")
+
+				// Auto-activate profile if no profile is currently active
+				activeProfile, err := pm.GetActiveProfile()
+				if err != nil {
+					log.Fatal("Failed to get active profile:", err)
+				}
+				if activeProfile == "" {
+					debugPrintf("[DEBUG] No active profile detected, auto-activating profile: %s\n", profile)
+					if err := pm.ActivateProfile(profile); err != nil {
+						log.Fatal("Failed to auto-activate profile:", err)
+					}
+					infoPrintf("Profile '%s' has been automatically activated as your first profile.\n", profile)
+					infoPrintln("Components from this profile are now ready to be linked.")
+				}
 			} else {
 				// Standard installation to ~/.agent-smith/
 				debugPrintln("[DEBUG] Installing to standard directory (~/.agent-smith/)")
@@ -465,6 +479,20 @@ func main() {
 				if err := dl.DownloadAgent(repoURL, name); err != nil {
 					log.Fatal("Failed to download agent:", err)
 				}
+
+				// Auto-activate profile if no profile is currently active
+				activeProfile, err := pm.GetActiveProfile()
+				if err != nil {
+					log.Fatal("Failed to get active profile:", err)
+				}
+				if activeProfile == "" {
+					debugPrintf("[DEBUG] No active profile detected, auto-activating profile: %s\n", profile)
+					if err := pm.ActivateProfile(profile); err != nil {
+						log.Fatal("Failed to auto-activate profile:", err)
+					}
+					infoPrintf("Profile '%s' has been automatically activated as your first profile.\n", profile)
+					infoPrintln("Components from this profile are now ready to be linked.")
+				}
 			} else {
 				// Standard installation to ~/.agent-smith/
 				dl := downloader.NewAgentDownloader()
@@ -522,6 +550,20 @@ func main() {
 				dl := downloader.NewCommandDownloaderForProfile(profile)
 				if err := dl.DownloadCommand(repoURL, name); err != nil {
 					log.Fatal("Failed to download command:", err)
+				}
+
+				// Auto-activate profile if no profile is currently active
+				activeProfile, err := pm.GetActiveProfile()
+				if err != nil {
+					log.Fatal("Failed to get active profile:", err)
+				}
+				if activeProfile == "" {
+					debugPrintf("[DEBUG] No active profile detected, auto-activating profile: %s\n", profile)
+					if err := pm.ActivateProfile(profile); err != nil {
+						log.Fatal("Failed to auto-activate profile:", err)
+					}
+					infoPrintf("Profile '%s' has been automatically activated as your first profile.\n", profile)
+					infoPrintln("Components from this profile are now ready to be linked.")
 				}
 			} else {
 				// Standard installation to ~/.agent-smith/
