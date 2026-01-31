@@ -70,7 +70,7 @@ This PRD defines a solution to detect and reuse existing profiles when installin
   **Component Browser Tests:**
   - N/A (CLI-only feature)
 
-- [ ] Story-003: As a developer, I want profile metadata to include the source repository URL so that the system can detect duplicates.
+- [x] Story-003: As a developer, I want profile metadata to include the source repository URL so that the system can detect duplicates.
 
   **Acceptance Criteria:**
   - When a profile is created via `install all`, a `.profile-metadata` file is created in the profile directory
