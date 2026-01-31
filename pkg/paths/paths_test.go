@@ -14,7 +14,7 @@ func TestGetAgentsDir(t *testing.T) {
 	}
 
 	home, _ := os.UserHomeDir()
-	expected := filepath.Join(home, ".agents")
+	expected := filepath.Join(home, ".agent-smith")
 
 	if agentsDir != expected {
 		t.Errorf("GetAgentsDir() = %v, want %v", agentsDir, expected)
@@ -52,7 +52,7 @@ func TestGetSkillsDir(t *testing.T) {
 	}
 
 	home, _ := os.UserHomeDir()
-	expected := filepath.Join(home, ".agents", "skills")
+	expected := filepath.Join(home, ".agent-smith", "skills")
 
 	if skillsDir != expected {
 		t.Errorf("GetSkillsDir() = %v, want %v", skillsDir, expected)
@@ -66,7 +66,7 @@ func TestGetAgentsSubDir(t *testing.T) {
 	}
 
 	home, _ := os.UserHomeDir()
-	expected := filepath.Join(home, ".agents", "agents")
+	expected := filepath.Join(home, ".agent-smith", "agents")
 
 	if agentsSubDir != expected {
 		t.Errorf("GetAgentsSubDir() = %v, want %v", agentsSubDir, expected)
@@ -80,7 +80,7 @@ func TestGetCommandsDir(t *testing.T) {
 	}
 
 	home, _ := os.UserHomeDir()
-	expected := filepath.Join(home, ".agents", "commands")
+	expected := filepath.Join(home, ".agent-smith", "commands")
 
 	if commandsDir != expected {
 		t.Errorf("GetCommandsDir() = %v, want %v", commandsDir, expected)
