@@ -1,0 +1,101 @@
+# Node.js Full-Stack Profile Template
+# Uses keyword matching to dynamically discover relevant skills
+
+name: nodejs-fullstack
+display_name: "Node.js Full-Stack Engineer"
+description: "Complete toolkit for full-stack development with Node.js backend and modern frontend"
+
+metadata:
+  language: JavaScript/TypeScript
+  framework: "Node.js, Express/Fastify, React"
+  focus_areas:
+    - Full-Stack Development
+    - Backend API Development
+    - Frontend Development
+    - Database Design
+  experience_level: all
+
+skill_keywords:
+  backend:
+    priority: required
+    keywords:
+      - nodejs.*backend
+      - api.*design
+      - architecture.*pattern
+      - auth.*implementation
+    description: "Backend API development"
+    
+  javascript:
+    priority: required
+    keywords:
+      - javascript.*pattern
+      - modern.*javascript
+      - typescript
+      - async.*pattern
+    description: "JavaScript and TypeScript"
+    
+  frontend:
+    priority: required
+    keywords:
+      - react
+      - nextjs
+      - frontend.*design
+      - component
+    description: "Frontend development"
+    
+  database:
+    priority: required
+    keywords:
+      - sql.*optimization
+      - database.*migration
+      - database.*design
+    description: "Database skills"
+    
+  testing:
+    priority: recommended
+    keywords:
+      - javascript.*testing
+      - e2e.*testing
+      - debugging
+    description: "Testing strategies"
+    
+  devops:
+    priority: optional
+    keywords:
+      - deployment.*pipeline
+      - gitops
+      - github.*actions
+    description: "DevOps and deployment"
+
+agent_categories:
+  primary:
+    - backend-development
+    - ui-design
+    - database-design
+
+command_patterns:
+  - "*node*"
+  - "*npm*"
+  - "*typescript*"
+
+config:
+  auto_link: true
+  create_readme: true
+  max_skills: 25
+  min_skills: 10
+
+readme_template: |
+  # Node.js Full-Stack Engineer Profile
+  
+  Complete full-stack development with Node.js and React.
+  
+  ## Included Components
+  
+  {COMPONENT_LIST}
+  
+  ## Use Cases
+  
+  - Building full-stack applications
+  - REST APIs with Node.js
+  - React frontends
+  - Database integration

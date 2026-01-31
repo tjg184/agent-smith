@@ -1,0 +1,107 @@
+# DevOps/Platform Engineer Profile Template
+# Uses keyword matching to dynamically discover relevant skills
+
+name: devops-platform
+display_name: "DevOps/Platform Engineer"
+description: "Complete toolkit for DevOps, platform engineering, and cloud infrastructure"
+
+metadata:
+  language: "Multiple"
+  framework: "Kubernetes, Terraform, GitOps"
+  focus_areas:
+    - DevOps
+    - Platform Engineering
+    - Cloud Infrastructure
+    - Site Reliability
+  experience_level: all
+
+skill_keywords:
+  kubernetes:
+    priority: required
+    keywords:
+      - k8s
+      - kubernetes
+      - helm.*chart
+      - istio
+      - linkerd
+      - service.*mesh
+    description: "Kubernetes and orchestration"
+    
+  infrastructure:
+    priority: required
+    keywords:
+      - terraform
+      - infrastructure.*code
+      - cloud.*architecture
+      - multi.*cloud
+    description: "Infrastructure as Code"
+    
+  cicd:
+    priority: required
+    keywords:
+      - gitops
+      - deployment.*pipeline
+      - github.*actions
+      - gitlab.*ci
+    description: "CI/CD and deployment"
+    
+  observability:
+    priority: required
+    keywords:
+      - prometheus
+      - grafana
+      - distributed.*tracing
+      - slo.*implementation
+      - monitoring
+    description: "Observability and monitoring"
+    
+  security:
+    priority: recommended
+    keywords:
+      - security.*policies
+      - mtls
+      - secrets.*management
+      - sast
+    description: "Security and compliance"
+    
+  reliability:
+    priority: recommended
+    keywords:
+      - incident.*response
+      - postmortem
+      - on.*call
+    description: "Site reliability practices"
+
+agent_categories:
+  primary:
+    - incident-response
+  secondary:
+    - backend-development
+
+command_patterns:
+  - "*kubectl*"
+  - "*terraform*"
+  - "*docker*"
+
+config:
+  auto_link: true
+  create_readme: true
+  max_skills: 30
+  min_skills: 12
+
+readme_template: |
+  # DevOps/Platform Engineer Profile
+  
+  Infrastructure, deployment, and site reliability engineering.
+  
+  ## Included Components
+  
+  {COMPONENT_LIST}
+  
+  ## Use Cases
+  
+  - Kubernetes cluster management
+  - Infrastructure automation
+  - CI/CD pipelines
+  - Monitoring and observability
+  - Incident response

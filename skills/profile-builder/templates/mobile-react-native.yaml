@@ -1,0 +1,79 @@
+# Mobile React Native Profile Template
+# Uses keyword matching to dynamically discover relevant skills
+
+name: mobile-react-native
+display_name: "Mobile Engineer (React Native)"
+description: "Complete toolkit for cross-platform mobile development with React Native"
+
+metadata:
+  language: JavaScript/TypeScript
+  framework: React Native
+  focus_areas:
+    - Mobile Development
+    - Cross-Platform Apps
+    - React Native
+  experience_level: all
+
+skill_keywords:
+  mobile:
+    priority: required
+    keywords:
+      - react.*native
+      - mobile.*ios
+      - mobile.*android
+    description: "Mobile development patterns"
+    
+  react:
+    priority: required
+    keywords:
+      - react.*state
+      - component
+      - typescript
+      - javascript.*pattern
+    description: "React and JavaScript"
+    
+  design:
+    priority: recommended
+    keywords:
+      - interaction.*design
+      - visual.*design
+      - accessibility
+    description: "UI/UX design"
+    
+  testing:
+    priority: recommended
+    keywords:
+      - javascript.*testing
+      - e2e.*testing
+      - debugging
+    description: "Testing and debugging"
+
+agent_categories:
+  primary:
+    - ui-design
+
+command_patterns:
+  - "*react*"
+  - "*mobile*"
+  - "*expo*"
+
+config:
+  auto_link: true
+  create_readme: true
+  max_skills: 15
+  min_skills: 8
+
+readme_template: |
+  # Mobile Engineer (React Native) Profile
+  
+  Cross-platform mobile development with React Native.
+  
+  ## Included Components
+  
+  {COMPONENT_LIST}
+  
+  ## Use Cases
+  
+  - Building mobile apps
+  - Cross-platform development
+  - React Native patterns

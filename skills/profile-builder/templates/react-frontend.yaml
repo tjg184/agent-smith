@@ -1,0 +1,113 @@
+# React Frontend Profile Template
+# Uses keyword matching to dynamically discover relevant skills
+
+name: react-frontend
+display_name: "React Frontend Engineer"
+description: "Complete toolkit for React frontend development with modern patterns and best practices"
+
+metadata:
+  language: JavaScript/TypeScript
+  framework: React
+  focus_areas:
+    - Frontend Development
+    - UI/UX Design
+    - Component Architecture
+    - State Management
+  experience_level: all
+
+skill_keywords:
+  react_core:
+    priority: required
+    keywords:
+      - react
+      - nextjs
+      - component
+      - state.*management
+    description: "React and component development"
+    
+  javascript:
+    priority: required
+    keywords:
+      - javascript.*pattern
+      - modern.*javascript
+      - typescript.*type
+      - typescript.*advanced
+    description: "JavaScript and TypeScript skills"
+    
+  frontend_design:
+    priority: required
+    keywords:
+      - frontend.*design
+      - tailwind
+      - design.*system
+      - responsive.*design
+      - visual.*design
+    description: "UI design and styling"
+    
+  testing:
+    priority: recommended
+    keywords:
+      - javascript.*testing
+      - e2e.*testing
+      - webapp.*testing
+    description: "Frontend testing strategies"
+    
+  accessibility:
+    priority: recommended
+    keywords:
+      - accessibility
+      - wcag
+      - screen.*reader
+    description: "Web accessibility and compliance"
+    
+  tooling:
+    priority: optional
+    keywords:
+      - monorepo
+      - turborepo
+      - nx.*workspace
+      - github.*actions
+    description: "Build tooling and monorepo management"
+
+agent_categories:
+  primary:
+    - ui-design
+  secondary:
+    - developer-essentials
+
+command_patterns:
+  - "*react*"
+  - "*npm*"
+  - "*node*"
+  - "*typescript*"
+
+config:
+  auto_link: true
+  create_readme: true
+  max_skills: 20
+  min_skills: 8
+
+readme_template: |
+  # React Frontend Engineer Profile
+  
+  Optimized for modern React frontend development.
+  
+  ## Profile Overview
+  
+  Skills for:
+  - React and Next.js development
+  - Modern JavaScript/TypeScript
+  - UI design and Tailwind CSS
+  - Testing and accessibility
+  - Monorepo and tooling
+  
+  ## Included Components
+  
+  {COMPONENT_LIST}
+  
+  ## Use Cases
+  
+  - Building React applications
+  - Component library development
+  - Responsive UI design
+  - Testing and accessibility

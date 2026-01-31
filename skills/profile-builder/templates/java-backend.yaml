@@ -1,0 +1,185 @@
+# Java Backend Engineer Profile Template
+# Uses keyword matching to dynamically discover relevant skills from ~/.agent-smith/
+
+name: java-backend
+display_name: "Java Backend Engineer (Spring Boot)"
+description: "Complete toolkit for Java backend development with Spring Boot, REST APIs, SQL databases, testing, and cloud-native patterns"
+
+metadata:
+  language: Java
+  framework: Spring Boot
+  focus_areas:
+    - Backend Development
+    - API Development
+    - Database Design
+    - Microservices Architecture
+  experience_level: all
+
+# Skill discovery through keyword matching
+# The skill will scan ~/.agent-smith/skills/ and match based on these keywords
+skill_keywords:
+  # Core backend skills (high priority)
+  core:
+    priority: required
+    keywords:
+      - api-design
+      - api.*principle
+      - architecture.*pattern
+      - error.*handling
+      - auth.*implementation
+      - auth.*pattern
+    description: "Core backend development and API design skills"
+    
+  # Database skills (high priority)
+  database:
+    priority: required
+    keywords:
+      - sql.*optimization
+      - sql.*pattern
+      - database.*migration
+      - database.*design
+      - postgresql
+    description: "Database design and optimization skills"
+    
+  # Testing skills (recommended)
+  testing:
+    priority: recommended
+    keywords:
+      - testing.*pattern
+      - e2e.*testing
+      - debugging
+      - test.*automation
+    description: "Testing and debugging strategies"
+    
+  # Microservices (recommended)
+  distributed:
+    priority: recommended
+    keywords:
+      - microservices
+      - distributed.*tracing
+      - service.*mesh
+      - saga
+      - event.*sourcing
+      - cqrs
+    description: "Distributed systems and microservices patterns"
+    
+  # API tooling (recommended)
+  tooling:
+    priority: recommended
+    keywords:
+      - openapi
+      - swagger
+      - code.*review
+      - documentation
+    description: "API documentation and development tools"
+    
+  # DevOps (optional)
+  devops:
+    priority: optional
+    keywords:
+      - gitops
+      - k8s.*manifest
+      - kubernetes
+      - github.*actions
+      - gitlab.*ci
+      - deployment.*pipeline
+    description: "CI/CD and deployment automation"
+    
+  # Observability (recommended)
+  observability:
+    priority: recommended
+    keywords:
+      - prometheus
+      - grafana
+      - monitoring
+      - tracing
+      - slo.*implementation
+      - observability
+    description: "Monitoring, metrics, and observability"
+
+# Agent discovery through category matching
+agent_categories:
+  primary:
+    - backend-development
+    - database-design
+    - api-testing-observability
+  secondary:
+    - backend-api-security
+    - comprehensive-review
+
+# Command discovery through pattern matching
+command_patterns:
+  - "*java*"
+  - "*spring*"
+  - "*maven*"
+  - "*gradle*"
+  - "*junit*"
+
+# Profile configuration
+config:
+  auto_link: true
+  create_readme: true
+  max_skills: 25          # Maximum skills to include
+  min_skills: 10          # Minimum skills to recommend
+  
+# README template with dynamic sections
+readme_template: |
+  # Java Backend Engineer Profile
+  
+  This profile is optimized for Java backend development with Spring Boot.
+  
+  ## Profile Overview
+  
+  This profile was automatically generated based on available components in your
+  ~/.agent-smith/ directory. It includes skills for:
+  
+  - Backend API development and architecture
+  - Database design and SQL optimization
+  - Testing and debugging strategies
+  - Microservices and distributed systems
+  - DevOps and deployment automation
+  - Monitoring and observability
+  
+  ## Included Components
+  
+  {COMPONENT_LIST}
+  
+  ## Getting Started
+  
+  1. This profile has been activated and all components are linked
+  2. Use skills by referencing them in your prompts (e.g., "Use api-design-principles skill")
+  3. Agents are automatically available through the agent-smith system
+  4. All components are sourced from this profile when active
+  
+  ## Typical Use Cases
+  
+  - Building REST APIs with Spring Boot
+  - Designing microservices architectures
+  - Optimizing database queries and schemas
+  - Implementing authentication and authorization
+  - Writing comprehensive tests
+  - Setting up CI/CD pipelines
+  - Deploying to Kubernetes
+  - Monitoring and observability
+  
+  ## Customization
+  
+  To add more components to this profile:
+  ```bash
+  agent-smith profiles add skill java-backend <skill-name>
+  agent-smith profiles add agent java-backend <category/agent-name>
+  ```
+  
+  To remove components:
+  ```bash
+  agent-smith profiles remove skill java-backend <skill-name>
+  agent-smith profiles remove agent java-backend <category/agent-name>
+  ```
+  
+  ## Updating This Profile
+  
+  To update this profile with newly installed skills:
+  ```bash
+  # Use the profile-builder skill to update
+  # It will scan for new matching skills and offer to add them
+  ```

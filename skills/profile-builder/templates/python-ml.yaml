@@ -1,0 +1,121 @@
+# Python ML/Data Science Profile Template
+# Uses keyword matching to dynamically discover relevant skills
+
+name: python-ml
+display_name: "Python ML/Data Science Engineer"
+description: "Complete toolkit for machine learning, data science, MLOps, and AI engineering"
+
+metadata:
+  language: Python
+  framework: "PyTorch, TensorFlow, scikit-learn"
+  focus_areas:
+    - Machine Learning
+    - Data Science
+    - MLOps
+    - AI Engineering
+  experience_level: all
+
+skill_keywords:
+  python_core:
+    priority: required
+    keywords:
+      - python.*pattern
+      - python.*testing
+      - python.*performance
+      - python.*packaging
+      - async.*python
+    description: "Core Python development skills"
+    
+  ml_engineering:
+    priority: required
+    keywords:
+      - ml.*pipeline
+      - machine.*learning
+      - llm.*evaluation
+      - rag.*implementation
+      - prompt.*engineering
+      - model.*deployment
+    description: "Machine learning and AI engineering"
+    
+  data_engineering:
+    priority: recommended
+    keywords:
+      - data.*quality
+      - data.*pipeline
+      - dbt.*transformation
+      - airflow.*dag
+      - spark
+    description: "Data engineering and pipelines"
+    
+  llm_ai:
+    priority: recommended
+    keywords:
+      - langchain
+      - embedding
+      - similarity.*search
+      - vector.*search
+      - hybrid.*search
+    description: "LLM and AI application development"
+    
+  database:
+    priority: optional
+    keywords:
+      - sql.*optimization
+      - database.*design
+      - postgresql
+    description: "Database and SQL skills"
+    
+  mlops:
+    priority: recommended
+    keywords:
+      - deployment.*pipeline
+      - prometheus
+      - monitoring
+      - slo.*implementation
+    description: "MLOps and production deployment"
+
+agent_categories:
+  primary:
+    - machine-learning-ops
+  secondary:
+    - backend-development
+    - database-design
+
+command_patterns:
+  - "*python*"
+  - "*jupyter*"
+  - "*mlflow*"
+  - "*pytorch*"
+  - "*tensorflow*"
+
+config:
+  auto_link: true
+  create_readme: true
+  max_skills: 25
+  min_skills: 10
+
+readme_template: |
+  # Python ML/Data Science Profile
+  
+  Optimized for machine learning, data science, and AI engineering.
+  
+  ## Profile Overview
+  
+  This profile includes skills for:
+  - Core Python development patterns
+  - ML/AI engineering and pipelines
+  - Data engineering and transformation
+  - LLM application development
+  - MLOps and production deployment
+  
+  ## Included Components
+  
+  {COMPONENT_LIST}
+  
+  ## Use Cases
+  
+  - Training and deploying ML models
+  - Building RAG and LLM applications
+  - Creating data pipelines
+  - Implementing MLOps workflows
+  - Vector search and embeddings
