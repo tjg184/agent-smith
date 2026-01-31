@@ -1222,15 +1222,15 @@ func main() {
 				}
 			}
 
-			// Display status
-			infoPrintln("Current Configuration:")
-			infoPrintln()
+			// Display status - use fmt.Println to always show output without flags
+			fmt.Println("Current Configuration:")
+			fmt.Println()
 
 			// Show active profile
 			if activeProfile != "" {
-				infoPrintf("  Active Profile: %s %s\n", activeProfile, formatter.SymbolSuccess)
+				fmt.Printf("  Active Profile: %s %s\n", activeProfile, formatter.SymbolSuccess)
 			} else {
-				infoPrintln("  Active Profile: None")
+				fmt.Println("  Active Profile: None")
 			}
 
 			// Show detected targets
@@ -1239,16 +1239,16 @@ func main() {
 				for _, target := range targets {
 					targetNames = append(targetNames, target.GetName())
 				}
-				infoPrintf("  Detected Targets: %s\n", joinStrings(targetNames, ", "))
+				fmt.Printf("  Detected Targets: %s\n", joinStrings(targetNames, ", "))
 			} else {
-				infoPrintln("  Detected Targets: None")
+				fmt.Println("  Detected Targets: None")
 			}
 
-			infoPrintln()
-			infoPrintln("Components in ~/.agent-smith/:")
-			infoPrintf("  Agents: %d\n", agentsCount)
-			infoPrintf("  Skills: %d\n", skillsCount)
-			infoPrintf("  Commands: %d\n", commandsCount)
+			fmt.Println()
+			fmt.Println("Components in ~/.agent-smith/:")
+			fmt.Printf("  Agents: %d\n", agentsCount)
+			fmt.Printf("  Skills: %d\n", skillsCount)
+			fmt.Printf("  Commands: %d\n", commandsCount)
 
 			// If there's an active profile, show its components
 			if activeProfile != "" {
@@ -1257,21 +1257,21 @@ func main() {
 					for _, profile := range profilesList {
 						if profile.Name == activeProfile {
 							agents, skills, commands := pm.CountComponents(profile)
-							infoPrintln()
-							infoPrintf("Active Profile (%s):\n", activeProfile)
-							infoPrintf("  Agents: %d\n", agents)
-							infoPrintf("  Skills: %d\n", skills)
-							infoPrintf("  Commands: %d\n", commands)
+							fmt.Println()
+							fmt.Printf("Active Profile (%s):\n", activeProfile)
+							fmt.Printf("  Agents: %d\n", agents)
+							fmt.Printf("  Skills: %d\n", skills)
+							fmt.Printf("  Commands: %d\n", commands)
 							break
 						}
 					}
 				}
 			}
 
-			infoPrintln()
-			infoPrintln("For more details:")
-			infoPrintln("  - Run 'agent-smith link status' for link information")
-			infoPrintln("  - Run 'agent-smith profiles list' to see all profiles")
+			fmt.Println()
+			fmt.Println("For more details:")
+			fmt.Println("  - Run 'agent-smith link status' for link information")
+			fmt.Println("  - Run 'agent-smith profile list' to see all profiles")
 		},
 		func(name, path string) {
 			// Load existing config
