@@ -801,7 +801,7 @@ func main() {
 			if err := linker.LinkComponentsByType(componentType); err != nil {
 				log.Fatal("Failed to link components:", err)
 			}
-			debugPrintln("[DEBUG] Components of type %s linked successfully", componentType)
+			debugPrintf("[DEBUG] Components of type %s linked successfully\n", componentType)
 		},
 		func() {
 			linker, err := NewComponentLinker()
@@ -932,14 +932,14 @@ func main() {
 
 			// Display results
 			if len(profilesList) == 0 {
-				infoPrintln("No profiles found in ~/.agent-smith/profiles/")
-				infoPrintln("\nTo create a profile, run:")
-				infoPrintln("  ./agent-smith profile create <profile-name>")
+				fmt.Println("No profiles found in ~/.agent-smith/profiles/")
+				fmt.Println("\nTo create a profile, run:")
+				fmt.Println("  ./agent-smith profile create <profile-name>")
 				return
 			}
 
-			infoPrintln("Available Profiles:")
-			infoPrintln()
+			fmt.Println("Available Profiles:")
+			fmt.Println()
 
 			for _, profile := range profilesList {
 				// Count components
@@ -970,15 +970,15 @@ func main() {
 					activeLabel = " [active]"
 				}
 
-				infoPrintf("%s%-15s%s%s\n", activeIndicator, profile.Name, activeLabel, componentStr)
+				fmt.Printf("%s%-15s%s%s\n", activeIndicator, profile.Name, activeLabel, componentStr)
 			}
 
 			// Display legend
-			infoPrintln("\nLegend:")
-			infoPrintf("  %s - Currently active profile\n", formatter.SymbolSuccess)
+			fmt.Println("\nLegend:")
+			fmt.Printf("  %s - Currently active profile\n", formatter.SymbolSuccess)
 
 			// Display total count
-			infoPrintf("\nTotal: %d profile(s)\n", len(profilesList))
+			fmt.Printf("\nTotal: %d profile(s)\n", len(profilesList))
 		},
 		func(profileName string) {
 			pm, err := profiles.NewProfileManager(nil)
