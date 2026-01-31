@@ -109,7 +109,7 @@ Currently, four CLI commands (`profile list`, `profile show`, `status`, `target 
   **Component Browser Tests:**
   - N/A (CLI command, not a UI component)
 
-- [ ] Story-005: As a developer, I want to verify all changes are consistent and no regressions are introduced.
+- [x] Story-005: As a developer, I want to verify all changes are consistent and no regressions are introduced.
 
   **Acceptance Criteria:**
   - All four commands tested without flags show output
