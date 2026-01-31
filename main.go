@@ -991,6 +991,16 @@ func main() {
 				log.Fatal("Failed to deactivate profile:", err)
 			}
 		},
+		func(profileName string) {
+			pm, err := profiles.NewProfileManager(nil)
+			if err != nil {
+				log.Fatal("Failed to create profile manager:", err)
+			}
+
+			if err := pm.SwitchProfile(profileName); err != nil {
+				log.Fatal("Failed to switch profile:", err)
+			}
+		},
 		func(componentType, profileName, componentName string) {
 			pm, err := profiles.NewProfileManager(nil)
 			if err != nil {

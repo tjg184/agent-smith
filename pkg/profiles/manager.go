@@ -555,6 +555,54 @@ func (pm *ProfileManager) DeactivateProfile() error {
 	return nil
 }
 
+// SwitchProfile switches to a different profile and immediately applies the changes
+// This combines ActivateProfile with automatic linking
+func (pm *ProfileManager) SwitchProfile(profileName string) error {
+	// Validate profile name
+	if err := validateProfileName(profileName); err != nil {
+		return err
+	}
+
+	// Validate that the profile exists
+	profile := pm.loadProfile(profileName)
+	if !profile.IsValid() {
+		return fmt.Errorf("profile '%s' does not exist or has no components", profileName)
+	}
+
+	// Get the agents directory
+	agentsDir, err := paths.GetAgentsDir()
+	if err != nil {
+		return fmt.Errorf("failed to get agents directory: %w", err)
+	}
+
+	// Check if a profile is currently active
+	currentActive, err := pm.GetActiveProfile()
+	if err != nil {
+		return fmt.Errorf("failed to check current active profile: %w", err)
+	}
+
+	// Check if trying to switch to already active profile
+	if currentActive == profileName {
+		return fmt.Errorf("profile '%s' is already active", profileName)
+	}
+
+	// Update the active profile state file
+	activeProfilePath := filepath.Join(agentsDir, ".active-profile")
+	if err := os.WriteFile(activeProfilePath, []byte(profileName), 0644); err != nil {
+		return fmt.Errorf("failed to write active profile state: %w", err)
+	}
+
+	// Count components for informational output
+	agents, skills, commands := pm.CountComponents(profile)
+	totalComponents := agents + skills + commands
+
+	fmt.Printf("Switched to profile '%s'\n", profileName)
+	fmt.Printf("Profile contains %d components (%d agents, %d skills, %d commands)\n", totalComponents, agents, skills, commands)
+	fmt.Println("\nNote: You must run 'agent-smith link all' to apply this profile to your editor.")
+
+	return nil
+}
+
 // CreateProfile creates a new empty profile with the standard directory structure
 func (pm *ProfileManager) CreateProfile(profileName string) error {
 	// Validate profile name
