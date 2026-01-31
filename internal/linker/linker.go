@@ -118,10 +118,38 @@ func (cl *ComponentLinker) copyFile(src, dst string) error {
 // LinkComponent links a single component to all configured targets
 func (cl *ComponentLinker) LinkComponent(componentType, componentName string) error {
 	srcDir := filepath.Join(cl.agentsDir, componentType, componentName)
+	selectedProfileName := "" // Track which profile was used
 
-	// Check if source component exists
+	// Check if source component exists in current directory (active profile or base)
 	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
-		return fmt.Errorf("component %s/%s does not exist in %s", componentType, componentName, cl.agentsDir)
+		// Component not found in active profile/base directory
+		// Search across all profiles
+		matches, searchErr := cl.searchComponentInProfiles(componentType, componentName)
+		if searchErr != nil {
+			return fmt.Errorf("failed to search profiles: %w", searchErr)
+		}
+
+		if len(matches) == 0 {
+			return fmt.Errorf("component %s/%s does not exist in any profile", componentType, componentName)
+		}
+
+		// If found in multiple profiles, prompt user to select
+		if len(matches) > 1 {
+			profilePath, profileName, err := cl.promptProfileSelection(componentType, componentName, matches)
+			if err != nil {
+				return err
+			}
+			srcDir = filepath.Join(profilePath, componentType, componentName)
+			selectedProfileName = profileName
+		} else {
+			// Only one match, use it automatically
+			srcDir = filepath.Join(matches[0].ProfilePath, componentType, componentName)
+			selectedProfileName = matches[0].ProfileName
+			fmt.Printf("Component found in profile: %s\n", selectedProfileName)
+		}
+	} else {
+		// Component found in current directory - determine profile name
+		selectedProfileName = getProfileFromPath(srcDir)
 	}
 
 	// All components are now stored type-based, no special plugin handling needed
@@ -196,7 +224,11 @@ func (cl *ComponentLinker) LinkComponent(componentType, componentName string) er
 		if len(linkResults) == 1 {
 			result := linkResults[0]
 			if result.success {
-				fmt.Printf("Successfully linked %s '%s' → %s: %s\n", componentType, componentName, result.name, result.path)
+				profileInfo := ""
+				if selectedProfileName != "" && selectedProfileName != "base" {
+					profileInfo = fmt.Sprintf(" (from profile: %s)", selectedProfileName)
+				}
+				fmt.Printf("Successfully linked %s '%s'%s → %s: %s\n", componentType, componentName, profileInfo, result.name, result.path)
 			} else {
 				fmt.Printf("Failed to link %s '%s' ✗ %s: %s\n", componentType, componentName, result.name, result.errMsg)
 				return fmt.Errorf("failed to link to target")
@@ -204,7 +236,11 @@ func (cl *ComponentLinker) LinkComponent(componentType, componentName string) er
 		} else {
 			// Use multi-line format for multiple targets
 			if hasSuccess {
-				fmt.Printf("Successfully linked %s '%s':\n", componentType, componentName)
+				profileInfo := ""
+				if selectedProfileName != "" && selectedProfileName != "base" {
+					profileInfo = fmt.Sprintf(" (from profile: %s)", selectedProfileName)
+				}
+				fmt.Printf("Successfully linked %s '%s'%s:\n", componentType, componentName, profileInfo)
 			} else {
 				fmt.Printf("Failed to link %s '%s':\n", componentType, componentName)
 			}
@@ -1301,4 +1337,103 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool) 
 	fmt.Println()
 
 	return nil
+}
+
+// ProfileMatch represents a profile that contains a specific component
+type ProfileMatch struct {
+	ProfileName string
+	ProfilePath string
+	IsActive    bool
+}
+
+// searchComponentInProfiles searches for a component across all profiles
+// Returns a list of profiles that contain the specified component
+func (cl *ComponentLinker) searchComponentInProfiles(componentType, componentName string) ([]ProfileMatch, error) {
+	// Get profiles directory
+	profilesDir, err := paths.GetProfilesDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get profiles directory: %w", err)
+	}
+
+	// Check if profiles directory exists
+	if _, err := os.Stat(profilesDir); os.IsNotExist(err) {
+		return []ProfileMatch{}, nil // No profiles yet
+	}
+
+	// Get active profile
+	agentsDir, err := paths.GetAgentsDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get agents directory: %w", err)
+	}
+	activeProfilePath := filepath.Join(agentsDir, ".active-profile")
+	activeProfileData, _ := os.ReadFile(activeProfilePath)
+	activeProfile := strings.TrimSpace(string(activeProfileData))
+
+	// Scan all profile directories
+	entries, err := os.ReadDir(profilesDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read profiles directory: %w", err)
+	}
+
+	var matches []ProfileMatch
+	for _, entry := range entries {
+		// Skip files and hidden directories
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+
+		profileName := entry.Name()
+		profilePath := filepath.Join(profilesDir, profileName)
+		componentPath := filepath.Join(profilePath, componentType, componentName)
+
+		// Check if component exists in this profile
+		if _, err := os.Stat(componentPath); err == nil {
+			matches = append(matches, ProfileMatch{
+				ProfileName: profileName,
+				ProfilePath: profilePath,
+				IsActive:    profileName == activeProfile,
+			})
+		}
+	}
+
+	return matches, nil
+}
+
+// promptProfileSelection displays an interactive prompt for the user to select a profile
+// Returns the selected profile path and name, or error if cancelled
+func (cl *ComponentLinker) promptProfileSelection(componentType, componentName string, matches []ProfileMatch) (string, string, error) {
+	if len(matches) == 0 {
+		return "", "", fmt.Errorf("no profiles contain component %s", componentName)
+	}
+
+	fmt.Printf("\n⚠️  Component \"%s\" found in multiple profiles:\n\n", componentName)
+
+	for i, match := range matches {
+		activeIndicator := ""
+		if match.IsActive {
+			activeIndicator = " (active)"
+		}
+		fmt.Printf("  %d. %s%s\n", i+1, match.ProfileName, activeIndicator)
+	}
+
+	fmt.Printf("\nSelect profile to link from [1-%d] (or 'c' to cancel): ", len(matches))
+
+	var response string
+	fmt.Scanln(&response)
+	response = strings.TrimSpace(strings.ToLower(response))
+
+	// Check for cancellation
+	if response == "c" || response == "" {
+		return "", "", fmt.Errorf("profile selection cancelled")
+	}
+
+	// Parse selection
+	var selection int
+	_, err := fmt.Sscanf(response, "%d", &selection)
+	if err != nil || selection < 1 || selection > len(matches) {
+		return "", "", fmt.Errorf("invalid selection: %s", response)
+	}
+
+	selectedMatch := matches[selection-1]
+	return selectedMatch.ProfilePath, selectedMatch.ProfileName, nil
 }
