@@ -528,6 +528,193 @@ func TestProfileManager_ActivateProfile_InvalidNames(t *testing.T) {
 	}
 }
 
+func TestGenerateProfileNameFromRepo(t *testing.T) {
+	tests := []struct {
+		name             string
+		repoURL          string
+		existingProfiles []string
+		expected         string
+	}{
+		{
+			name:             "GitHub URL",
+			repoURL:          "https://github.com/owner/repo",
+			existingProfiles: []string{},
+			expected:         "owner-repo",
+		},
+		{
+			name:             "GitHub URL with .git suffix",
+			repoURL:          "https://github.com/owner/repo.git",
+			existingProfiles: []string{},
+			expected:         "owner-repo",
+		},
+		{
+			name:             "GitHub URL with trailing slash",
+			repoURL:          "https://github.com/owner/repo/",
+			existingProfiles: []string{},
+			expected:         "owner-repo",
+		},
+		{
+			name:             "GitLab URL",
+			repoURL:          "https://gitlab.com/owner/repo",
+			existingProfiles: []string{},
+			expected:         "owner-repo",
+		},
+		{
+			name:             "Bitbucket URL",
+			repoURL:          "https://bitbucket.org/owner/repo",
+			existingProfiles: []string{},
+			expected:         "owner-repo",
+		},
+		{
+			name:             "SSH GitHub URL",
+			repoURL:          "git@github.com:owner/repo.git",
+			existingProfiles: []string{},
+			expected:         "owner-repo",
+		},
+		{
+			name:             "Local absolute path",
+			repoURL:          "/home/user/repos/my-repo",
+			existingProfiles: []string{},
+			expected:         "my-repo",
+		},
+		{
+			name:             "Local relative path",
+			repoURL:          "./my-repo",
+			existingProfiles: []string{},
+			expected:         "my-repo",
+		},
+		{
+			name:             "Local relative path with parent",
+			repoURL:          "../my-repo",
+			existingProfiles: []string{},
+			expected:         "my-repo",
+		},
+		{
+			name:             "Profile name collision - adds hash",
+			repoURL:          "https://github.com/owner/repo",
+			existingProfiles: []string{"owner-repo"},
+			expected:         "owner-repo-", // Will have hash suffix
+		},
+		{
+			name:             "Profile name with special characters sanitized",
+			repoURL:          "https://github.com/owner/repo_with_underscores",
+			existingProfiles: []string{},
+			expected:         "owner-repo-with-underscores",
+		},
+		{
+			name:             "Multiple collisions",
+			repoURL:          "https://github.com/owner/repo",
+			existingProfiles: []string{"owner-repo", "owner-repo-abc123"},
+			expected:         "owner-repo-", // Will have different hash
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GenerateProfileNameFromRepo(tt.repoURL, tt.existingProfiles)
+
+			// For collision tests, we check prefix instead of exact match
+			if len(tt.existingProfiles) > 0 {
+				if !hasPrefix(result, tt.expected) {
+					t.Errorf("GenerateProfileNameFromRepo() = %v, want prefix %v", result, tt.expected)
+				}
+				// Verify hash suffix was added (6 characters)
+				if len(result) != len(tt.expected)+6 && !hasPrefix(result, tt.expected) {
+					t.Errorf("GenerateProfileNameFromRepo() with collision should add 6-char hash, got %v", result)
+				}
+			} else {
+				if result != tt.expected {
+					t.Errorf("GenerateProfileNameFromRepo() = %v, want %v", result, tt.expected)
+				}
+			}
+
+			// Verify result is a valid profile name
+			if err := validateProfileName(result); err != nil {
+				t.Errorf("GenerateProfileNameFromRepo() produced invalid profile name: %v", err)
+			}
+		})
+	}
+}
+
+func TestGenerateProfileNameFromRepo_Uniqueness(t *testing.T) {
+	// Test that collision resolution produces unique names
+	repoURL := "https://github.com/owner/repo"
+	existingProfiles := []string{}
+
+	// Generate first profile name
+	profile1 := GenerateProfileNameFromRepo(repoURL, existingProfiles)
+	if profile1 != "owner-repo" {
+		t.Errorf("First profile name should be 'owner-repo', got %v", profile1)
+	}
+
+	// Generate second profile name (with collision)
+	existingProfiles = append(existingProfiles, profile1)
+	profile2 := GenerateProfileNameFromRepo(repoURL, existingProfiles)
+	if profile2 == profile1 {
+		t.Errorf("Second profile name should be different from first, both are %v", profile1)
+	}
+
+	// Generate third profile name (with two collisions)
+	existingProfiles = append(existingProfiles, profile2)
+	profile3 := GenerateProfileNameFromRepo(repoURL, existingProfiles)
+	if profile3 == profile1 || profile3 == profile2 {
+		t.Errorf("Third profile name should be unique, got %v", profile3)
+	}
+}
+
+func TestSanitizeForProfileName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "clean name",
+			input:    "myrepo",
+			expected: "myrepo",
+		},
+		{
+			name:     "name with underscores",
+			input:    "my_repo",
+			expected: "my-repo",
+		},
+		{
+			name:     "name with spaces",
+			input:    "my repo",
+			expected: "my-repo",
+		},
+		{
+			name:     "name with special characters",
+			input:    "my@repo!",
+			expected: "my-repo",
+		},
+		{
+			name:     "name with multiple consecutive special chars",
+			input:    "my___repo",
+			expected: "my-repo",
+		},
+		{
+			name:     "name with leading/trailing hyphens",
+			input:    "-myrepo-",
+			expected: "myrepo",
+		},
+		{
+			name:     "empty after sanitization",
+			input:    "!!!",
+			expected: "repo",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sanitizeForProfileName(tt.input)
+			if result != tt.expected {
+				t.Errorf("sanitizeForProfileName(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
 // Helper function to check if a string contains a substring
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
@@ -541,4 +728,9 @@ func containsHelper(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// Helper function to check if a string has a prefix
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }

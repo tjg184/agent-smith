@@ -19,7 +19,7 @@ Implement automatic profile generation and intelligent collision handling to pre
 
 ## User Stories
 
-- [ ] Story-001: As a user installing from a repository, I want the system to automatically create a uniquely named profile so that I don't have to manually manage namespaces.
+- [x] Story-001: As a user installing from a repository, I want the system to automatically create a uniquely named profile so that I don't have to manually manage namespaces.
 
   **Acceptance Criteria:**
   - Profile name is auto-generated from source URL with format `github-user-repo`
@@ -85,7 +85,7 @@ Implement automatic profile generation and intelligent collision handling to pre
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [ ] Story-004: As a user with multiple profiles, I want to list all available profiles and see which is active so that I understand my current configuration.
+- [x] Story-004: As a user with multiple profiles, I want to list all available profiles and see which is active so that I understand my current configuration.
 
   **Acceptance Criteria:**
   - `agent-smith profile list` command shows all profiles
