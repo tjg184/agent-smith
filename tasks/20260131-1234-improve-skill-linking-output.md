@@ -18,7 +18,7 @@ Improve the clarity of the skill linking output messages to make it easier for u
 
 ## User Stories
 
-- [ ] Story-001: As a user installing skills, I want to see each skill grouped with all its targets so that I can quickly understand where each skill was linked.
+- [x] Story-001: As a user installing skills, I want to see each skill grouped with all its targets so that I can quickly understand where each skill was linked.
 
   **Acceptance Criteria:**
   - Output shows skill name once at the top
@@ -39,7 +39,7 @@ Improve the clarity of the skill linking output messages to make it easier for u
   **Component Browser Tests:**
   - Not applicable (CLI output)
 
-- [ ] Story-002: As a user, I want to see linking errors inline with successful targets so that I can immediately identify which targets failed for each skill.
+- [x] Story-002: As a user, I want to see linking errors inline with successful targets so that I can immediately identify which targets failed for each skill.
 
   **Acceptance Criteria:**
   - Errors appear in the same group as the skill being linked
@@ -59,7 +59,7 @@ Improve the clarity of the skill linking output messages to make it easier for u
   **Component Browser Tests:**
   - Not applicable (CLI output)
 
-- [ ] Story-003: As a user linking to a single target, I want a simplified single-line output so that I don't see unnecessary grouping for just one target.
+- [x] Story-003: As a user linking to a single target, I want a simplified single-line output so that I don't see unnecessary grouping for just one target.
 
   **Acceptance Criteria:**
   - Single target uses compact format: "Linked <type> '<name>' → <target>"
