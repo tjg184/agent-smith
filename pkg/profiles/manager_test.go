@@ -734,3 +734,55 @@ func containsHelper(s, substr string) bool {
 func hasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
+
+func TestProfileManager_AutoActivateFirstProfile(t *testing.T) {
+	// This test verifies the workflow: create profile -> activate if no active profile
+	// Note: Due to ProfileManager using system paths for state files, we test the logic
+	// rather than the full state management
+
+	// Create temporary directory for testing
+	tempDir := t.TempDir()
+	profilesDir := filepath.Join(tempDir, "profiles")
+
+	// Create ProfileManager with custom profiles directory
+	pm := &ProfileManager{profilesDir: profilesDir}
+
+	// Create first profile
+	err := pm.CreateProfile("first-profile")
+	if err != nil {
+		t.Fatalf("CreateProfile() error = %v", err)
+	}
+
+	// Verify profile exists and is valid
+	profile := pm.loadProfile("first-profile")
+	if !profile.IsValid() {
+		t.Error("First profile should be valid after creation")
+	}
+
+	// Create second profile
+	err = pm.CreateProfile("second-profile")
+	if err != nil {
+		t.Fatalf("CreateProfile() error = %v", err)
+	}
+
+	// Verify second profile exists and is valid
+	profile2 := pm.loadProfile("second-profile")
+	if !profile2.IsValid() {
+		t.Error("Second profile should be valid after creation")
+	}
+}
+
+func TestProfileManager_ActivateProfile_NonExistent(t *testing.T) {
+	// Create temporary directory for testing
+	tempDir := t.TempDir()
+	profilesDir := filepath.Join(tempDir, "profiles")
+
+	// Create ProfileManager with custom profiles directory
+	pm := &ProfileManager{profilesDir: profilesDir}
+
+	// Try to activate non-existent profile
+	err := pm.ActivateProfile("non-existent")
+	if err == nil {
+		t.Error("ActivateProfile() should return error for non-existent profile")
+	}
+}

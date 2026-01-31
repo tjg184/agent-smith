@@ -629,11 +629,25 @@ func main() {
 					log.Fatal("Failed to bulk download components:", err)
 				}
 
-				// Optionally activate the profile
-				fmt.Println("\nProfile created successfully!")
-				fmt.Printf("To activate this profile and use these components, run:\n")
-				fmt.Printf("  agent-smith profile activate %s\n", profileName)
-				fmt.Printf("  agent-smith link all\n")
+				// Auto-activate profile if no profile is currently active
+				activeProfile, err := pm.GetActiveProfile()
+				if err != nil {
+					log.Fatal("Failed to get active profile:", err)
+				}
+				if activeProfile == "" {
+					debugPrintf("[DEBUG] No active profile detected, auto-activating profile: %s\n", profileName)
+					if err := pm.ActivateProfile(profileName); err != nil {
+						log.Fatal("Failed to auto-activate profile:", err)
+					}
+					infoPrintf("Profile '%s' has been automatically activated as your first profile.\n", profileName)
+					infoPrintln("Components from this profile are now ready to be linked.")
+				} else {
+					// Optionally activate the profile
+					fmt.Println("\nProfile created successfully!")
+					fmt.Printf("To activate this profile and use these components, run:\n")
+					fmt.Printf("  agent-smith profile activate %s\n", profileName)
+					fmt.Printf("  agent-smith link all\n")
+				}
 			}
 		},
 		func(componentType, componentName string) {
