@@ -119,45 +119,57 @@ func (ud *UpdateDetector) HasUpdates(componentType, componentName, repoURL strin
 
 // UpdateComponent updates a single component if updates are detected
 func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL string) error {
+	fmt.Printf("Checking for updates to %s/%s...\n", componentType, componentName)
+
 	hasUpdates, err := ud.HasUpdates(componentType, componentName, repoURL)
 	if err != nil {
 		return fmt.Errorf("failed to check for updates: %w", err)
 	}
 
 	if !hasUpdates {
-		fmt.Printf("Component %s/%s is already up to date\n", componentType, componentName)
+		fmt.Printf("✓ Component %s/%s is already up to date\n", componentType, componentName)
 		return nil
 	}
 
-	fmt.Printf("Updates detected for %s/%s, downloading new version...\n", componentType, componentName)
+	fmt.Printf("Updates detected for %s/%s\n", componentType, componentName)
+	fmt.Printf("Downloading new version...\n")
 
 	// Remove old component directory to ensure clean re-clone
 	componentDir := filepath.Join(ud.baseDir, componentType, componentName)
 	if _, err := os.Stat(componentDir); err == nil {
-		fmt.Printf("Removing old %s/%s directory...\n", componentType, componentName)
+		fmt.Printf("Removing old version...\n")
 		if err := os.RemoveAll(componentDir); err != nil {
 			return fmt.Errorf("failed to remove old component directory: %w", err)
 		}
 	}
 
 	// Re-download the component with the latest changes
+	var downloadErr error
 	switch componentType {
 	case "skills":
 		dl := downloader.NewSkillDownloader()
-		return dl.DownloadSkill(repoURL, componentName)
+		downloadErr = dl.DownloadSkill(repoURL, componentName)
 	case "agents":
 		dl := downloader.NewAgentDownloader()
-		return dl.DownloadAgent(repoURL, componentName)
+		downloadErr = dl.DownloadAgent(repoURL, componentName)
 	case "commands":
 		dl := downloader.NewCommandDownloader()
-		return dl.DownloadCommand(repoURL, componentName)
+		downloadErr = dl.DownloadCommand(repoURL, componentName)
 	default:
 		return fmt.Errorf("unknown component type: %s", componentType)
 	}
+
+	if downloadErr != nil {
+		return downloadErr
+	}
+
+	fmt.Printf("✓ Successfully updated %s/%s\n", componentType, componentName)
+	return nil
 }
 
 // UpdateAll iterates through all installed components and updates them
 func (ud *UpdateDetector) UpdateAll() error {
+	fmt.Println("Checking all components for updates...")
 	componentTypes := paths.GetComponentTypes()
 
 	// Track update statistics
@@ -180,10 +192,12 @@ func (ud *UpdateDetector) UpdateAll() error {
 				componentName := entry.Name()
 				totalChecked++
 
+				fmt.Printf("\n[%d/%d] Checking %s/%s...\n", totalChecked, totalChecked, componentType, componentName)
+
 				// Load metadata to get source URL
 				metadata, err := ud.loadMetadata(componentType, componentName)
 				if err != nil {
-					fmt.Printf("Warning: failed to load metadata for %s/%s: %v\n", componentType, componentName, err)
+					fmt.Printf("✗ Warning: failed to load metadata for %s/%s: %v\n", componentType, componentName, err)
 					failed++
 					continue
 				}
@@ -191,26 +205,27 @@ func (ud *UpdateDetector) UpdateAll() error {
 				// Check if updates are available
 				hasUpdates, err := ud.HasUpdates(componentType, componentName, metadata.Source)
 				if err != nil {
-					fmt.Printf("Warning: failed to check for updates %s/%s: %v\n", componentType, componentName, err)
+					fmt.Printf("✗ Warning: failed to check for updates %s/%s: %v\n", componentType, componentName, err)
 					failed++
 					continue
 				}
 
 				if !hasUpdates {
-					fmt.Printf("Component %s/%s is already up to date\n", componentType, componentName)
+					fmt.Printf("✓ Component %s/%s is already up to date\n", componentType, componentName)
 					upToDate++
 					continue
 				}
 
 				// Apply the update
-				fmt.Printf("Updates detected for %s/%s, downloading new version...\n", componentType, componentName)
+				fmt.Printf("Updates detected for %s/%s\n", componentType, componentName)
+				fmt.Printf("Downloading new version...\n")
 
 				// Remove old component directory to ensure clean re-clone
 				componentDir := filepath.Join(ud.baseDir, componentType, componentName)
 				if _, err := os.Stat(componentDir); err == nil {
-					fmt.Printf("Removing old %s/%s directory...\n", componentType, componentName)
+					fmt.Printf("Removing old version...\n")
 					if err := os.RemoveAll(componentDir); err != nil {
-						fmt.Printf("Warning: failed to remove old component directory %s/%s: %v\n", componentType, componentName, err)
+						fmt.Printf("✗ Warning: failed to remove old component directory %s/%s: %v\n", componentType, componentName, err)
 						failed++
 						continue
 					}
@@ -233,9 +248,10 @@ func (ud *UpdateDetector) UpdateAll() error {
 				}
 
 				if downloadErr != nil {
-					fmt.Printf("Warning: failed to update %s/%s: %v\n", componentType, componentName, downloadErr)
+					fmt.Printf("✗ Warning: failed to update %s/%s: %v\n", componentType, componentName, downloadErr)
 					failed++
 				} else {
+					fmt.Printf("✓ Successfully updated %s/%s\n", componentType, componentName)
 					updated++
 				}
 			}
@@ -245,10 +261,10 @@ func (ud *UpdateDetector) UpdateAll() error {
 	// Print summary
 	fmt.Println("\n=== Update Summary ===")
 	fmt.Printf("Total components checked: %d\n", totalChecked)
-	fmt.Printf("Already up to date: %d\n", upToDate)
-	fmt.Printf("Successfully updated: %d\n", updated)
+	fmt.Printf("✓ Already up to date: %d\n", upToDate)
+	fmt.Printf("✓ Successfully updated: %d\n", updated)
 	if failed > 0 {
-		fmt.Printf("Failed: %d\n", failed)
+		fmt.Printf("✗ Failed: %d\n", failed)
 	}
 
 	return nil

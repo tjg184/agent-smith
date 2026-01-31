@@ -44,6 +44,8 @@ func (pm *ProfileManager) SaveProfileMetadata(profileName, sourceURL string) err
 	profileDir := filepath.Join(pm.profilesDir, profileName)
 	metadataPath := filepath.Join(profileDir, ".profile-metadata")
 
+	fmt.Printf("Updating profile metadata for '%s'...\n", profileName)
+
 	// Normalize the URL before saving
 	rd := detector.NewRepositoryDetector()
 	normalizedURL, err := rd.NormalizeURL(sourceURL)
@@ -65,6 +67,7 @@ func (pm *ProfileManager) SaveProfileMetadata(profileName, sourceURL string) err
 		return fmt.Errorf("failed to write metadata file: %w", err)
 	}
 
+	fmt.Printf("✓ Profile metadata saved successfully\n")
 	return nil
 }
 
@@ -419,6 +422,8 @@ func (pm *ProfileManager) ActivateProfile(profileName string) error {
 		return err
 	}
 
+	fmt.Printf("Activating profile '%s'...\n", profileName)
+
 	// Validate that the profile exists
 	profile := pm.loadProfile(profileName)
 	if !profile.IsValid() {
@@ -443,6 +448,7 @@ func (pm *ProfileManager) ActivateProfile(profileName string) error {
 	}
 
 	// Update the active profile state file
+	fmt.Printf("Updating active profile state...\n")
 	activeProfilePath := filepath.Join(agentsDir, ".active-profile")
 	if err := os.WriteFile(activeProfilePath, []byte(profileName), 0644); err != nil {
 		return fmt.Errorf("failed to write active profile state: %w", err)
@@ -452,7 +458,7 @@ func (pm *ProfileManager) ActivateProfile(profileName string) error {
 	agents, skills, commands := pm.CountComponents(profile)
 	totalComponents := agents + skills + commands
 
-	fmt.Printf("Successfully activated profile '%s'\n", profileName)
+	fmt.Printf("\n✓ Successfully activated profile '%s'\n", profileName)
 	fmt.Printf("Profile contains %d components (%d agents, %d skills, %d commands)\n", totalComponents, agents, skills, commands)
 	fmt.Println("\nTo apply this profile to your editor, run:")
 	fmt.Println("  agent-smith link all")
@@ -470,6 +476,8 @@ func (pm *ProfileManager) AddComponentToProfile(profileName, componentType, comp
 	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
 		return fmt.Errorf("invalid component type '%s': must be 'skills', 'agents', or 'commands'", componentType)
 	}
+
+	fmt.Printf("Adding %s '%s' to profile '%s'...\n", componentType, componentName, profileName)
 
 	// Validate that the profile exists
 	profile := pm.loadProfile(profileName)
@@ -507,6 +515,8 @@ func (pm *ProfileManager) AddComponentToProfile(profileName, componentType, comp
 		return fmt.Errorf("component '%s' already exists in profile '%s'", componentName, profileName)
 	}
 
+	fmt.Printf("Copying component files...\n")
+
 	// Copy component to profile
 	if err := os.MkdirAll(dstDir, 0755); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
@@ -539,7 +549,7 @@ func (pm *ProfileManager) AddComponentToProfile(profileName, componentType, comp
 		}
 	}
 
-	fmt.Printf("Successfully added %s '%s' to profile '%s'\n", componentType, componentName, profileName)
+	fmt.Printf("✓ Successfully added %s '%s' to profile '%s'\n", componentType, componentName, profileName)
 	return nil
 }
 
@@ -554,6 +564,8 @@ func (pm *ProfileManager) RemoveComponentFromProfile(profileName, componentType,
 	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
 		return fmt.Errorf("invalid component type '%s': must be 'skills', 'agents', or 'commands'", componentType)
 	}
+
+	fmt.Printf("Removing %s '%s' from profile '%s'...\n", componentType, componentName, profileName)
 
 	// Validate that the profile exists
 	profile := pm.loadProfile(profileName)
@@ -572,6 +584,7 @@ func (pm *ProfileManager) RemoveComponentFromProfile(profileName, componentType,
 	// Check if this profile is currently active
 	activeProfile, err := pm.GetActiveProfile()
 	if err == nil && activeProfile == profileName {
+		fmt.Printf("Unlinking component from active profile...\n")
 		// Component is linked via active profile, need to unlink it
 		if pm.linker != nil {
 			// Auto-unlink component from all targets (silent if not linked)
@@ -585,7 +598,7 @@ func (pm *ProfileManager) RemoveComponentFromProfile(profileName, componentType,
 		return fmt.Errorf("failed to remove component: %w", err)
 	}
 
-	fmt.Printf("Successfully removed %s '%s' from profile '%s'\n", componentType, componentName, profileName)
+	fmt.Printf("✓ Successfully removed %s '%s' from profile '%s'\n", componentType, componentName, profileName)
 	return nil
 }
 
@@ -635,13 +648,15 @@ func (pm *ProfileManager) DeactivateProfile() error {
 		return fmt.Errorf("no profile is currently active")
 	}
 
+	fmt.Printf("Deactivating profile '%s'...\n", currentActive)
+
 	// Clear the active profile state file
 	activeProfilePath := filepath.Join(agentsDir, ".active-profile")
 	if err := os.Remove(activeProfilePath); err != nil {
 		return fmt.Errorf("failed to clear active profile state: %w", err)
 	}
 
-	fmt.Printf("Successfully deactivated profile '%s'\n", currentActive)
+	fmt.Printf("\n✓ Successfully deactivated profile '%s'\n", currentActive)
 	fmt.Println("\nTo apply this change to your editor, run:")
 	fmt.Println("  agent-smith link all")
 	return nil
@@ -654,6 +669,8 @@ func (pm *ProfileManager) SwitchProfile(profileName string) error {
 	if err := validateProfileName(profileName); err != nil {
 		return err
 	}
+
+	fmt.Printf("Switching to profile '%s'...\n", profileName)
 
 	// Validate that the profile exists
 	profile := pm.loadProfile(profileName)
@@ -678,6 +695,8 @@ func (pm *ProfileManager) SwitchProfile(profileName string) error {
 		return fmt.Errorf("profile '%s' is already active", profileName)
 	}
 
+	fmt.Printf("Updating active profile state...\n")
+
 	// Update the active profile state file
 	activeProfilePath := filepath.Join(agentsDir, ".active-profile")
 	if err := os.WriteFile(activeProfilePath, []byte(profileName), 0644); err != nil {
@@ -688,7 +707,7 @@ func (pm *ProfileManager) SwitchProfile(profileName string) error {
 	agents, skills, commands := pm.CountComponents(profile)
 	totalComponents := agents + skills + commands
 
-	fmt.Printf("Switched to profile '%s'\n", profileName)
+	fmt.Printf("\n✓ Switched to profile '%s'\n", profileName)
 	fmt.Printf("Profile contains %d components (%d agents, %d skills, %d commands)\n", totalComponents, agents, skills, commands)
 	fmt.Println("\nNote: You must run 'agent-smith link all' to apply this profile to your editor.")
 
@@ -701,6 +720,8 @@ func (pm *ProfileManager) CreateProfile(profileName string) error {
 	if err := validateProfileName(profileName); err != nil {
 		return err
 	}
+
+	fmt.Printf("Creating profile '%s'...\n", profileName)
 
 	// Check if profile already exists
 	profile := pm.loadProfile(profileName)
@@ -721,13 +742,14 @@ func (pm *ProfileManager) CreateProfile(profileName string) error {
 		filepath.Join(profileDir, paths.CommandsSubDir),
 	}
 
+	fmt.Printf("Creating component directories...\n")
 	for _, dir := range componentDirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("failed to create component directory %s: %w", dir, err)
 		}
 	}
 
-	fmt.Printf("Created profile: %s\n", profileName)
+	fmt.Printf("\n✓ Created profile: %s\n", profileName)
 	fmt.Printf("  Location: %s\n", profileDir)
 	fmt.Println("\nComponent directories created:")
 	fmt.Printf("  - %s\n", paths.AgentsSubDir)
@@ -765,6 +787,8 @@ func (pm *ProfileManager) DeleteProfile(profileName string) error {
 		return err
 	}
 
+	fmt.Printf("Deleting profile '%s'...\n", profileName)
+
 	// Check if profile exists
 	profile := pm.loadProfile(profileName)
 	if !profile.IsValid() {
@@ -780,6 +804,8 @@ func (pm *ProfileManager) DeleteProfile(profileName string) error {
 	if activeProfile == profileName {
 		return fmt.Errorf("cannot delete active profile '%s'. Deactivate it first with: agent-smith profiles deactivate", profileName)
 	}
+
+	fmt.Printf("Cleaning up components...\n")
 
 	// Defensive unlinking: in case profile somehow has linked components
 	// This is a safety net and should not normally be needed since active profiles
@@ -809,7 +835,7 @@ func (pm *ProfileManager) DeleteProfile(profileName string) error {
 		return fmt.Errorf("failed to delete profile directory: %w", err)
 	}
 
-	fmt.Printf("Successfully deleted profile '%s'\n", profileName)
+	fmt.Printf("✓ Successfully deleted profile '%s'\n", profileName)
 	return nil
 }
 
