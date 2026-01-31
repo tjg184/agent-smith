@@ -1226,35 +1226,6 @@ This allows you to control when changes are applied to your editor.`,
 		},
 	}
 
-	profilesSwitchCmd := &cobra.Command{
-		Use:   "switch <profile-name>",
-		Short: "Switch to a different profile",
-		Long: `Switch to a different profile, making it the active profile.
-
-This command will:
-1. Deactivate the currently active profile (if any)
-2. Activate the specified profile
-3. Update the active profile state
-
-After switching, you must run 'agent-smith link all' to apply the profile
-components to your editor configuration.
-
-EXAMPLES:
-  # Switch to a work profile
-  agent-smith profile switch work-profile
-
-  # Switch to a personal profile
-  agent-smith profile switch personal
-
-  # Apply the switched profile
-  agent-smith profile switch my-profile
-  agent-smith link all`,
-		Args: exactArgsWithHelp(1, "agent-smith profile switch <profile-name>"),
-		Run: func(cmd *cobra.Command, args []string) {
-			handleProfilesSwitch(args[0])
-		},
-	}
-
 	profilesAddCmd := &cobra.Command{
 		Use:   "add <type> <profile-name> <component-name>",
 		Short: "Add an existing component to a profile",
@@ -1316,7 +1287,6 @@ EXAMPLES:
 	profilesCmd.AddCommand(profilesDeleteCmd)
 	profilesCmd.AddCommand(profilesActivateCmd)
 	profilesCmd.AddCommand(profilesDeactivateCmd)
-	profilesCmd.AddCommand(profilesSwitchCmd)
 	profilesCmd.AddCommand(profilesAddCmd)
 	profilesCmd.AddCommand(profilesRemoveCmd)
 	rootCmd.AddCommand(profilesCmd)
