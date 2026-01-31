@@ -95,7 +95,7 @@ Remove the redundant `switch` profile command from agent-smith. Currently, both 
   **Component Browser Tests:**
   - N/A (documentation only)
 
-- [ ] Story-005: As a developer, I want to verify the changes work end-to-end so that I'm confident the removal was successful.
+- [x] Story-005: As a developer, I want to verify the changes work end-to-end so that I'm confident the removal was successful.
 
   **Acceptance Criteria:**
   - Compilation succeeds with no errors
