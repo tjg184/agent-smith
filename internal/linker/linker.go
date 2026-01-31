@@ -192,23 +192,35 @@ func (cl *ComponentLinker) LinkComponent(componentType, componentName string) er
 			}
 		}
 
-		if hasSuccess {
-			fmt.Printf("Successfully linked %s '%s':\n", componentType, componentName)
-		} else {
-			fmt.Printf("Failed to link %s '%s':\n", componentType, componentName)
-		}
-
-		for _, result := range linkResults {
+		// Use simplified single-line output for single target
+		if len(linkResults) == 1 {
+			result := linkResults[0]
 			if result.success {
-				fmt.Printf("  → %s: %s\n", result.name, result.path)
+				fmt.Printf("Successfully linked %s '%s' → %s: %s\n", componentType, componentName, result.name, result.path)
 			} else {
-				fmt.Printf("  ✗ %s: %s\n", result.name, result.errMsg)
+				fmt.Printf("Failed to link %s '%s' ✗ %s: %s\n", componentType, componentName, result.name, result.errMsg)
+				return fmt.Errorf("failed to link to target")
 			}
-		}
-		fmt.Printf("  Source: %s\n", srcDir)
+		} else {
+			// Use multi-line format for multiple targets
+			if hasSuccess {
+				fmt.Printf("Successfully linked %s '%s':\n", componentType, componentName)
+			} else {
+				fmt.Printf("Failed to link %s '%s':\n", componentType, componentName)
+			}
 
-		if !hasSuccess {
-			return fmt.Errorf("failed to link to any target")
+			for _, result := range linkResults {
+				if result.success {
+					fmt.Printf("  → %s: %s\n", result.name, result.path)
+				} else {
+					fmt.Printf("  ✗ %s: %s\n", result.name, result.errMsg)
+				}
+			}
+			fmt.Printf("  Source: %s\n", srcDir)
+
+			if !hasSuccess {
+				return fmt.Errorf("failed to link to any target")
+			}
 		}
 	}
 
