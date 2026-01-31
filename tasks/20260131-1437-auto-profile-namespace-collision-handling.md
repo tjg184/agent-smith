@@ -155,7 +155,7 @@ Implement automatic profile generation and intelligent collision handling to pre
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [ ] Story-007: As a user with component collisions across profiles, I want an interactive prompt to choose which profile to link from so that I maintain control over component selection.
+- [x] Story-007: As a user with component collisions across profiles, I want an interactive prompt to choose which profile to link from so that I maintain control over component selection.
 
   **Acceptance Criteria:**
   - Interactive prompt lists all profiles containing the component
@@ -179,7 +179,7 @@ Implement automatic profile generation and intelligent collision handling to pre
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [ ] Story-008: As a user, I want to explicitly specify a profile when linking so that I can bypass the active profile priority when needed.
+- [x] Story-008: As a user, I want to explicitly specify a profile when linking so that I can bypass the active profile priority when needed.
 
   **Acceptance Criteria:**
   - `agent-smith link <component> --profile <name>` explicitly links from specified profile
