@@ -779,9 +779,9 @@ func main() {
 			}
 			debugPrintln("[DEBUG] Component linked successfully")
 		},
-		func(targetFilter string) {
-			debugPrintf("[DEBUG] handleLinkAll called with targetFilter=%s\n", targetFilter)
-			linker, err := NewComponentLinkerWithFilter(targetFilter)
+		func(targetFilter, profile string) {
+			debugPrintf("[DEBUG] handleLinkAll called with targetFilter=%s, profile=%s\n", targetFilter, profile)
+			linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
 			}
@@ -791,14 +791,17 @@ func main() {
 			}
 			debugPrintln("[DEBUG] All components linked successfully")
 		},
-		func(componentType, targetFilter string) {
-			linker, err := NewComponentLinkerWithFilter(targetFilter)
+		func(componentType, targetFilter, profile string) {
+			debugPrintf("[DEBUG] handleLinkType called with componentType=%s, targetFilter=%s, profile=%s\n", componentType, targetFilter, profile)
+			linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
 			}
+			debugPrintln("[DEBUG] Component linker created successfully")
 			if err := linker.LinkComponentsByType(componentType); err != nil {
 				log.Fatal("Failed to link components:", err)
 			}
+			debugPrintln("[DEBUG] Components of type %s linked successfully", componentType)
 		},
 		func() {
 			linker, err := NewComponentLinker()

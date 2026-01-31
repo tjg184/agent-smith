@@ -420,11 +420,15 @@ EXAMPLES:
   agent-smith link skills
 
   # Link all skills to Claude Code only
-  agent-smith link skills --target claudecode`,
+  agent-smith link skills --target claudecode
+
+  # Link all skills from a specific profile (bypasses active profile)
+  agent-smith link skills --profile work`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
+			profile, _ := cmd.Flags().GetString("profile")
 
 			// If --all-targets is specified, override targetFilter to "all"
 			if allTargets {
@@ -432,11 +436,12 @@ EXAMPLES:
 			}
 
 			// Link all skills
-			handleLinkType("skills", targetFilter)
+			handleLinkType("skills", targetFilter, profile)
 		},
 	}
 	linkSkillsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
 	linkSkillsCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkSkillsCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkSkillsCmd)
 
 	linkAgentCmd := &cobra.Command{
@@ -490,11 +495,15 @@ EXAMPLES:
   agent-smith link agents
 
   # Link all agents to Claude Code only
-  agent-smith link agents --target claudecode`,
+  agent-smith link agents --target claudecode
+
+  # Link all agents from a specific profile (bypasses active profile)
+  agent-smith link agents --profile work`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
+			profile, _ := cmd.Flags().GetString("profile")
 
 			// If --all-targets is specified, override targetFilter to "all"
 			if allTargets {
@@ -502,11 +511,12 @@ EXAMPLES:
 			}
 
 			// Link all agents
-			handleLinkType("agents", targetFilter)
+			handleLinkType("agents", targetFilter, profile)
 		},
 	}
 	linkAgentsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
 	linkAgentsCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkAgentsCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkAgentsCmd)
 
 	linkCommandCmd := &cobra.Command{
@@ -560,11 +570,15 @@ EXAMPLES:
   agent-smith link commands
 
   # Link all commands to Claude Code only
-  agent-smith link commands --target claudecode`,
+  agent-smith link commands --target claudecode
+
+  # Link all commands from a specific profile (bypasses active profile)
+  agent-smith link commands --profile work`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
+			profile, _ := cmd.Flags().GetString("profile")
 
 			// If --all-targets is specified, override targetFilter to "all"
 			if allTargets {
@@ -572,11 +586,12 @@ EXAMPLES:
 			}
 
 			// Link all commands
-			handleLinkType("commands", targetFilter)
+			handleLinkType("commands", targetFilter, profile)
 		},
 	}
 	linkCommandsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
 	linkCommandsCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkCommandsCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkCommandsCmd)
 
 	linkAllCmd := &cobra.Command{
@@ -590,6 +605,7 @@ Claude Code, or other supported targets.
 PROFILE AWARENESS:
   - With active profile: Links components from the active profile
   - No active profile: Links all components from ~/.agent-smith/ (base installation)
+  - With --profile flag: Links components from the specified profile (bypasses active profile)
 
 TWO-STEP WORKFLOW:
   1. Activate a profile: agent-smith profile activate <name>
@@ -605,22 +621,27 @@ EXAMPLES:
   agent-smith link all --target opencode
 
   # Link all components to all targets explicitly
-  agent-smith link all --all-targets`,
+  agent-smith link all --all-targets
+
+  # Link all components from a specific profile (bypasses active profile)
+  agent-smith link all --profile work`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
+			profile, _ := cmd.Flags().GetString("profile")
 
 			// If --all-targets is specified, override targetFilter to "all"
 			if allTargets {
 				targetFilter = "all"
 			}
 
-			handleLinkAll(targetFilter)
+			handleLinkAll(targetFilter, profile)
 		},
 	}
 	linkAllCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
 	linkAllCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkAllCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkAllCmd)
 
 	linkAutoCmd := &cobra.Command{
@@ -1416,8 +1437,8 @@ var (
 	handleUpdate             func(componentType, componentName string)
 	handleUpdateAll          func()
 	handleLink               func(componentType, componentName, targetFilter, profile string)
-	handleLinkAll            func(targetFilter string)
-	handleLinkType           func(componentType, targetFilter string)
+	handleLinkAll            func(targetFilter, profile string)
+	handleLinkType           func(componentType, targetFilter, profile string)
 	handleAutoLink           func()
 	handleListLinks          func()
 	handleLinkStatus         func()
@@ -1449,8 +1470,8 @@ func SetHandlers(
 	update func(componentType, componentName string),
 	updateAll func(),
 	link func(componentType, componentName, targetFilter, profile string),
-	linkAll func(targetFilter string),
-	linkType func(componentType, targetFilter string),
+	linkAll func(targetFilter, profile string),
+	linkType func(componentType, targetFilter, profile string),
 	autoLink func(),
 	listLinks func(),
 	linkStatus func(),
