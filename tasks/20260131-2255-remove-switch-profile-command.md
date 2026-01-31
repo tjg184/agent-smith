@@ -213,8 +213,8 @@ grep -r "handleProfilesSwitch" --include="*.go" .
 
 ## Success Criteria
 
-- [ ] Code compiles without errors
-- [ ] All tests pass
+- [x] Code compiles without errors
+- [x] All tests pass
 - [ ] `agent-smith profile switch` returns error
 - [ ] `agent-smith profile activate` works correctly
 - [ ] Documentation references only `activate`
