@@ -49,6 +49,26 @@ func TestProfileCollisionHandling_Integration(t *testing.T) {
 		t.Fatalf("Failed to create profile1 skill file: %v", err)
 	}
 
+	// Create lock file for profile1 with source URL
+	lockFile1Content := `{
+  "version": 3,
+  "skills": {
+    "collision-test-skill": {
+      "source": "test-source-1",
+      "sourceType": "git",
+      "sourceUrl": "https://github.com/test/repo1",
+      "commitHash": "abc123",
+      "installedAt": "2024-01-01T00:00:00Z",
+      "updatedAt": "2024-01-01T00:00:00Z",
+      "version": 3
+    }
+  }
+}`
+	lockFile1Path := filepath.Join(testProfile1, ".skill-lock.json")
+	if err := os.WriteFile(lockFile1Path, []byte(lockFile1Content), 0644); err != nil {
+		t.Fatalf("Failed to create profile1 lock file: %v", err)
+	}
+
 	// Create test component in profile2
 	profile2SkillDir := filepath.Join(testProfile2, "skills", "collision-test-skill")
 	if err := os.MkdirAll(profile2SkillDir, 0755); err != nil {
@@ -56,6 +76,26 @@ func TestProfileCollisionHandling_Integration(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(profile2SkillDir, "SKILL.md"), []byte("# Test Skill from Profile 2"), 0644); err != nil {
 		t.Fatalf("Failed to create profile2 skill file: %v", err)
+	}
+
+	// Create lock file for profile2 with source URL
+	lockFile2Content := `{
+  "version": 3,
+  "skills": {
+    "collision-test-skill": {
+      "source": "test-source-2",
+      "sourceType": "git",
+      "sourceUrl": "https://github.com/test/repo2",
+      "commitHash": "def456",
+      "installedAt": "2024-01-01T00:00:00Z",
+      "updatedAt": "2024-01-01T00:00:00Z",
+      "version": 3
+    }
+  }
+}`
+	lockFile2Path := filepath.Join(testProfile2, ".skill-lock.json")
+	if err := os.WriteFile(lockFile2Path, []byte(lockFile2Content), 0644); err != nil {
+		t.Fatalf("Failed to create profile2 lock file: %v", err)
 	}
 
 	// Create a mock target for testing
@@ -89,17 +129,29 @@ func TestProfileCollisionHandling_Integration(t *testing.T) {
 	// Verify both profiles are in the results
 	foundProfile1 := false
 	foundProfile2 := false
+	var profile1SourceUrl, profile2SourceUrl string
+
 	for _, match := range matches {
 		if match.ProfileName == "test-profile-collision-1" {
 			foundProfile1 = true
+			profile1SourceUrl = match.SourceUrl
 		}
 		if match.ProfileName == "test-profile-collision-2" {
 			foundProfile2 = true
+			profile2SourceUrl = match.SourceUrl
 		}
 	}
 
 	if !foundProfile1 || !foundProfile2 {
 		t.Error("Expected to find both test profiles in matches")
+	}
+
+	// Verify source URLs are loaded correctly
+	if profile1SourceUrl != "https://github.com/test/repo1" {
+		t.Errorf("Expected profile1 source URL 'https://github.com/test/repo1', got '%s'", profile1SourceUrl)
+	}
+	if profile2SourceUrl != "https://github.com/test/repo2" {
+		t.Errorf("Expected profile2 source URL 'https://github.com/test/repo2', got '%s'", profile2SourceUrl)
 	}
 
 	// Test 2: Verify promptProfileSelection exists and has the right signature
@@ -193,12 +245,14 @@ func TestProfileMatch_ActiveFlag(t *testing.T) {
 		ProfileName: "profile1",
 		ProfilePath: "/path/to/profile1",
 		IsActive:    true,
+		SourceUrl:   "https://github.com/user/repo1",
 	}
 
 	match2 := ProfileMatch{
 		ProfileName: "profile2",
 		ProfilePath: "/path/to/profile2",
 		IsActive:    false,
+		SourceUrl:   "https://github.com/user/repo2",
 	}
 
 	if !match1.IsActive {
@@ -211,5 +265,13 @@ func TestProfileMatch_ActiveFlag(t *testing.T) {
 
 	if match1.ProfileName != "profile1" {
 		t.Errorf("Expected ProfileName 'profile1', got '%s'", match1.ProfileName)
+	}
+
+	if match1.SourceUrl != "https://github.com/user/repo1" {
+		t.Errorf("Expected SourceUrl 'https://github.com/user/repo1', got '%s'", match1.SourceUrl)
+	}
+
+	if match2.SourceUrl != "https://github.com/user/repo2" {
+		t.Errorf("Expected SourceUrl 'https://github.com/user/repo2', got '%s'", match2.SourceUrl)
 	}
 }

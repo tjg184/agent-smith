@@ -1377,6 +1377,7 @@ type ProfileMatch struct {
 	ProfileName string
 	ProfilePath string
 	IsActive    bool
+	SourceUrl   string
 }
 
 // searchComponentInProfiles searches for a component across all profiles
@@ -1421,10 +1422,18 @@ func (cl *ComponentLinker) searchComponentInProfiles(componentType, componentNam
 
 		// Check if component exists in this profile
 		if _, err := os.Stat(componentPath); err == nil {
+			// Try to load source URL from lock file
+			sourceUrl := ""
+			lockEntry, err := metadataPkg.LoadLockFileEntry(profilePath, componentType, componentName)
+			if err == nil && lockEntry != nil {
+				sourceUrl = lockEntry.SourceUrl
+			}
+
 			matches = append(matches, ProfileMatch{
 				ProfileName: profileName,
 				ProfilePath: profilePath,
 				IsActive:    profileName == activeProfile,
+				SourceUrl:   sourceUrl,
 			})
 		}
 	}
@@ -1447,6 +1456,16 @@ func (cl *ComponentLinker) promptProfileSelection(componentType, componentName s
 			activeIndicator = " (active)"
 		}
 		fmt.Printf("  %d. %s%s\n", i+1, match.ProfileName, activeIndicator)
+
+		// Display source URL if available
+		if match.SourceUrl != "" {
+			fmt.Printf("     Source: %s\n", match.SourceUrl)
+		}
+
+		// Add blank line between options for readability
+		if i < len(matches)-1 {
+			fmt.Println()
+		}
 	}
 
 	fmt.Printf("\nSelect profile to link from [1-%d] (or 'c' to cancel): ", len(matches))
