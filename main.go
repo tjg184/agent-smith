@@ -1011,53 +1011,53 @@ func main() {
 			}
 
 			// Display profile information
-			infoPrintf("Profile: %s", targetProfile.Name)
+			fmt.Printf("Profile: %s", targetProfile.Name)
 			if targetProfile.Name == activeProfile {
-				infoPrintf(" %s [active]", formatter.SymbolSuccess)
+				fmt.Printf(" %s [active]", formatter.SymbolSuccess)
 			}
-			infoPrintln()
-			infoPrintf("Location: %s\n", targetProfile.BasePath)
-			infoPrintln()
+			fmt.Println()
+			fmt.Printf("Location: %s\n", targetProfile.BasePath)
+			fmt.Println()
 
 			// Get component names
 			agents, skills, commands := pm.GetComponentNames(targetProfile)
 
 			// Display agents
 			if len(agents) > 0 {
-				infoPrintf("Agents (%d):\n", len(agents))
+				fmt.Printf("Agents (%d):\n", len(agents))
 				for _, agent := range agents {
-					infoPrintf("  - %s\n", agent)
+					fmt.Printf("  - %s\n", agent)
 				}
-				infoPrintln()
+				fmt.Println()
 			}
 
 			// Display skills
 			if len(skills) > 0 {
-				infoPrintf("Skills (%d):\n", len(skills))
+				fmt.Printf("Skills (%d):\n", len(skills))
 				for _, skill := range skills {
-					infoPrintf("  - %s\n", skill)
+					fmt.Printf("  - %s\n", skill)
 				}
-				infoPrintln()
+				fmt.Println()
 			}
 
 			// Display commands
 			if len(commands) > 0 {
-				infoPrintf("Commands (%d):\n", len(commands))
+				fmt.Printf("Commands (%d):\n", len(commands))
 				for _, command := range commands {
-					infoPrintf("  - %s\n", command)
+					fmt.Printf("  - %s\n", command)
 				}
-				infoPrintln()
+				fmt.Println()
 			}
 
 			// Show empty state if no components
 			if len(agents) == 0 && len(skills) == 0 && len(commands) == 0 {
-				infoPrintln("This profile is empty.")
-				infoPrintln("\nAdd components with:")
-				infoPrintf("  agent-smith profiles add <type> %s <component-name>\n", profileName)
+				fmt.Println("This profile is empty.")
+				fmt.Println("\nAdd components with:")
+				fmt.Printf("  agent-smith profiles add <type> %s <component-name>\n", profileName)
 			} else if targetProfile.Name != activeProfile {
 				// Show activation hint if not active
-				infoPrintln("To activate this profile:")
-				infoPrintf("  agent-smith profiles activate %s\n", profileName)
+				fmt.Println("To activate this profile:")
+				fmt.Printf("  agent-smith profiles activate %s\n", profileName)
 			}
 		},
 		func(profileName string) {
