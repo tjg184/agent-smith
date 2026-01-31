@@ -3,6 +3,7 @@ package profiles
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -131,5 +132,108 @@ func TestSaveProfileMetadata_Normalization(t *testing.T) {
 	expectedNormalizedURL := "https://github.com/owner/repo"
 	if metadata.SourceURL != expectedNormalizedURL {
 		t.Errorf("SaveProfileMetadata normalized URL = %s, want %s", metadata.SourceURL, expectedNormalizedURL)
+	}
+}
+
+// TestFindProfileBySourceURL_BackwardCompatibility tests that profiles without metadata files
+// are skipped during duplicate detection (backward compatibility).
+// This is the integration test for Story-003 backward compatibility requirement.
+func TestFindProfileBySourceURL_BackwardCompatibility(t *testing.T) {
+	// Create a temporary profiles directory
+	tempDir := t.TempDir()
+
+	pm := &ProfileManager{
+		profilesDir: tempDir,
+		linker:      nil,
+	}
+
+	// Create two test profiles
+	legacyProfileName := "legacy-profile"
+	legacyProfileDir := filepath.Join(tempDir, legacyProfileName)
+	if err := os.MkdirAll(filepath.Join(legacyProfileDir, "skills"), 0755); err != nil {
+		t.Fatalf("failed to create legacy profile directory: %v", err)
+	}
+	// Note: NO metadata file created for legacy profile
+
+	newProfileName := "new-profile"
+	newProfileDir := filepath.Join(tempDir, newProfileName)
+	if err := os.MkdirAll(filepath.Join(newProfileDir, "skills"), 0755); err != nil {
+		t.Fatalf("failed to create new profile directory: %v", err)
+	}
+
+	// Save metadata for the new profile
+	repoURL := "https://github.com/owner/repo"
+	if err := pm.SaveProfileMetadata(newProfileName, repoURL); err != nil {
+		t.Fatalf("failed to save profile metadata: %v", err)
+	}
+
+	// Search for profile by URL - should find the new profile, not the legacy one
+	foundProfile, err := pm.FindProfileBySourceURL(repoURL)
+	if err != nil {
+		t.Fatalf("FindProfileBySourceURL returned error: %v", err)
+	}
+
+	if foundProfile != newProfileName {
+		t.Errorf("FindProfileBySourceURL = %s, want %s (legacy profile without metadata should be skipped)", foundProfile, newProfileName)
+	}
+
+	// Verify legacy profile metadata returns nil without error
+	legacyMetadata, err := pm.LoadProfileMetadata(legacyProfileName)
+	if err != nil {
+		t.Errorf("LoadProfileMetadata for legacy profile returned error: %v, want nil", err)
+	}
+	if legacyMetadata != nil {
+		t.Errorf("LoadProfileMetadata for legacy profile = %v, want nil", legacyMetadata)
+	}
+}
+
+// TestProfileMetadata_FileFormat tests that the .profile-metadata file is created
+// with the correct format, encoding, and structure as specified in Story-003.
+func TestProfileMetadata_FileFormat(t *testing.T) {
+	// Create a temporary profiles directory
+	tempDir := t.TempDir()
+
+	pm := &ProfileManager{
+		profilesDir: tempDir,
+		linker:      nil,
+	}
+
+	// Create a test profile
+	profileName := "test-profile"
+	profileDir := filepath.Join(tempDir, profileName)
+	if err := os.MkdirAll(filepath.Join(profileDir, "skills"), 0755); err != nil {
+		t.Fatalf("failed to create profile directory: %v", err)
+	}
+
+	// Save metadata
+	repoURL := "https://github.com/owner/repo"
+	if err := pm.SaveProfileMetadata(profileName, repoURL); err != nil {
+		t.Fatalf("failed to save profile metadata: %v", err)
+	}
+
+	// Verify the .profile-metadata file exists
+	metadataPath := filepath.Join(profileDir, ".profile-metadata")
+	if _, err := os.Stat(metadataPath); os.IsNotExist(err) {
+		t.Fatalf(".profile-metadata file not created")
+	}
+
+	// Read the file and verify it's human-readable JSON
+	data, err := os.ReadFile(metadataPath)
+	if err != nil {
+		t.Fatalf("failed to read metadata file: %v", err)
+	}
+
+	// Verify content is human-readable and contains expected format
+	content := string(data)
+	if !strings.Contains(content, "source_url") {
+		t.Errorf("metadata file content missing 'source_url' field, got: %s", content)
+	}
+	if !strings.Contains(content, repoURL) {
+		t.Errorf("metadata file content missing repository URL, got: %s", content)
+	}
+
+	// Verify it's properly formatted JSON with indentation (human-readable)
+	if !strings.Contains(content, "{\n") {
+		t.Errorf("metadata file not formatted as indented JSON (not human-readable), got: %s", content)
 	}
 }
