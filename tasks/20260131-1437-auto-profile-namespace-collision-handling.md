@@ -108,7 +108,7 @@ Implement automatic profile generation and intelligent collision handling to pre
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [ ] Story-005: As a user, I want to see which profile a specific component belongs to so that I understand where it came from and can make informed linking decisions.
+- [x] Story-005: As a user, I want to see which profile a specific component belongs to so that I understand where it came from and can make informed linking decisions.
 
   **Acceptance Criteria:**
   - `agent-smith info <component>` command shows component metadata
