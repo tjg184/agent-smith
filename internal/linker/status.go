@@ -14,6 +14,7 @@ type LinkStatus struct {
 	Target     string
 	Valid      bool
 	TargetPath string
+	Profile    string // "base" or profile name
 }
 
 // getSourceDescription returns a human-readable description of the source directory
@@ -24,6 +25,25 @@ func (cl *ComponentLinker) getSourceDescription() string {
 		return fmt.Sprintf("Source: %s (profile '%s')", cl.agentsDir, profileName)
 	}
 	return fmt.Sprintf("Source: %s (base installation)", cl.agentsDir)
+}
+
+// getProfileFromPath extracts the profile name from a component path
+// Returns "base" if the component is in the base installation, or the profile name
+func getProfileFromPath(path string) string {
+	// Walk up the directory tree to find "profiles" directory
+	dir := filepath.Dir(path)
+	for {
+		parent := filepath.Dir(dir)
+		if filepath.Base(parent) == "profiles" {
+			// This is a profile directory
+			return filepath.Base(dir)
+		}
+		if parent == dir || parent == "." || parent == "/" {
+			// Reached root without finding "profiles"
+			return "base"
+		}
+		dir = parent
+	}
 }
 
 // analyzeLinkStatus analyzes the status of a link/directory

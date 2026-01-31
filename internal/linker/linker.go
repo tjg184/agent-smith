@@ -571,6 +571,12 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 				fullPath := filepath.Join(componentDir, entry.Name())
 				linkType, targetPath, valid := cl.analyzeLinkStatus(fullPath)
 
+				// Determine profile from target path
+				profile := "base"
+				if targetPath != "" {
+					profile = getProfileFromPath(targetPath)
+				}
+
 				status := LinkStatus{
 					Name:       entry.Name(),
 					Type:       componentType,
@@ -578,6 +584,7 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 					Target:     targetPath,
 					Valid:      valid,
 					TargetPath: fullPath,
+					Profile:    profile,
 				}
 
 				links = append(links, status)
@@ -644,7 +651,8 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 					statusMsg = "[unknown]"
 				}
 
-				fmt.Printf("  %s %s %s\n", symbol, link.Name, statusMsg)
+				profileDisplay := fmt.Sprintf("(%s)", link.Profile)
+				fmt.Printf("  %s %s %s %s\n", symbol, link.Name, profileDisplay, statusMsg)
 			}
 		}
 
@@ -665,8 +673,9 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 
 	// Collect all unique components from source directory
 	type ComponentInfo struct {
-		Name string
-		Type string
+		Name    string
+		Type    string
+		Profile string
 	}
 	allComponents := make([]ComponentInfo, 0)
 
@@ -686,9 +695,13 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 			if strings.HasPrefix(entry.Name(), ".") {
 				continue
 			}
+			// Determine profile from source directory
+			componentPath := filepath.Join(sourceDir, entry.Name())
+			profile := getProfileFromPath(componentPath)
 			allComponents = append(allComponents, ComponentInfo{
-				Name: entry.Name(),
-				Type: componentType,
+				Name:    entry.Name(),
+				Type:    componentType,
+				Profile: profile,
 			})
 		}
 	}
@@ -764,15 +777,20 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 
 	// Calculate column widths
 	maxNameLen := 20
+	profileColWidth := 10
 	for _, status := range statuses {
 		nameLen := len(status.Component.Name) + 2 // +2 for indent
 		if nameLen > maxNameLen {
 			maxNameLen = nameLen
 		}
+		profileLen := len(status.Component.Profile)
+		if profileLen > profileColWidth {
+			profileColWidth = profileLen
+		}
 	}
 
 	// Print header
-	fmt.Printf("%-*s", maxNameLen+2, "Component")
+	fmt.Printf("%-*s  %-*s", maxNameLen+2, "Component", profileColWidth, "Profile")
 	for _, targetName := range targetNames {
 		fmt.Printf("  %-12s", strings.ToUpper(targetName))
 	}
@@ -780,6 +798,7 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 
 	// Print separator
 	fmt.Print(strings.Repeat("-", maxNameLen+2))
+	fmt.Print("  " + strings.Repeat("-", profileColWidth))
 	for range targetNames {
 		fmt.Print("  " + strings.Repeat("-", 12))
 	}
@@ -802,7 +821,7 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 
 		for _, status := range components {
 			componentName := fmt.Sprintf("  %s", status.Component.Name)
-			fmt.Printf("%-*s", maxNameLen+2, componentName)
+			fmt.Printf("%-*s  %-*s", maxNameLen+2, componentName, profileColWidth, status.Component.Profile)
 
 			for _, targetName := range targetNames {
 				symbol := status.Targets[targetName]
