@@ -671,8 +671,12 @@ func main() {
 				}
 			}
 		},
-		func(repoURL string, targetDir string) {
+		func(repoURL, profile, targetDir string) {
 			var bulkDownloader *downloader.BulkDownloader
+
+			if profile != "" && targetDir != "" {
+				log.Fatal("Cannot specify both --profile and --target-dir flags")
+			}
 
 			if targetDir != "" {
 				// Resolve the target directory path
@@ -699,37 +703,68 @@ func main() {
 					log.Fatal("Failed to create profile manager:", err)
 				}
 
-				// Check if a profile already exists for this repository
-				existingProfileName, err := pm.FindProfileBySourceURL(repoURL)
-				if err != nil {
-					log.Fatal("Failed to search for existing profile:", err)
-				}
-
 				var profileName string
-				if existingProfileName != "" {
-					// Profile already exists, reuse it
-					profileName = existingProfileName
-					infoPrintf("Found existing profile for repository: %s\n", profileName)
-					infoPrintf("Updating profile with latest components...\n")
-				} else {
-					// Get existing profiles for name generation
-					existingProfiles, err := pm.ScanProfiles()
+
+				if profile != "" {
+					// Custom profile name provided via --profile flag
+					// Check if profile with this name already exists
+					profilesList, err := pm.ScanProfiles()
 					if err != nil {
 						log.Fatal("Failed to scan profiles:", err)
 					}
 
-					existingProfileNames := make([]string, len(existingProfiles))
-					for i, p := range existingProfiles {
-						existingProfileNames[i] = p.Name
+					profileExists := false
+					for _, p := range profilesList {
+						if p.Name == profile {
+							profileExists = true
+							break
+						}
 					}
 
-					// Generate a unique profile name
-					profileName = profiles.GenerateProfileNameFromRepo(repoURL, existingProfileNames)
+					if profileExists {
+						log.Fatalf("Profile '%s' already exists. Please choose a different name or remove the --profile flag to update the existing profile.", profile)
+					}
+
+					profileName = profile
 					infoPrintf("Creating profile: %s\n", profileName)
 
 					// Create the profile with metadata
 					if err := pm.CreateProfileWithMetadata(profileName, repoURL); err != nil {
 						log.Fatal("Failed to create profile:", err)
+					}
+				} else {
+					// No custom profile name - use auto-detection and reuse logic
+					// Check if a profile already exists for this repository
+					existingProfileName, err := pm.FindProfileBySourceURL(repoURL)
+					if err != nil {
+						log.Fatal("Failed to search for existing profile:", err)
+					}
+
+					if existingProfileName != "" {
+						// Profile already exists, reuse it
+						profileName = existingProfileName
+						infoPrintf("Found existing profile for repository: %s\n", profileName)
+						infoPrintf("Updating profile with latest components...\n")
+					} else {
+						// Get existing profiles for name generation
+						existingProfiles, err := pm.ScanProfiles()
+						if err != nil {
+							log.Fatal("Failed to scan profiles:", err)
+						}
+
+						existingProfileNames := make([]string, len(existingProfiles))
+						for i, p := range existingProfiles {
+							existingProfileNames[i] = p.Name
+						}
+
+						// Generate a unique profile name
+						profileName = profiles.GenerateProfileNameFromRepo(repoURL, existingProfileNames)
+						infoPrintf("Creating profile: %s\n", profileName)
+
+						// Create the profile with metadata
+						if err := pm.CreateProfileWithMetadata(profileName, repoURL); err != nil {
+							log.Fatal("Failed to create profile:", err)
+						}
 					}
 				}
 

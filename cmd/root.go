@@ -288,13 +288,18 @@ EXAMPLES:
   agent-smith install all openai/cookbook --target-dir ./tools
 
   # Install to a custom directory with tilde expansion
-  agent-smith install all openai/cookbook --target-dir ~/my-project/agents`,
+  agent-smith install all openai/cookbook --target-dir ~/my-project/agents
+
+  # Force creation of a new profile with a custom name
+  agent-smith install all openai/cookbook --profile my-custom-profile`,
 		Args: exactArgsWithHelp(1, "agent-smith install all <repository-url>"),
 		Run: func(cmd *cobra.Command, args []string) {
+			profile, _ := cmd.Flags().GetString("profile")
 			targetDir, _ := cmd.Flags().GetString("target-dir")
-			handleAddAll(args[0], targetDir)
+			handleAddAll(args[0], profile, targetDir)
 		},
 	}
+	installAllCmd.Flags().StringP("profile", "p", "", "Force creation of a new profile with a custom name")
 	installAllCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory instead of ~/.agent-smith/")
 	installCmd.AddCommand(installAllCmd)
 
@@ -1433,7 +1438,7 @@ var (
 	handleAddSkill           func(repoURL, name, profile, targetDir string)
 	handleAddAgent           func(repoURL, name, profile, targetDir string)
 	handleAddCommand         func(repoURL, name, profile, targetDir string)
-	handleAddAll             func(repoURL string, targetDir string)
+	handleAddAll             func(repoURL, profile, targetDir string)
 	handleUpdate             func(componentType, componentName string)
 	handleUpdateAll          func()
 	handleLink               func(componentType, componentName, targetFilter, profile string)
@@ -1466,7 +1471,7 @@ func SetHandlers(
 	addSkill func(repoURL, name, profile, targetDir string),
 	addAgent func(repoURL, name, profile, targetDir string),
 	addCommand func(repoURL, name, profile, targetDir string),
-	addAll func(repoURL string, targetDir string),
+	addAll func(repoURL, profile, targetDir string),
 	update func(componentType, componentName string),
 	updateAll func(),
 	link func(componentType, componentName, targetFilter, profile string),
