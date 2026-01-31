@@ -12,24 +12,46 @@ import (
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/paths"
+	"github.com/tgaines/agent-smith/pkg/profiles"
 )
 
 // UpdateDetector provides functionality to detect and apply updates to components
 type UpdateDetector struct {
-	baseDir  string
-	detector *detector.RepositoryDetector
+	baseDir     string
+	detector    *detector.RepositoryDetector
+	profileName string // If non-empty, we're working with a profile
 }
 
 // NewUpdateDetector creates a new UpdateDetector instance
+// If an active profile exists, it will use that profile's directory
+// Otherwise, it will use the default ~/.agent-smith/ directory
 func NewUpdateDetector() *UpdateDetector {
 	baseDir, err := paths.GetAgentsDir()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get agents directory: %v", err))
 	}
 
+	var profileName string
+
+	// Check if a profile is active
+	pm, err := profiles.NewProfileManager(nil)
+	if err == nil {
+		activeProfile, err := pm.GetActiveProfile()
+		if err == nil && activeProfile != "" {
+			// Use the active profile directory instead
+			profilesDir, err := paths.GetProfilesDir()
+			if err == nil {
+				baseDir = filepath.Join(profilesDir, activeProfile)
+				profileName = activeProfile
+				fmt.Printf("Using active profile for updates: %s\n", activeProfile)
+			}
+		}
+	}
+
 	return &UpdateDetector{
-		baseDir:  baseDir,
-		detector: detector.NewRepositoryDetector(),
+		baseDir:     baseDir,
+		detector:    detector.NewRepositoryDetector(),
+		profileName: profileName,
 	}
 }
 
@@ -145,18 +167,36 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 
 	// Re-download the component with the latest changes
 	var downloadErr error
-	switch componentType {
-	case "skills":
-		dl := downloader.NewSkillDownloader()
-		downloadErr = dl.DownloadSkill(repoURL, componentName)
-	case "agents":
-		dl := downloader.NewAgentDownloader()
-		downloadErr = dl.DownloadAgent(repoURL, componentName)
-	case "commands":
-		dl := downloader.NewCommandDownloader()
-		downloadErr = dl.DownloadCommand(repoURL, componentName)
-	default:
-		return fmt.Errorf("unknown component type: %s", componentType)
+	if ud.profileName != "" {
+		// Use profile-aware downloaders
+		switch componentType {
+		case "skills":
+			dl := downloader.NewSkillDownloaderForProfile(ud.profileName)
+			downloadErr = dl.DownloadSkill(repoURL, componentName)
+		case "agents":
+			dl := downloader.NewAgentDownloaderForProfile(ud.profileName)
+			downloadErr = dl.DownloadAgent(repoURL, componentName)
+		case "commands":
+			dl := downloader.NewCommandDownloaderForProfile(ud.profileName)
+			downloadErr = dl.DownloadCommand(repoURL, componentName)
+		default:
+			return fmt.Errorf("unknown component type: %s", componentType)
+		}
+	} else {
+		// Use standard downloaders
+		switch componentType {
+		case "skills":
+			dl := downloader.NewSkillDownloader()
+			downloadErr = dl.DownloadSkill(repoURL, componentName)
+		case "agents":
+			dl := downloader.NewAgentDownloader()
+			downloadErr = dl.DownloadAgent(repoURL, componentName)
+		case "commands":
+			dl := downloader.NewCommandDownloader()
+			downloadErr = dl.DownloadCommand(repoURL, componentName)
+		default:
+			return fmt.Errorf("unknown component type: %s", componentType)
+		}
 	}
 
 	if downloadErr != nil {
@@ -233,18 +273,36 @@ func (ud *UpdateDetector) UpdateAll() error {
 
 				// Re-download the component with the latest changes
 				var downloadErr error
-				switch componentType {
-				case "skills":
-					dl := downloader.NewSkillDownloader()
-					downloadErr = dl.DownloadSkill(metadata.Source, componentName)
-				case "agents":
-					dl := downloader.NewAgentDownloader()
-					downloadErr = dl.DownloadAgent(metadata.Source, componentName)
-				case "commands":
-					dl := downloader.NewCommandDownloader()
-					downloadErr = dl.DownloadCommand(metadata.Source, componentName)
-				default:
-					downloadErr = fmt.Errorf("unknown component type: %s", componentType)
+				if ud.profileName != "" {
+					// Use profile-aware downloaders
+					switch componentType {
+					case "skills":
+						dl := downloader.NewSkillDownloaderForProfile(ud.profileName)
+						downloadErr = dl.DownloadSkill(metadata.Source, componentName)
+					case "agents":
+						dl := downloader.NewAgentDownloaderForProfile(ud.profileName)
+						downloadErr = dl.DownloadAgent(metadata.Source, componentName)
+					case "commands":
+						dl := downloader.NewCommandDownloaderForProfile(ud.profileName)
+						downloadErr = dl.DownloadCommand(metadata.Source, componentName)
+					default:
+						downloadErr = fmt.Errorf("unknown component type: %s", componentType)
+					}
+				} else {
+					// Use standard downloaders
+					switch componentType {
+					case "skills":
+						dl := downloader.NewSkillDownloader()
+						downloadErr = dl.DownloadSkill(metadata.Source, componentName)
+					case "agents":
+						dl := downloader.NewAgentDownloader()
+						downloadErr = dl.DownloadAgent(metadata.Source, componentName)
+					case "commands":
+						dl := downloader.NewCommandDownloader()
+						downloadErr = dl.DownloadCommand(metadata.Source, componentName)
+					default:
+						downloadErr = fmt.Errorf("unknown component type: %s", componentType)
+					}
 				}
 
 				if downloadErr != nil {
