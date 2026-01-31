@@ -236,17 +236,37 @@ func (rd *RepositoryDetector) NormalizeURL(repoURL string) (string, error) {
 		return absPath, nil
 	}
 
-	// If it's already a full URL or SSH/Git format, validate and return as-is
-	if strings.HasPrefix(repoURL, "http://") || strings.HasPrefix(repoURL, "https://") ||
-		strings.HasPrefix(repoURL, "git@") || strings.HasPrefix(repoURL, "ssh://") {
+	// Remove trailing slashes and .git suffix
+	repoURL = strings.TrimRight(repoURL, "/")
+	repoURL = strings.TrimSuffix(repoURL, ".git")
 
+	// Convert SSH format to HTTPS (git@github.com:owner/repo -> https://github.com/owner/repo)
+	if strings.HasPrefix(repoURL, "git@") {
+		// Format: git@github.com:owner/repo
+		repoURL = strings.TrimPrefix(repoURL, "git@")
+		repoURL = strings.Replace(repoURL, ":", "/", 1)
+		repoURL = "https://" + repoURL
+	}
+
+	// Convert ssh:// format to HTTPS (ssh://git@github.com/owner/repo -> https://github.com/owner/repo)
+	if strings.HasPrefix(repoURL, "ssh://") {
+		repoURL = strings.TrimPrefix(repoURL, "ssh://")
+		repoURL = strings.TrimPrefix(repoURL, "git@")
+		repoURL = "https://" + repoURL
+	}
+
+	// If it's already an HTTPS URL, validate and return
+	if strings.HasPrefix(repoURL, "https://") {
 		// Basic URL validation
-		if strings.HasPrefix(repoURL, "http") {
-			if !strings.Contains(repoURL, "://") {
-				return "", fmt.Errorf("invalid URL format: %s", repoURL)
-			}
+		if !strings.Contains(repoURL, "://") {
+			return "", fmt.Errorf("invalid URL format: %s", repoURL)
 		}
+		return repoURL, nil
+	}
 
+	// Convert HTTP to HTTPS
+	if strings.HasPrefix(repoURL, "http://") {
+		repoURL = strings.Replace(repoURL, "http://", "https://", 1)
 		return repoURL, nil
 	}
 

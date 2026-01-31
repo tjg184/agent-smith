@@ -699,24 +699,38 @@ func main() {
 					log.Fatal("Failed to create profile manager:", err)
 				}
 
-				// Get existing profiles
-				existingProfiles, err := pm.ScanProfiles()
+				// Check if a profile already exists for this repository
+				existingProfileName, err := pm.FindProfileBySourceURL(repoURL)
 				if err != nil {
-					log.Fatal("Failed to scan profiles:", err)
+					log.Fatal("Failed to search for existing profile:", err)
 				}
 
-				existingProfileNames := make([]string, len(existingProfiles))
-				for i, p := range existingProfiles {
-					existingProfileNames[i] = p.Name
-				}
+				var profileName string
+				if existingProfileName != "" {
+					// Profile already exists, reuse it
+					profileName = existingProfileName
+					infoPrintf("Found existing profile for repository: %s\n", profileName)
+					infoPrintf("Updating profile with latest components...\n")
+				} else {
+					// Get existing profiles for name generation
+					existingProfiles, err := pm.ScanProfiles()
+					if err != nil {
+						log.Fatal("Failed to scan profiles:", err)
+					}
 
-				// Generate a unique profile name
-				profileName := profiles.GenerateProfileNameFromRepo(repoURL, existingProfileNames)
-				infoPrintf("Creating profile: %s\n", profileName)
+					existingProfileNames := make([]string, len(existingProfiles))
+					for i, p := range existingProfiles {
+						existingProfileNames[i] = p.Name
+					}
 
-				// Create the profile
-				if err := pm.CreateProfile(profileName); err != nil {
-					log.Fatal("Failed to create profile:", err)
+					// Generate a unique profile name
+					profileName = profiles.GenerateProfileNameFromRepo(repoURL, existingProfileNames)
+					infoPrintf("Creating profile: %s\n", profileName)
+
+					// Create the profile with metadata
+					if err := pm.CreateProfileWithMetadata(profileName, repoURL); err != nil {
+						log.Fatal("Failed to create profile:", err)
+					}
 				}
 
 				// Install components to the profile
@@ -739,12 +753,15 @@ func main() {
 					}
 					infoPrintf("Profile '%s' has been automatically activated as your first profile.\n", profileName)
 					infoPrintln("Components from this profile are now ready to be linked.")
-				} else {
-					// Optionally activate the profile
-					fmt.Println("\nProfile created successfully!")
+				} else if activeProfile != profileName {
+					// Only show activation message if this is not the active profile
+					fmt.Println("\nProfile updated successfully!")
 					fmt.Printf("To activate this profile and use these components, run:\n")
 					fmt.Printf("  agent-smith profile activate %s\n", profileName)
 					fmt.Printf("  agent-smith link all\n")
+				} else {
+					// Profile is already active, components are ready
+					infoPrintln("\nProfile updated successfully! Components are ready to be linked.")
 				}
 			}
 		},

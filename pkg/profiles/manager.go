@@ -3,12 +3,14 @@ package profiles
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/linker"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
@@ -17,6 +19,11 @@ import (
 type ProfileManager struct {
 	profilesDir string
 	linker      *linker.ComponentLinker // Optional - can be nil
+}
+
+// ProfileMetadata stores metadata about a profile's source
+type ProfileMetadata struct {
+	SourceURL string `json:"source_url"`
 }
 
 // NewProfileManager creates a new ProfileManager instance
@@ -30,6 +37,91 @@ func NewProfileManager(componentLinker *linker.ComponentLinker) (*ProfileManager
 		profilesDir: profilesDir,
 		linker:      componentLinker,
 	}, nil
+}
+
+// SaveProfileMetadata saves metadata about a profile's source URL
+func (pm *ProfileManager) SaveProfileMetadata(profileName, sourceURL string) error {
+	profileDir := filepath.Join(pm.profilesDir, profileName)
+	metadataPath := filepath.Join(profileDir, ".profile-metadata")
+
+	// Normalize the URL before saving
+	rd := detector.NewRepositoryDetector()
+	normalizedURL, err := rd.NormalizeURL(sourceURL)
+	if err != nil {
+		// If normalization fails, save the original URL
+		normalizedURL = sourceURL
+	}
+
+	metadata := ProfileMetadata{
+		SourceURL: normalizedURL,
+	}
+
+	data, err := json.MarshalIndent(metadata, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	if err := os.WriteFile(metadataPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write metadata file: %w", err)
+	}
+
+	return nil
+}
+
+// LoadProfileMetadata loads metadata for a profile
+func (pm *ProfileManager) LoadProfileMetadata(profileName string) (*ProfileMetadata, error) {
+	profileDir := filepath.Join(pm.profilesDir, profileName)
+	metadataPath := filepath.Join(profileDir, ".profile-metadata")
+
+	// Check if metadata file exists
+	if _, err := os.Stat(metadataPath); os.IsNotExist(err) {
+		return nil, nil // No metadata file, return nil without error
+	}
+
+	data, err := os.ReadFile(metadataPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read metadata file: %w", err)
+	}
+
+	var metadata ProfileMetadata
+	if err := json.Unmarshal(data, &metadata); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
+	}
+
+	return &metadata, nil
+}
+
+// FindProfileBySourceURL finds a profile that matches the given source URL
+// Returns the profile name if found, empty string if not found
+func (pm *ProfileManager) FindProfileBySourceURL(repoURL string) (string, error) {
+	// Normalize the input URL
+	rd := detector.NewRepositoryDetector()
+	normalizedURL, err := rd.NormalizeURL(repoURL)
+	if err != nil {
+		// If normalization fails, use the original URL
+		normalizedURL = repoURL
+	}
+
+	// Scan all profiles
+	profiles, err := pm.ScanProfiles()
+	if err != nil {
+		return "", fmt.Errorf("failed to scan profiles: %w", err)
+	}
+
+	// Check each profile's metadata
+	for _, profile := range profiles {
+		metadata, err := pm.LoadProfileMetadata(profile.Name)
+		if err != nil {
+			// Skip profiles with metadata errors
+			continue
+		}
+
+		if metadata != nil && metadata.SourceURL == normalizedURL {
+			return profile.Name, nil
+		}
+	}
+
+	return "", nil // Not found
 }
 
 // GenerateProfileNameFromRepo generates a unique profile name from a repository URL
@@ -643,6 +735,24 @@ func (pm *ProfileManager) CreateProfile(profileName string) error {
 	fmt.Printf("  - %s\n", paths.CommandsSubDir)
 	fmt.Println("\nYou can now add components to this profile and activate it with:")
 	fmt.Printf("  agent-smith profiles activate %s\n", profileName)
+
+	return nil
+}
+
+// CreateProfileWithMetadata creates a new profile with source URL metadata
+func (pm *ProfileManager) CreateProfileWithMetadata(profileName, sourceURL string) error {
+	// Create the profile first
+	if err := pm.CreateProfile(profileName); err != nil {
+		return err
+	}
+
+	// Save metadata
+	if sourceURL != "" {
+		if err := pm.SaveProfileMetadata(profileName, sourceURL); err != nil {
+			// Log warning but don't fail the operation
+			fmt.Printf("Warning: Failed to save profile metadata: %v\n", err)
+		}
+	}
 
 	return nil
 }
