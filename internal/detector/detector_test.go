@@ -198,7 +198,37 @@ func TestNormalizeURL(t *testing.T) {
 		{
 			name:      "GitHub SSH URL",
 			url:       "git@github.com:user/repo.git",
-			expected:  "git@github.com:user/repo.git",
+			expected:  "https://github.com/user/repo",
+			shouldErr: false,
+		},
+		{
+			name:      "GitHub SSH URL (ssh://)",
+			url:       "ssh://git@github.com/user/repo.git",
+			expected:  "https://github.com/user/repo",
+			shouldErr: false,
+		},
+		{
+			name:      "HTTP converts to HTTPS",
+			url:       "http://github.com/user/repo",
+			expected:  "https://github.com/user/repo",
+			shouldErr: false,
+		},
+		{
+			name:      "URL with trailing slash",
+			url:       "https://github.com/user/repo/",
+			expected:  "https://github.com/user/repo",
+			shouldErr: false,
+		},
+		{
+			name:      "Case insensitive domain (uppercase)",
+			url:       "HTTPS://GITHUB.COM/user/repo",
+			expected:  "https://github.com/user/repo",
+			shouldErr: false,
+		},
+		{
+			name:      "Case insensitive domain (mixed case)",
+			url:       "https://GitHub.Com/user/repo",
+			expected:  "https://github.com/user/repo",
 			shouldErr: false,
 		},
 		{
@@ -252,6 +282,79 @@ func TestNormalizeURLLocal(t *testing.T) {
 	absPath, _ := filepath.Abs(tempDir)
 	if result != absPath {
 		t.Errorf("expected absolute path %s, got %s", absPath, result)
+	}
+}
+
+// TestNormalizeURLEquivalence tests that different URL formats for the same repository normalize to the same value
+// This is critical for Story-002: ensuring HTTPS, SSH, and shorthand formats are treated consistently
+func TestNormalizeURLEquivalence(t *testing.T) {
+	rd := NewRepositoryDetector()
+
+	equivalentGroups := []struct {
+		name string
+		urls []string
+	}{
+		{
+			name: "GitHub repository variations",
+			urls: []string{
+				"https://github.com/owner/repo",
+				"https://github.com/owner/repo/",
+				"https://github.com/owner/repo.git",
+				"http://github.com/owner/repo",
+				"git@github.com:owner/repo",
+				"git@github.com:owner/repo.git",
+				"ssh://git@github.com/owner/repo",
+				"ssh://git@github.com/owner/repo.git",
+				"owner/repo",
+				"HTTPS://GITHUB.COM/owner/repo", // Case insensitive
+				"https://GitHub.Com/owner/repo", // Mixed case
+			},
+		},
+		{
+			name: "GitLab repository variations",
+			urls: []string{
+				"https://gitlab.com/owner/repo",
+				"https://gitlab.com/owner/repo/",
+				"https://gitlab.com/owner/repo.git",
+				"git@gitlab.com:owner/repo",
+				"git@gitlab.com:owner/repo.git",
+				"ssh://git@gitlab.com/owner/repo",
+			},
+		},
+		{
+			name: "Bitbucket repository variations",
+			urls: []string{
+				"https://bitbucket.org/owner/repo",
+				"https://bitbucket.org/owner/repo/",
+				"https://bitbucket.org/owner/repo.git",
+				"git@bitbucket.org:owner/repo",
+				"git@bitbucket.org:owner/repo.git",
+			},
+		},
+	}
+
+	for _, group := range equivalentGroups {
+		t.Run(group.name, func(t *testing.T) {
+			var normalizedURLs []string
+			for _, url := range group.urls {
+				normalized, err := rd.NormalizeURL(url)
+				if err != nil {
+					t.Errorf("failed to normalize %s: %v", url, err)
+					continue
+				}
+				normalizedURLs = append(normalizedURLs, normalized)
+			}
+
+			// All normalized URLs in a group should be identical
+			if len(normalizedURLs) > 0 {
+				expected := normalizedURLs[0]
+				for i, normalized := range normalizedURLs {
+					if normalized != expected {
+						t.Errorf("URL %s normalized to %s, expected %s", group.urls[i], normalized, expected)
+					}
+				}
+			}
+		})
 	}
 }
 
