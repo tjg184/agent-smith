@@ -965,8 +965,25 @@ func main() {
 				log.Fatal("Failed to create profile manager:", err)
 			}
 
+			// Check if there's an active profile before creating
+			activeProfile, err := pm.GetActiveProfile()
+			if err != nil {
+				log.Fatal("Failed to get active profile:", err)
+			}
+
 			if err := pm.CreateProfile(profileName); err != nil {
 				log.Fatal("Failed to create profile:", err)
+			}
+
+			// Auto-activate profile if no profile was previously active
+			if activeProfile == "" {
+				debugPrintf("[DEBUG] No active profile detected, auto-activating profile: %s\n", profileName)
+				if err := pm.ActivateProfile(profileName); err != nil {
+					log.Fatal("Failed to auto-activate profile:", err)
+				}
+				fmt.Println()
+				infoPrintf("✓ Profile '%s' has been automatically activated as your first profile.\n", profileName)
+				infoPrintln("  You can now add components and link them with: agent-smith link all")
 			}
 		},
 		func(profileName string) {
