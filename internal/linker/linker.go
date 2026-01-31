@@ -129,56 +129,85 @@ func (cl *ComponentLinker) LinkComponent(componentType, componentName string) er
 	_ = metadata // Keep metadata loading for potential future use
 
 	// Link to all configured targets
-	var errors []string
-	var successfulTargets []struct {
-		name string
-		path string
+	// Track results for inline display
+	type linkResult struct {
+		name    string
+		path    string
+		success bool
+		errMsg  string
 	}
+	var linkResults []linkResult
 
 	for _, target := range cl.targets {
+		targetName := target.GetName()
+
 		// Get destination directory from target
 		componentDir, err := target.GetComponentDir(componentType)
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("failed to get target component directory for %s: %v", target.GetName(), err))
+			linkResults = append(linkResults, linkResult{
+				name:    targetName,
+				success: false,
+				errMsg:  fmt.Sprintf("failed to get target component directory: %v", err),
+			})
 			continue
 		}
 		dstDir := filepath.Join(componentDir, componentName)
 
 		// Create destination directory
 		if err := fileutil.CreateDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
-			errors = append(errors, fmt.Sprintf("failed to create destination directory for %s: %v", target.GetName(), err))
+			linkResults = append(linkResults, linkResult{
+				name:    targetName,
+				path:    dstDir,
+				success: false,
+				errMsg:  fmt.Sprintf("failed to create destination directory: %v", err),
+			})
 			continue
 		}
 
 		// Create symlink or copy
 		if err := cl.createSymlink(srcDir, dstDir); err != nil {
-			errors = append(errors, fmt.Sprintf("failed to link component to %s: %v", target.GetName(), err))
+			linkResults = append(linkResults, linkResult{
+				name:    targetName,
+				path:    dstDir,
+				success: false,
+				errMsg:  fmt.Sprintf("failed to link: %v", err),
+			})
 			continue
 		}
 
-		successfulTargets = append(successfulTargets, struct {
-			name string
-			path string
-		}{
-			name: target.GetName(),
-			path: dstDir,
+		linkResults = append(linkResults, linkResult{
+			name:    targetName,
+			path:    dstDir,
+			success: true,
 		})
 	}
 
-	// Display grouped output if any targets were successful
-	if len(successfulTargets) > 0 {
-		fmt.Printf("Successfully linked %s '%s':\n", componentType, componentName)
-		for _, t := range successfulTargets {
-			fmt.Printf("  → %s: %s\n", t.name, t.path)
+	// Display results with errors inline
+	if len(linkResults) > 0 {
+		hasSuccess := false
+		for _, result := range linkResults {
+			if result.success {
+				hasSuccess = true
+				break
+			}
+		}
+
+		if hasSuccess {
+			fmt.Printf("Successfully linked %s '%s':\n", componentType, componentName)
+		} else {
+			fmt.Printf("Failed to link %s '%s':\n", componentType, componentName)
+		}
+
+		for _, result := range linkResults {
+			if result.success {
+				fmt.Printf("  → %s: %s\n", result.name, result.path)
+			} else {
+				fmt.Printf("  ✗ %s: %s\n", result.name, result.errMsg)
+			}
 		}
 		fmt.Printf("  Source: %s\n", srcDir)
-	}
 
-	if len(errors) > 0 {
-		for _, errMsg := range errors {
-			fmt.Printf("Warning: %s\n", errMsg)
-		}
-		if len(successfulTargets) == 0 {
+		if !hasSuccess {
 			return fmt.Errorf("failed to link to any target")
 		}
 	}
