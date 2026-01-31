@@ -21,7 +21,7 @@ Currently, four CLI commands (`profile list`, `profile show`, `status`, `target 
 
 ## User Stories
 
-- [ ] Story-001: As a user, I want to run `profile list` and immediately see all profiles without additional flags.
+- [x] Story-001: As a user, I want to run `profile list` and immediately see all profiles without additional flags.
 
   **Acceptance Criteria:**
   - `./agent-smith profile list` displays all available profiles
@@ -43,7 +43,7 @@ Currently, four CLI commands (`profile list`, `profile show`, `status`, `target 
   **Component Browser Tests:**
   - N/A (CLI command, not a UI component)
 
-- [ ] Story-002: As a user, I want to run `profile show <name>` and immediately see detailed profile information without additional flags.
+- [x] Story-002: As a user, I want to run `profile show <name>` and immediately see detailed profile information without additional flags.
 
   **Acceptance Criteria:**
   - `./agent-smith profile show <name>` displays profile details
@@ -65,7 +65,7 @@ Currently, four CLI commands (`profile list`, `profile show`, `status`, `target 
   **Component Browser Tests:**
   - N/A (CLI command, not a UI component)
 
-- [ ] Story-003: As a user, I want to run `status` and immediately see current configuration and component counts without additional flags.
+- [x] Story-003: As a user, I want to run `status` and immediately see current configuration and component counts without additional flags.
 
   **Acceptance Criteria:**
   - `./agent-smith status` displays current configuration
@@ -87,7 +87,7 @@ Currently, four CLI commands (`profile list`, `profile show`, `status`, `target 
   **Component Browser Tests:**
   - N/A (CLI command, not a UI component)
 
-- [ ] Story-004: As a user, I want to run `target list` and immediately see all available targets without additional flags.
+- [x] Story-004: As a user, I want to run `target list` and immediately see all available targets without additional flags.
 
   **Acceptance Criteria:**
   - `./agent-smith target list` displays all built-in and custom targets

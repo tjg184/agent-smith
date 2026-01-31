@@ -1357,11 +1357,11 @@ func main() {
 			// Get all built-in targets (even if not detected)
 			builtInNames := []string{"opencode", "claudecode"}
 
-			infoPrintln("Available Targets:")
-			infoPrintln()
+			fmt.Println("Available Targets:")
+			fmt.Println()
 
 			// Display built-in targets
-			infoPrintln("Built-in Targets:")
+			fmt.Println("Built-in Targets:")
 			for _, name := range builtInNames {
 				var target config.Target
 				var err error
@@ -1389,17 +1389,17 @@ func main() {
 					status = "[detected]"
 				}
 
-				infoPrintf("  %s %-15s %-30s %s\n", symbol, name, baseDir, status)
+				fmt.Printf("  %s %-15s %-30s %s\n", symbol, name, baseDir, status)
 			}
 
 			// Display custom targets
 			if len(cfg.CustomTargets) > 0 {
-				infoPrintln()
-				infoPrintln("Custom Targets:")
+				fmt.Println()
+				fmt.Println("Custom Targets:")
 				for _, customTargetConfig := range cfg.CustomTargets {
 					customTarget, err := config.NewCustomTarget(customTargetConfig)
 					if err != nil {
-						infoPrintf("  %s %-15s <error loading target>\n", formatter.SymbolError, customTargetConfig.Name)
+						fmt.Printf("  %s %-15s <error loading target>\n", formatter.SymbolError, customTargetConfig.Name)
 						continue
 					}
 
@@ -1416,15 +1416,15 @@ func main() {
 						status = "[detected]"
 					}
 
-					infoPrintf("  %s %-15s %-30s %s\n", symbol, customTargetConfig.Name, baseDir, status)
+					fmt.Printf("  %s %-15s %-30s %s\n", symbol, customTargetConfig.Name, baseDir, status)
 				}
 			}
 
 			// Display legend
-			infoPrintln()
-			infoPrintln("Legend:")
-			infoPrintf("  %s - Target directory exists\n", formatter.SymbolSuccess)
-			infoPrintf("  %s - Target directory not found\n", formatter.SymbolNotLinked)
+			fmt.Println()
+			fmt.Println("Legend:")
+			fmt.Printf("  %s - Target directory exists\n", formatter.SymbolSuccess)
+			fmt.Printf("  %s - Target directory not found\n", formatter.SymbolNotLinked)
 
 			// Count available targets
 			availableCount := 0
@@ -1458,8 +1458,8 @@ func main() {
 				}
 			}
 
-			infoPrintln()
-			infoPrintf("Total: %d target(s) (%d available)\n", totalCount, availableCount)
+			fmt.Println()
+			fmt.Printf("Total: %d target(s) (%d available)\n", totalCount, availableCount)
 		},
 	)
 
