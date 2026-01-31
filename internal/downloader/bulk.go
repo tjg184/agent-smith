@@ -43,6 +43,17 @@ func NewBulkDownloaderWithTargetDir(targetDir string) *BulkDownloader {
 	}
 }
 
+// NewBulkDownloaderForProfile creates a new BulkDownloader instance that installs to a profile
+func NewBulkDownloaderForProfile(profileName string) *BulkDownloader {
+	return &BulkDownloader{
+		skillDownloader:   NewSkillDownloaderForProfile(profileName),
+		agentDownloader:   NewAgentDownloaderForProfile(profileName),
+		commandDownloader: NewCommandDownloaderForProfile(profileName),
+		detector:          detector.NewRepositoryDetector(),
+		formatter:         formatter.New(),
+	}
+}
+
 // AddAll downloads all components from a repository
 func (bd *BulkDownloader) AddAll(repoURL string) error {
 	fullURL, err := bd.detector.NormalizeURL(repoURL)

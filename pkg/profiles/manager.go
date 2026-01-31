@@ -1,6 +1,8 @@
 package profiles
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,6 +30,97 @@ func NewProfileManager(componentLinker *linker.ComponentLinker) (*ProfileManager
 		profilesDir: profilesDir,
 		linker:      componentLinker,
 	}, nil
+}
+
+// GenerateProfileNameFromRepo generates a unique profile name from a repository URL
+// The format will be: owner-repo or sanitized-url for non-standard URLs
+// If the profile already exists, it appends a short hash suffix
+func GenerateProfileNameFromRepo(repoURL string, existingProfiles []string) string {
+	// Remove trailing slashes and .git suffix
+	repoURL = strings.TrimRight(repoURL, "/")
+	repoURL = strings.TrimSuffix(repoURL, ".git")
+
+	var baseName string
+
+	// Try to extract owner/repo from different URL formats
+	if strings.Contains(repoURL, "github.com") || strings.Contains(repoURL, "gitlab.com") || strings.Contains(repoURL, "bitbucket.org") {
+		// Handle URLs like https://github.com/owner/repo or git@github.com:owner/repo
+		parts := strings.Split(repoURL, "/")
+		if len(parts) >= 2 {
+			owner := parts[len(parts)-2]
+			repo := parts[len(parts)-1]
+
+			// Clean up owner name (remove protocol, domain, colon)
+			if strings.Contains(owner, ":") {
+				owner = strings.Split(owner, ":")[1]
+			}
+
+			baseName = fmt.Sprintf("%s-%s", sanitizeForProfileName(owner), sanitizeForProfileName(repo))
+		}
+	} else if !strings.Contains(repoURL, "/") {
+		// Already in owner/repo shorthand format
+		baseName = sanitizeForProfileName(strings.ReplaceAll(repoURL, "/", "-"))
+	} else if filepath.IsAbs(repoURL) || strings.HasPrefix(repoURL, "./") || strings.HasPrefix(repoURL, "../") {
+		// Local path - use the directory name
+		baseName = sanitizeForProfileName(filepath.Base(repoURL))
+	} else {
+		// Fallback for other formats - use last part of URL
+		parts := strings.Split(repoURL, "/")
+		if len(parts) > 0 {
+			baseName = sanitizeForProfileName(parts[len(parts)-1])
+		} else {
+			baseName = "repo"
+		}
+	}
+
+	// Ensure baseName is not empty
+	if baseName == "" {
+		baseName = "repo"
+	}
+
+	// Check if profile name already exists
+	profileName := baseName
+	existsMap := make(map[string]bool)
+	for _, p := range existingProfiles {
+		existsMap[p] = true
+	}
+
+	if !existsMap[profileName] {
+		return profileName
+	}
+
+	// If profile exists, append a short hash of the full URL
+	hash := sha256.Sum256([]byte(repoURL))
+	shortHash := hex.EncodeToString(hash[:])[:6]
+	profileName = fmt.Sprintf("%s-%s", baseName, shortHash)
+
+	// If still exists (unlikely), append incrementing number
+	counter := 2
+	originalProfileName := profileName
+	for existsMap[profileName] {
+		profileName = fmt.Sprintf("%s-%d", originalProfileName, counter)
+		counter++
+	}
+
+	return profileName
+}
+
+// sanitizeForProfileName removes or replaces invalid characters for profile names
+// Profile names must match: ^[a-zA-Z0-9-]+$
+func sanitizeForProfileName(input string) string {
+	// Replace invalid characters with hyphens
+	reg := regexp.MustCompile(`[^a-zA-Z0-9-]+`)
+	sanitized := reg.ReplaceAllString(input, "-")
+
+	// Remove leading/trailing hyphens
+	sanitized = strings.Trim(sanitized, "-")
+
+	// Ensure not empty
+	if sanitized == "" {
+		return "repo"
+	}
+
+	return sanitized
 }
 
 // validateProfileName validates a profile name to prevent file system issues

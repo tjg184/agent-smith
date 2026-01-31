@@ -548,13 +548,50 @@ func main() {
 
 				infoPrintf("Installing to custom directory: %s\n", resolvedPath)
 				bulkDownloader = downloader.NewBulkDownloaderWithTargetDir(resolvedPath)
-			} else {
-				// Use default behavior (install to ~/.agent-smith/)
-				bulkDownloader = downloader.NewBulkDownloader()
-			}
 
-			if err := bulkDownloader.AddAll(repoURL); err != nil {
-				log.Fatal("Failed to bulk download components:", err)
+				if err := bulkDownloader.AddAll(repoURL); err != nil {
+					log.Fatal("Failed to bulk download components:", err)
+				}
+			} else {
+				// Automatically create a profile from the repository URL
+				pm, err := profiles.NewProfileManager(nil)
+				if err != nil {
+					log.Fatal("Failed to create profile manager:", err)
+				}
+
+				// Get existing profiles
+				existingProfiles, err := pm.ScanProfiles()
+				if err != nil {
+					log.Fatal("Failed to scan profiles:", err)
+				}
+
+				existingProfileNames := make([]string, len(existingProfiles))
+				for i, p := range existingProfiles {
+					existingProfileNames[i] = p.Name
+				}
+
+				// Generate a unique profile name
+				profileName := profiles.GenerateProfileNameFromRepo(repoURL, existingProfileNames)
+				infoPrintf("Creating profile: %s\n", profileName)
+
+				// Create the profile
+				if err := pm.CreateProfile(profileName); err != nil {
+					log.Fatal("Failed to create profile:", err)
+				}
+
+				// Install components to the profile
+				infoPrintf("Installing components to profile: %s\n", profileName)
+				bulkDownloader = downloader.NewBulkDownloaderForProfile(profileName)
+
+				if err := bulkDownloader.AddAll(repoURL); err != nil {
+					log.Fatal("Failed to bulk download components:", err)
+				}
+
+				// Optionally activate the profile
+				fmt.Println("\nProfile created successfully!")
+				fmt.Printf("To activate this profile and use these components, run:\n")
+				fmt.Printf("  agent-smith profile activate %s\n", profileName)
+				fmt.Printf("  agent-smith link all\n")
 			}
 		},
 		func(componentType, componentName string) {
