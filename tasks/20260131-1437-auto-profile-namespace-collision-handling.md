@@ -42,7 +42,7 @@ Implement automatic profile generation and intelligent collision handling to pre
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [ ] Story-002: As a first-time user, I want the first installed profile to automatically become active so that I can immediately start linking components without additional configuration.
+- [x] Story-002: As a first-time user, I want the first installed profile to automatically become active so that I can immediately start linking components without additional configuration.
 
   **Acceptance Criteria:**
   - First install sets the newly created profile as active
@@ -63,10 +63,10 @@ Implement automatic profile generation and intelligent collision handling to pre
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [ ] Story-003: As a user with multiple profiles, I want to manually switch the active profile so that I can control which profile's components are prioritized for linking.
+- [x] Story-003: As a user with multiple profiles, I want to manually switch the active profile so that I can control which profile's components are prioritized for linking.
 
   **Acceptance Criteria:**
-  - `agent-smith profile use <name>` command switches active profile
+  - `agent-smith profile switch <name>` command switches active profile
   - Command validates profile exists before switching
   - Clear confirmation message shows profile switch
   - Active profile persists across CLI sessions
