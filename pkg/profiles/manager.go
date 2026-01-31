@@ -39,7 +39,10 @@ func NewProfileManager(componentLinker *linker.ComponentLinker) (*ProfileManager
 	}, nil
 }
 
-// SaveProfileMetadata saves metadata about a profile's source URL
+// SaveProfileMetadata saves metadata about a profile's source URL.
+// The source URL is normalized before being saved to ensure consistency across different URL formats.
+// This enables duplicate detection when installing from the same repository using different URL formats.
+// Returns an error if the metadata file cannot be written.
 func (pm *ProfileManager) SaveProfileMetadata(profileName, sourceURL string) error {
 	profileDir := filepath.Join(pm.profilesDir, profileName)
 	metadataPath := filepath.Join(profileDir, ".profile-metadata")
@@ -71,7 +74,10 @@ func (pm *ProfileManager) SaveProfileMetadata(profileName, sourceURL string) err
 	return nil
 }
 
-// LoadProfileMetadata loads metadata for a profile
+// LoadProfileMetadata loads metadata for a profile.
+// Returns nil if the metadata file does not exist (backward compatibility with legacy profiles).
+// Returns an error if the metadata file exists but cannot be read or parsed.
+// The returned ProfileMetadata contains the source URL and other profile information.
 func (pm *ProfileManager) LoadProfileMetadata(profileName string) (*ProfileMetadata, error) {
 	profileDir := filepath.Join(pm.profilesDir, profileName)
 	metadataPath := filepath.Join(profileDir, ".profile-metadata")
@@ -94,8 +100,11 @@ func (pm *ProfileManager) LoadProfileMetadata(profileName string) (*ProfileMetad
 	return &metadata, nil
 }
 
-// FindProfileBySourceURL finds a profile that matches the given source URL
-// Returns the profile name if found, empty string if not found
+// FindProfileBySourceURL finds a profile that matches the given source URL.
+// The input URL is normalized before comparison to match different URL formats (HTTPS, SSH, shorthand).
+// Returns the profile name if found, empty string if not found.
+// Returns an error only if there's a problem scanning the profiles directory.
+// Profiles without metadata files are skipped (backward compatibility).
 func (pm *ProfileManager) FindProfileBySourceURL(repoURL string) (string, error) {
 	// Normalize the input URL
 	rd := detector.NewRepositoryDetector()
