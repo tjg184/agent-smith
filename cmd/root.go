@@ -1428,7 +1428,6 @@ var (
 	handleProfilesDelete     func(profileName string)
 	handleProfilesActivate   func(profileName string)
 	handleProfilesDeactivate func()
-	handleProfilesSwitch     func(profileName string)
 	handleProfilesAdd        func(componentType, profileName, componentName string)
 	handleProfilesRemove     func(componentType, profileName, componentName string)
 	handleStatus             func()
@@ -1461,7 +1460,6 @@ func SetHandlers(
 	profilesDelete func(profileName string),
 	profilesActivate func(profileName string),
 	profilesDeactivate func(),
-	profilesSwitch func(profileName string),
 	profilesAdd func(componentType, profileName, componentName string),
 	profilesRemove func(componentType, profileName, componentName string),
 	status func(),
@@ -1492,7 +1490,6 @@ func SetHandlers(
 	handleProfilesDelete = profilesDelete
 	handleProfilesActivate = profilesActivate
 	handleProfilesDeactivate = profilesDeactivate
-	handleProfilesSwitch = profilesSwitch
 	handleProfilesAdd = profilesAdd
 	handleProfilesRemove = profilesRemove
 	handleStatus = status
