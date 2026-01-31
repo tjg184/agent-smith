@@ -382,11 +382,15 @@ EXAMPLES:
   agent-smith link skill mcp-builder
 
   # Link a specific skill to OpenCode only
-  agent-smith link skill mcp-builder --target opencode`,
+  agent-smith link skill mcp-builder --target opencode
+
+  # Link a skill from a specific profile (bypasses active profile)
+  agent-smith link skill mcp-builder --profile work`,
 		Args: exactArgsWithHelp(1, "agent-smith link skill <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
+			profile, _ := cmd.Flags().GetString("profile")
 
 			// If --all-targets is specified, override targetFilter to "all"
 			if allTargets {
@@ -394,11 +398,12 @@ EXAMPLES:
 			}
 
 			// Link specific skill
-			handleLink("skills", args[0], targetFilter)
+			handleLink("skills", args[0], targetFilter, profile)
 		},
 	}
 	linkSkillCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
 	linkSkillCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkSkillCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkSkillCmd)
 
 	// Plural command - operate on ALL skills
@@ -447,11 +452,15 @@ EXAMPLES:
   agent-smith link agent coding-assistant
 
   # Link a specific agent to OpenCode only
-  agent-smith link agent coding-assistant --target opencode`,
+  agent-smith link agent coding-assistant --target opencode
+
+  # Link an agent from a specific profile (bypasses active profile)
+  agent-smith link agent coding-assistant --profile work`,
 		Args: exactArgsWithHelp(1, "agent-smith link agent <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
+			profile, _ := cmd.Flags().GetString("profile")
 
 			// If --all-targets is specified, override targetFilter to "all"
 			if allTargets {
@@ -459,11 +468,12 @@ EXAMPLES:
 			}
 
 			// Link specific agent
-			handleLink("agents", args[0], targetFilter)
+			handleLink("agents", args[0], targetFilter, profile)
 		},
 	}
 	linkAgentCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
 	linkAgentCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkAgentCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkAgentCmd)
 
 	// Plural command - operate on ALL agents
@@ -512,11 +522,15 @@ EXAMPLES:
   agent-smith link command json-formatter
 
   # Link a specific command to OpenCode only
-  agent-smith link command json-formatter --target opencode`,
+  agent-smith link command json-formatter --target opencode
+
+  # Link a command from a specific profile (bypasses active profile)
+  agent-smith link command json-formatter --profile work`,
 		Args: exactArgsWithHelp(1, "agent-smith link command <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
+			profile, _ := cmd.Flags().GetString("profile")
 
 			// If --all-targets is specified, override targetFilter to "all"
 			if allTargets {
@@ -524,11 +538,12 @@ EXAMPLES:
 			}
 
 			// Link specific command
-			handleLink("commands", args[0], targetFilter)
+			handleLink("commands", args[0], targetFilter, profile)
 		},
 	}
 	linkCommandCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
 	linkCommandCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
+	linkCommandCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkCommandCmd)
 
 	// Plural command - operate on ALL commands
@@ -1400,7 +1415,7 @@ var (
 	handleAddAll             func(repoURL string, targetDir string)
 	handleUpdate             func(componentType, componentName string)
 	handleUpdateAll          func()
-	handleLink               func(componentType, componentName, targetFilter string)
+	handleLink               func(componentType, componentName, targetFilter, profile string)
 	handleLinkAll            func(targetFilter string)
 	handleLinkType           func(componentType, targetFilter string)
 	handleAutoLink           func()
@@ -1433,7 +1448,7 @@ func SetHandlers(
 	addAll func(repoURL string, targetDir string),
 	update func(componentType, componentName string),
 	updateAll func(),
-	link func(componentType, componentName, targetFilter string),
+	link func(componentType, componentName, targetFilter, profile string),
 	linkAll func(targetFilter string),
 	linkType func(componentType, targetFilter string),
 	autoLink func(),

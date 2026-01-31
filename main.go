@@ -221,6 +221,104 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 	return linker.NewComponentLinker(agentsDir, targets, det)
 }
 
+// NewComponentLinkerWithFilterAndProfile creates a new ComponentLinker with filtered targets and optional explicit profile
+// targetFilter can be: "opencode", "claudecode", "all", or "" (defaults to all)
+// profile can be: a specific profile name (bypasses active profile), or "" (uses active profile logic)
+func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string) (*linker.ComponentLinker, error) {
+	debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Creating component linker with filter=%s, profile=%s\n", targetFilter, profile)
+	agentsDir, err := paths.GetAgentsDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get agents directory: %w", err)
+	}
+	debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Base agents directory: %s\n", agentsDir)
+
+	// Check if an explicit profile was specified
+	if profile != "" {
+		// Use the explicitly specified profile (bypass active profile logic)
+		debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Explicit profile specified: %s\n", profile)
+		profilesDir, err := paths.GetProfilesDir()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
+		}
+
+		// Validate that the profile exists
+		profilePath := filepath.Join(profilesDir, profile)
+		if _, err := os.Stat(profilePath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("profile '%s' does not exist", profile)
+		}
+
+		agentsDir = profilePath
+		debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Using explicit profile directory: %s\n", agentsDir)
+		infoPrintf("Using explicit profile: %s\n", profile)
+	} else {
+		// No explicit profile, use active profile logic
+		profileManager, err := profiles.NewProfileManager(nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create profile manager: %w", err)
+		}
+
+		activeProfile, err := profileManager.GetActiveProfile()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get active profile: %w", err)
+		}
+
+		// If a profile is active, use the profile's base path instead
+		if activeProfile != "" {
+			debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Active profile detected: %s\n", activeProfile)
+			profilesDir, err := paths.GetProfilesDir()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get profiles directory: %w", err)
+			}
+			agentsDir = filepath.Join(profilesDir, activeProfile)
+			debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Using active profile directory: %s\n", agentsDir)
+			infoPrintf("Using active profile: %s\n", activeProfile)
+		} else {
+			debugPrintln("[DEBUG] NewComponentLinkerWithFilterAndProfile: No active profile")
+		}
+	}
+
+	var targets []config.Target
+
+	// Detect all targets first
+	debugPrintln("[DEBUG] NewComponentLinkerWithFilterAndProfile: Detecting all targets")
+	allTargets, err := config.DetectAllTargets()
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect targets: %w", err)
+	}
+	debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Detected %d target(s)\n", len(allTargets))
+
+	// Filter targets based on targetFilter parameter
+	if targetFilter == "" || targetFilter == "all" {
+		// No filter or "all" - use all detected targets
+		debugPrintln("[DEBUG] NewComponentLinkerWithFilterAndProfile: Using all detected targets")
+		targets = allTargets
+	} else {
+		// Filter for specific target
+		debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Filtering for target: %s\n", targetFilter)
+		for _, target := range allTargets {
+			if target.GetName() == targetFilter {
+				targets = append(targets, target)
+				debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Found matching target: %s\n", targetFilter)
+				break
+			}
+		}
+		// If no matching target found, return error
+		if len(targets) == 0 {
+			debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Target '%s' not found\n", targetFilter)
+			return nil, fmt.Errorf("target '%s' not found. Available targets: %v", targetFilter, getTargetNames(allTargets))
+		}
+	}
+	debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Using %d target(s)\n", len(targets))
+
+	det := detector.NewRepositoryDetector()
+	// Pass the logger to the detector so it uses consistent logging
+	if appLogger != nil {
+		det.SetLogger(appLogger)
+	}
+
+	return linker.NewComponentLinker(agentsDir, targets, det)
+}
+
 // NewComponentLinkerWithFilter creates a new ComponentLinker with filtered targets
 // targetFilter can be: "opencode", "claudecode", "all", or "" (defaults to all)
 func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker, error) {
@@ -669,9 +767,9 @@ func main() {
 				log.Fatal("Failed to update components:", err)
 			}
 		},
-		func(componentType, componentName, targetFilter string) {
-			debugPrintf("[DEBUG] handleLink called with componentType=%s, componentName=%s, targetFilter=%s\n", componentType, componentName, targetFilter)
-			linker, err := NewComponentLinkerWithFilter(targetFilter)
+		func(componentType, componentName, targetFilter, profile string) {
+			debugPrintf("[DEBUG] handleLink called with componentType=%s, componentName=%s, targetFilter=%s, profile=%s\n", componentType, componentName, targetFilter, profile)
+			linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
 			}
