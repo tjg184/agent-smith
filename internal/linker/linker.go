@@ -130,7 +130,10 @@ func (cl *ComponentLinker) LinkComponent(componentType, componentName string) er
 
 	// Link to all configured targets
 	var errors []string
-	successCount := 0
+	var successfulTargets []struct {
+		name string
+		path string
+	}
 
 	for _, target := range cl.targets {
 		// Get destination directory from target
@@ -153,13 +156,21 @@ func (cl *ComponentLinker) LinkComponent(componentType, componentName string) er
 			continue
 		}
 
-		targetName := target.GetName()
-		fmt.Printf("Successfully linked %s '%s' to %s\n", componentType, componentName, targetName)
-		fmt.Printf("  Target: %s\n", dstDir)
-		successCount++
+		successfulTargets = append(successfulTargets, struct {
+			name string
+			path string
+		}{
+			name: target.GetName(),
+			path: dstDir,
+		})
 	}
 
-	if successCount > 0 {
+	// Display grouped output if any targets were successful
+	if len(successfulTargets) > 0 {
+		fmt.Printf("Successfully linked %s '%s':\n", componentType, componentName)
+		for _, t := range successfulTargets {
+			fmt.Printf("  → %s: %s\n", t.name, t.path)
+		}
 		fmt.Printf("  Source: %s\n", srcDir)
 	}
 
@@ -167,7 +178,7 @@ func (cl *ComponentLinker) LinkComponent(componentType, componentName string) er
 		for _, errMsg := range errors {
 			fmt.Printf("Warning: %s\n", errMsg)
 		}
-		if successCount == 0 {
+		if len(successfulTargets) == 0 {
 			return fmt.Errorf("failed to link to any target")
 		}
 	}
@@ -364,7 +375,10 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 				srcDir := subComponentDir
 
 				// Link to all configured targets
-				linkedToAnyTarget := false
+				var successfulTargets []struct {
+					name string
+					path string
+				}
 				for _, target := range cl.targets {
 					// Get destination directory from target
 					componentDir, err := target.GetComponentDir(componentType)
@@ -386,11 +400,21 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 						continue
 					}
 
-					linkedToAnyTarget = true
+					successfulTargets = append(successfulTargets, struct {
+						name string
+						path string
+					}{
+						name: target.GetName(),
+						path: dstDir,
+					})
 				}
 
-				if linkedToAnyTarget {
-					fmt.Printf("Successfully linked monorepo component %s from %s\n", linkName, repoName)
+				if len(successfulTargets) > 0 {
+					fmt.Printf("Successfully linked monorepo component '%s':\n", linkName)
+					for _, t := range successfulTargets {
+						fmt.Printf("  → %s: %s\n", t.name, t.path)
+					}
+					fmt.Printf("  Source: %s\n", srcDir)
 					linkedCount++
 				}
 			}
