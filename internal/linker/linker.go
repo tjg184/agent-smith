@@ -326,6 +326,13 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 func (cl *ComponentLinker) LinkAllComponents() error {
 	componentTypes := paths.GetComponentTypes()
 
+	// Track results for summary
+	var successCount, failedCount, skippedCount int
+	var failedComponents []string
+
+	fmt.Println("\n=== Bulk Linking All Components ===")
+	fmt.Println()
+
 	for _, componentType := range componentTypes {
 		typeDir := filepath.Join(cl.agentsDir, componentType)
 		if _, err := os.Stat(typeDir); os.IsNotExist(err) {
@@ -344,16 +351,42 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 
 				// Skip monorepo containers - they shouldn't be linked as individual components
 				if cl.isMonorepoContainer(componentType, componentName) {
+					skippedCount++
 					continue
 				}
 
+				// Show progress
+				fmt.Printf("Linking %s: %s... ", componentType, componentName)
+
 				// Link as a regular single component
 				if err := cl.LinkComponent(componentType, componentName); err != nil {
-					fmt.Printf("Warning: failed to link %s/%s: %v\n", componentType, componentName, err)
+					fmt.Printf("❌ FAILED\n")
+					fmt.Printf("  Error: %v\n", err)
+					failedCount++
+					failedComponents = append(failedComponents, fmt.Sprintf("%s/%s", componentType, componentName))
+				} else {
+					fmt.Printf("✓ Done\n")
+					successCount++
 				}
 			}
 		}
 	}
+
+	// Display summary
+	fmt.Println()
+	fmt.Println("=== Linking Summary ===")
+	fmt.Printf("✓ Successfully linked: %d\n", successCount)
+	if skippedCount > 0 {
+		fmt.Printf("⊘ Skipped (monorepos): %d\n", skippedCount)
+	}
+	if failedCount > 0 {
+		fmt.Printf("❌ Failed: %d\n", failedCount)
+		fmt.Println("\nFailed components:")
+		for _, comp := range failedComponents {
+			fmt.Printf("  - %s\n", comp)
+		}
+	}
+	fmt.Printf("\nTotal: %d linked, %d skipped, %d failed\n", successCount, skippedCount, failedCount)
 
 	return nil
 }
