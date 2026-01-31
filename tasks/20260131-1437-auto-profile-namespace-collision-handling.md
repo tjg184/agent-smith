@@ -131,7 +131,7 @@ Implement automatic profile generation and intelligent collision handling to pre
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [ ] Story-006: As a user linking a component, I want the system to automatically link from the active profile if available so that I don't need to specify the profile for common cases.
+- [x] Story-006: As a user linking a component, I want the system to automatically link from the active profile if available so that I don't need to specify the profile for common cases.
 
   **Acceptance Criteria:**
   - `agent-smith link <component>` checks active profile first
@@ -201,7 +201,7 @@ Implement automatic profile generation and intelligent collision handling to pre
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [ ] Story-009: As a user with multiple components in my active profile, I want to bulk link all of them so that I don't have to link each component individually.
+- [x] Story-009: As a user with multiple components in my active profile, I want to bulk link all of them so that I don't have to link each component individually.
 
   **Acceptance Criteria:**
   - `agent-smith link --all` links all components from active profile
