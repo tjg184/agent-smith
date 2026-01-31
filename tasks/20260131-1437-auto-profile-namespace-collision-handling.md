@@ -63,12 +63,12 @@ Implement automatic profile generation and intelligent collision handling to pre
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [x] Story-003: As a user with multiple profiles, I want to manually switch the active profile so that I can control which profile's components are prioritized for linking.
+- [x] Story-003: As a user with multiple profiles, I want to manually activate a profile so that I can control which profile's components are prioritized for linking.
 
   **Acceptance Criteria:**
-  - `agent-smith profile switch <name>` command switches active profile
-  - Command validates profile exists before switching
-  - Clear confirmation message shows profile switch
+  - `agent-smith profile activate <name>` command activates a profile
+  - Command validates profile exists before activating
+  - Clear confirmation message shows profile activation
   - Active profile persists across CLI sessions
   - Error message if profile doesn't exist
   

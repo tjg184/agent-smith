@@ -378,7 +378,7 @@ To view details:
 To deactivate:
   agent-smith profiles deactivate
 
-To switch profiles:
+To activate a different profile:
   agent-smith profiles activate <other-profile>
 ```
 

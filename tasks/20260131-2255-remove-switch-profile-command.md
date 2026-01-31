@@ -18,7 +18,7 @@ Remove the redundant `switch` profile command from agent-smith. Currently, both 
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want to remove the `profilesSwitchCmd` command definition so that users cannot invoke the switch command.
+- [x] Story-001: As a developer, I want to remove the `profilesSwitchCmd` command definition so that users cannot invoke the switch command.
 
   **Acceptance Criteria:**
   - `profilesSwitchCmd` command removed from `cmd/root.go`
@@ -39,7 +39,7 @@ Remove the redundant `switch` profile command from agent-smith. Currently, both 
   **Component Browser Tests:**
   - N/A (CLI only)
 
-- [ ] Story-002: As a developer, I want to remove the `SwitchProfile()` method from ProfileManager so that the redundant implementation is eliminated.
+- [x] Story-002: As a developer, I want to remove the `SwitchProfile()` method from ProfileManager so that the redundant implementation is eliminated.
 
   **Acceptance Criteria:**
   - `SwitchProfile()` method removed from `pkg/profiles/manager.go`
@@ -57,7 +57,7 @@ Remove the redundant `switch` profile command from agent-smith. Currently, both 
   **Component Browser Tests:**
   - N/A (backend only)
 
-- [ ] Story-003: As a developer, I want to remove the switch profile test file so that obsolete tests are eliminated.
+- [x] Story-003: As a developer, I want to remove the switch profile test file so that obsolete tests are eliminated.
 
   **Acceptance Criteria:**
   - `pkg/profiles/switch_profile_test.go` file deleted
@@ -75,7 +75,7 @@ Remove the redundant `switch` profile command from agent-smith. Currently, both 
   **Component Browser Tests:**
   - N/A (test cleanup)
 
-- [ ] Story-004: As a user, I want documentation to reference only `activate` so that I'm not confused about which command to use.
+- [x] Story-004: As a user, I want documentation to reference only `activate` so that I'm not confused about which command to use.
 
   **Acceptance Criteria:**
   - `README.md` updated to remove all `switch` references
