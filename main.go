@@ -1257,7 +1257,8 @@ func main() {
 			if len(sourceProfiles) > 0 {
 				fmt.Printf("Source profiles: %s\n\n", joinStrings(sourceProfiles, ", "))
 			} else {
-				fmt.Println("Source profiles: All profiles\n")
+				fmt.Println("Source profiles: All profiles")
+				fmt.Println()
 			}
 
 			components, err := pm.GetAllAvailableComponents(sourceProfiles)
