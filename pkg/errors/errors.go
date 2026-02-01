@@ -5,34 +5,21 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fatih/color"
+	"github.com/tgaines/agent-smith/pkg/colors"
 )
 
 var (
 	// Error styling
-	errorPrefix = color.New(color.FgRed, color.Bold).SprintFunc()
-	errorIcon   = errorPrefix("✗")
-	errorText   = color.New(color.FgRed).SprintFunc()
-
+	errorIcon string
 	// Warning styling
-	warnPrefix = color.New(color.FgYellow, color.Bold).SprintFunc()
-	warnIcon   = warnPrefix("⚠")
-	warnText   = color.New(color.FgYellow).SprintFunc()
-
-	// Context styling
-	contextPrefix = color.New(color.FgCyan, color.Bold).SprintFunc()
-	contextText   = color.New(color.FgCyan).SprintFunc()
-
-	// Suggestion styling
-	suggestionPrefix = color.New(color.FgGreen, color.Bold).SprintFunc()
-	suggestionText   = color.New(color.FgGreen).SprintFunc()
-
-	// Code/path styling
-	codeText = color.New(color.FgWhite, color.Bold).SprintFunc()
-
-	// Dim text for additional details
-	dimText = color.New(color.Faint).SprintFunc()
+	warnIcon string
 )
+
+func init() {
+	// Initialize icons with colors
+	errorIcon = colors.ErrorBold("✗")
+	warnIcon = colors.WarningBold("⚠")
+}
 
 // ErrorMessage represents a structured error message with context and suggestions.
 type ErrorMessage struct {
@@ -50,32 +37,32 @@ func (e *ErrorMessage) Format() string {
 
 	// Main error/warning message
 	if e.IsWarning {
-		sb.WriteString(fmt.Sprintf("%s %s\n", warnIcon, warnText(e.Message)))
+		sb.WriteString(fmt.Sprintf("%s %s\n", warnIcon, colors.Warning(e.Message)))
 	} else {
-		sb.WriteString(fmt.Sprintf("%s %s\n", errorIcon, errorText(e.Message)))
+		sb.WriteString(fmt.Sprintf("%s %s\n", errorIcon, colors.Error(e.Message)))
 	}
 
 	// Add context if provided
 	if e.Context != "" {
-		sb.WriteString(fmt.Sprintf("\n%s %s\n", contextPrefix("Context:"), contextText(e.Context)))
+		sb.WriteString(fmt.Sprintf("\n%s %s\n", colors.InfoBold("Context:"), colors.Info(e.Context)))
 	}
 
 	// Add details if provided
 	if len(e.Details) > 0 {
 		sb.WriteString("\n")
 		for _, detail := range e.Details {
-			sb.WriteString(fmt.Sprintf("  %s %s\n", dimText("•"), detail))
+			sb.WriteString(fmt.Sprintf("  %s %s\n", colors.Dim("•"), detail))
 		}
 	}
 
 	// Add suggestion if provided
 	if e.Suggestion != "" {
-		sb.WriteString(fmt.Sprintf("\n%s %s\n", suggestionPrefix("Suggestion:"), suggestionText(e.Suggestion)))
+		sb.WriteString(fmt.Sprintf("\n%s %s\n", colors.SuccessBold("Suggestion:"), colors.Success(e.Suggestion)))
 	}
 
 	// Add example if provided
 	if e.Example != "" {
-		sb.WriteString(fmt.Sprintf("\n%s\n", codeText("  $ "+e.Example)))
+		sb.WriteString(fmt.Sprintf("\n%s\n", colors.Code("  $ "+e.Example)))
 	}
 
 	return sb.String()
@@ -133,30 +120,36 @@ func (e *ErrorMessage) AsWarning() *ErrorMessage {
 
 // FormatSimpleError formats a simple error message with color.
 func FormatSimpleError(message string) string {
-	return fmt.Sprintf("%s %s", errorIcon, errorText(message))
+	return fmt.Sprintf("%s %s", errorIcon, colors.Error(message))
 }
 
 // FormatSimpleWarning formats a simple warning message with color.
 func FormatSimpleWarning(message string) string {
-	return fmt.Sprintf("%s %s", warnIcon, warnText(message))
+	return fmt.Sprintf("%s %s", warnIcon, colors.Warning(message))
 }
 
 // FormatCode formats code/path text for display.
 func FormatCode(text string) string {
-	return codeText(text)
+	return colors.Code(text)
 }
 
 // FormatDim formats dimmed text for additional details.
 func FormatDim(text string) string {
-	return dimText(text)
+	return colors.Dim(text)
 }
 
 // Disable removes all color formatting (useful for testing or piped output).
 func Disable() {
-	color.NoColor = true
+	colors.Disable()
+	// Reinitialize icons without colors
+	errorIcon = "✗"
+	warnIcon = "⚠"
 }
 
 // Enable enables color formatting.
 func Enable() {
-	color.NoColor = false
+	colors.Enable()
+	// Reinitialize icons with colors
+	errorIcon = colors.ErrorBold("✗")
+	warnIcon = colors.WarningBold("⚠")
 }

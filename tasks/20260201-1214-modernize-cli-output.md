@@ -254,7 +254,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [ ] Story-010: As a CLI user, I want the uninstall command output modernized so that I understand what will be removed before confirmation.
+- [x] Story-010: As a CLI user, I want the uninstall command output modernized so that I understand what will be removed before confirmation.
 
   **Acceptance Criteria:**
   - Components to remove displayed in bordered box with title
@@ -308,7 +308,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [ ] Story-012: As a CLI user, I want the target list command output modernized so that I can easily see all available targets and their status.
+- [x] Story-012: As a CLI user, I want the target list command output modernized so that I can easily see all available targets and their status.
 
   **Acceptance Criteria:**
   - Target list displays with "Available Targets:" header

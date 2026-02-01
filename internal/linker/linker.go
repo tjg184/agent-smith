@@ -7,12 +7,12 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/fileutil"
 	"github.com/tgaines/agent-smith/internal/formatter"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tgaines/agent-smith/pkg/colors"
 	"github.com/tgaines/agent-smith/pkg/config"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
@@ -174,8 +174,7 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 			// Only one match, use it automatically
 			srcDir = filepath.Join(matches[0].ProfilePath, componentType, componentName)
 			selectedProfileName = matches[0].ProfileName
-			gray := color.New(color.FgHiBlack).SprintFunc()
-			fmt.Printf("  %s Component found in profile: %s\n", gray("→"), selectedProfileName)
+			fmt.Printf("  %s Component found in profile: %s\n", colors.Muted("→"), selectedProfileName)
 		}
 	} else {
 		// Component found in current directory - determine profile name
@@ -250,31 +249,27 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 			}
 		}
 
-		green := color.New(color.FgGreen).SprintFunc()
-		red := color.New(color.FgRed).SprintFunc()
-		gray := color.New(color.FgHiBlack).SprintFunc()
-
 		// Display inline progress: "Linking {type}: {name}... ✓ Done" or "✗ Failed"
 		if hasSuccess {
 			profileInfo := ""
 			if selectedProfileName != "" && selectedProfileName != "base" {
-				profileInfo = gray(fmt.Sprintf(" (from profile: %s)", selectedProfileName))
+				profileInfo = colors.Muted(fmt.Sprintf(" (from profile: %s)", selectedProfileName))
 			}
-			fmt.Printf("Linking %s: %s... %s\n", componentType, componentName, green(formatter.SymbolSuccess+" Done")+profileInfo)
+			fmt.Printf("Linking %s: %s... %s\n", componentType, componentName, colors.Success(formatter.SymbolSuccess+" Done")+profileInfo)
 
 			// Show target details
 			for _, result := range linkResults {
 				if result.success {
-					fmt.Printf("  %s %s: %s\n", gray("→"), result.name, result.path)
+					fmt.Printf("  %s %s: %s\n", colors.Muted("→"), result.name, result.path)
 				}
 			}
 		} else {
-			fmt.Printf("Linking %s: %s... %s\n", componentType, componentName, red(formatter.SymbolError+" Failed"))
+			fmt.Printf("Linking %s: %s... %s\n", componentType, componentName, colors.Error(formatter.SymbolError+" Failed"))
 
 			// Show errors indented
 			for _, result := range linkResults {
 				if !result.success {
-					fmt.Printf("  %s %s: %s\n", gray("→"), result.name, result.errMsg)
+					fmt.Printf("  %s %s: %s\n", colors.Muted("→"), result.name, result.errMsg)
 				}
 			}
 			return fmt.Errorf("failed to link to target")
@@ -330,11 +325,6 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 	var successCount, failedCount, skippedCount int
 	var failedComponents []string
 
-	green := color.New(color.FgGreen).SprintFunc()
-	red := color.New(color.FgRed).SprintFunc()
-	yellow := color.New(color.FgYellow).SprintFunc()
-	gray := color.New(color.FgHiBlack).SprintFunc()
-
 	// Display header with target info
 	targetNames := make([]string, len(cl.targets))
 	for i, target := range cl.targets {
@@ -343,8 +333,7 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 	targetList := strings.Join(targetNames, ", ")
 
 	cl.formatter.EmptyLine()
-	cyan := color.New(color.FgCyan, color.Bold).SprintFunc()
-	fmt.Printf("%s\n", cyan(fmt.Sprintf("Linking %s to: %s", componentType, targetList)))
+	fmt.Printf("%s\n", colors.InfoBold(fmt.Sprintf("Linking %s to: %s", componentType, targetList)))
 	cl.formatter.EmptyLine()
 
 	for _, entry := range entries {
@@ -362,12 +351,12 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 
 			// Link as a regular single component (quiet mode for bulk operations)
 			if err := cl.linkComponentInternal(componentType, componentName, false); err != nil {
-				fmt.Printf("%s\n", red(formatter.SymbolError+" Failed"))
-				fmt.Printf("  %s %v\n", gray("→"), err)
+				fmt.Printf("%s\n", colors.Error(formatter.SymbolError+" Failed"))
+				fmt.Printf("  %s %v\n", colors.Muted("→"), err)
 				failedCount++
 				failedComponents = append(failedComponents, fmt.Sprintf("%s/%s", componentType, componentName))
 			} else {
-				fmt.Printf("%s\n", green(formatter.SymbolSuccess+" Done"))
+				fmt.Printf("%s\n", colors.Success(formatter.SymbolSuccess+" Done"))
 				successCount++
 			}
 		}
@@ -378,12 +367,12 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 
 	// Create summary table
 	table := formatter.NewBoxTable(os.Stdout, []string{"Status", "Count"})
-	table.AddRow([]string{green(formatter.SymbolSuccess + " Success"), fmt.Sprintf("%d", successCount)})
+	table.AddRow([]string{colors.Success(formatter.SymbolSuccess + " Success"), fmt.Sprintf("%d", successCount)})
 	if skippedCount > 0 {
-		table.AddRow([]string{yellow(formatter.SymbolWarning + " Skipped"), fmt.Sprintf("%d (monorepos)", skippedCount)})
+		table.AddRow([]string{colors.Warning(formatter.SymbolWarning + " Skipped"), fmt.Sprintf("%d (monorepos)", skippedCount)})
 	}
 	if failedCount > 0 {
-		table.AddRow([]string{red(formatter.SymbolError + " Failed"), fmt.Sprintf("%d", failedCount)})
+		table.AddRow([]string{colors.Error(formatter.SymbolError + " Failed"), fmt.Sprintf("%d", failedCount)})
 	}
 	table.Render()
 
@@ -400,7 +389,7 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 	if skippedCount > 0 {
 		cl.formatter.EmptyLine()
 		fmt.Printf("%s Monorepo containers were skipped - their individual components should be linked separately\n",
-			gray("Note:"))
+			colors.Muted("Note:"))
 	}
 
 	return nil
@@ -414,11 +403,6 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 	var successCount, failedCount, skippedCount int
 	var failedComponents []string
 
-	green := color.New(color.FgGreen).SprintFunc()
-	red := color.New(color.FgRed).SprintFunc()
-	yellow := color.New(color.FgYellow).SprintFunc()
-	gray := color.New(color.FgHiBlack).SprintFunc()
-
 	// Display header with target info
 	targetNames := make([]string, len(cl.targets))
 	for i, target := range cl.targets {
@@ -427,8 +411,7 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 	targetList := strings.Join(targetNames, ", ")
 
 	cl.formatter.EmptyLine()
-	cyan := color.New(color.FgCyan, color.Bold).SprintFunc()
-	fmt.Printf("%s\n", cyan("Linking components to: "+targetList))
+	fmt.Printf("%s\n", colors.InfoBold("Linking components to: "+targetList))
 	cl.formatter.EmptyLine()
 
 	for _, componentType := range componentTypes {
@@ -458,12 +441,12 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 
 				// Link as a regular single component (quiet mode for bulk operations)
 				if err := cl.linkComponentInternal(componentType, componentName, false); err != nil {
-					fmt.Printf("%s\n", red(formatter.SymbolError+" Failed"))
-					fmt.Printf("  %s %v\n", gray("→"), err)
+					fmt.Printf("%s\n", colors.Error(formatter.SymbolError+" Failed"))
+					fmt.Printf("  %s %v\n", colors.Muted("→"), err)
 					failedCount++
 					failedComponents = append(failedComponents, fmt.Sprintf("%s/%s", componentType, componentName))
 				} else {
-					fmt.Printf("%s\n", green(formatter.SymbolSuccess+" Done"))
+					fmt.Printf("%s\n", colors.Success(formatter.SymbolSuccess+" Done"))
 					successCount++
 				}
 			}
@@ -475,12 +458,12 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 
 	// Create summary table
 	table := formatter.NewBoxTable(os.Stdout, []string{"Status", "Count"})
-	table.AddRow([]string{green(formatter.SymbolSuccess + " Success"), fmt.Sprintf("%d", successCount)})
+	table.AddRow([]string{colors.Success(formatter.SymbolSuccess + " Success"), fmt.Sprintf("%d", successCount)})
 	if skippedCount > 0 {
-		table.AddRow([]string{yellow(formatter.SymbolWarning + " Skipped"), fmt.Sprintf("%d (monorepos)", skippedCount)})
+		table.AddRow([]string{colors.Warning(formatter.SymbolWarning + " Skipped"), fmt.Sprintf("%d (monorepos)", skippedCount)})
 	}
 	if failedCount > 0 {
-		table.AddRow([]string{red(formatter.SymbolError + " Failed"), fmt.Sprintf("%d", failedCount)})
+		table.AddRow([]string{colors.Error(formatter.SymbolError + " Failed"), fmt.Sprintf("%d", failedCount)})
 	}
 	table.Render()
 
@@ -497,7 +480,7 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 	if skippedCount > 0 {
 		cl.formatter.EmptyLine()
 		fmt.Printf("%s Monorepo containers were skipped - their individual components should be linked separately\n",
-			gray("Note:"))
+			colors.Muted("Note:"))
 	}
 
 	return nil

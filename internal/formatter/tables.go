@@ -3,7 +3,7 @@ package formatter
 import (
 	"fmt"
 
-	"github.com/fatih/color"
+	"github.com/tgaines/agent-smith/pkg/colors"
 )
 
 // InstallResult represents the result of a single component installation
@@ -59,15 +59,13 @@ func (f *Formatter) DisplaySummaryTable(results []InstallResult, skillCount, age
 
 	// Display summary with colored symbols
 	f.EmptyLine()
-	green := color.New(color.FgGreen).SprintFunc()
-	red := color.New(color.FgRed).SprintFunc()
 
 	if failureCount > 0 {
 		fmt.Fprintf(f.writer, "%s Successfully installed: %d/%d components | %s Failed: %d\n",
-			green(SymbolSuccess), successCount, len(results), red(SymbolError), failureCount)
+			colors.Success(SymbolSuccess), successCount, len(results), colors.Error(SymbolError), failureCount)
 	} else {
 		fmt.Fprintf(f.writer, "%s Successfully installed: %d/%d components\n",
-			green(SymbolSuccess), successCount, len(results))
+			colors.Success(SymbolSuccess), successCount, len(results))
 	}
 
 	// Add "Next steps" section
@@ -81,16 +79,13 @@ func (f *Formatter) displayTypeSection(typeName string, results []InstallResult)
 	// Create table with headers using box-drawing characters
 	table := NewBoxTable(f.writer, []string{"Status", "Component", "Result"})
 
-	green := color.New(color.FgGreen).SprintFunc()
-	red := color.New(color.FgRed).SprintFunc()
-
 	for _, result := range results {
 		var status string
 		statusText := "Success"
 		if result.Success {
-			status = green(SymbolSuccess)
+			status = colors.Success(SymbolSuccess)
 		} else {
-			status = red(SymbolError)
+			status = colors.Error(SymbolError)
 			statusText = "Failed"
 		}
 
@@ -108,10 +103,9 @@ func (f *Formatter) displayTypeSection(typeName string, results []InstallResult)
 // displayNextSteps displays common follow-up commands after installation
 func (f *Formatter) displayNextSteps() {
 	f.EmptyLine()
-	cyan := color.New(color.FgCyan).SprintFunc()
 
 	fmt.Fprintln(f.writer, "Next steps:")
-	fmt.Fprintf(f.writer, "  • Link components: %s\n", cyan("agent-smith link all"))
-	fmt.Fprintf(f.writer, "  • View status: %s\n", cyan("agent-smith status"))
-	fmt.Fprintf(f.writer, "  • List components: %s\n", cyan("agent-smith list"))
+	fmt.Fprintf(f.writer, "  • Link components: %s\n", colors.Info("agent-smith link all"))
+	fmt.Fprintf(f.writer, "  • View status: %s\n", colors.Info("agent-smith status"))
+	fmt.Fprintf(f.writer, "  • List components: %s\n", colors.Info("agent-smith list"))
 }

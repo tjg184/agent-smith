@@ -7,7 +7,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/fatih/color"
+	"github.com/tgaines/agent-smith/pkg/colors"
 	"github.com/tgaines/agent-smith/pkg/errors"
 )
 
@@ -112,9 +112,9 @@ func (l *Logger) SetColorize(colorize bool) {
 	defer l.mu.Unlock()
 	l.colorize = colorize
 	if !colorize {
-		color.NoColor = true
+		colors.Disable()
 	} else {
-		color.NoColor = false
+		colors.Enable()
 	}
 }
 
