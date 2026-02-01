@@ -398,7 +398,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   **Component Browser Tests:**
   - Not applicable (internal library)
 
-- [ ] Story-015: As a developer, I want enhanced formatter methods so that all commands use consistent formatting patterns.
+- [x] Story-015: As a developer, I want enhanced formatter methods so that all commands use consistent formatting patterns.
 
   **Acceptance Criteria:**
   - Update `internal/formatter/formatter.go` with new methods
@@ -430,7 +430,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   **Component Browser Tests:**
   - Not applicable (internal library)
 
-- [ ] Story-016: As a developer, I want updated table formatting so that summary tables use box-drawing and colors consistently.
+- [x] Story-016: As a developer, I want updated table formatting so that summary tables use box-drawing and colors consistently.
 
   **Acceptance Criteria:**
   - Update `internal/formatter/tables.go` with box-drawing integration
