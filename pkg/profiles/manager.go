@@ -474,6 +474,285 @@ func (pm *ProfileManager) ActivateProfile(profileName string) error {
 	return nil
 }
 
+// copyComponentWithMetadata is a helper that copies a component directory and its lock file entry
+// from sourceBaseDir to targetBaseDir. This ensures the component remains updateable after copying.
+func (pm *ProfileManager) copyComponentWithMetadata(
+	sourceBaseDir, targetBaseDir, componentType, componentName string,
+) error {
+	srcDir := filepath.Join(sourceBaseDir, componentType, componentName)
+	dstDir := filepath.Join(targetBaseDir, componentType, componentName)
+
+	// Check if source component exists
+	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+		return fmt.Errorf("component '%s' not found in source directory", componentName)
+	}
+
+	// Check if component already exists in target
+	if _, err := os.Stat(dstDir); err == nil {
+		return fmt.Errorf("component '%s' already exists in target directory", componentName)
+	}
+
+	fmt.Printf("Copying component files...\n")
+
+	// Create destination directory
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	// Copy all files and directories
+	entries, err := os.ReadDir(srcDir)
+	if err != nil {
+		return fmt.Errorf("failed to read source directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(srcDir, entry.Name())
+		dstPath := filepath.Join(dstDir, entry.Name())
+
+		if entry.IsDir() {
+			// Recursively copy subdirectories
+			if err := copyDirectory(srcPath, dstPath); err != nil {
+				return fmt.Errorf("failed to copy directory %s: %w", entry.Name(), err)
+			}
+		} else {
+			// Copy file
+			data, err := os.ReadFile(srcPath)
+			if err != nil {
+				return fmt.Errorf("failed to read file %s: %w", entry.Name(), err)
+			}
+			if err := os.WriteFile(dstPath, data, 0644); err != nil {
+				return fmt.Errorf("failed to write file %s: %w", entry.Name(), err)
+			}
+		}
+	}
+
+	// Copy lock file entry if it exists
+	// Import the internal/metadata package at the top of the file
+	fmt.Printf("Copying metadata...\n")
+
+	// We need to import the internal/metadata package to use these functions
+	// Use reflection to avoid circular imports by using the metadata package directly
+	// Actually, we can just import it - let's check if there's a conflict
+
+	// Try to load the lock entry from source
+	sourceLockPath := filepath.Join(sourceBaseDir, fmt.Sprintf(".%s-lock.json", componentType[:len(componentType)-1]))
+
+	// Read source lock file
+	lockData, err := os.ReadFile(sourceLockPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// No lock file in source - this is OK for manually created components
+			fmt.Printf("Note: No lock file entry found in source (manual component)\n")
+			return nil
+		}
+		// Log warning but don't fail
+		fmt.Printf("Warning: Failed to read source lock file: %v\n", err)
+		return nil
+	}
+
+	// Parse the lock file
+	var sourceLockFile struct {
+		Version  int                               `json:"version"`
+		Skills   map[string]map[string]interface{} `json:"skills,omitempty"`
+		Agents   map[string]map[string]interface{} `json:"agents,omitempty"`
+		Commands map[string]map[string]interface{} `json:"commands,omitempty"`
+	}
+
+	if err := json.Unmarshal(lockData, &sourceLockFile); err != nil {
+		fmt.Printf("Warning: Failed to parse source lock file: %v\n", err)
+		return nil
+	}
+
+	// Extract the entry for this component
+	var entryMap map[string]interface{}
+	switch componentType {
+	case "skills":
+		entryMap = sourceLockFile.Skills[componentName]
+	case "agents":
+		entryMap = sourceLockFile.Agents[componentName]
+	case "commands":
+		entryMap = sourceLockFile.Commands[componentName]
+	}
+
+	if entryMap == nil {
+		// No entry found - this is OK for manually created components
+		fmt.Printf("Note: No lock entry found for component (manual component)\n")
+		return nil
+	}
+
+	// Read or create target lock file
+	targetLockPath := filepath.Join(targetBaseDir, fmt.Sprintf(".%s-lock.json", componentType[:len(componentType)-1]))
+
+	var targetLockFile struct {
+		Version  int                               `json:"version"`
+		Skills   map[string]map[string]interface{} `json:"skills"`
+		Agents   map[string]map[string]interface{} `json:"agents"`
+		Commands map[string]map[string]interface{} `json:"commands"`
+	}
+
+	targetData, err := os.ReadFile(targetLockPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Create new lock file
+			targetLockFile.Version = 3
+			targetLockFile.Skills = make(map[string]map[string]interface{})
+			targetLockFile.Agents = make(map[string]map[string]interface{})
+			targetLockFile.Commands = make(map[string]map[string]interface{})
+		} else {
+			fmt.Printf("Warning: Failed to read target lock file: %v\n", err)
+			return nil
+		}
+	} else {
+		if err := json.Unmarshal(targetData, &targetLockFile); err != nil {
+			// Create new lock file if parsing fails
+			targetLockFile.Version = 3
+			targetLockFile.Skills = make(map[string]map[string]interface{})
+			targetLockFile.Agents = make(map[string]map[string]interface{})
+			targetLockFile.Commands = make(map[string]map[string]interface{})
+		}
+		// Ensure maps exist
+		if targetLockFile.Skills == nil {
+			targetLockFile.Skills = make(map[string]map[string]interface{})
+		}
+		if targetLockFile.Agents == nil {
+			targetLockFile.Agents = make(map[string]map[string]interface{})
+		}
+		if targetLockFile.Commands == nil {
+			targetLockFile.Commands = make(map[string]map[string]interface{})
+		}
+	}
+
+	// Add the entry to target lock file
+	switch componentType {
+	case "skills":
+		targetLockFile.Skills[componentName] = entryMap
+	case "agents":
+		targetLockFile.Agents[componentName] = entryMap
+	case "commands":
+		targetLockFile.Commands[componentName] = entryMap
+	}
+
+	// Write target lock file
+	jsonData, err := json.MarshalIndent(targetLockFile, "", "  ")
+	if err != nil {
+		fmt.Printf("Warning: Failed to marshal target lock file: %v\n", err)
+		return nil
+	}
+
+	if err := os.WriteFile(targetLockPath, jsonData, 0644); err != nil {
+		fmt.Printf("Warning: Failed to write target lock file: %v\n", err)
+		return nil
+	}
+
+	fmt.Printf("✓ Metadata copied successfully\n")
+	return nil
+}
+
+// CopyComponentBetweenProfiles copies a component from one profile to another
+func (pm *ProfileManager) CopyComponentBetweenProfiles(
+	sourceProfile, targetProfile, componentType, componentName string,
+) error {
+	// Validate profile names
+	if err := validateProfileName(sourceProfile); err != nil {
+		return fmt.Errorf("invalid source profile name: %w", err)
+	}
+	if err := validateProfileName(targetProfile); err != nil {
+		return fmt.Errorf("invalid target profile name: %w", err)
+	}
+
+	// Validate component type
+	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
+		return fmt.Errorf("invalid component type '%s'\n\nValid component types:\n  - skills\n  - agents\n  - commands\n\nExample:\n  agent-smith profile copy skills work-profile personal-profile api-design", componentType)
+	}
+
+	fmt.Printf("Copying %s '%s' from profile '%s' to profile '%s'...\n", componentType, componentName, sourceProfile, targetProfile)
+
+	// Validate that source profile exists
+	srcProfile := pm.loadProfile(sourceProfile)
+	if !srcProfile.IsValid() {
+		return fmt.Errorf("source profile '%s' does not exist or has no components", sourceProfile)
+	}
+
+	// Validate that target profile exists
+	dstProfile := pm.loadProfile(targetProfile)
+	if !dstProfile.IsValid() {
+		return fmt.Errorf("target profile '%s' does not exist or has no components", targetProfile)
+	}
+
+	// Check if component exists in source profile
+	componentPath := filepath.Join(srcProfile.BasePath, componentType, componentName)
+	if _, err := os.Stat(componentPath); os.IsNotExist(err) {
+		// List available components in source profile
+		availableComponents := []string{}
+		componentDir := filepath.Join(srcProfile.BasePath, componentType)
+		if entries, err := os.ReadDir(componentDir); err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
+					availableComponents = append(availableComponents, entry.Name())
+				}
+			}
+		}
+
+		if len(availableComponents) > 0 {
+			return fmt.Errorf("component '%s' not found in source profile '%s'\n\nAvailable %s in '%s':\n  - %s\n\nExample:\n  agent-smith profile copy %s %s %s %s",
+				componentName, sourceProfile, componentType, sourceProfile, strings.Join(availableComponents, "\n  - "),
+				componentType, sourceProfile, targetProfile, availableComponents[0])
+		}
+		return fmt.Errorf("component '%s' not found in source profile '%s'", componentName, sourceProfile)
+	}
+
+	// Copy component with metadata
+	if err := pm.copyComponentWithMetadata(srcProfile.BasePath, dstProfile.BasePath, componentType, componentName); err != nil {
+		return err
+	}
+
+	// Get component details for success message
+	var sourceURL string
+	sourceLockPath := filepath.Join(srcProfile.BasePath, fmt.Sprintf(".%s-lock.json", componentType[:len(componentType)-1]))
+	if lockData, err := os.ReadFile(sourceLockPath); err == nil {
+		var lockFile struct {
+			Skills map[string]struct {
+				SourceUrl string `json:"sourceUrl"`
+			} `json:"skills,omitempty"`
+			Agents map[string]struct {
+				SourceUrl string `json:"sourceUrl"`
+			} `json:"agents,omitempty"`
+			Commands map[string]struct {
+				SourceUrl string `json:"sourceUrl"`
+			} `json:"commands,omitempty"`
+		}
+		if json.Unmarshal(lockData, &lockFile) == nil {
+			switch componentType {
+			case "skills":
+				if entry, ok := lockFile.Skills[componentName]; ok {
+					sourceURL = entry.SourceUrl
+				}
+			case "agents":
+				if entry, ok := lockFile.Agents[componentName]; ok {
+					sourceURL = entry.SourceUrl
+				}
+			case "commands":
+				if entry, ok := lockFile.Commands[componentName]; ok {
+					sourceURL = entry.SourceUrl
+				}
+			}
+		}
+	}
+
+	componentSingular := strings.TrimSuffix(componentType, "s")
+	fmt.Printf("\n✓ Successfully copied %s '%s' from '%s' to '%s'\n", componentSingular, componentName, sourceProfile, targetProfile)
+	fmt.Printf("\nComponent details:\n")
+	fmt.Printf("  Type: %s\n", componentType)
+	fmt.Printf("  Name: %s\n", componentName)
+	if sourceURL != "" {
+		fmt.Printf("  Source: %s\n", sourceURL)
+	}
+	fmt.Printf("  Location: %s\n", filepath.Join(dstProfile.BasePath, componentType, componentName))
+	fmt.Printf("\nBoth profiles can now update this component independently.\n")
+
+	return nil
+}
+
 // AddComponentToProfile copies an existing component from ~/.agent-smith/ to a profile
 func (pm *ProfileManager) AddComponentToProfile(profileName, componentType, componentName string) error {
 	// Validate profile name
@@ -516,46 +795,10 @@ func (pm *ProfileManager) AddComponentToProfile(profileName, componentType, comp
 		return fmt.Errorf("cannot add component '%s': it is a symlink from an active profile. Deactivate the profile first.", componentName)
 	}
 
-	// Get destination directory in profile
-	dstDir := filepath.Join(profile.BasePath, componentType, componentName)
-
-	// Check if component already exists in profile
-	if _, err := os.Stat(dstDir); err == nil {
-		return fmt.Errorf("component '%s' already exists in profile '%s'", componentName, profileName)
-	}
-
-	fmt.Printf("Copying component files...\n")
-
-	// Copy component to profile
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
-		return fmt.Errorf("failed to create destination directory: %w", err)
-	}
-
-	// Copy files
-	entries, err := os.ReadDir(srcDir)
-	if err != nil {
-		return fmt.Errorf("failed to read source directory: %w", err)
-	}
-
-	for _, entry := range entries {
-		srcPath := filepath.Join(srcDir, entry.Name())
-		dstPath := filepath.Join(dstDir, entry.Name())
-
-		if entry.IsDir() {
-			// Recursively copy subdirectories
-			if err := copyDirectory(srcPath, dstPath); err != nil {
-				return fmt.Errorf("failed to copy directory %s: %w", entry.Name(), err)
-			}
-		} else {
-			// Copy file
-			data, err := os.ReadFile(srcPath)
-			if err != nil {
-				return fmt.Errorf("failed to read file %s: %w", entry.Name(), err)
-			}
-			if err := os.WriteFile(dstPath, data, 0644); err != nil {
-				return fmt.Errorf("failed to write file %s: %w", entry.Name(), err)
-			}
-		}
+	// Copy component with metadata using the helper function
+	// This will copy both the files and the lock file entry
+	if err := pm.copyComponentWithMetadata(agentsDir, profile.BasePath, componentType, componentName); err != nil {
+		return err
 	}
 
 	fmt.Printf("✓ Successfully added %s '%s' to profile '%s'\n", componentType, componentName, profileName)

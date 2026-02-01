@@ -1194,6 +1194,16 @@ func main() {
 				log.Fatal("Failed to add component to profile:", err)
 			}
 		},
+		func(componentType, sourceProfile, targetProfile, componentName string) {
+			pm, err := profiles.NewProfileManager(nil)
+			if err != nil {
+				log.Fatal("Failed to create profile manager:", err)
+			}
+
+			if err := pm.CopyComponentBetweenProfiles(sourceProfile, targetProfile, componentType, componentName); err != nil {
+				log.Fatal("Failed to copy component between profiles:", err)
+			}
+		},
 		func(componentType, profileName, componentName string) {
 			// Create component linker to handle auto-unlinking
 			componentLinker, err := NewComponentLinker()

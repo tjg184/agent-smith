@@ -1262,6 +1262,36 @@ EXAMPLES:
 		},
 	}
 
+	// profiles copy - Copy a component from one profile to another
+	profilesCopyCmd := &cobra.Command{
+		Use:   "copy <type> <source-profile> <target-profile> <component-name>",
+		Short: "Copy a component from one profile to another",
+		Long: `Copy a component (skill, agent, or command) from one profile to another.
+
+This command copies both the component files and the lock file entry, allowing
+the component to be updated independently in both profiles. This is useful for
+creating specialized profiles or testing new versions.
+
+COMPONENT TYPES:
+  skills   - Copy a skill between profiles
+  agents   - Copy an agent between profiles
+  commands - Copy a command between profiles
+
+EXAMPLES:
+  # Copy a skill from work profile to personal profile
+  agent-smith profile copy skills work-profile personal-profile api-design
+
+  # Copy an agent from team profile to solo profile
+  agent-smith profile copy agents team-profile solo-profile code-reviewer
+
+  # Copy a command from dev profile to prod profile
+  agent-smith profile copy commands dev-profile prod-profile test-runner`,
+		Args: exactArgsWithComponentTypeValidation(4, 0, "agent-smith profile copy <type> <source-profile> <target-profile> <component-name>"),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleProfilesCopy(args[0], args[1], args[2], args[3])
+		},
+	}
+
 	// profiles remove - Remove a component from a profile
 	profilesRemoveCmd := &cobra.Command{
 		Use:   "remove [component-type] [profile] [name]",
@@ -1295,6 +1325,7 @@ EXAMPLES:
 	profilesCmd.AddCommand(profilesActivateCmd)
 	profilesCmd.AddCommand(profilesDeactivateCmd)
 	profilesCmd.AddCommand(profilesAddCmd)
+	profilesCmd.AddCommand(profilesCopyCmd)
 	profilesCmd.AddCommand(profilesRemoveCmd)
 	rootCmd.AddCommand(profilesCmd)
 
@@ -1436,6 +1467,7 @@ var (
 	handleProfilesActivate   func(profileName string)
 	handleProfilesDeactivate func()
 	handleProfilesAdd        func(componentType, profileName, componentName string)
+	handleProfilesCopy       func(componentType, sourceProfile, targetProfile, componentName string)
 	handleProfilesRemove     func(componentType, profileName, componentName string)
 	handleStatus             func()
 	handleTargetAdd          func(name, path string)
@@ -1468,6 +1500,7 @@ func SetHandlers(
 	profilesActivate func(profileName string),
 	profilesDeactivate func(),
 	profilesAdd func(componentType, profileName, componentName string),
+	profilesCopy func(componentType, sourceProfile, targetProfile, componentName string),
 	profilesRemove func(componentType, profileName, componentName string),
 	status func(),
 	targetAdd func(name, path string),
@@ -1498,6 +1531,7 @@ func SetHandlers(
 	handleProfilesActivate = profilesActivate
 	handleProfilesDeactivate = profilesDeactivate
 	handleProfilesAdd = profilesAdd
+	handleProfilesCopy = profilesCopy
 	handleProfilesRemove = profilesRemove
 	handleStatus = status
 	handleTargetAdd = targetAdd
