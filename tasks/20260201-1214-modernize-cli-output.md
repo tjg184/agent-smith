@@ -176,7 +176,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [ ] Story-007: As a CLI user, I want the link command output modernized so that I can see linking progress and results at a glance.
+- [x] Story-007: As a CLI user, I want the link command output modernized so that I can see linking progress and results at a glance.
 
   **Acceptance Criteria:**
   - Linking starts with "Linking components to {target}" header
@@ -282,7 +282,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [ ] Story-011: As a CLI user, I want the unlink command output modernized so that I can see what's being unlinked and from where.
+- [x] Story-011: As a CLI user, I want the unlink command output modernized so that I can see what's being unlinked and from where.
 
   **Acceptance Criteria:**
   - Unlink starts with "Unlinking components from {target}" header
