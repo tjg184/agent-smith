@@ -185,11 +185,11 @@ cd /Users/tgaines/dev/git/agent-smith
 go build -o agent-smith .
 
 # Create profile
-./agent-smith profiles create <name>
+./agent-smith profile create <name>
 
 # Add components
 for skill in "${skills[@]}"; do
-  ./agent-smith profiles add skill <name> "$skill"
+  ./agent-smith profile add skills <name> "$skill"
 done
 
 # Generate README
@@ -198,7 +198,7 @@ cat > ~/.agent-smith/profiles/<name>/README.md << EOF
 EOF
 
 # Optionally activate
-./agent-smith profiles activate <name>
+./agent-smith profile activate <name>
 ./agent-smith link all
 ```
 
@@ -229,17 +229,17 @@ cd /Users/tgaines/dev/git/agent-smith
 go build -o agent-smith .
 
 # Create a test profile
-./agent-smith profiles create test-java-profile
+./agent-smith profile create test-java-profile
 
 # Add some skills
-./agent-smith profiles add skill test-java-profile api-design-principles
-./agent-smith profiles add skill test-java-profile sql-optimization-patterns
+./agent-smith profile add skills test-java-profile api-design-principles
+./agent-smith profile add skills test-java-profile sql-optimization-patterns
 
 # Verify
-./agent-smith profiles show test-java-profile
+./agent-smith profile show test-java-profile
 
 # Clean up
-./agent-smith profiles delete test-java-profile --force
+./agent-smith profile delete test-java-profile --force
 ```
 
 ## Customization

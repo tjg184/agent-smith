@@ -264,7 +264,7 @@ SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
 SCANNER="$SKILL_DIR/lib/component-scanner.sh"
 
 # Create the profile
-./agent-smith profiles create <profile-name>
+./agent-smith profile create <profile-name>
 
 # Copy all matched skills using profile copy command
 for skill in "${matched_skills[@]}"; do
@@ -309,13 +309,16 @@ for command in "${matched_commands[@]}"; do
 done
 ```
 
-**Why use `profile copy` instead of `profiles add`?**
+**Why use `profile copy` instead of `profile add`?**
 
 The `profile copy` command:
 - Preserves component metadata from the source profile
 - Copies lock file entries to maintain provenance tracking
 - Creates independent copies (updates to source don't affect the copy)
 - Ensures component integrity across profile boundaries
+
+Note: `profile add` copies from the base ~/.agent-smith/ directory, but we need to copy
+from existing profiles where components actually live in the profiles/ architecture.
 
 #### A7. Generate README
 
@@ -349,16 +352,16 @@ cat > "$PROFILE_DIR/README.md" << 'EOF'
 ## Getting Started
 
 1. This profile is ready to use
-2. To activate: `agent-smith profiles activate <profile-name>`
+2. To activate: `agent-smith profile activate <profile-name>`
 3. To link components: `agent-smith link all`
 
 ## Customization
 
 Add more components:
-  agent-smith profiles add skill <profile-name> <skill-name>
+  agent-smith profile add skills <profile-name> <skill-name>
 
 Remove components:
-  agent-smith profiles remove skill <profile-name> <skill-name>
+  agent-smith profile remove skills <profile-name> <skill-name>
 
 EOF
 ```
@@ -387,9 +390,9 @@ If user says yes:
 ```bash
 cd /Users/tgaines/dev/git/agent-smith
 
-./agent-smith profiles activate <profile-name>
+./agent-smith profile activate <profile-name>
 ./agent-smith link all
-./agent-smith profiles show <profile-name>
+./agent-smith profile show <profile-name>
 ```
 
 #### A9. Show Final Summary
@@ -412,10 +415,10 @@ To view details:
   cat ~/.agent-smith/profiles/<profile-name>/README.md
 
 To deactivate:
-  agent-smith profiles deactivate
+  agent-smith profile deactivate
 
 To activate a different profile:
-  agent-smith profiles activate <other-profile>
+  agent-smith profile activate <other-profile>
 ```
 
 ---

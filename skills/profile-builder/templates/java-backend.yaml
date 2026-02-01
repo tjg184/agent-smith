@@ -166,14 +166,14 @@ readme_template: |
   
   To add more components to this profile:
   ```bash
-  agent-smith profiles add skill java-backend <skill-name>
-  agent-smith profiles add agent java-backend <category/agent-name>
+  agent-smith profile add skills java-backend <skill-name>
+  agent-smith profile add agents java-backend <category/agent-name>
   ```
   
   To remove components:
   ```bash
-  agent-smith profiles remove skill java-backend <skill-name>
-  agent-smith profiles remove agent java-backend <category/agent-name>
+  agent-smith profile remove skills java-backend <skill-name>
+  agent-smith profile remove agents java-backend <category/agent-name>
   ```
   
   ## Updating This Profile
