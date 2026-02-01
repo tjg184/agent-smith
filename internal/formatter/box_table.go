@@ -3,6 +3,7 @@ package formatter
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 )
 
@@ -21,6 +22,14 @@ const (
 	BoxCross       = "┼"
 )
 
+// ansiRegex matches ANSI color codes
+var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// visibleLength returns the visible length of a string, excluding ANSI color codes
+func visibleLength(s string) int {
+	return len(ansiRegex.ReplaceAllString(s, ""))
+}
+
 // BoxTable represents a table with box-drawing characters
 type BoxTable struct {
 	writer      io.Writer
@@ -33,7 +42,7 @@ type BoxTable struct {
 func NewBoxTable(writer io.Writer, headers []string) *BoxTable {
 	columnSizes := make([]int, len(headers))
 	for i, header := range headers {
-		columnSizes[i] = len(header)
+		columnSizes[i] = visibleLength(header)
 	}
 	return &BoxTable{
 		writer:      writer,
@@ -48,7 +57,7 @@ func (bt *BoxTable) AddRow(cells []string) {
 	// Update column sizes if needed
 	for i, cell := range cells {
 		if i < len(bt.columnSizes) {
-			cellLen := len(cell)
+			cellLen := visibleLength(cell)
 			if cellLen > bt.columnSizes[i] {
 				bt.columnSizes[i] = cellLen
 			}

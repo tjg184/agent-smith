@@ -74,7 +74,7 @@ func (f *Formatter) DisplaySummaryTable(results []InstallResult, skillCount, age
 
 // displayTypeSection displays a section of results for a specific component type
 func (f *Formatter) displayTypeSection(typeName string, results []InstallResult) {
-	fmt.Fprintf(f.writer, "\n%s:\n", typeName)
+	fmt.Fprintf(f.writer, "\n%s:\n", colors.InfoBold(typeName))
 
 	// Create table with headers using box-drawing characters
 	table := NewBoxTable(f.writer, []string{"Status", "Component", "Result"})
@@ -93,7 +93,7 @@ func (f *Formatter) displayTypeSection(typeName string, results []InstallResult)
 
 		// Add error details as a separate row if needed
 		if !result.Success && result.Error != "" {
-			table.AddRow([]string{"", "└─ Error", result.Error})
+			table.AddRow([]string{"", colors.Muted("→ Error"), colors.Muted(result.Error)})
 		}
 	}
 

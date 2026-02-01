@@ -93,3 +93,78 @@ func TestSimpleBoxTable(t *testing.T) {
 		t.Error("Expected to find Value2 in output")
 	}
 }
+
+func TestVisibleLength(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int
+	}{
+		{
+			name:     "plain text",
+			input:    "Hello World",
+			expected: 11,
+		},
+		{
+			name:     "text with ANSI color codes",
+			input:    "\x1b[32mSuccess\x1b[0m",
+			expected: 7,
+		},
+		{
+			name:     "text with multiple ANSI codes",
+			input:    "\x1b[1m\x1b[32mBold Green\x1b[0m",
+			expected: 10,
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := visibleLength(tt.input)
+			if result != tt.expected {
+				t.Errorf("visibleLength(%q) = %d, want %d", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestBoxTableWithColors(t *testing.T) {
+	var buf bytes.Buffer
+
+	// Create a table with colored content
+	table := NewBoxTable(&buf, []string{"Name", "Status"})
+	table.AddRow([]string{"component-1", "\x1b[32m✓\x1b[0m"})
+	table.AddRow([]string{"component-2", "\x1b[31m✗\x1b[0m"})
+
+	table.Render()
+
+	output := buf.String()
+
+	// Verify box-drawing characters are present
+	if !strings.Contains(output, BoxTopLeft) {
+		t.Error("Expected top-left corner character")
+	}
+	if !strings.Contains(output, BoxBottomLeft) {
+		t.Error("Expected bottom-left corner character")
+	}
+
+	// Verify content is present
+	if !strings.Contains(output, "component-1") {
+		t.Error("Expected to find component-1 in output")
+	}
+	if !strings.Contains(output, "component-2") {
+		t.Error("Expected to find component-2 in output")
+	}
+
+	// Verify colored symbols are preserved
+	if !strings.Contains(output, "✓") {
+		t.Error("Expected to find success symbol in output")
+	}
+	if !strings.Contains(output, "✗") {
+		t.Error("Expected to find error symbol in output")
+	}
+}
