@@ -9,6 +9,7 @@ import (
 
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/fileutil"
+	"github.com/tgaines/agent-smith/internal/formatter"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/config"
@@ -864,34 +865,14 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 		targetNames = append(targetNames, target.GetName())
 	}
 
-	// Calculate column widths
-	maxNameLen := 20
-	profileColWidth := 10
-	for _, status := range statuses {
-		nameLen := len(status.Component.Name) + 2 // +2 for indent
-		if nameLen > maxNameLen {
-			maxNameLen = nameLen
-		}
-		profileLen := len(status.Component.Profile)
-		if profileLen > profileColWidth {
-			profileColWidth = profileLen
-		}
-	}
-
-	// Print header
-	fmt.Printf("%-*s  %-*s", maxNameLen+2, "Component", profileColWidth, "Profile")
+	// Build headers for table
+	headers := []string{"Component", "Profile"}
 	for _, targetName := range targetNames {
-		fmt.Printf("  %-12s", strings.ToUpper(targetName))
+		headers = append(headers, strings.ToUpper(targetName))
 	}
-	fmt.Println()
 
-	// Print separator
-	fmt.Print(strings.Repeat("-", maxNameLen+2))
-	fmt.Print("  " + strings.Repeat("-", profileColWidth))
-	for range targetNames {
-		fmt.Print("  " + strings.Repeat("-", 12))
-	}
-	fmt.Println()
+	// Create table
+	table := formatter.NewBoxTable(os.Stdout, headers)
 
 	// Group by type and sort by name within each type
 	byType := make(map[string][]ComponentStatus)
@@ -906,19 +887,27 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 			continue
 		}
 
-		fmt.Printf("\n%s:\n", strings.Title(componentType))
+		// Add section header row
+		sectionRow := []string{strings.Title(componentType) + ":", ""}
+		for range targetNames {
+			sectionRow = append(sectionRow, "")
+		}
+		table.AddRow(sectionRow)
 
 		for _, status := range components {
 			componentName := fmt.Sprintf("  %s", status.Component.Name)
-			fmt.Printf("%-*s  %-*s", maxNameLen+2, componentName, profileColWidth, status.Component.Profile)
+			row := []string{componentName, status.Component.Profile}
 
 			for _, targetName := range targetNames {
 				symbol := status.Targets[targetName]
-				fmt.Printf("  %-12s", symbol)
+				row = append(row, symbol)
 			}
-			fmt.Println()
+			table.AddRow(row)
 		}
 	}
+
+	// Render the table
+	table.Render()
 
 	// Print legend
 	fmt.Println("\nLegend:")
@@ -1163,36 +1152,14 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 		targetNames = append(targetNames, target.GetName())
 	}
 
-	// Calculate column widths
-	maxNameLen := 20
-	typeColWidth := 8
-	profileColWidth := 10
-	for _, status := range statuses {
-		nameLen := len(status.Component.Name) + 2 // +2 for indent
-		if nameLen > maxNameLen {
-			maxNameLen = nameLen
-		}
-		profileLen := len(status.Component.Profile)
-		if profileLen > profileColWidth {
-			profileColWidth = profileLen
-		}
-	}
-
-	// Print header
-	fmt.Printf("%-*s  %-*s  %-*s", maxNameLen+2, "Component", typeColWidth, "Type", profileColWidth, "Profile")
+	// Build headers for table
+	headers := []string{"Component", "Type", "Profile"}
 	for _, targetName := range targetNames {
-		fmt.Printf("  %-12s", strings.ToUpper(targetName))
+		headers = append(headers, strings.ToUpper(targetName))
 	}
-	fmt.Println()
 
-	// Print separator
-	fmt.Print(strings.Repeat("-", maxNameLen+2))
-	fmt.Print("  " + strings.Repeat("-", typeColWidth))
-	fmt.Print("  " + strings.Repeat("-", profileColWidth))
-	for range targetNames {
-		fmt.Print("  " + strings.Repeat("-", 12))
-	}
-	fmt.Println()
+	// Create table
+	table := formatter.NewBoxTable(os.Stdout, headers)
 
 	// Group by type and sort by name within each type
 	byType := make(map[string][]ComponentStatus)
@@ -1207,22 +1174,27 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 			continue
 		}
 
-		fmt.Printf("\n%s:\n", strings.Title(componentType))
+		// Add section header row
+		sectionRow := []string{strings.Title(componentType) + ":", "", ""}
+		for range targetNames {
+			sectionRow = append(sectionRow, "")
+		}
+		table.AddRow(sectionRow)
 
 		for _, status := range components {
 			componentName := fmt.Sprintf("  %s", status.Component.Name)
-			fmt.Printf("%-*s  %-*s  %-*s",
-				maxNameLen+2, componentName,
-				typeColWidth, status.Component.Type,
-				profileColWidth, status.Component.Profile)
+			row := []string{componentName, status.Component.Type, status.Component.Profile}
 
 			for _, targetName := range targetNames {
 				symbol := status.Targets[targetName]
-				fmt.Printf("  %-12s", symbol)
+				row = append(row, symbol)
 			}
-			fmt.Println()
+			table.AddRow(row)
 		}
 	}
+
+	// Render the table
+	table.Render()
 
 	// Print legend
 	fmt.Println("\nLegend:")

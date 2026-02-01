@@ -2,7 +2,6 @@ package formatter
 
 import (
 	"fmt"
-	"strings"
 )
 
 // InstallResult represents the result of a single component installation
@@ -15,9 +14,7 @@ type InstallResult struct {
 
 // DisplaySummaryTable shows a formatted table of installation results
 func (f *Formatter) DisplaySummaryTable(results []InstallResult, skillCount, agentCount, commandCount int) {
-	fmt.Fprintln(f.writer, "\n"+strings.Repeat("=", 80))
-	fmt.Fprintln(f.writer, "Installation Summary")
-	fmt.Fprintln(f.writer, strings.Repeat("=", 80))
+	fmt.Fprintln(f.writer, "\nInstallation Summary")
 
 	// Group results by type
 	skillResults := []InstallResult{}
@@ -58,18 +55,20 @@ func (f *Formatter) DisplaySummaryTable(results []InstallResult, skillCount, age
 	}
 
 	// Display summary
-	fmt.Fprintln(f.writer, "\n"+strings.Repeat("-", 80))
-	fmt.Fprintf(f.writer, "Successfully installed: %d/%d components\n", successCount, len(results))
+	fmt.Fprintln(f.writer)
+	summaryMsg := fmt.Sprintf("Successfully installed: %d/%d components", successCount, len(results))
 	if failureCount > 0 {
-		fmt.Fprintf(f.writer, "Failed: %d components\n", failureCount)
+		summaryMsg += fmt.Sprintf(" | Failed: %d components", failureCount)
 	}
-	fmt.Fprintln(f.writer, strings.Repeat("=", 80))
+	fmt.Fprintln(f.writer, summaryMsg)
 }
 
 // displayTypeSection displays a section of results for a specific component type
 func (f *Formatter) displayTypeSection(typeName string, results []InstallResult) {
 	fmt.Fprintf(f.writer, "\n%s:\n", typeName)
-	fmt.Fprintln(f.writer, strings.Repeat("-", 80))
+
+	// Create table with headers
+	table := NewBoxTable(f.writer, []string{"Status", "Component", "Result"})
 
 	for _, result := range results {
 		status := SymbolSuccess
@@ -79,9 +78,13 @@ func (f *Formatter) displayTypeSection(typeName string, results []InstallResult)
 			statusText = "Failed"
 		}
 
-		fmt.Fprintf(f.writer, "  %s  %-40s  %s\n", status, result.Name, statusText)
+		table.AddRow([]string{status, result.Name, statusText})
+
+		// Add error details as a separate row if needed
 		if !result.Success && result.Error != "" {
-			fmt.Fprintf(f.writer, "      Error: %s\n", result.Error)
+			table.AddRow([]string{"", "└─ Error", result.Error})
 		}
 	}
+
+	table.Render()
 }
