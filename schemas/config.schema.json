@@ -18,6 +18,14 @@
         "$ref": "#/definitions/customTarget"
       },
       "default": []
+    },
+    "display": {
+      "$ref": "#/definitions/displaySettings",
+      "description": "Display settings for CLI output formatting and colors",
+      "default": {
+        "colors": "auto",
+        "unicode": "auto"
+      }
     }
   },
   "definitions": {
@@ -71,6 +79,31 @@
         }
       },
       "additionalProperties": false
+    },
+    "displaySettings": {
+      "type": "object",
+      "description": "Display settings for CLI output formatting and colors",
+      "properties": {
+        "colors": {
+          "type": "string",
+          "description": "Controls ANSI color output behavior",
+          "enum": ["auto", "always", "never"],
+          "default": "auto",
+          "examples": ["auto", "always", "never"]
+        },
+        "unicode": {
+          "type": "string",
+          "description": "Controls Unicode character usage for formatting",
+          "enum": ["auto", "always", "ascii"],
+          "default": "auto",
+          "examples": ["auto", "always", "ascii"]
+        }
+      },
+      "additionalProperties": false,
+      "default": {
+        "colors": "auto",
+        "unicode": "auto"
+      }
     }
   },
   "additionalProperties": false,
@@ -85,7 +118,11 @@
           "agentsDir": "agents",
           "commandsDir": "commands"
         }
-      ]
+      ],
+      "display": {
+        "colors": "auto",
+        "unicode": "auto"
+      }
     },
     {
       "version": 1,
@@ -104,7 +141,11 @@
           "agentsDir": "agent-agents",
           "commandsDir": "agent-commands"
         }
-      ]
+      ],
+      "display": {
+        "colors": "always",
+        "unicode": "auto"
+      }
     }
   ]
 }

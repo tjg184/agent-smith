@@ -511,3 +511,199 @@ func TestConfigJSONFormat(t *testing.T) {
 		t.Fatalf("Expected %d targets, got %d", len(config.CustomTargets), len(loadedConfig.CustomTargets))
 	}
 }
+
+func TestValidateDisplaySettings_ValidValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		settings DisplaySettings
+		expected DisplaySettings
+	}{
+		{
+			name:     "auto colors and unicode",
+			settings: DisplaySettings{Colors: "auto", Unicode: "auto"},
+			expected: DisplaySettings{Colors: "auto", Unicode: "auto"},
+		},
+		{
+			name:     "always colors and unicode",
+			settings: DisplaySettings{Colors: "always", Unicode: "always"},
+			expected: DisplaySettings{Colors: "always", Unicode: "always"},
+		},
+		{
+			name:     "never colors",
+			settings: DisplaySettings{Colors: "never", Unicode: "auto"},
+			expected: DisplaySettings{Colors: "never", Unicode: "auto"},
+		},
+		{
+			name:     "ascii unicode",
+			settings: DisplaySettings{Colors: "auto", Unicode: "ascii"},
+			expected: DisplaySettings{Colors: "auto", Unicode: "ascii"},
+		},
+		{
+			name:     "empty values default to auto",
+			settings: DisplaySettings{Colors: "", Unicode: ""},
+			expected: DisplaySettings{Colors: "auto", Unicode: "auto"},
+		},
+		{
+			name:     "invalid colors defaults to auto",
+			settings: DisplaySettings{Colors: "invalid", Unicode: "auto"},
+			expected: DisplaySettings{Colors: "auto", Unicode: "auto"},
+		},
+		{
+			name:     "invalid unicode defaults to auto",
+			settings: DisplaySettings{Colors: "auto", Unicode: "invalid"},
+			expected: DisplaySettings{Colors: "auto", Unicode: "auto"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateDisplaySettings(&tt.settings)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if tt.settings.Colors != tt.expected.Colors {
+				t.Errorf("Expected colors %q, got %q", tt.expected.Colors, tt.settings.Colors)
+			}
+
+			if tt.settings.Unicode != tt.expected.Unicode {
+				t.Errorf("Expected unicode %q, got %q", tt.expected.Unicode, tt.settings.Unicode)
+			}
+		})
+	}
+}
+
+func TestLoadConfig_DisplayDefaults(t *testing.T) {
+	// Create a temporary home directory for testing
+	origHome := os.Getenv("HOME")
+	tempHome, err := os.MkdirTemp("", "agent-smith-home-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp home: %v", err)
+	}
+	defer os.RemoveAll(tempHome)
+	defer os.Setenv("HOME", origHome)
+
+	os.Setenv("HOME", tempHome)
+
+	// Load config when file doesn't exist - should have defaults
+	config, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	if config.Display.Colors != "auto" {
+		t.Errorf("Expected default colors 'auto', got %q", config.Display.Colors)
+	}
+
+	if config.Display.Unicode != "auto" {
+		t.Errorf("Expected default unicode 'auto', got %q", config.Display.Unicode)
+	}
+}
+
+func TestSaveAndLoadConfig_WithDisplay(t *testing.T) {
+	// Create a temporary home directory for testing
+	origHome := os.Getenv("HOME")
+	tempHome, err := os.MkdirTemp("", "agent-smith-home-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp home: %v", err)
+	}
+	defer os.RemoveAll(tempHome)
+	defer os.Setenv("HOME", origHome)
+
+	os.Setenv("HOME", tempHome)
+
+	// Create .agent-smith directory
+	agentsDir := filepath.Join(tempHome, ".agent-smith")
+	err = os.MkdirAll(agentsDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create .agent-smith dir: %v", err)
+	}
+
+	// Create a test config with custom display settings
+	testConfig := &Config{
+		Version:       ConfigVersion,
+		CustomTargets: []CustomTargetConfig{},
+		Display: DisplaySettings{
+			Colors:  "always",
+			Unicode: "ascii",
+		},
+	}
+
+	// Save the config
+	err = SaveConfig(testConfig)
+	if err != nil {
+		t.Fatalf("Failed to save config: %v", err)
+	}
+
+	// Load the config back
+	loadedConfig, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Verify the display settings were preserved
+	if loadedConfig.Display.Colors != "always" {
+		t.Errorf("Expected colors 'always', got %q", loadedConfig.Display.Colors)
+	}
+
+	if loadedConfig.Display.Unicode != "ascii" {
+		t.Errorf("Expected unicode 'ascii', got %q", loadedConfig.Display.Unicode)
+	}
+}
+
+func TestValidateConfig_AppliesDisplayDefaults(t *testing.T) {
+	config := &Config{
+		Version:       ConfigVersion,
+		CustomTargets: []CustomTargetConfig{},
+		Display: DisplaySettings{
+			Colors:  "",
+			Unicode: "",
+		},
+	}
+
+	err := validateConfig(config)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	// Validate should have applied defaults
+	if config.Display.Colors != "auto" {
+		t.Errorf("Expected colors 'auto', got %q", config.Display.Colors)
+	}
+
+	if config.Display.Unicode != "auto" {
+		t.Errorf("Expected unicode 'auto', got %q", config.Display.Unicode)
+	}
+}
+
+func TestConfigJSONFormat_WithDisplay(t *testing.T) {
+	// Test that the config marshals to the expected JSON format with display settings
+	config := &Config{
+		Version:       1,
+		CustomTargets: []CustomTargetConfig{},
+		Display: DisplaySettings{
+			Colors:  "always",
+			Unicode: "ascii",
+		},
+	}
+
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal config: %v", err)
+	}
+
+	// Unmarshal it back and verify
+	var loadedConfig Config
+	err = json.Unmarshal(data, &loadedConfig)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal config: %v", err)
+	}
+
+	if loadedConfig.Display.Colors != config.Display.Colors {
+		t.Errorf("Expected colors %q, got %q", config.Display.Colors, loadedConfig.Display.Colors)
+	}
+
+	if loadedConfig.Display.Unicode != config.Display.Unicode {
+		t.Errorf("Expected unicode %q, got %q", config.Display.Unicode, loadedConfig.Display.Unicode)
+	}
+}

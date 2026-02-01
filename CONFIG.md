@@ -70,7 +70,11 @@ Agent Smith uses multiple configuration files for different purposes:
       "agentsDir": "agents",
       "commandsDir": "commands"
     }
-  ]
+  ],
+  "display": {
+    "colors": "auto",
+    "unicode": "auto"
+  }
 }
 ```
 
@@ -173,6 +177,46 @@ Each custom target configuration has the following fields:
 
 **Result**: Commands will be symlinked to `<baseDir>/<commandsDir>/`
 
+### Display Settings Object
+
+The optional `display` object controls how agent-smith formats and colors its CLI output.
+
+#### `colors` (optional)
+
+**Type**: `string`
+
+**Description**: Controls ANSI color output behavior.
+
+**Valid values**:
+- `"auto"` (default): Automatically detect TTY and use colors when appropriate
+- `"always"`: Force colors on, even for non-TTY outputs  
+- `"never"`: Force colors off, even for TTY outputs
+
+**Example**: `"colors": "auto"`
+
+**Note**: The `NO_COLOR` environment variable will override this setting when set.
+
+#### `unicode` (optional)
+
+**Type**: `string`
+
+**Description**: Controls Unicode character usage for formatting (box-drawing characters, symbols, etc.).
+
+**Valid values**:
+- `"auto"` (default): Automatically detect Unicode support and use when appropriate
+- `"always"`: Force Unicode characters (box-drawing, symbols)
+- `"ascii"`: Use ASCII-only characters for maximum compatibility
+
+**Example**: `"unicode": "auto"`
+
+**Default display settings**: If the `display` section is omitted, it defaults to:
+```json
+{
+  "colors": "auto",
+  "unicode": "auto"
+}
+```
+
 ### Managing Custom Targets
 
 #### Add a Custom Target
@@ -234,7 +278,11 @@ This removes the target from config.json and unlinks any components linked to it
       "agentsDir": "extensions/agents",
       "commandsDir": "extensions/commands"
     }
-  ]
+  ],
+  "display": {
+    "colors": "auto",
+    "unicode": "auto"
+  }
 }
 ```
 
@@ -542,7 +590,11 @@ Resulting config.json:
       "agentsDir": "agents",
       "commandsDir": "commands"
     }
-  ]
+  ],
+  "display": {
+    "colors": "auto",
+    "unicode": "auto"
+  }
 }
 ```
 
@@ -576,7 +628,11 @@ Resulting config.json:
       "agentsDir": "agents",
       "commandsDir": "commands"
     }
-  ]
+  ],
+  "display": {
+    "colors": "auto",
+    "unicode": "auto"
+  }
 }
 ```
 
@@ -603,11 +659,45 @@ Resulting config.json:
       "agentsDir": "extensions/agents",
       "commandsDir": "extensions/commands"
     }
-  ]
+  ],
+  "display": {
+    "colors": "auto",
+    "unicode": "auto"
+  }
 }
 ```
 
-### Example 4: Project-Specific Ralphy Configuration
+### Example 4: Custom Display Settings
+
+```bash
+# Manually edit ~/.agent-smith/config.json to customize display settings
+```
+
+Example with always-on colors and ASCII-only characters:
+```json
+{
+  "version": 1,
+  "customTargets": [],
+  "display": {
+    "colors": "always",
+    "unicode": "ascii"
+  }
+}
+```
+
+Example with colors disabled:
+```json
+{
+  "version": 1,
+  "customTargets": [],
+  "display": {
+    "colors": "never",
+    "unicode": "auto"
+  }
+}
+```
+
+### Example 5: Project-Specific Ralphy Configuration
 
 For a TypeScript/React project:
 

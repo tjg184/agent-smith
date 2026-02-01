@@ -28,16 +28,22 @@ import (
 //	      "agentsDir": "agents",
 //	      "commandsDir": "commands"
 //	    }
-//	  ]
+//	  ],
+//	  "display": {
+//	    "colors": "auto",
+//	    "unicode": "auto"
+//	  }
 //	}
 //
 // Schema:
 //   - version (int): Configuration file format version. Currently must be 1.
 //   - customTargets (array): List of custom target configurations for linking
 //     components to additional editors or tools.
+//   - display (object): Display settings for CLI output formatting and colors.
 type Config struct {
 	Version       int                  `json:"version"`       // Configuration schema version (currently 1)
 	CustomTargets []CustomTargetConfig `json:"customTargets"` // List of custom target configurations
+	Display       DisplaySettings      `json:"display"`       // Display settings for output formatting
 }
 
 // CustomTargetConfig represents a custom target configuration in the config file.
@@ -77,6 +83,35 @@ type CustomTargetConfig struct {
 	SkillsDir   string `json:"skillsDir"`   // Skills subdirectory name
 	AgentsDir   string `json:"agentsDir"`   // Agents subdirectory name
 	CommandsDir string `json:"commandsDir"` // Commands subdirectory name
+}
+
+// DisplaySettings represents display configuration for CLI output.
+//
+// Controls how agent-smith formats and colors its output in the terminal.
+//
+// Field descriptions:
+//   - colors: Controls ANSI color output behavior
+//   - "auto": Automatically detect TTY and use colors when appropriate (default)
+//   - "always": Force colors on, even for non-TTY outputs
+//   - "never": Force colors off, even for TTY outputs
+//   - unicode: Controls Unicode character usage for formatting
+//   - "auto": Automatically detect Unicode support and use when appropriate (default)
+//   - "always": Force Unicode characters (box-drawing, symbols)
+//   - "ascii": Use ASCII-only characters for maximum compatibility
+//
+// Example:
+//
+//	{
+//	  "colors": "auto",
+//	  "unicode": "auto"
+//	}
+//
+// Validation rules:
+//   - colors: Must be "auto", "always", or "never" (defaults to "auto" if invalid)
+//   - unicode: Must be "auto", "always", or "ascii" (defaults to "auto" if invalid)
+type DisplaySettings struct {
+	Colors  string `json:"colors"`  // Color output mode: "auto", "always", or "never"
+	Unicode string `json:"unicode"` // Unicode character mode: "auto", "always", or "ascii"
 }
 
 const (
@@ -149,6 +184,10 @@ func LoadConfig() (*Config, error) {
 		return &Config{
 			Version:       ConfigVersion,
 			CustomTargets: []CustomTargetConfig{},
+			Display: DisplaySettings{
+				Colors:  "auto",
+				Unicode: "auto",
+			},
 		}, nil
 	}
 
@@ -257,6 +296,11 @@ func validateConfig(config *Config) error {
 	// Validate custom targets
 	if config.CustomTargets == nil {
 		config.CustomTargets = []CustomTargetConfig{}
+	}
+
+	// Apply defaults and validate display settings
+	if err := validateDisplaySettings(&config.Display); err != nil {
+		return fmt.Errorf("display settings: %w", err)
 	}
 
 	// Track target names to check for duplicates
@@ -402,4 +446,46 @@ func expandHomePath(path string) (string, error) {
 	}
 
 	return path, nil
+}
+
+// validateDisplaySettings validates and applies defaults to display settings.
+//
+// This function ensures that display settings have valid values and applies
+// defaults if the settings are missing or invalid.
+//
+// Validation rules:
+//   - colors: Must be "auto", "always", or "never". Defaults to "auto" if empty or invalid.
+//   - unicode: Must be "auto", "always", or "ascii". Defaults to "auto" if empty or invalid.
+//
+// Parameters:
+//   - settings: The display settings to validate (may be modified to apply defaults)
+//
+// Returns:
+//   - error: Always returns nil (defaults are applied for invalid values)
+func validateDisplaySettings(settings *DisplaySettings) error {
+	// Validate and apply defaults for colors setting
+	switch settings.Colors {
+	case "auto", "always", "never":
+		// Valid value, keep as-is
+	case "":
+		// Empty, apply default
+		settings.Colors = "auto"
+	default:
+		// Invalid value, apply default
+		settings.Colors = "auto"
+	}
+
+	// Validate and apply defaults for unicode setting
+	switch settings.Unicode {
+	case "auto", "always", "ascii":
+		// Valid value, keep as-is
+	case "":
+		// Empty, apply default
+		settings.Unicode = "auto"
+	default:
+		// Invalid value, apply default
+		settings.Unicode = "auto"
+	}
+
+	return nil
 }
