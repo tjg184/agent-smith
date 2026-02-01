@@ -18,7 +18,7 @@ Add the ability to view link status across all profiles simultaneously in agent-
 
 ## User Stories
 
-- [ ] Story-001: As a user with multiple profiles, I want to see link status for all profiles at once so that I can understand my complete component ecosystem without switching between profiles.
+- [x] Story-001: As a user with multiple profiles, I want to see link status for all profiles at once so that I can understand my complete component ecosystem without switching between profiles.
 
   **Acceptance Criteria:**
   - New `--all-profiles` flag added to `agent-smith link status` command
@@ -45,7 +45,7 @@ Add the ability to view link status across all profiles simultaneously in agent-
   **Component Browser Tests:**
   - Not applicable (CLI tool, no browser components)
 
-- [ ] Story-002: As a user managing specific profiles, I want to filter the all-profiles view to show only selected profiles so that I can focus on relevant components without visual clutter.
+- [x] Story-002: As a user managing specific profiles, I want to filter the all-profiles view to show only selected profiles so that I can focus on relevant components without visual clutter.
 
   **Acceptance Criteria:**
   - New `--profile` flag accepts comma-separated profile names
@@ -70,7 +70,7 @@ Add the ability to view link status across all profiles simultaneously in agent-
   **Component Browser Tests:**
   - Not applicable (CLI tool, no browser components)
 
-- [ ] Story-003: As a developer maintaining agent-smith, I want the ComponentLinker to accept ProfileManager as a dependency so that multi-profile scanning can be implemented without breaking existing functionality.
+- [x] Story-003: As a developer maintaining agent-smith, I want the ComponentLinker to accept ProfileManager as a dependency so that multi-profile scanning can be implemented without breaking existing functionality.
 
   **Acceptance Criteria:**
   - ComponentLinker struct includes profileManager field
