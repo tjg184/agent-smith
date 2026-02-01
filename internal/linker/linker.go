@@ -1374,13 +1374,27 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 	}
 
 	successCount := 0
+	failedCount := 0
 	var errors []string
 	var unlinkedTargets []string
+
+	// Print header showing what we're unlinking from
+	if targetFilter != "" && targetFilter != "all" {
+		cl.formatter.SectionHeader(fmt.Sprintf("Unlinking %s '%s' from: %s", componentType, componentName, targetFilter))
+	} else {
+		// Build list of target names
+		targetNames := make([]string, 0, len(targetsToUnlink))
+		for _, target := range targetsToUnlink {
+			targetNames = append(targetNames, target.GetName())
+		}
+		cl.formatter.SectionHeader(fmt.Sprintf("Unlinking %s '%s' from: %s", componentType, componentName, strings.Join(targetNames, ", ")))
+	}
 
 	for _, target := range targetsToUnlink {
 		componentDir, err := target.GetComponentDir(componentType)
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("failed to get target component directory for %s: %v", target.GetName(), err))
+			failedCount++
 			continue
 		}
 		linkPath := filepath.Join(componentDir, componentName)
@@ -1389,7 +1403,7 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 
 		// Check if link exists
 		if _, err := os.Lstat(linkPath); os.IsNotExist(err) {
-			// Not an error, just skip this target
+			// Not an error, just skip this target - component is already unlinked
 			continue
 		}
 
@@ -1398,7 +1412,7 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 
 		// For copied directories, ask for confirmation
 		if linkType == "copied" {
-			fmt.Printf("Warning: '%s' is a copied directory in %s, not a symlink.\n", componentName, targetName)
+			cl.formatter.WarningMsg("'%s' is a copied directory in %s, not a symlink", componentName, targetName)
 			fmt.Printf("This will permanently delete: %s\n", linkPath)
 			fmt.Print("Continue? [y/N]: ")
 
@@ -1406,36 +1420,45 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 			fmt.Scanln(&response)
 
 			if strings.ToLower(strings.TrimSpace(response)) != "y" {
-				fmt.Printf("Unlink cancelled for %s.\n", targetName)
+				cl.formatter.InfoMsg("Unlink cancelled for %s", targetName)
 				continue
 			}
 		}
 
+		// Show progress
+		cl.formatter.ProgressMsg(fmt.Sprintf("Unlinking from %s", targetName), componentName)
+
 		// Remove the link or directory
 		if linkType == "copied" {
 			if err := os.RemoveAll(linkPath); err != nil {
+				cl.formatter.ProgressFailed()
 				errors = append(errors, fmt.Sprintf("failed to remove copied directory from %s: %v", targetName, err))
+				failedCount++
 				continue
 			}
 		} else {
 			// For symlinks and broken links
 			if err := os.Remove(linkPath); err != nil {
+				cl.formatter.ProgressFailed()
 				errors = append(errors, fmt.Sprintf("failed to remove link from %s: %v", targetName, err))
+				failedCount++
 				continue
 			}
 		}
 
+		cl.formatter.ProgressComplete()
 		unlinkedTargets = append(unlinkedTargets, targetName)
 
 		if linkType == "symlink" && targetPath != "" {
-			fmt.Printf("  Source still available at: %s\n", targetPath)
+			cl.formatter.DetailItem("Source", targetPath)
 		}
 		successCount++
 	}
 
+	// Display warnings for any errors
 	if len(errors) > 0 {
 		for _, errMsg := range errors {
-			fmt.Printf("Warning: %s\n", errMsg)
+			cl.formatter.WarningMsg(errMsg)
 		}
 		if successCount == 0 {
 			return fmt.Errorf("failed to unlink from any target")
@@ -1446,9 +1469,9 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 		return fmt.Errorf("component %s/%s is not linked to any target", componentType, componentName)
 	}
 
-	// Display summary of affected targets
-	fmt.Printf("Successfully unlinked %s '%s' from %d target(s): %s\n",
-		componentType, componentName, successCount, strings.Join(unlinkedTargets, ", "))
+	// Display summary
+	cl.formatter.EmptyLine()
+	cl.formatter.CounterSummary(successCount+failedCount, successCount, failedCount, 0)
 
 	return nil
 }
@@ -1518,7 +1541,7 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 	}
 
 	if totalLinks == 0 && copiedDirs == 0 {
-		fmt.Printf("No linked %s found.\n", componentType)
+		cl.formatter.InfoMsg("No linked %s found", componentType)
 		return nil
 	}
 
@@ -1540,10 +1563,10 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 			fmt.Println()
 		}
 		if copiedDirs > 0 {
-			fmt.Printf("Note: %d copied directories will be skipped (not deleted)\n", copiedDirs)
+			cl.formatter.InfoMsg("Note: %d copied directories will be skipped (not deleted)", copiedDirs)
 		}
 		if totalLinks == 0 {
-			fmt.Printf("No symlinked %s to unlink (only copied directories found).\n", componentType)
+			cl.formatter.InfoMsg("No symlinked %s to unlink (only copied directories found)", componentType)
 			return nil
 		}
 		fmt.Print("Continue? [y/N]: ")
@@ -1555,6 +1578,18 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 			fmt.Println("Unlink cancelled.")
 			return nil
 		}
+	}
+
+	// Print header showing what we're unlinking
+	if targetFilter != "" && targetFilter != "all" {
+		cl.formatter.SectionHeader(fmt.Sprintf("Unlinking all %s from: %s", componentType, targetFilter))
+	} else {
+		// Build list of target names
+		targetNames := make([]string, 0, len(targetsToUnlink))
+		for _, target := range targetsToUnlink {
+			targetNames = append(targetNames, target.GetName())
+		}
+		cl.formatter.SectionHeader(fmt.Sprintf("Unlinking all %s from: %s", componentType, strings.Join(targetNames, ", ")))
 	}
 
 	// Remove all symlinks (skip copied directories)
@@ -1574,7 +1609,7 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 
 		entries, err := os.ReadDir(componentDir)
 		if err != nil {
-			fmt.Printf("Warning: failed to read %s directory for %s: %v\n", componentType, target.GetName(), err)
+			cl.formatter.WarningMsg("Failed to read %s directory for %s: %v", componentType, target.GetName(), err)
 			continue
 		}
 
@@ -1592,26 +1627,26 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 				continue
 			}
 
+			// Show progress for each item
+			cl.formatter.ProgressMsg(fmt.Sprintf("Unlinking %s from %s", componentType, target.GetName()), entry.Name())
+
 			// Remove symlinks and broken links
 			err := os.Remove(fullPath)
 
 			if err != nil {
-				fmt.Printf("Warning: failed to unlink %s/%s from %s: %v\n", componentType, entry.Name(), target.GetName(), err)
+				cl.formatter.ProgressFailed()
+				cl.formatter.WarningMsg("Failed to unlink %s/%s from %s: %v", componentType, entry.Name(), target.GetName(), err)
 				errorCount++
 			} else {
+				cl.formatter.ProgressComplete()
 				removedCount++
 			}
 		}
 	}
 
-	fmt.Printf("\nSuccessfully unlinked %d %s", removedCount, componentType)
-	if skippedCount > 0 {
-		fmt.Printf(" (%d copied directories skipped)", skippedCount)
-	}
-	if errorCount > 0 {
-		fmt.Printf(" (%d errors)", errorCount)
-	}
-	fmt.Println()
+	// Display summary
+	cl.formatter.EmptyLine()
+	cl.formatter.CounterSummary(removedCount+errorCount, removedCount, errorCount, skippedCount)
 
 	return nil
 }
@@ -1684,7 +1719,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool) 
 	}
 
 	if totalLinks == 0 && copiedDirs == 0 {
-		fmt.Println("No linked components found.")
+		cl.formatter.InfoMsg("No linked components found")
 		return nil
 	}
 
@@ -1707,10 +1742,10 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool) 
 			fmt.Println()
 		}
 		if copiedDirs > 0 {
-			fmt.Printf("Note: %d copied directories will be skipped (not deleted)\n", copiedDirs)
+			cl.formatter.InfoMsg("Note: %d copied directories will be skipped (not deleted)", copiedDirs)
 		}
 		if totalLinks == 0 {
-			fmt.Println("No symlinked components to unlink (only copied directories found).")
+			cl.formatter.InfoMsg("No symlinked components to unlink (only copied directories found)")
 			return nil
 		}
 		fmt.Print("Continue? [y/N]: ")
@@ -1722,6 +1757,18 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool) 
 			fmt.Println("Unlink cancelled.")
 			return nil
 		}
+	}
+
+	// Print header showing what we're unlinking
+	if targetFilter != "" && targetFilter != "all" {
+		cl.formatter.SectionHeader(fmt.Sprintf("Unlinking all components from: %s", targetFilter))
+	} else {
+		// Build list of target names
+		targetNames := make([]string, 0, len(targetsToUnlink))
+		for _, target := range targetsToUnlink {
+			targetNames = append(targetNames, target.GetName())
+		}
+		cl.formatter.SectionHeader(fmt.Sprintf("Unlinking all components from: %s", strings.Join(targetNames, ", ")))
 	}
 
 	// Remove all symlinks (skip copied directories)
@@ -1742,7 +1789,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool) 
 
 			entries, err := os.ReadDir(componentDir)
 			if err != nil {
-				fmt.Printf("Warning: failed to read %s directory for %s: %v\n", componentType, target.GetName(), err)
+				cl.formatter.WarningMsg("Failed to read %s directory for %s: %v", componentType, target.GetName(), err)
 				continue
 			}
 
@@ -1760,28 +1807,28 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool) 
 					continue
 				}
 
+				// Show progress for each item
+				cl.formatter.ProgressMsg(fmt.Sprintf("Unlinking %s from %s", componentType, target.GetName()), entry.Name())
+
 				// Remove symlinks and broken links
 				var err error
 				err = os.Remove(fullPath)
 
 				if err != nil {
-					fmt.Printf("Warning: failed to unlink %s/%s from %s: %v\n", componentType, entry.Name(), target.GetName(), err)
+					cl.formatter.ProgressFailed()
+					cl.formatter.WarningMsg("Failed to unlink %s/%s from %s: %v", componentType, entry.Name(), target.GetName(), err)
 					errorCount++
 				} else {
+					cl.formatter.ProgressComplete()
 					removedCount++
 				}
 			}
 		}
 	}
 
-	fmt.Printf("\nSuccessfully unlinked %d components", removedCount)
-	if skippedCount > 0 {
-		fmt.Printf(" (%d copied directories skipped)", skippedCount)
-	}
-	if errorCount > 0 {
-		fmt.Printf(" (%d errors)", errorCount)
-	}
-	fmt.Println()
+	// Display summary
+	cl.formatter.EmptyLine()
+	cl.formatter.CounterSummary(removedCount+errorCount, removedCount, errorCount, skippedCount)
 
 	return nil
 }
