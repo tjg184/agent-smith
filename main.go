@@ -1132,9 +1132,9 @@ func main() {
 				return
 			}
 
-			// Print top border with title
+			// Print top border with title - centered "Available Profiles" header
 			fmt.Println("┌────────────────────────────────────────────────────────────────────────────┐")
-			fmt.Println("│                          Available Profiles                                │")
+			fmt.Println("│                            Available Profiles                              │")
 			fmt.Println("├────────────────────────────────────────────────────────────────────────────┤")
 
 			for _, profile := range filteredProfiles {
@@ -1179,23 +1179,44 @@ func main() {
 				}
 
 				// Format the line: "│ ✓ profile-name                (X agents, Y skills, Z commands)     │"
-				// Calculate padding to align component counts
-				nameWidth := 30
-				countWidth := 40
-				paddedName := profile.Name
-				if len(paddedName) > nameWidth {
-					paddedName = paddedName[:nameWidth]
+				// Total width: 80 characters (including borders)
+				// Inner width: 76 characters (80 - 2 for borders - 2 for padding)
+				// Layout: " [indicator] [name with padding] [component counts with padding] "
+
+				// Available space: 76 - 1 (indicator) - 2 (spaces around indicator) = 73
+				availableSpace := 73
+
+				// Calculate how much space we need
+				nameLen := len(profile.Name)
+				countLen := len(componentStr)
+
+				// We want to pad between name and count
+				totalContentLen := nameLen + countLen
+				padding := availableSpace - totalContentLen
+				if padding < 2 {
+					padding = 2 // Minimum 2 spaces between name and count
 				}
-				namePadding := nameWidth - len(paddedName)
 
-				countPadding := countWidth - len(componentStr)
+				// Truncate name if too long
+				displayName := profile.Name
+				if nameLen > 40 {
+					displayName = displayName[:37] + "..."
+					nameLen = 40
+					padding = availableSpace - nameLen - countLen
+					if padding < 2 {
+						padding = 2
+					}
+				}
 
-				fmt.Printf("│ %s %-*s%*s%s%*s │\n",
+				// Calculate final padding to fill the line
+				rightPadding := availableSpace - nameLen - countLen - padding
+
+				fmt.Printf("│ %s %s%s%s%s │\n",
 					activeIndicator,
-					len(paddedName), paddedName,
-					namePadding, "",
+					displayName,
+					strings.Repeat(" ", padding),
 					componentStr,
-					countPadding, "")
+					strings.Repeat(" ", rightPadding))
 			}
 
 			// Print bottom border
