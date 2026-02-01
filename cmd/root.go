@@ -717,8 +717,14 @@ This command displays a table showing which components are linked to which targe
 making it easy to see what is installed where at a glance.
 
 EXAMPLES:
-  # Show link status matrix
+  # Show link status for current profile/base only
   agent-smith link status
+
+  # Show link status for all profiles
+  agent-smith link status --all-profiles
+
+  # Show link status for specific profiles only
+  agent-smith link status --all-profiles --profile=work,personal
 
 The output shows:
   ✓ - Valid symlink
@@ -728,9 +734,13 @@ The output shows:
   ? - Unknown status`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
-			handleLinkStatus()
+			allProfiles, _ := cmd.Flags().GetBool("all-profiles")
+			profileFilter, _ := cmd.Flags().GetStringSlice("profile")
+			handleLinkStatus(allProfiles, profileFilter)
 		},
 	}
+	linkStatusCmd.Flags().Bool("all-profiles", false, "Show link status for all profiles")
+	linkStatusCmd.Flags().StringSlice("profile", []string{}, "Filter to specific profiles (requires --all-profiles)")
 	linkCmd.AddCommand(linkStatusCmd)
 
 	rootCmd.AddCommand(linkCmd)
@@ -1489,7 +1499,7 @@ var (
 	handleLinkType           func(componentType, targetFilter, profile string)
 	handleAutoLink           func()
 	handleListLinks          func()
-	handleLinkStatus         func()
+	handleLinkStatus         func(allProfiles bool, profileFilter []string)
 	handleUnlink             func(componentType, componentName, targetFilter string)
 	handleUnlinkAll          func(targetFilter string, force bool)
 	handleUnlinkType         func(componentType, targetFilter string, force bool)
@@ -1523,7 +1533,7 @@ func SetHandlers(
 	linkType func(componentType, targetFilter, profile string),
 	autoLink func(),
 	listLinks func(),
-	linkStatus func(),
+	linkStatus func(allProfiles bool, profileFilter []string),
 	unlink func(componentType, componentName, targetFilter string),
 	unlinkAll func(targetFilter string, force bool),
 	unlinkType func(componentType, targetFilter string, force bool),

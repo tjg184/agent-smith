@@ -126,7 +126,7 @@ func TestUnlinkComponent_SingleTarget(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestUnlinkComponent_AllTargets(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -206,7 +206,7 @@ func TestUnlinkComponent_NonExistentTarget(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestUnlinkComponent_ComponentNotLinked(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -249,7 +249,7 @@ func TestUnlinkComponent_InvalidComponentType(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -266,7 +266,7 @@ func TestUnlinkComponent_SkillsAndCommands(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -305,7 +305,7 @@ func TestUnlinkComponentsByType_SpecificTarget(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -380,7 +380,7 @@ func TestUnlinkAllComponents_SpecificTarget(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -444,7 +444,7 @@ func TestUnlinkAllComponents_AllTargets(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -506,7 +506,7 @@ func TestUnlinkAllComponents_NonExistentTarget(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -523,7 +523,7 @@ func TestFilterTargets(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -583,7 +583,7 @@ func TestUnlinkComponent_PartialTargetLinking(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -630,7 +630,7 @@ func TestUnlinkComponent_BrokenSymlinkWithTarget(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -669,7 +669,7 @@ func TestUnlinkComponent_AllTargetsExplicit(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -701,7 +701,7 @@ func TestUnlinkComponent_OnlyInOneTarget(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -747,7 +747,7 @@ func TestUnlinkComponentsByType_AllTargets(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -805,7 +805,7 @@ func TestUnlinkComponentsByType_NonExistentTarget(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -832,7 +832,7 @@ func TestUnlinkComponentsByType_MixedLinksInTargets(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -881,7 +881,7 @@ func TestUnlinkAllComponents_MixedComponentTypes(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -932,7 +932,7 @@ func TestUnlinkAllComponents_EmptyTarget(t *testing.T) {
 	defer cleanup()
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(sourceDir, targets, det)
+	linker, err := NewComponentLinker(sourceDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}

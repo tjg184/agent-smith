@@ -229,7 +229,66 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 		det.SetLogger(appLogger)
 	}
 
-	return linker.NewComponentLinker(agentsDir, targets, det)
+	return linker.NewComponentLinker(agentsDir, targets, det, nil)
+}
+
+// profileManagerAdapter adapts profiles.ProfileManager to linker.ProfileManager
+type profileManagerAdapter struct {
+	pm *profiles.ProfileManager
+}
+
+func (pma *profileManagerAdapter) ScanProfiles() ([]*linker.Profile, error) {
+	profiles, err := pma.pm.ScanProfiles()
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert profiles.Profile to linker.Profile
+	result := make([]*linker.Profile, len(profiles))
+	for i, p := range profiles {
+		result[i] = &linker.Profile{
+			Name:        p.Name,
+			BasePath:    p.BasePath,
+			HasAgents:   p.HasAgents,
+			HasSkills:   p.HasSkills,
+			HasCommands: p.HasCommands,
+		}
+	}
+	return result, nil
+}
+
+func (pma *profileManagerAdapter) GetActiveProfile() (string, error) {
+	return pma.pm.GetActiveProfile()
+}
+
+// NewComponentLinkerWithProfileManager creates a new ComponentLinker with ProfileManager for multi-profile operations
+func NewComponentLinkerWithProfileManager(pm *profiles.ProfileManager) (*linker.ComponentLinker, error) {
+	debugPrintln("[DEBUG] NewComponentLinkerWithProfileManager: Creating component linker with profile manager")
+
+	// For multi-profile view, use base directory as the starting point
+	agentsDir, err := paths.GetAgentsDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get agents directory: %w", err)
+	}
+	debugPrintf("[DEBUG] NewComponentLinkerWithProfileManager: Base agents directory: %s\n", agentsDir)
+
+	// Detect all available targets
+	debugPrintln("[DEBUG] NewComponentLinkerWithProfileManager: Detecting available targets")
+	targets, err := config.DetectAllTargets()
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect targets: %w", err)
+	}
+	debugPrintf("[DEBUG] NewComponentLinkerWithProfileManager: Detected %d target(s)\n", len(targets))
+
+	det := detector.NewRepositoryDetector()
+	if appLogger != nil {
+		det.SetLogger(appLogger)
+	}
+
+	// Wrap the ProfileManager in an adapter
+	adapter := &profileManagerAdapter{pm: pm}
+
+	return linker.NewComponentLinker(agentsDir, targets, det, adapter)
 }
 
 // NewComponentLinkerWithFilterAndProfile creates a new ComponentLinker with filtered targets and optional explicit profile
@@ -327,7 +386,7 @@ func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string)
 		det.SetLogger(appLogger)
 	}
 
-	return linker.NewComponentLinker(agentsDir, targets, det)
+	return linker.NewComponentLinker(agentsDir, targets, det, nil)
 }
 
 // NewComponentLinkerWithFilter creates a new ComponentLinker with filtered targets
@@ -404,7 +463,7 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 		det.SetLogger(appLogger)
 	}
 
-	return linker.NewComponentLinker(agentsDir, targets, det)
+	return linker.NewComponentLinker(agentsDir, targets, det, nil)
 }
 
 // getTargetNames returns a slice of target names for error reporting
@@ -884,13 +943,36 @@ func main() {
 				log.Fatal("Failed to list linked components:", err)
 			}
 		},
-		func() {
-			linker, err := NewComponentLinker()
-			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
+		func(allProfiles bool, profileFilter []string) {
+			// Validate flags
+			if len(profileFilter) > 0 && !allProfiles {
+				log.Fatal("--profile flag requires --all-profiles")
 			}
-			if err := linker.ShowLinkStatus(); err != nil {
-				log.Fatal("Failed to show link status:", err)
+
+			if allProfiles {
+				// Create linker with ProfileManager for multi-profile view
+				pm, err := profiles.NewProfileManager(nil)
+				if err != nil {
+					log.Fatal("Failed to create profile manager:", err)
+				}
+
+				linker, err := NewComponentLinkerWithProfileManager(pm)
+				if err != nil {
+					log.Fatal("Failed to create component linker:", err)
+				}
+
+				if err := linker.ShowAllProfilesLinkStatus(profileFilter); err != nil {
+					log.Fatal("Failed to show link status:", err)
+				}
+			} else {
+				// Standard single-profile view (backward compatibility)
+				linker, err := NewComponentLinker()
+				if err != nil {
+					log.Fatal("Failed to create component linker:", err)
+				}
+				if err := linker.ShowLinkStatus(); err != nil {
+					log.Fatal("Failed to show link status:", err)
+				}
 			}
 		},
 		func(componentType, componentName, targetFilter string) {

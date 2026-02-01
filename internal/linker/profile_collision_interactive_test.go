@@ -48,7 +48,7 @@ func TestPromptProfileSelection_ValidSelection(t *testing.T) {
 	}
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(agentsDir, targets, det)
+	linker, err := NewComponentLinker(agentsDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -236,7 +236,7 @@ func TestPromptProfileSelection_AcceptanceCriteria(t *testing.T) {
 	}
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(agentsDir, targets, det)
+	linker, err := NewComponentLinker(agentsDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}

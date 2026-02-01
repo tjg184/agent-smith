@@ -110,7 +110,7 @@ func TestProfileCollisionHandling_Integration(t *testing.T) {
 	}
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(agentsDir, targets, det)
+	linker, err := NewComponentLinker(agentsDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestSearchComponentInProfiles_NoMatches(t *testing.T) {
 	}
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(agentsDir, targets, det)
+	linker, err := NewComponentLinker(agentsDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -220,7 +220,7 @@ func TestLinkComponent_ComponentNotInAnyProfile(t *testing.T) {
 	}
 
 	det := detector.NewRepositoryDetector()
-	linker, err := NewComponentLinker(agentsDir, targets, det)
+	linker, err := NewComponentLinker(agentsDir, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}

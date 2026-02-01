@@ -88,7 +88,7 @@ func TestLinkComponent_AutoLinkFromActiveProfile(t *testing.T) {
 	det := detector.NewRepositoryDetector()
 
 	// Create linker with the active profile's directory (simulating NewComponentLinker behavior)
-	linker, err := NewComponentLinker(testProfile, targets, det)
+	linker, err := NewComponentLinker(testProfile, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -192,7 +192,7 @@ func TestLinkComponent_FallbackToOtherProfile(t *testing.T) {
 	det := detector.NewRepositoryDetector()
 
 	// Create linker with the active profile's directory (simulating NewComponentLinker behavior)
-	linker, err := NewComponentLinker(activeProfile, targets, det)
+	linker, err := NewComponentLinker(activeProfile, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
@@ -285,7 +285,7 @@ func TestLinkComponent_ErrorWhenComponentNotFound(t *testing.T) {
 	det := detector.NewRepositoryDetector()
 
 	// Create linker with the active profile's directory
-	linker, err := NewComponentLinker(testProfile, targets, det)
+	linker, err := NewComponentLinker(testProfile, targets, det, nil)
 	if err != nil {
 		t.Fatalf("Failed to create linker: %v", err)
 	}

@@ -17,13 +17,32 @@ import (
 
 // ComponentLinker handles linking components to configured targets
 type ComponentLinker struct {
-	agentsDir string
-	targets   []config.Target
-	detector  *detector.RepositoryDetector
+	agentsDir      string
+	targets        []config.Target
+	detector       *detector.RepositoryDetector
+	profileManager ProfileManager // Optional - can be nil
+}
+
+// ProfileManager is an interface for profile scanning operations
+// This interface prevents circular dependencies between linker and profiles packages
+type ProfileManager interface {
+	ScanProfiles() ([]*Profile, error)
+	GetActiveProfile() (string, error)
+}
+
+// Profile represents a user profile (minimal interface to avoid circular dependency)
+// This must match the Profile struct from pkg/profiles/profiles.go
+type Profile struct {
+	Name        string
+	BasePath    string
+	HasAgents   bool
+	HasSkills   bool
+	HasCommands bool
 }
 
 // NewComponentLinker creates a new ComponentLinker with dependency injection
-func NewComponentLinker(agentsDir string, targets []config.Target, det *detector.RepositoryDetector) (*ComponentLinker, error) {
+// The pm parameter is optional and can be nil for backward compatibility
+func NewComponentLinker(agentsDir string, targets []config.Target, det *detector.RepositoryDetector, pm ProfileManager) (*ComponentLinker, error) {
 	// Validate inputs
 	if agentsDir == "" {
 		return nil, fmt.Errorf("agentsDir cannot be empty")
@@ -48,9 +67,10 @@ func NewComponentLinker(agentsDir string, targets []config.Target, det *detector
 	}
 
 	return &ComponentLinker{
-		agentsDir: agentsDir,
-		targets:   targets,
-		detector:  det,
+		agentsDir:      agentsDir,
+		targets:        targets,
+		detector:       det,
+		profileManager: pm,
 	}, nil
 }
 
@@ -919,6 +939,337 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 			}
 		}
 		fmt.Printf("  %s: %d/%d components linked\n", strings.ToUpper(targetName), linkedCount, len(statuses))
+	}
+
+	return nil
+}
+
+// ShowAllProfilesLinkStatus displays link status for components across all profiles
+// profileFilter can filter to specific profiles, or empty to show all
+func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) error {
+	// Validate that profileManager is available
+	if cl.profileManager == nil {
+		return fmt.Errorf("profile manager not available - this operation requires a profile manager")
+	}
+
+	componentTypes := paths.GetComponentTypes()
+
+	// Collect all unique components from all profiles
+	type ComponentInfo struct {
+		Name    string
+		Type    string
+		Profile string
+	}
+	allComponents := make([]ComponentInfo, 0)
+
+	// Get base installation directory
+	baseDir, err := paths.GetAgentsDir()
+	if err != nil {
+		return fmt.Errorf("failed to get base directory: %w", err)
+	}
+
+	// Scan base installation
+	baseComponents := make([]ComponentInfo, 0)
+	for _, componentType := range componentTypes {
+		sourceDir := filepath.Join(baseDir, componentType)
+		if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
+			continue
+		}
+
+		entries, err := os.ReadDir(sourceDir)
+		if err != nil {
+			continue // Skip directories we can't read
+		}
+
+		for _, entry := range entries {
+			if strings.HasPrefix(entry.Name(), ".") {
+				continue
+			}
+			if !entry.IsDir() {
+				continue
+			}
+			baseComponents = append(baseComponents, ComponentInfo{
+				Name:    entry.Name(),
+				Type:    componentType,
+				Profile: "base",
+			})
+		}
+	}
+
+	// Scan all profiles
+	profiles, err := cl.profileManager.ScanProfiles()
+	if err != nil {
+		return fmt.Errorf("failed to scan profiles: %w", err)
+	}
+
+	// Apply profile filter if specified
+	var filteredProfiles []*Profile
+	if len(profileFilter) > 0 {
+		filterMap := make(map[string]bool)
+		for _, name := range profileFilter {
+			filterMap[name] = true
+		}
+
+		// Validate that all filter names exist
+		profileMap := make(map[string]bool)
+		for _, p := range profiles {
+			profileMap[p.Name] = true
+		}
+
+		for _, filterName := range profileFilter {
+			if !profileMap[filterName] {
+				return fmt.Errorf("profile '%s' does not exist", filterName)
+			}
+		}
+
+		// Apply filter
+		for _, p := range profiles {
+			if filterMap[p.Name] {
+				filteredProfiles = append(filteredProfiles, p)
+			}
+		}
+	} else {
+		filteredProfiles = profiles
+	}
+
+	// Scan each profile for components
+	profileComponents := make([]ComponentInfo, 0)
+	for _, profile := range filteredProfiles {
+		for _, componentType := range componentTypes {
+			var sourceDir string
+			switch componentType {
+			case "agents":
+				if !profile.HasAgents {
+					continue
+				}
+				sourceDir = filepath.Join(profile.BasePath, "agents")
+			case "skills":
+				if !profile.HasSkills {
+					continue
+				}
+				sourceDir = filepath.Join(profile.BasePath, "skills")
+			case "commands":
+				if !profile.HasCommands {
+					continue
+				}
+				sourceDir = filepath.Join(profile.BasePath, "commands")
+			default:
+				continue
+			}
+
+			if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
+				continue
+			}
+
+			entries, err := os.ReadDir(sourceDir)
+			if err != nil {
+				continue // Skip directories we can't read
+			}
+
+			for _, entry := range entries {
+				if strings.HasPrefix(entry.Name(), ".") {
+					continue
+				}
+				if !entry.IsDir() {
+					continue
+				}
+				profileComponents = append(profileComponents, ComponentInfo{
+					Name:    entry.Name(),
+					Type:    componentType,
+					Profile: profile.Name,
+				})
+			}
+		}
+	}
+
+	// Combine base and profile components
+	// Only include base components if no filter is applied or if we're showing all
+	if len(profileFilter) == 0 {
+		allComponents = append(allComponents, baseComponents...)
+	}
+	allComponents = append(allComponents, profileComponents...)
+
+	if len(allComponents) == 0 {
+		if len(profileFilter) > 0 {
+			fmt.Println("No components found in the specified profiles")
+		} else {
+			fmt.Println("No components found")
+		}
+		return nil
+	}
+
+	// Get link status for each component across all targets
+	type ComponentStatus struct {
+		Component ComponentInfo
+		Targets   map[string]string // target name -> status symbol
+	}
+
+	statuses := make([]ComponentStatus, 0)
+
+	for _, comp := range allComponents {
+		status := ComponentStatus{
+			Component: comp,
+			Targets:   make(map[string]string),
+		}
+
+		// For each target, check the link status
+		for _, target := range cl.targets {
+			componentDir, err := target.GetComponentDir(comp.Type)
+			if err != nil {
+				status.Targets[target.GetName()] = "?"
+				continue
+			}
+
+			linkPath := filepath.Join(componentDir, comp.Name)
+
+			// Check if link exists
+			if _, err := os.Lstat(linkPath); os.IsNotExist(err) {
+				status.Targets[target.GetName()] = "-"
+				continue
+			}
+
+			// Get link status
+			linkType, _, valid := cl.analyzeLinkStatus(linkPath)
+
+			var symbol string
+			switch linkType {
+			case "symlink":
+				if valid {
+					symbol = "✓"
+				} else {
+					symbol = "✗"
+				}
+			case "copied":
+				symbol = "◆"
+			case "broken":
+				symbol = "✗"
+			default:
+				symbol = "?"
+			}
+
+			status.Targets[target.GetName()] = symbol
+		}
+
+		statuses = append(statuses, status)
+	}
+
+	// Display header
+	fmt.Println("\n=== Link Status Across All Profiles ===")
+	fmt.Println()
+
+	// Get target names for header
+	targetNames := make([]string, 0, len(cl.targets))
+	for _, target := range cl.targets {
+		targetNames = append(targetNames, target.GetName())
+	}
+
+	// Calculate column widths
+	maxNameLen := 20
+	typeColWidth := 8
+	profileColWidth := 10
+	for _, status := range statuses {
+		nameLen := len(status.Component.Name) + 2 // +2 for indent
+		if nameLen > maxNameLen {
+			maxNameLen = nameLen
+		}
+		profileLen := len(status.Component.Profile)
+		if profileLen > profileColWidth {
+			profileColWidth = profileLen
+		}
+	}
+
+	// Print header
+	fmt.Printf("%-*s  %-*s  %-*s", maxNameLen+2, "Component", typeColWidth, "Type", profileColWidth, "Profile")
+	for _, targetName := range targetNames {
+		fmt.Printf("  %-12s", strings.ToUpper(targetName))
+	}
+	fmt.Println()
+
+	// Print separator
+	fmt.Print(strings.Repeat("-", maxNameLen+2))
+	fmt.Print("  " + strings.Repeat("-", typeColWidth))
+	fmt.Print("  " + strings.Repeat("-", profileColWidth))
+	for range targetNames {
+		fmt.Print("  " + strings.Repeat("-", 12))
+	}
+	fmt.Println()
+
+	// Group by type and sort by name within each type
+	byType := make(map[string][]ComponentStatus)
+	for _, status := range statuses {
+		byType[status.Component.Type] = append(byType[status.Component.Type], status)
+	}
+
+	// Display each component type
+	for _, componentType := range componentTypes {
+		components := byType[componentType]
+		if len(components) == 0 {
+			continue
+		}
+
+		fmt.Printf("\n%s:\n", strings.Title(componentType))
+
+		for _, status := range components {
+			componentName := fmt.Sprintf("  %s", status.Component.Name)
+			fmt.Printf("%-*s  %-*s  %-*s",
+				maxNameLen+2, componentName,
+				typeColWidth, status.Component.Type,
+				profileColWidth, status.Component.Profile)
+
+			for _, targetName := range targetNames {
+				symbol := status.Targets[targetName]
+				fmt.Printf("  %-12s", symbol)
+			}
+			fmt.Println()
+		}
+	}
+
+	// Print legend
+	fmt.Println("\nLegend:")
+	fmt.Println("  ✓  Valid symlink")
+	fmt.Println("  ◆  Copied directory")
+	fmt.Println("  ✗  Broken link")
+	fmt.Println("  -  Not linked")
+	fmt.Println("  ?  Unknown status")
+
+	// Print summary
+	fmt.Println("\nSummary:")
+
+	// Calculate profile count
+	profileCount := len(filteredProfiles)
+	if len(profileFilter) == 0 {
+		profileCount++ // Include base
+	}
+	profileCountStr := fmt.Sprintf("%d", profileCount)
+	if len(profileFilter) == 0 {
+		if len(filteredProfiles) == 0 {
+			profileCountStr = "1 (base only)"
+		} else {
+			profileCountStr = fmt.Sprintf("%d (base + %d custom)", profileCount, len(filteredProfiles))
+		}
+	}
+	fmt.Printf("  Profiles scanned: %s\n", profileCountStr)
+	fmt.Printf("  Total components: %d\n", len(statuses))
+
+	for _, targetName := range targetNames {
+		linkedCount := 0
+		for _, status := range statuses {
+			symbol := status.Targets[targetName]
+			if symbol == "✓" || symbol == "◆" {
+				linkedCount++
+			}
+		}
+		percentage := 0
+		if len(statuses) > 0 {
+			percentage = (linkedCount * 100) / len(statuses)
+		}
+		fmt.Printf("  %s: %d/%d linked (%d%%)\n", strings.ToUpper(targetName), linkedCount, len(statuses), percentage)
+	}
+
+	// Show active profile
+	activeProfile, err := cl.profileManager.GetActiveProfile()
+	if err == nil && activeProfile != "" {
+		fmt.Printf("\nActive Profile: %s\n", activeProfile)
 	}
 
 	return nil
