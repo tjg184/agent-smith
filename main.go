@@ -167,6 +167,10 @@ func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
 	return updater.NewUpdateDetectorWithProfile(profile)
 }
 
+func NewUpdateDetectorWithBaseDir(baseDir string) *UpdateDetector {
+	return updater.NewUpdateDetectorWithBaseDir(baseDir)
+}
+
 func NewBulkDownloader() *BulkDownloader {
 	return downloader.NewBulkDownloader()
 }

@@ -171,3 +171,117 @@ func TestNewUpdateDetectorWithProfile_ExplicitProfileOverridesActive(t *testing.
 		t.Errorf("Expected profileName %s, got %s", explicitProfileName, detector.profileName)
 	}
 }
+
+// TestNewUpdateDetectorWithBaseDir tests that the new constructor correctly uses
+// an explicit base directory without any profile detection logic
+func TestNewUpdateDetectorWithBaseDir(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "agent-smith-updater-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a custom base directory
+	customBaseDir := filepath.Join(tempDir, "custom-base-directory")
+	if err := os.MkdirAll(customBaseDir, 0755); err != nil {
+		t.Fatalf("Failed to create custom base directory: %v", err)
+	}
+
+	// Create detector with explicit base directory
+	detector := NewUpdateDetectorWithBaseDir(customBaseDir)
+
+	// Verify that the detector uses the exact base directory provided
+	if detector.baseDir != customBaseDir {
+		t.Errorf("Expected baseDir %s, got %s", customBaseDir, detector.baseDir)
+	}
+
+	// Verify that profileName is empty (no profile management)
+	if detector.profileName != "" {
+		t.Errorf("Expected empty profileName, got %s", detector.profileName)
+	}
+
+	// Verify that detector is not nil (basic sanity check)
+	if detector.detector == nil {
+		t.Error("Expected detector to be initialized, got nil")
+	}
+}
+
+// TestNewUpdateDetectorWithBaseDir_ProfileDirectory tests that when given a profile
+// directory path, it works correctly without trying to detect or manage profiles
+func TestNewUpdateDetectorWithBaseDir_ProfileDirectory(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "agent-smith-updater-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Set HOME to test directory
+	oldHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempDir)
+	defer os.Setenv("HOME", oldHome)
+
+	// Create a profile directory structure
+	profileName := "test-profile"
+	profileDir := filepath.Join(tempDir, ".agent-smith", "profiles", profileName)
+	if err := os.MkdirAll(profileDir, 0755); err != nil {
+		t.Fatalf("Failed to create profile directory: %v", err)
+	}
+
+	// Also create and activate a DIFFERENT profile to ensure it's ignored
+	activeProfileName := "active-profile"
+	activeProfileDir := filepath.Join(tempDir, ".agent-smith", "profiles", activeProfileName)
+	if err := os.MkdirAll(activeProfileDir, 0755); err != nil {
+		t.Fatalf("Failed to create active profile directory: %v", err)
+	}
+
+	agentSmithDir := filepath.Join(tempDir, ".agent-smith")
+	activeProfileFile := filepath.Join(agentSmithDir, ".active-profile")
+	if err := os.WriteFile(activeProfileFile, []byte(activeProfileName), 0644); err != nil {
+		t.Fatalf("Failed to write active profile file: %v", err)
+	}
+
+	// Create detector with explicit profile directory (should NOT use active profile)
+	detector := NewUpdateDetectorWithBaseDir(profileDir)
+
+	// Verify that the detector uses the exact profile directory provided
+	if detector.baseDir != profileDir {
+		t.Errorf("Expected baseDir %s, got %s", profileDir, detector.baseDir)
+	}
+
+	// Verify that profileName is empty (caller manages the directory)
+	if detector.profileName != "" {
+		t.Errorf("Expected empty profileName, got %s", detector.profileName)
+	}
+}
+
+// TestNewUpdateDetectorWithBaseDir_BaseDirectory tests that when given the base
+// agent-smith directory, it works correctly
+func TestNewUpdateDetectorWithBaseDir_BaseDirectory(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "agent-smith-updater-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create base agent-smith directory
+	baseDir := filepath.Join(tempDir, ".agent-smith")
+	if err := os.MkdirAll(baseDir, 0755); err != nil {
+		t.Fatalf("Failed to create base directory: %v", err)
+	}
+
+	// Create detector with base directory
+	detector := NewUpdateDetectorWithBaseDir(baseDir)
+
+	// Verify that the detector uses the base directory
+	if detector.baseDir != baseDir {
+		t.Errorf("Expected baseDir %s, got %s", baseDir, detector.baseDir)
+	}
+
+	// Verify that profileName is empty
+	if detector.profileName != "" {
+		t.Errorf("Expected empty profileName, got %s", detector.profileName)
+	}
+}

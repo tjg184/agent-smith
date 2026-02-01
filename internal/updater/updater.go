@@ -98,6 +98,17 @@ func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
 	}
 }
 
+// NewUpdateDetectorWithBaseDir creates a new UpdateDetector instance with an explicit base directory
+// This allows the caller to specify exactly which directory to use, bypassing all profile detection logic
+// The profileName is left empty since the caller is managing the directory directly
+func NewUpdateDetectorWithBaseDir(baseDir string) *UpdateDetector {
+	return &UpdateDetector{
+		baseDir:     baseDir,
+		detector:    detector.NewRepositoryDetector(),
+		profileName: "", // No profile name since we're using an explicit directory
+	}
+}
+
 // LoadMetadata loads component metadata from lock files only
 func (ud *UpdateDetector) LoadMetadata(componentType, componentName string) (*models.ComponentMetadata, error) {
 	return ud.loadMetadata(componentType, componentName)
