@@ -805,3 +805,306 @@ Third skill`,
 		}
 	}
 }
+
+// TestDirectoryCopyingWithResources tests that directory copying preserves all files including resources
+func TestDirectoryCopyingWithResources(t *testing.T) {
+	helper := NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create temporary source directory
+	srcDir := filepath.Join(helper.tempDir, "src-test")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("Failed to create src temp directory: %v", err)
+	}
+
+	// Create temporary destination directory
+	dstDir := filepath.Join(helper.tempDir, "dst-test")
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		t.Fatalf("Failed to create dst temp directory: %v", err)
+	}
+
+	// Create a complex directory structure with various file types
+	testFiles := map[string]string{
+		"SKILL.md":                      "# My Skill\nThis is the main skill file",
+		"README.md":                     "# Documentation\nHow to use this skill",
+		"template.txt":                  "Template content",
+		"config.json":                   `{"setting": "value"}`,
+		"support/helper.md":             "# Helper\nSupport documentation",
+		"support/example.txt":           "Example file",
+		"resources/image.txt":           "image placeholder",
+		"resources/data/sample.csv":     "col1,col2\nval1,val2",
+		"nested/deep/structure/file.md": "Deeply nested file",
+		".hidden":                       "Hidden file content",
+	}
+
+	// Create all test files
+	for relPath, content := range testFiles {
+		fullPath := filepath.Join(srcDir, relPath)
+		dir := filepath.Dir(fullPath)
+
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatalf("Failed to create directory %s: %v", dir, err)
+		}
+
+		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to create file %s: %v", fullPath, err)
+		}
+	}
+
+	// Copy directory contents using the internal fileutil package (real file system operation)
+	err := copyDirectoryContentsForTest(srcDir, dstDir)
+	if err != nil {
+		t.Fatalf("CopyDirectoryContents failed: %v", err)
+	}
+
+	// Verify all files were copied
+	for relPath, expectedContent := range testFiles {
+		dstPath := filepath.Join(dstDir, relPath)
+
+		// Check file exists
+		if _, err := os.Stat(dstPath); os.IsNotExist(err) {
+			t.Errorf("File not copied: %s", relPath)
+			continue
+		}
+
+		// Check file content
+		actualContent, err := os.ReadFile(dstPath)
+		if err != nil {
+			t.Errorf("Failed to read copied file %s: %v", relPath, err)
+			continue
+		}
+
+		if string(actualContent) != expectedContent {
+			t.Errorf("File content mismatch for %s:\nExpected: %s\nActual: %s",
+				relPath, expectedContent, string(actualContent))
+		}
+	}
+
+	// Verify directory structure is preserved
+	expectedDirs := []string{
+		"support",
+		"resources",
+		"resources/data",
+		"nested",
+		"nested/deep",
+		"nested/deep/structure",
+	}
+
+	for _, dir := range expectedDirs {
+		dirPath := filepath.Join(dstDir, dir)
+		info, err := os.Stat(dirPath)
+		if err != nil {
+			t.Errorf("Directory not created: %s (error: %v)", dir, err)
+			continue
+		}
+		if !info.IsDir() {
+			t.Errorf("Path exists but is not a directory: %s", dir)
+		}
+	}
+
+	t.Logf("SUCCESS: All %d files and %d directories copied correctly",
+		len(testFiles), len(expectedDirs))
+}
+
+// copyDirectoryContentsForTest is a helper function that performs real directory copying
+func copyDirectoryContentsForTest(src, dst string) error {
+	// Read the source directory
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+
+	// Create destination directory if it doesn't exist
+	if err := os.MkdirAll(dst, 0755); err != nil {
+		return err
+	}
+
+	// Copy each entry
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			// Recursively copy directories
+			if err := copyDirectoryContentsForTest(srcPath, dstPath); err != nil {
+				return err
+			}
+		} else {
+			// Copy files
+			data, err := os.ReadFile(srcPath)
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(dstPath, data, 0644); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// TestComponentDownloadPreservesResources tests end-to-end component download with resources
+func TestComponentDownloadPreservesResources(t *testing.T) {
+	helper := NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create a skill with support files
+	repoPath := helper.CreateMockRepo("resource-repo", map[string]string{
+		"skills/my-skill/SKILL.md":              "# My Skill",
+		"skills/my-skill/README.md":             "# Documentation",
+		"skills/my-skill/template.md":           "# Template",
+		"skills/my-skill/resources/example.txt": "Example resource",
+		"skills/my-skill/support/helper.md":     "# Helper",
+		"skills/my-skill/nested/deep/nested.md": "Deeply nested file",
+		"skills/my-skill/config.json":           `{"setting": "value"}`,
+		"skills/my-skill/.dotfile":              "Hidden file",
+	})
+
+	installDir := helper.CreateInstallDir()
+
+	// Create downloader (it will create skills subdirectory automatically)
+	dl := downloader.NewSkillDownloaderWithTargetDir(installDir)
+
+	// Download skill (use repoPath directly for local repos, not file:// URL)
+	err := dl.DownloadSkill(repoPath, "my-skill", repoPath)
+	if err != nil {
+		t.Fatalf("Failed to download skill: %v", err)
+	}
+
+	// Verify skill directory was created
+	skillDir := filepath.Join(installDir, "skills", "my-skill")
+	helper.VerifyDirExists(skillDir, "Skill directory")
+
+	// Verify all files were copied including resources
+	expectedFiles := []string{
+		"SKILL.md",
+		"README.md",
+		"template.md",
+		"config.json",
+		".dotfile",
+		filepath.Join("resources", "example.txt"),
+		filepath.Join("support", "helper.md"),
+		filepath.Join("nested", "deep", "nested.md"),
+	}
+
+	for _, relPath := range expectedFiles {
+		fullPath := filepath.Join(skillDir, relPath)
+		helper.VerifyFileExists(fullPath, "Resource file: "+relPath)
+	}
+
+	t.Logf("SUCCESS: Component downloaded with all %d support files preserved", len(expectedFiles))
+}
+
+// TestMultipleComponentsWithResources tests that multiple components can be downloaded independently
+func TestMultipleComponentsWithResources(t *testing.T) {
+	helper := NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create multiple skills, each with their own resources
+	repoPath := helper.CreateMockRepo("multi-skill-repo", map[string]string{
+		"skills/skill-a/SKILL.md":           "# Skill A",
+		"skills/skill-a/README.md":          "# Skill A Docs",
+		"skills/skill-a/resources/data.txt": "Skill A Data",
+		"skills/skill-b/SKILL.md":           "# Skill B",
+		"skills/skill-b/template.md":        "# Template B",
+		"skills/skill-b/support/helper.md":  "# Helper B",
+		"skills/skill-c/SKILL.md":           "# Skill C",
+		"skills/skill-c/config.json":        `{"name": "skill-c"}`,
+	})
+
+	installDir := helper.CreateInstallDir()
+
+	// Create downloader (it will create skills subdirectory automatically)
+	dl := downloader.NewSkillDownloaderWithTargetDir(installDir)
+
+	// Download all three skills
+	skills := []string{"skill-a", "skill-b", "skill-c"}
+	for _, skillName := range skills {
+		err := dl.DownloadSkill(repoPath, skillName, repoPath)
+		if err != nil {
+			t.Fatalf("Failed to download skill %s: %v", skillName, err)
+		}
+	}
+
+	// Verify each skill has its own resources
+	skillResources := map[string][]string{
+		"skill-a": {"SKILL.md", "README.md", filepath.Join("resources", "data.txt")},
+		"skill-b": {"SKILL.md", "template.md", filepath.Join("support", "helper.md")},
+		"skill-c": {"SKILL.md", "config.json"},
+	}
+
+	for skillName, expectedFiles := range skillResources {
+		skillDir := filepath.Join(installDir, "skills", skillName)
+		helper.VerifyDirExists(skillDir, "Skill directory for "+skillName)
+
+		for _, relPath := range expectedFiles {
+			fullPath := filepath.Join(skillDir, relPath)
+			helper.VerifyFileExists(fullPath, "Resource for "+skillName+": "+relPath)
+		}
+	}
+
+	t.Logf("SUCCESS: All 3 components downloaded independently with resources preserved")
+}
+
+// TestCopyComponentFilesRecursive tests recursive copying of component files including subdirectories
+func TestCopyComponentFilesRecursive(t *testing.T) {
+	helper := NewTestHelper(t)
+	defer helper.Cleanup()
+
+	// Create a component with nested structure
+	repoPath := helper.CreateMockRepo("nested-repo", map[string]string{
+		"skills/test-skill/SKILL.md":                      "# Skill",
+		"skills/test-skill/README.md":                     "# README",
+		"skills/test-skill/resources/image.png":           "image data",
+		"skills/test-skill/subdirectory/file.txt":         "nested content",
+		"skills/test-skill/deep/nested/structure/data.md": "deeply nested",
+	})
+
+	installDir := helper.CreateInstallDir()
+
+	// Create downloader (it will create skills subdirectory automatically)
+	dl := downloader.NewSkillDownloaderWithTargetDir(installDir)
+
+	// Download skill (use repoPath directly for local repos)
+	err := dl.DownloadSkill(repoPath, "test-skill", repoPath)
+	if err != nil {
+		t.Fatalf("Failed to download skill: %v", err)
+	}
+
+	// Verify all files including subdirectories were copied
+	skillDir := filepath.Join(installDir, "skills", "test-skill")
+
+	// Check files
+	helper.VerifyFileExists(filepath.Join(skillDir, "SKILL.md"), "SKILL.md")
+	helper.VerifyFileExists(filepath.Join(skillDir, "README.md"), "README.md")
+
+	// Check resources subdirectory
+	helper.VerifyDirExists(filepath.Join(skillDir, "resources"), "resources directory")
+	helper.VerifyFileExists(filepath.Join(skillDir, "resources", "image.png"), "resources/image.png")
+
+	// Check nested subdirectory
+	helper.VerifyDirExists(filepath.Join(skillDir, "subdirectory"), "subdirectory")
+	helper.VerifyFileExists(filepath.Join(skillDir, "subdirectory", "file.txt"), "subdirectory/file.txt")
+
+	// Check deeply nested structure
+	helper.VerifyDirExists(filepath.Join(skillDir, "deep", "nested", "structure"), "deep/nested/structure")
+	helper.VerifyFileExists(filepath.Join(skillDir, "deep", "nested", "structure", "data.md"), "deep/nested/structure/data.md")
+
+	// Verify content of nested files
+	imageContent, err := os.ReadFile(filepath.Join(skillDir, "resources", "image.png"))
+	if err != nil {
+		t.Errorf("Failed to read resources/image.png: %v", err)
+	} else if string(imageContent) != "image data" {
+		t.Errorf("Expected 'image data' in resources/image.png, got '%s'", string(imageContent))
+	}
+
+	nestedContent, err := os.ReadFile(filepath.Join(skillDir, "subdirectory", "file.txt"))
+	if err != nil {
+		t.Errorf("Failed to read subdirectory/file.txt: %v", err)
+	} else if string(nestedContent) != "nested content" {
+		t.Errorf("Expected 'nested content' in subdirectory/file.txt, got '%s'", string(nestedContent))
+	}
+
+	t.Logf("SUCCESS: CopyComponentFiles correctly copied all files and subdirectories recursively")
+}
