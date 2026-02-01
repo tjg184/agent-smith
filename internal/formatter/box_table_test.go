@@ -120,6 +120,26 @@ func TestVisibleLength(t *testing.T) {
 			input:    "",
 			expected: 0,
 		},
+		{
+			name:     "Unicode checkmark",
+			input:    "✓ Success",
+			expected: 9,
+		},
+		{
+			name:     "Unicode checkmark with color",
+			input:    "\x1b[32m✓ Success\x1b[0m",
+			expected: 9,
+		},
+		{
+			name:     "emoji with variation selector",
+			input:    "⚠️ Skipped",
+			expected: 10, // ⚠️ renders as 2 chars + space + "Skipped" (7 chars) = 10
+		},
+		{
+			name:     "emoji with variation selector and color",
+			input:    "\x1b[33m⚠️ Skipped\x1b[0m",
+			expected: 10,
+		},
 	}
 
 	for _, tt := range tests {

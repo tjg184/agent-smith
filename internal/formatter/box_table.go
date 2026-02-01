@@ -5,6 +5,8 @@ import (
 	"io"
 	"regexp"
 	"strings"
+
+	"github.com/mattn/go-runewidth"
 )
 
 // Box-drawing character constants for table formatting
@@ -26,8 +28,39 @@ const (
 var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
 // visibleLength returns the visible length of a string, excluding ANSI color codes
+// and accounting for multi-byte Unicode characters
 func visibleLength(s string) int {
-	return len(ansiRegex.ReplaceAllString(s, ""))
+	// Remove ANSI color codes first
+	stripped := ansiRegex.ReplaceAllString(s, "")
+
+	// Calculate the display width, accounting for emoji variation selectors
+	// Many terminals render emoji with variation selector (U+FE0F) as 2 characters wide
+	width := 0
+	runes := []rune(stripped)
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		// Check if this is followed by a variation selector
+		hasVariationSelector := false
+		if i+1 < len(runes) && runes[i+1] == '\uFE0F' {
+			hasVariationSelector = true
+		}
+
+		// If the rune is an emoji or has a variation selector, it likely renders as 2 chars
+		// Common emoji ranges and symbols that render wide:
+		// U+2600-U+26FF (Miscellaneous Symbols) - includes ⚠ (U+26A0)
+		// U+1F300-U+1F9FF (Emoji)
+		if hasVariationSelector || (r >= 0x1F300 && r <= 0x1F9FF) {
+			width += 2
+			// Skip the variation selector if present
+			if i+1 < len(runes) && runes[i+1] == '\uFE0F' {
+				i++
+			}
+		} else {
+			width += runewidth.RuneWidth(r)
+		}
+	}
+
+	return width
 }
 
 // BoxTable represents a table with box-drawing characters
@@ -74,7 +107,10 @@ func (bt *BoxTable) Render() {
 	// Print header
 	fmt.Fprint(bt.writer, BoxVertical)
 	for i, header := range bt.headers {
-		fmt.Fprintf(bt.writer, " %-*s %s", bt.columnSizes[i], header, BoxVertical)
+		// Calculate padding needed to account for ANSI color codes
+		visLen := visibleLength(header)
+		padding := bt.columnSizes[i] - visLen
+		fmt.Fprintf(bt.writer, " %s%s %s", header, strings.Repeat(" ", padding), BoxVertical)
 	}
 	fmt.Fprintln(bt.writer)
 
@@ -86,7 +122,10 @@ func (bt *BoxTable) Render() {
 		fmt.Fprint(bt.writer, BoxVertical)
 		for i, cell := range row {
 			if i < len(bt.columnSizes) {
-				fmt.Fprintf(bt.writer, " %-*s %s", bt.columnSizes[i], cell, BoxVertical)
+				// Calculate padding needed to account for ANSI color codes
+				visLen := visibleLength(cell)
+				padding := bt.columnSizes[i] - visLen
+				fmt.Fprintf(bt.writer, " %s%s %s", cell, strings.Repeat(" ", padding), BoxVertical)
 			}
 		}
 		fmt.Fprintln(bt.writer)
