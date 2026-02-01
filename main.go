@@ -1058,7 +1058,7 @@ func main() {
 				log.Fatal("Failed to uninstall components:", err)
 			}
 		},
-		func() {
+		func(profileFilter []string, activeOnly bool) {
 			pm, err := profiles.NewProfileManager(nil)
 			if err != nil {
 				log.Fatal("Failed to create profile manager:", err)
@@ -1075,18 +1075,65 @@ func main() {
 				log.Fatal("Failed to get active profile:", err)
 			}
 
+			// Apply filters
+			var filteredProfiles []*profiles.Profile
+
+			// Filter by active-only if specified
+			if activeOnly {
+				for _, profile := range profilesList {
+					if profile.Name == activeProfile {
+						filteredProfiles = append(filteredProfiles, profile)
+						break
+					}
+				}
+			} else if len(profileFilter) > 0 {
+				// Filter by specific profile names
+				filterMap := make(map[string]bool)
+				for _, name := range profileFilter {
+					filterMap[name] = true
+				}
+
+				// Validate that all filter names exist
+				profileMap := make(map[string]bool)
+				for _, p := range profilesList {
+					profileMap[p.Name] = true
+				}
+
+				for _, filterName := range profileFilter {
+					if !profileMap[filterName] {
+						log.Fatalf("Profile '%s' does not exist", filterName)
+					}
+				}
+
+				// Apply filter
+				for _, p := range profilesList {
+					if filterMap[p.Name] {
+						filteredProfiles = append(filteredProfiles, p)
+					}
+				}
+			} else {
+				// No filters, show all profiles
+				filteredProfiles = profilesList
+			}
+
 			// Display results
-			if len(profilesList) == 0 {
-				fmt.Println("No profiles found in ~/.agent-smith/profiles/")
-				fmt.Println("\nTo create a profile, run:")
-				fmt.Println("  ./agent-smith profile create <profile-name>")
+			if len(filteredProfiles) == 0 {
+				if activeOnly {
+					fmt.Println("No active profile set")
+				} else if len(profileFilter) > 0 {
+					fmt.Println("No matching profiles found")
+				} else {
+					fmt.Println("No profiles found in ~/.agent-smith/profiles/")
+					fmt.Println("\nTo create a profile, run:")
+					fmt.Println("  ./agent-smith profile create <profile-name>")
+				}
 				return
 			}
 
 			fmt.Println("Available Profiles:")
 			fmt.Println()
 
-			for _, profile := range profilesList {
+			for _, profile := range filteredProfiles {
 				// Count components
 				agents, skills, commands := pm.CountComponents(profile)
 
@@ -1123,7 +1170,11 @@ func main() {
 			fmt.Printf("  %s - Currently active profile\n", formatter.SymbolSuccess)
 
 			// Display total count
-			fmt.Printf("\nTotal: %d profile(s)\n", len(profilesList))
+			if len(profileFilter) > 0 || activeOnly {
+				fmt.Printf("\nShowing: %d profile(s) (filtered from %d total)\n", len(filteredProfiles), len(profilesList))
+			} else {
+				fmt.Printf("\nTotal: %d profile(s)\n", len(filteredProfiles))
+			}
 		},
 		func(profileName string) {
 			pm, err := profiles.NewProfileManager(nil)

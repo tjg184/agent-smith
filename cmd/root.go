@@ -1127,12 +1127,21 @@ and commands, making it easy to switch contexts for different projects or tasks.
 
 This command shows all valid profiles (those containing at least one component
 directory), indicates which profile is currently active, and displays component
-counts for each profile.`,
+counts for each profile.
+
+Filtering options:
+  --profile: Filter to show only specific profiles (can be specified multiple times)
+  --active-only: Show only the currently active profile`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
-			handleProfilesList()
+			profileFilter, _ := cmd.Flags().GetStringSlice("profile")
+			activeOnly, _ := cmd.Flags().GetBool("active-only")
+			handleProfilesList(profileFilter, activeOnly)
 		},
 	}
+
+	profilesListCmd.Flags().StringSlice("profile", []string{}, "Filter to specific profiles")
+	profilesListCmd.Flags().Bool("active-only", false, "Show only the active profile")
 
 	profilesShowCmd := &cobra.Command{
 		Use:   "show <profile-name>",
@@ -1505,7 +1514,7 @@ var (
 	handleUnlinkType         func(componentType, targetFilter string, force bool)
 	handleUninstall          func(componentType, componentName, profile string)
 	handleUninstallAll       func(repoURL string, force bool)
-	handleProfilesList       func()
+	handleProfilesList       func(profileFilter []string, activeOnly bool)
 	handleProfilesShow       func(profileName string)
 	handleProfilesCreate     func(profileName string)
 	handleProfilesDelete     func(profileName string)
@@ -1539,7 +1548,7 @@ func SetHandlers(
 	unlinkType func(componentType, targetFilter string, force bool),
 	uninstall func(componentType, componentName, profile string),
 	uninstallAll func(repoURL string, force bool),
-	profilesList func(),
+	profilesList func(profileFilter []string, activeOnly bool),
 	profilesShow func(profileName string),
 	profilesCreate func(profileName string),
 	profilesDelete func(profileName string),
