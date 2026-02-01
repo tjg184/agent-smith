@@ -156,3 +156,74 @@ func (f *Formatter) CounterSummary(total, success, failed, skipped int) {
 		fmt.Fprintf(f.writer, "%s Skipped: %d\n", colors.Warning(SymbolWarning), skipped)
 	}
 }
+
+// InlineSuccess prints an inline success message
+// Format: "Operation: item... ✓ Done"
+func (f *Formatter) InlineSuccess(operation, item string) {
+	fmt.Fprintf(f.writer, "%s: %s... %s\n", operation, item, colors.Success(SymbolSuccess+" Done"))
+}
+
+// InlineSuccessWithNote prints an inline success message with an additional note
+// Format: "Operation: item... ✓ Done (note)"
+func (f *Formatter) InlineSuccessWithNote(operation, item, note string) {
+	fmt.Fprintf(f.writer, "%s: %s... %s\n", operation, item, colors.Success(SymbolSuccess+" Done")+colors.Muted(" ("+note+")"))
+}
+
+// InlineFailed prints an inline failure message
+// Format: "Operation: item... ✗ Failed"
+func (f *Formatter) InlineFailed(operation, item string) {
+	fmt.Fprintf(f.writer, "%s: %s... %s\n", operation, item, colors.Error(SymbolError+" Failed"))
+}
+
+// StatusSuccess prints a standalone success status message
+// Format: "✓ Successfully completed operation"
+func (f *Formatter) StatusSuccess(message string, args ...interface{}) {
+	msg := fmt.Sprintf(message, args...)
+	fmt.Fprintf(f.writer, "%s %s\n", colors.Success(SymbolSuccess), msg)
+}
+
+// StatusError prints a standalone error status message
+// Format: "✗ Error: something went wrong"
+func (f *Formatter) StatusError(message string, args ...interface{}) {
+	msg := fmt.Sprintf(message, args...)
+	fmt.Fprintf(f.writer, "%s %s\n", colors.Error(SymbolError), msg)
+}
+
+// StatusUpToDate prints an "up to date" status message
+// Format: "✓ Up to date"
+func (f *Formatter) StatusUpToDate() {
+	fmt.Fprintf(f.writer, "%s Up to date\n", colors.Success(SymbolSuccess))
+}
+
+// StatusUpdating prints an "updating" status message
+// Format: "⟳ Updating"
+func (f *Formatter) StatusUpdating() {
+	fmt.Fprintf(f.writer, "%s Updating\n", colors.Warning(SymbolUpdating))
+}
+
+// IndentedDetail prints an indented detail line
+// Format: "  → key: value"
+func (f *Formatter) IndentedDetail(key, value string) {
+	fmt.Fprintf(f.writer, "  %s %s: %s\n", colors.Muted("→"), key, value)
+}
+
+// IndentedError prints an indented error message
+// Format: "  ✗ error message"
+func (f *Formatter) IndentedError(message string, args ...interface{}) {
+	msg := fmt.Sprintf(message, args...)
+	fmt.Fprintf(f.writer, "  %s %s\n", colors.Error(SymbolError), msg)
+}
+
+// IndentedSuccess prints an indented success message
+// Format: "  ✓ success message"
+func (f *Formatter) IndentedSuccess(message string, args ...interface{}) {
+	msg := fmt.Sprintf(message, args...)
+	fmt.Fprintf(f.writer, "  %s %s\n", colors.Success(SymbolSuccess), msg)
+}
+
+// PlainWarning prints a plain warning message with consistent prefix
+// Format: "Warning: message"
+func (f *Formatter) PlainWarning(message string, args ...interface{}) {
+	msg := fmt.Sprintf(message, args...)
+	fmt.Fprintf(f.writer, "Warning: %s\n", msg)
+}

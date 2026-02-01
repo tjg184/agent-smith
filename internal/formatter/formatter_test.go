@@ -161,3 +161,179 @@ func TestColoredWarning(t *testing.T) {
 		t.Errorf("Expected warning symbol in colored warning, got: %s", result)
 	}
 }
+
+func TestInlineSuccess(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.InlineSuccess("Linking", "test-component")
+
+	output := buf.String()
+	if !strings.Contains(output, "Linking: test-component...") {
+		t.Errorf("Expected inline success message, got: %s", output)
+	}
+	if !strings.Contains(output, "Done") {
+		t.Errorf("Expected 'Done' in output, got: %s", output)
+	}
+}
+
+func TestInlineSuccessWithNote(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.InlineSuccessWithNote("Linking", "test-component", "from profile: dev")
+
+	output := buf.String()
+	if !strings.Contains(output, "Linking: test-component...") {
+		t.Errorf("Expected inline success message, got: %s", output)
+	}
+	if !strings.Contains(output, "Done") {
+		t.Errorf("Expected 'Done' in output, got: %s", output)
+	}
+	if !strings.Contains(output, "from profile: dev") {
+		t.Errorf("Expected note in output, got: %s", output)
+	}
+}
+
+func TestInlineFailed(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.InlineFailed("Linking", "test-component")
+
+	output := buf.String()
+	if !strings.Contains(output, "Linking: test-component...") {
+		t.Errorf("Expected inline failed message, got: %s", output)
+	}
+	if !strings.Contains(output, "Failed") {
+		t.Errorf("Expected 'Failed' in output, got: %s", output)
+	}
+}
+
+func TestStatusSuccess(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.StatusSuccess("Successfully activated profile '%s'", "dev")
+
+	output := buf.String()
+	if !strings.Contains(output, SymbolSuccess) {
+		t.Errorf("Expected success symbol, got: %s", output)
+	}
+	if !strings.Contains(output, "Successfully activated profile 'dev'") {
+		t.Errorf("Expected formatted message, got: %s", output)
+	}
+}
+
+func TestStatusError(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.StatusError("Error: %v", "something went wrong")
+
+	output := buf.String()
+	if !strings.Contains(output, SymbolError) {
+		t.Errorf("Expected error symbol, got: %s", output)
+	}
+	if !strings.Contains(output, "Error: something went wrong") {
+		t.Errorf("Expected formatted message, got: %s", output)
+	}
+}
+
+func TestStatusUpToDate(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.StatusUpToDate()
+
+	output := buf.String()
+	if !strings.Contains(output, SymbolSuccess) {
+		t.Errorf("Expected success symbol, got: %s", output)
+	}
+	if !strings.Contains(output, "Up to date") {
+		t.Errorf("Expected 'Up to date' message, got: %s", output)
+	}
+}
+
+func TestStatusUpdating(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.StatusUpdating()
+
+	output := buf.String()
+	if !strings.Contains(output, SymbolUpdating) {
+		t.Errorf("Expected updating symbol, got: %s", output)
+	}
+	if !strings.Contains(output, "Updating") {
+		t.Errorf("Expected 'Updating' message, got: %s", output)
+	}
+}
+
+func TestIndentedDetail(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.IndentedDetail("name", "test-value")
+
+	output := buf.String()
+	if !strings.Contains(output, "→") {
+		t.Errorf("Expected arrow symbol, got: %s", output)
+	}
+	if !strings.Contains(output, "name: test-value") {
+		t.Errorf("Expected detail message, got: %s", output)
+	}
+}
+
+func TestIndentedError(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.IndentedError("Failed to process %s", "test-item")
+
+	output := buf.String()
+	if !strings.Contains(output, SymbolError) {
+		t.Errorf("Expected error symbol, got: %s", output)
+	}
+	if !strings.Contains(output, "Failed to process test-item") {
+		t.Errorf("Expected formatted message, got: %s", output)
+	}
+	// Check indentation (2 spaces)
+	if !strings.HasPrefix(strings.TrimLeft(output, "\n"), "  ") {
+		t.Errorf("Expected message to be indented, got: %s", output)
+	}
+}
+
+func TestIndentedSuccess(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.IndentedSuccess("Updated successfully")
+
+	output := buf.String()
+	if !strings.Contains(output, SymbolSuccess) {
+		t.Errorf("Expected success symbol, got: %s", output)
+	}
+	if !strings.Contains(output, "Updated successfully") {
+		t.Errorf("Expected message, got: %s", output)
+	}
+	// Check indentation (2 spaces)
+	if !strings.HasPrefix(strings.TrimLeft(output, "\n"), "  ") {
+		t.Errorf("Expected message to be indented, got: %s", output)
+	}
+}
+
+func TestPlainWarning(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.PlainWarning("%s has no commit hash stored", "component/name")
+
+	output := buf.String()
+	if !strings.Contains(output, "Warning:") {
+		t.Errorf("Expected 'Warning:' prefix, got: %s", output)
+	}
+	if !strings.Contains(output, "component/name has no commit hash stored") {
+		t.Errorf("Expected formatted message, got: %s", output)
+	}
+}
