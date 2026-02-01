@@ -2,6 +2,36 @@
 
 This document describes the test organization and how to run different types of tests in the agent-smith project.
 
+## Quick Reference
+
+**Where are the tests located?**
+- **Unit tests**: Co-located with source files (e.g., `internal/detector/*_test.go`)
+- **Integration tests**: `tests/integration/` directory
+
+**How do I run the tests?**
+```bash
+# Run unit tests only (fast, for development)
+make test
+
+# Run integration tests only
+make test-integration
+
+# Run all tests (unit + integration)
+make test-all
+```
+
+**Using Go commands directly:**
+```bash
+# Unit tests only
+go test ./...
+
+# Integration tests only
+go test -tags=integration ./tests/integration/...
+
+# All tests
+go test -tags=integration ./...
+```
+
 ## Test Organization
 
 ### Unit Tests
@@ -29,7 +59,9 @@ Integration tests verify end-to-end functionality and are distinguished by:
 - Build tag `//go:build integration` at the top of the file
 - Suffix `_integration_test.go` in the filename
 - Test complete workflows involving multiple components
-- Located in `tests/integration/` directory for better organization
+- **Located in `tests/integration/` directory** for better organization
+
+**Location:** All integration tests are located in the `tests/integration/` directory at the project root.
 
 **Current integration tests:**
 - `tests/integration/component_download_integration_test.go`: Component downloading, repository detection, cross-platform paths
@@ -173,7 +205,7 @@ func TestYourFeature(t *testing.T) {
 | Category | Build Tag | Location | Test Count | Purpose |
 |----------|-----------|----------|------------|---------|
 | Unit Tests | None | Co-located with source | 29 files | Test individual functions and packages |
-| Integration Tests | `integration` | Root level `*_integration_test.go` | 3 files | Test end-to-end workflows |
+| Integration Tests | `integration` | `tests/integration/` directory | 3 files | Test end-to-end workflows |
 
 ## Adding New Tests
 
