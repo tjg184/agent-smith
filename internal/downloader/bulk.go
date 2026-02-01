@@ -61,6 +61,9 @@ func (bd *BulkDownloader) AddAll(repoURL string) error {
 		return fmt.Errorf("failed to normalize repository URL: %w", err)
 	}
 
+	// Display installation header
+	bd.formatter.SectionHeader(fmt.Sprintf("Installing components from %s", repoURL))
+
 	// Create temporary directory for repository detection
 	tempDir, err := os.MkdirTemp("", "agent-smith-bulk-*")
 	if err != nil {

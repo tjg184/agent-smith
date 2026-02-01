@@ -2,6 +2,8 @@ package formatter
 
 import (
 	"fmt"
+
+	"github.com/fatih/color"
 )
 
 // InstallResult represents the result of a single component installation
@@ -14,7 +16,8 @@ type InstallResult struct {
 
 // DisplaySummaryTable shows a formatted table of installation results
 func (f *Formatter) DisplaySummaryTable(results []InstallResult, skillCount, agentCount, commandCount int) {
-	fmt.Fprintln(f.writer, "\nInstallation Summary")
+	f.EmptyLine()
+	f.SectionHeader("Installation Summary")
 
 	// Group results by type
 	skillResults := []InstallResult{}
@@ -32,7 +35,7 @@ func (f *Formatter) DisplaySummaryTable(results []InstallResult, skillCount, age
 		}
 	}
 
-	// Display each type section
+	// Display each type section with box tables
 	if len(skillResults) > 0 {
 		f.displayTypeSection("Skills", skillResults)
 	}
@@ -54,27 +57,40 @@ func (f *Formatter) DisplaySummaryTable(results []InstallResult, skillCount, age
 		}
 	}
 
-	// Display summary
-	fmt.Fprintln(f.writer)
-	summaryMsg := fmt.Sprintf("Successfully installed: %d/%d components", successCount, len(results))
+	// Display summary with colored symbols
+	f.EmptyLine()
+	green := color.New(color.FgGreen).SprintFunc()
+	red := color.New(color.FgRed).SprintFunc()
+
 	if failureCount > 0 {
-		summaryMsg += fmt.Sprintf(" | Failed: %d components", failureCount)
+		fmt.Fprintf(f.writer, "%s Successfully installed: %d/%d components | %s Failed: %d\n",
+			green(SymbolSuccess), successCount, len(results), red(SymbolError), failureCount)
+	} else {
+		fmt.Fprintf(f.writer, "%s Successfully installed: %d/%d components\n",
+			green(SymbolSuccess), successCount, len(results))
 	}
-	fmt.Fprintln(f.writer, summaryMsg)
+
+	// Add "Next steps" section
+	f.displayNextSteps()
 }
 
 // displayTypeSection displays a section of results for a specific component type
 func (f *Formatter) displayTypeSection(typeName string, results []InstallResult) {
 	fmt.Fprintf(f.writer, "\n%s:\n", typeName)
 
-	// Create table with headers
+	// Create table with headers using box-drawing characters
 	table := NewBoxTable(f.writer, []string{"Status", "Component", "Result"})
 
+	green := color.New(color.FgGreen).SprintFunc()
+	red := color.New(color.FgRed).SprintFunc()
+
 	for _, result := range results {
-		status := SymbolSuccess
+		var status string
 		statusText := "Success"
-		if !result.Success {
-			status = SymbolError
+		if result.Success {
+			status = green(SymbolSuccess)
+		} else {
+			status = red(SymbolError)
 			statusText = "Failed"
 		}
 
@@ -87,4 +103,15 @@ func (f *Formatter) displayTypeSection(typeName string, results []InstallResult)
 	}
 
 	table.Render()
+}
+
+// displayNextSteps displays common follow-up commands after installation
+func (f *Formatter) displayNextSteps() {
+	f.EmptyLine()
+	cyan := color.New(color.FgCyan).SprintFunc()
+
+	fmt.Fprintln(f.writer, "Next steps:")
+	fmt.Fprintf(f.writer, "  • Link components: %s\n", cyan("agent-smith link all"))
+	fmt.Fprintf(f.writer, "  • View status: %s\n", cyan("agent-smith status"))
+	fmt.Fprintf(f.writer, "  • List components: %s\n", cyan("agent-smith list"))
 }
