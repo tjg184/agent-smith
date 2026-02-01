@@ -30,6 +30,9 @@ import (
 // appLogger is the global logger instance used throughout the application
 var appLogger *logger.Logger
 
+// appFormatter is the global formatter instance used for consistent output formatting
+var appFormatter *formatter.Formatter
+
 // SetVerboseMode enables informational output
 // Deprecated: Use appLogger.SetLevel(logger.LevelInfo) instead
 func SetVerboseMode(verbose bool) {
@@ -509,6 +512,9 @@ func main() {
 	// Disable log level tags to maintain clean output format
 	appLogger.SetShowTags(false)
 
+	// Initialize the global formatter
+	appFormatter = formatter.New()
+
 	if debugMode {
 		SetDebugMode(true)
 	} else if verboseMode {
@@ -862,10 +868,11 @@ func main() {
 					infoPrintln("Components from this profile are now ready to be linked.")
 				} else if activeProfile != profileName {
 					// Only show activation message if this is not the active profile
-					fmt.Println("\nProfile updated successfully!")
-					fmt.Printf("To activate this profile and use these components, run:\n")
-					fmt.Printf("  agent-smith profile activate %s\n", profileName)
-					fmt.Printf("  agent-smith link all\n")
+					appFormatter.EmptyLine()
+					appFormatter.Info("Profile updated successfully!")
+					appFormatter.Info("To activate this profile and use these components, run:")
+					appFormatter.Info("  agent-smith profile activate %s", profileName)
+					appFormatter.Info("  agent-smith link all")
 				} else {
 					// Profile is already active, components are ready
 					infoPrintln("\nProfile updated successfully! Components are ready to be linked.")
@@ -1121,21 +1128,22 @@ func main() {
 			// Display results
 			if len(filteredProfiles) == 0 {
 				if activeOnly {
-					fmt.Println("No active profile set")
+					appFormatter.Info("No active profile set")
 				} else if len(profileFilter) > 0 {
-					fmt.Println("No matching profiles found")
+					appFormatter.Info("No matching profiles found")
 				} else {
-					fmt.Println("No profiles found in ~/.agent-smith/profiles/")
-					fmt.Println("\nTo create a profile, run:")
-					fmt.Println("  agent-smith profile create <profile-name>")
+					appFormatter.Info("No profiles found in ~/.agent-smith/profiles/")
+					appFormatter.EmptyLine()
+					appFormatter.Info("To create a profile, run:")
+					appFormatter.Info("  agent-smith profile create <profile-name>")
 				}
 				return
 			}
 
 			// Print top border with title - centered "Available Profiles" header
-			fmt.Println("┌────────────────────────────────────────────────────────────────────────────┐")
-			fmt.Println("│                            Available Profiles                              │")
-			fmt.Println("├────────────────────────────────────────────────────────────────────────────┤")
+			appFormatter.Info("┌────────────────────────────────────────────────────────────────────────────┐")
+			appFormatter.Info("│                            Available Profiles                              │")
+			appFormatter.Info("├────────────────────────────────────────────────────────────────────────────┤")
 
 			for _, profile := range filteredProfiles {
 				// Count components
@@ -1211,7 +1219,7 @@ func main() {
 				// Calculate final padding to fill the line
 				rightPadding := availableSpace - nameLen - countLen - padding
 
-				fmt.Printf("│ %s %s%s%s%s │\n",
+				appFormatter.Info("│ %s %s%s%s%s │",
 					activeIndicator,
 					displayName,
 					strings.Repeat(" ", padding),
@@ -1220,17 +1228,18 @@ func main() {
 			}
 
 			// Print bottom border
-			fmt.Println("└────────────────────────────────────────────────────────────────────────────┘")
+			appFormatter.Info("└────────────────────────────────────────────────────────────────────────────┘")
 
 			// Display legend
-			fmt.Println("\nLegend:")
-			fmt.Printf("  %s - Currently active profile\n", formatter.ColoredSuccess())
+			appFormatter.EmptyLine()
+			appFormatter.Info("Legend:")
+			appFormatter.Info("  %s - Currently active profile", formatter.ColoredSuccess())
 
 			// Display total count
 			if len(profileFilter) > 0 || activeOnly {
-				fmt.Printf("\nShowing: %d profile(s) (filtered from %d total)\n", len(filteredProfiles), len(profilesList))
+				appFormatter.Info("\nShowing: %d profile(s) (filtered from %d total)", len(filteredProfiles), len(profilesList))
 			} else {
-				fmt.Printf("\nTotal: %d profile(s)\n", len(filteredProfiles))
+				appFormatter.Info("\nTotal: %d profile(s)", len(filteredProfiles))
 			}
 		},
 		func(profileName string) {
@@ -1264,68 +1273,69 @@ func main() {
 			}
 
 			// Display profile information
-			fmt.Printf("Profile: %s", targetProfile.Name)
+			appFormatter.Info("Profile: %s", targetProfile.Name)
 			if targetProfile.Name == activeProfile {
-				fmt.Printf(" %s [active]", formatter.SymbolSuccess)
+				appFormatter.Info(" %s [active]", formatter.SymbolSuccess)
 			}
-			fmt.Println()
-			fmt.Printf("Location: %s\n", targetProfile.BasePath)
-			fmt.Println()
+			appFormatter.EmptyLine()
+			appFormatter.Info("Location: %s", targetProfile.BasePath)
+			appFormatter.EmptyLine()
 
 			// Get component names
 			agents, skills, commands := pm.GetComponentNames(targetProfile)
 
 			// Display agents
 			if len(agents) > 0 {
-				fmt.Printf("Agents (%d):\n", len(agents))
+				appFormatter.Info("Agents (%d):", len(agents))
 				for _, agent := range agents {
 					sourceURL := pm.GetComponentSource(targetProfile, "agents", agent)
 					if sourceURL != "" {
-						fmt.Printf("  - %s (%s)\n", agent, sourceURL)
+						appFormatter.Info("  - %s (%s)", agent, sourceURL)
 					} else {
-						fmt.Printf("  - %s\n", agent)
+						appFormatter.Info("  - %s", agent)
 					}
 				}
-				fmt.Println()
+				appFormatter.EmptyLine()
 			}
 
 			// Display skills
 			if len(skills) > 0 {
-				fmt.Printf("Skills (%d):\n", len(skills))
+				appFormatter.Info("Skills (%d):", len(skills))
 				for _, skill := range skills {
 					sourceURL := pm.GetComponentSource(targetProfile, "skills", skill)
 					if sourceURL != "" {
-						fmt.Printf("  - %s (%s)\n", skill, sourceURL)
+						appFormatter.Info("  - %s (%s)", skill, sourceURL)
 					} else {
-						fmt.Printf("  - %s\n", skill)
+						appFormatter.Info("  - %s", skill)
 					}
 				}
-				fmt.Println()
+				appFormatter.EmptyLine()
 			}
 
 			// Display commands
 			if len(commands) > 0 {
-				fmt.Printf("Commands (%d):\n", len(commands))
+				appFormatter.Info("Commands (%d):", len(commands))
 				for _, command := range commands {
 					sourceURL := pm.GetComponentSource(targetProfile, "commands", command)
 					if sourceURL != "" {
-						fmt.Printf("  - %s (%s)\n", command, sourceURL)
+						appFormatter.Info("  - %s (%s)", command, sourceURL)
 					} else {
-						fmt.Printf("  - %s\n", command)
+						appFormatter.Info("  - %s", command)
 					}
 				}
-				fmt.Println()
+				appFormatter.EmptyLine()
 			}
 
 			// Show empty state if no components
 			if len(agents) == 0 && len(skills) == 0 && len(commands) == 0 {
-				fmt.Println("This profile is empty.")
-				fmt.Println("\nAdd components with:")
-				fmt.Printf("  agent-smith profiles add <type> %s <component-name>\n", profileName)
+				appFormatter.Info("This profile is empty.")
+				appFormatter.EmptyLine()
+				appFormatter.Info("Add components with:")
+				appFormatter.Info("  agent-smith profiles add <type> %s <component-name>", profileName)
 			} else if targetProfile.Name != activeProfile {
 				// Show activation hint if not active
-				fmt.Println("To activate this profile:")
-				fmt.Printf("  agent-smith profiles activate %s\n", profileName)
+				appFormatter.Info("To activate this profile:")
+				appFormatter.Info("  agent-smith profiles activate %s", profileName)
 			}
 		},
 		func(profileName string) {
@@ -1450,20 +1460,22 @@ func main() {
 			}
 
 			if !profileExists {
-				fmt.Printf("Target profile '%s' does not exist. Creating it...\n\n", targetProfile)
+				appFormatter.Info("Target profile '%s' does not exist. Creating it...", targetProfile)
+				appFormatter.EmptyLine()
 				if err := pm.CreateProfile(targetProfile); err != nil {
 					log.Fatal("Failed to create target profile:", err)
 				}
-				fmt.Println()
+				appFormatter.EmptyLine()
 			}
 
 			// Get all available components
-			fmt.Println("Scanning for available components...")
+			appFormatter.Info("Scanning for available components...")
 			if len(sourceProfiles) > 0 {
-				fmt.Printf("Source profiles: %s\n\n", joinStrings(sourceProfiles, ", "))
+				appFormatter.Info("Source profiles: %s", joinStrings(sourceProfiles, ", "))
+				appFormatter.EmptyLine()
 			} else {
-				fmt.Println("Source profiles: All profiles")
-				fmt.Println()
+				appFormatter.Info("Source profiles: All profiles")
+				appFormatter.EmptyLine()
 			}
 
 			components, err := pm.GetAllAvailableComponents(sourceProfiles)
@@ -1472,18 +1484,21 @@ func main() {
 			}
 
 			if len(components) == 0 {
-				fmt.Println("No components found in source profiles.")
+				appFormatter.Info("No components found in source profiles.")
 				if len(sourceProfiles) > 0 {
-					fmt.Println("\nThe specified source profiles may be empty or not exist.")
+					appFormatter.EmptyLine()
+					appFormatter.Info("The specified source profiles may be empty or not exist.")
 				} else {
-					fmt.Println("\nTry installing some components first with:")
-					fmt.Println("  agent-smith install skill <repo-url> <skill-name> --profile <profile-name>")
+					appFormatter.EmptyLine()
+					appFormatter.Info("Try installing some components first with:")
+					appFormatter.Info("  agent-smith install skill <repo-url> <skill-name> --profile <profile-name>")
 				}
 				return
 			}
 
 			// Display available components grouped by type
-			fmt.Printf("Found %d component(s) available for cherry-picking:\n\n", len(components))
+			appFormatter.Info("Found %d component(s) available for cherry-picking:", len(components))
+			appFormatter.EmptyLine()
 
 			// Group by type
 			agentItems := []profiles.ComponentItem{}
@@ -1503,36 +1518,37 @@ func main() {
 
 			// Display agents
 			if len(agentItems) > 0 {
-				fmt.Printf("Agents (%d):\n", len(agentItems))
+				appFormatter.Info("Agents (%d):", len(agentItems))
 				for i, comp := range agentItems {
-					fmt.Printf("  [%d] %s (from %s)\n", i+1, comp.Name, comp.SourceProfile)
+					appFormatter.Info("  [%d] %s (from %s)", i+1, comp.Name, comp.SourceProfile)
 				}
-				fmt.Println()
+				appFormatter.EmptyLine()
 			}
 
 			// Display skills
 			if len(skillItems) > 0 {
-				fmt.Printf("Skills (%d):\n", len(skillItems))
+				appFormatter.Info("Skills (%d):", len(skillItems))
 				for i, comp := range skillItems {
-					fmt.Printf("  [%d] %s (from %s)\n", i+len(agentItems)+1, comp.Name, comp.SourceProfile)
+					appFormatter.Info("  [%d] %s (from %s)", i+len(agentItems)+1, comp.Name, comp.SourceProfile)
 				}
-				fmt.Println()
+				appFormatter.EmptyLine()
 			}
 
 			// Display commands
 			if len(commandItems) > 0 {
-				fmt.Printf("Commands (%d):\n", len(commandItems))
+				appFormatter.Info("Commands (%d):", len(commandItems))
 				for i, comp := range commandItems {
-					fmt.Printf("  [%d] %s (from %s)\n", i+len(agentItems)+len(skillItems)+1, comp.Name, comp.SourceProfile)
+					appFormatter.Info("  [%d] %s (from %s)", i+len(agentItems)+len(skillItems)+1, comp.Name, comp.SourceProfile)
 				}
-				fmt.Println()
+				appFormatter.EmptyLine()
 			}
 
 			// Interactive selection
-			fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-			fmt.Println("\nSelect components to copy to the target profile.")
-			fmt.Println("Enter component numbers separated by spaces (e.g., '1 3 5')")
-			fmt.Println("Or enter 'all' to select all components, or 'quit' to cancel.")
+			appFormatter.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+			appFormatter.EmptyLine()
+			appFormatter.Info("Select components to copy to the target profile.")
+			appFormatter.Info("Enter component numbers separated by spaces (e.g., '1 3 5')")
+			appFormatter.Info("Or enter 'all' to select all components, or 'quit' to cancel.")
 			fmt.Print("\nSelection: ")
 
 			// Read user input
@@ -1543,7 +1559,8 @@ func main() {
 			}
 
 			if input == "" || strings.ToLower(input) == "quit" {
-				fmt.Println("\nCancelled.")
+				appFormatter.EmptyLine()
+				appFormatter.Info("Cancelled.")
 				return
 			}
 
@@ -1552,7 +1569,8 @@ func main() {
 
 			if strings.ToLower(input) == "all" {
 				selectedComponents = components
-				fmt.Printf("\nSelected all %d components.\n\n", len(components))
+				appFormatter.Info("\nSelected all %d components.", len(components))
+				appFormatter.EmptyLine()
 			} else {
 				// Parse individual numbers
 				parts := strings.Fields(input)
@@ -1561,14 +1579,15 @@ func main() {
 				for _, part := range parts {
 					idx, err := strconv.Atoi(part)
 					if err != nil || idx < 1 || idx > len(components) {
-						fmt.Printf("Warning: Invalid selection '%s' (valid range: 1-%d)\n", part, len(components))
+						appFormatter.PlainWarning("Invalid selection '%s' (valid range: 1-%d)", part, len(components))
 						continue
 					}
 					selectedIndices[idx-1] = true
 				}
 
 				if len(selectedIndices) == 0 {
-					fmt.Println("\nNo valid selections made. Cancelled.")
+					appFormatter.EmptyLine()
+					appFormatter.Info("No valid selections made. Cancelled.")
 					return
 				}
 
@@ -1576,7 +1595,8 @@ func main() {
 					selectedComponents = append(selectedComponents, components[idx])
 				}
 
-				fmt.Printf("\nSelected %d component(s).\n\n", len(selectedComponents))
+				appFormatter.Info("\nSelected %d component(s).", len(selectedComponents))
+				appFormatter.EmptyLine()
 			}
 
 			// Execute cherry-pick
@@ -1584,9 +1604,10 @@ func main() {
 				log.Fatal("Cherry-pick failed:", err)
 			}
 
-			fmt.Println("\nTo activate this profile and use these components:")
-			fmt.Printf("  agent-smith profile activate %s\n", targetProfile)
-			fmt.Println("  agent-smith link all")
+			appFormatter.EmptyLine()
+			appFormatter.Info("To activate this profile and use these components:")
+			appFormatter.Info("  agent-smith profile activate %s", targetProfile)
+			appFormatter.Info("  agent-smith link all")
 		},
 		func() {
 			// Status handler - shows current system status
@@ -1658,10 +1679,10 @@ func main() {
 			// Show active profile
 			if activeProfile != "" {
 				green := color.New(color.FgGreen).SprintFunc()
-				fmt.Printf("  Active Profile:     %s %s\n", green(activeProfile), formatter.ColoredSuccess())
+				appFormatter.Info("  Active Profile:     %s %s", green(activeProfile), formatter.ColoredSuccess())
 			} else {
 				gray := color.New(color.FgHiBlack).SprintFunc()
-				fmt.Printf("  Active Profile:     %s\n", gray("None"))
+				appFormatter.Info("  Active Profile:     %s", gray("None"))
 			}
 
 			// Show detected targets
@@ -1671,19 +1692,19 @@ func main() {
 					targetNames = append(targetNames, target.GetName())
 				}
 				cyan := color.New(color.FgCyan).SprintFunc()
-				fmt.Printf("  Detected Targets:   %s\n", cyan(joinStrings(targetNames, ", ")))
+				appFormatter.Info("  Detected Targets:   %s", cyan(joinStrings(targetNames, ", ")))
 			} else {
 				gray := color.New(color.FgHiBlack).SprintFunc()
-				fmt.Printf("  Detected Targets:   %s\n", gray("None"))
+				appFormatter.Info("  Detected Targets:   %s", gray("None"))
 			}
 
 			// Show base components count
-			fmt.Println()
+			appFormatter.EmptyLine()
 			bold := color.New(color.Bold).SprintFunc()
-			fmt.Printf("%s\n", bold("Base Components (~/.agent-smith/)"))
-			fmt.Printf("  • Agents:           %d\n", agentsCount)
-			fmt.Printf("  • Skills:           %d\n", skillsCount)
-			fmt.Printf("  • Commands:         %d\n", commandsCount)
+			appFormatter.Info("%s", bold("Base Components (~/.agent-smith/)"))
+			appFormatter.Info("  • Agents:           %d", agentsCount)
+			appFormatter.Info("  • Skills:           %d", skillsCount)
+			appFormatter.Info("  • Commands:         %d", commandsCount)
 
 			// If there's an active profile, show its components
 			if activeProfile != "" {
@@ -1692,12 +1713,12 @@ func main() {
 					for _, profile := range profilesList {
 						if profile.Name == activeProfile {
 							agents, skills, commands := pm.CountComponents(profile)
-							fmt.Println()
+							appFormatter.EmptyLine()
 							green := color.New(color.FgGreen, color.Bold).SprintFunc()
-							fmt.Printf("%s\n", green("Active Profile Components"))
-							fmt.Printf("  • Agents:           %d\n", agents)
-							fmt.Printf("  • Skills:           %d\n", skills)
-							fmt.Printf("  • Commands:         %d\n", commands)
+							appFormatter.Info("%s", green("Active Profile Components"))
+							appFormatter.Info("  • Agents:           %d", agents)
+							appFormatter.Info("  • Skills:           %d", skills)
+							appFormatter.Info("  • Commands:         %d", commands)
 							break
 						}
 					}
@@ -1705,12 +1726,12 @@ func main() {
 			}
 
 			// Show helpful commands
-			fmt.Println()
+			appFormatter.EmptyLine()
 			dim := color.New(color.Faint).SprintFunc()
-			fmt.Println(dim("Quick Actions:"))
-			fmt.Printf("  %s agent-smith link status     %s\n", dim("•"), dim("View component link status"))
-			fmt.Printf("  %s agent-smith profile list    %s\n", dim("•"), dim("List all profiles"))
-			fmt.Println()
+			appFormatter.Info("%s", dim("Quick Actions:"))
+			appFormatter.Info("  %s agent-smith link status     %s", dim("•"), dim("View component link status"))
+			appFormatter.Info("  %s agent-smith profile list    %s", dim("•"), dim("List all profiles"))
+			appFormatter.EmptyLine()
 		},
 		func(name, path string) {
 			// Load existing config
@@ -1912,20 +1933,20 @@ func main() {
 			table.Render()
 
 			// Display summary
-			fmt.Println()
+			appFormatter.EmptyLine()
 			totalCount := len(allTargets)
 			if availableCount == totalCount {
-				fmt.Printf("%s All %d target(s) detected and available\n", green(formatter.SymbolSuccess), totalCount)
+				appFormatter.Info("%s All %d target(s) detected and available", green(formatter.SymbolSuccess), totalCount)
 			} else if availableCount > 0 {
-				fmt.Printf("%s %d of %d target(s) available\n", yellow(formatter.SymbolWarning), availableCount, totalCount)
+				appFormatter.Info("%s %d of %d target(s) available", yellow(formatter.SymbolWarning), availableCount, totalCount)
 			} else {
-				fmt.Printf("%s No targets currently available\n", red(formatter.SymbolError))
+				appFormatter.Info("%s No targets currently available", red(formatter.SymbolError))
 			}
 
 			// Display legend
-			fmt.Println()
-			fmt.Println("Legend:")
-			fmt.Printf("  %s Available  %s Not found  %s Error\n",
+			appFormatter.EmptyLine()
+			appFormatter.Info("Legend:")
+			appFormatter.Info("  %s Available  %s Not found  %s Error",
 				green(formatter.SymbolSuccess),
 				yellow(formatter.SymbolNotLinked),
 				red(formatter.SymbolError))
