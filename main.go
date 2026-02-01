@@ -1132,8 +1132,10 @@ func main() {
 				return
 			}
 
-			fmt.Println("Available Profiles:")
-			fmt.Println()
+			// Print top border
+			fmt.Println("┌────────────────────────────────────────────────────────────────────────────┐")
+			fmt.Println("│                          Available Profiles                                │")
+			fmt.Println("├────────────────────────────────────────────────────────────────────────────┤")
 
 			for _, profile := range filteredProfiles {
 				// Count components
@@ -1153,23 +1155,43 @@ func main() {
 
 				componentStr := ""
 				if len(components) > 0 {
-					componentStr = fmt.Sprintf(" (%s)", joinStrings(components, ", "))
+					componentStr = fmt.Sprintf("(%s)", joinStrings(components, ", "))
+				} else {
+					componentStr = "(empty)"
 				}
 
 				// Check if this is the active profile
-				activeIndicator := "  "
-				activeLabel := ""
+				activeIndicator := " "
 				if profile.Name == activeProfile {
-					activeIndicator = fmt.Sprintf("%s ", formatter.SymbolSuccess)
-					activeLabel = " [active]"
+					activeIndicator = formatter.ColoredSuccess()
 				}
 
-				fmt.Printf("%s%-15s%s%s\n", activeIndicator, profile.Name, activeLabel, componentStr)
+				// Format the line: "│ ✓ profile-name                (X agents, Y skills, Z commands)     │"
+				// Calculate padding to align component counts
+				nameWidth := 30
+				countWidth := 40
+				paddedName := profile.Name
+				if len(paddedName) > nameWidth {
+					paddedName = paddedName[:nameWidth]
+				}
+				namePadding := nameWidth - len(paddedName)
+
+				countPadding := countWidth - len(componentStr)
+
+				fmt.Printf("│ %s %-*s%*s%s%*s │\n",
+					activeIndicator,
+					len(paddedName), paddedName,
+					namePadding, "",
+					componentStr,
+					countPadding, "")
 			}
+
+			// Print bottom border
+			fmt.Println("└────────────────────────────────────────────────────────────────────────────┘")
 
 			// Display legend
 			fmt.Println("\nLegend:")
-			fmt.Printf("  %s - Currently active profile\n", formatter.SymbolSuccess)
+			fmt.Printf("  %s - Currently active profile\n", formatter.ColoredSuccess())
 
 			// Display total count
 			if len(profileFilter) > 0 || activeOnly {
