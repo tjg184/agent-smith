@@ -1318,6 +1318,40 @@ EXAMPLES:
 		},
 	}
 
+	// profiles cherry-pick - Create a profile by selecting components from existing profiles
+	var cherryPickSources []string
+	profilesCherryPickCmd := &cobra.Command{
+		Use:   "cherry-pick <target-profile>",
+		Short: "Create or enhance a profile by selecting components from existing profiles",
+		Long: `Create or enhance a profile by cherry-picking components from existing profiles.
+
+This command provides an interactive interface to select specific components
+(agents, skills, commands) from one or more source profiles and copy them to
+a target profile. This is useful for creating specialized toolsets or project-specific
+configurations.
+
+By default, components from all profiles are shown. Use --source flags to limit
+the selection to specific source profiles.
+
+FLAGS:
+  --source <profile>  Limit selection to components from this profile (repeatable)
+
+EXAMPLES:
+  # Cherry-pick from all profiles
+  agent-smith profile cherry-pick my-new-profile
+
+  # Cherry-pick only from work-profile
+  agent-smith profile cherry-pick project-x --source work-profile
+
+  # Cherry-pick from multiple specific profiles
+  agent-smith profile cherry-pick custom --source work --source personal`,
+		Args: exactArgsWithHelp(1, "agent-smith profile cherry-pick <target-profile>"),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleProfilesCherryPick(args[0], cherryPickSources)
+		},
+	}
+	profilesCherryPickCmd.Flags().StringSliceVarP(&cherryPickSources, "source", "s", []string{}, "Source profile(s) to cherry-pick from (repeatable)")
+
 	profilesCmd.AddCommand(profilesListCmd)
 	profilesCmd.AddCommand(profilesShowCmd)
 	profilesCmd.AddCommand(profilesCreateCmd)
@@ -1327,6 +1361,7 @@ EXAMPLES:
 	profilesCmd.AddCommand(profilesAddCmd)
 	profilesCmd.AddCommand(profilesCopyCmd)
 	profilesCmd.AddCommand(profilesRemoveCmd)
+	profilesCmd.AddCommand(profilesCherryPickCmd)
 	rootCmd.AddCommand(profilesCmd)
 
 	// Add status command
@@ -1469,6 +1504,7 @@ var (
 	handleProfilesAdd        func(componentType, profileName, componentName string)
 	handleProfilesCopy       func(componentType, sourceProfile, targetProfile, componentName string)
 	handleProfilesRemove     func(componentType, profileName, componentName string)
+	handleProfilesCherryPick func(targetProfile string, sourceProfiles []string)
 	handleStatus             func()
 	handleTargetAdd          func(name, path string)
 	handleTargetRemove       func(name string)
@@ -1502,6 +1538,7 @@ func SetHandlers(
 	profilesAdd func(componentType, profileName, componentName string),
 	profilesCopy func(componentType, sourceProfile, targetProfile, componentName string),
 	profilesRemove func(componentType, profileName, componentName string),
+	profilesCherryPick func(targetProfile string, sourceProfiles []string),
 	status func(),
 	targetAdd func(name, path string),
 	targetRemove func(name string),
@@ -1533,6 +1570,7 @@ func SetHandlers(
 	handleProfilesAdd = profilesAdd
 	handleProfilesCopy = profilesCopy
 	handleProfilesRemove = profilesRemove
+	handleProfilesCherryPick = profilesCherryPick
 	handleStatus = status
 	handleTargetAdd = targetAdd
 	handleTargetRemove = targetRemove

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/tgaines/agent-smith/cmd"
 	"github.com/tgaines/agent-smith/internal/detector"
@@ -1219,6 +1222,165 @@ func main() {
 			if err := pm.RemoveComponentFromProfile(profileName, componentType, componentName); err != nil {
 				log.Fatal("Failed to remove component from profile:", err)
 			}
+		},
+		func(targetProfile string, sourceProfiles []string) {
+			// Cherry-pick handler - interactively select components from profiles
+			pm, err := profiles.NewProfileManager(nil)
+			if err != nil {
+				log.Fatal("Failed to create profile manager:", err)
+			}
+
+			// Check if target profile exists, if not create it
+			allProfiles, err := pm.ScanProfiles()
+			if err != nil {
+				log.Fatal("Failed to scan profiles:", err)
+			}
+
+			profileExists := false
+			for _, p := range allProfiles {
+				if p.Name == targetProfile {
+					profileExists = true
+					break
+				}
+			}
+
+			if !profileExists {
+				fmt.Printf("Target profile '%s' does not exist. Creating it...\n\n", targetProfile)
+				if err := pm.CreateProfile(targetProfile); err != nil {
+					log.Fatal("Failed to create target profile:", err)
+				}
+				fmt.Println()
+			}
+
+			// Get all available components
+			fmt.Println("Scanning for available components...")
+			if len(sourceProfiles) > 0 {
+				fmt.Printf("Source profiles: %s\n\n", joinStrings(sourceProfiles, ", "))
+			} else {
+				fmt.Println("Source profiles: All profiles\n")
+			}
+
+			components, err := pm.GetAllAvailableComponents(sourceProfiles)
+			if err != nil {
+				log.Fatal("Failed to get available components:", err)
+			}
+
+			if len(components) == 0 {
+				fmt.Println("No components found in source profiles.")
+				if len(sourceProfiles) > 0 {
+					fmt.Println("\nThe specified source profiles may be empty or not exist.")
+				} else {
+					fmt.Println("\nTry installing some components first with:")
+					fmt.Println("  agent-smith install skill <repo-url> <skill-name> --profile <profile-name>")
+				}
+				return
+			}
+
+			// Display available components grouped by type
+			fmt.Printf("Found %d component(s) available for cherry-picking:\n\n", len(components))
+
+			// Group by type
+			agentItems := []profiles.ComponentItem{}
+			skillItems := []profiles.ComponentItem{}
+			commandItems := []profiles.ComponentItem{}
+
+			for _, comp := range components {
+				switch comp.Type {
+				case "agents":
+					agentItems = append(agentItems, comp)
+				case "skills":
+					skillItems = append(skillItems, comp)
+				case "commands":
+					commandItems = append(commandItems, comp)
+				}
+			}
+
+			// Display agents
+			if len(agentItems) > 0 {
+				fmt.Printf("Agents (%d):\n", len(agentItems))
+				for i, comp := range agentItems {
+					fmt.Printf("  [%d] %s (from %s)\n", i+1, comp.Name, comp.SourceProfile)
+				}
+				fmt.Println()
+			}
+
+			// Display skills
+			if len(skillItems) > 0 {
+				fmt.Printf("Skills (%d):\n", len(skillItems))
+				for i, comp := range skillItems {
+					fmt.Printf("  [%d] %s (from %s)\n", i+len(agentItems)+1, comp.Name, comp.SourceProfile)
+				}
+				fmt.Println()
+			}
+
+			// Display commands
+			if len(commandItems) > 0 {
+				fmt.Printf("Commands (%d):\n", len(commandItems))
+				for i, comp := range commandItems {
+					fmt.Printf("  [%d] %s (from %s)\n", i+len(agentItems)+len(skillItems)+1, comp.Name, comp.SourceProfile)
+				}
+				fmt.Println()
+			}
+
+			// Interactive selection
+			fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+			fmt.Println("\nSelect components to copy to the target profile.")
+			fmt.Println("Enter component numbers separated by spaces (e.g., '1 3 5')")
+			fmt.Println("Or enter 'all' to select all components, or 'quit' to cancel.")
+			fmt.Print("\nSelection: ")
+
+			// Read user input
+			var input string
+			scanner := bufio.NewScanner(os.Stdin)
+			if scanner.Scan() {
+				input = strings.TrimSpace(scanner.Text())
+			}
+
+			if input == "" || strings.ToLower(input) == "quit" {
+				fmt.Println("\nCancelled.")
+				return
+			}
+
+			// Parse selection
+			var selectedComponents []profiles.ComponentItem
+
+			if strings.ToLower(input) == "all" {
+				selectedComponents = components
+				fmt.Printf("\nSelected all %d components.\n\n", len(components))
+			} else {
+				// Parse individual numbers
+				parts := strings.Fields(input)
+				selectedIndices := make(map[int]bool)
+
+				for _, part := range parts {
+					idx, err := strconv.Atoi(part)
+					if err != nil || idx < 1 || idx > len(components) {
+						fmt.Printf("Warning: Invalid selection '%s' (valid range: 1-%d)\n", part, len(components))
+						continue
+					}
+					selectedIndices[idx-1] = true
+				}
+
+				if len(selectedIndices) == 0 {
+					fmt.Println("\nNo valid selections made. Cancelled.")
+					return
+				}
+
+				for idx := range selectedIndices {
+					selectedComponents = append(selectedComponents, components[idx])
+				}
+
+				fmt.Printf("\nSelected %d component(s).\n\n", len(selectedComponents))
+			}
+
+			// Execute cherry-pick
+			if err := pm.CherryPickComponents(targetProfile, selectedComponents); err != nil {
+				log.Fatal("Cherry-pick failed:", err)
+			}
+
+			fmt.Println("\nTo activate this profile and use these components:")
+			fmt.Printf("  agent-smith profile activate %s\n", targetProfile)
+			fmt.Println("  agent-smith link all")
 		},
 		func() {
 			// Status handler - shows current system status

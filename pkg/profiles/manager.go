@@ -1095,3 +1095,130 @@ func (pm *ProfileManager) unlinkAllComponents(agentsDir string) error {
 
 	return nil
 }
+
+// ComponentItem represents a component available for cherry-picking
+type ComponentItem struct {
+	Type          string // "skills", "agents", or "commands"
+	Name          string
+	SourceProfile string
+}
+
+// GetAllAvailableComponents returns all components from specified profiles
+// If sourceProfiles is empty, returns components from all profiles
+func (pm *ProfileManager) GetAllAvailableComponents(sourceProfiles []string) ([]ComponentItem, error) {
+	var items []ComponentItem
+
+	// Get list of profiles to scan
+	var profilesToScan []*Profile
+	if len(sourceProfiles) == 0 {
+		// Scan all profiles
+		allProfiles, err := pm.ScanProfiles()
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan profiles: %w", err)
+		}
+		profilesToScan = allProfiles
+	} else {
+		// Scan only specified profiles
+		for _, profileName := range sourceProfiles {
+			profile := pm.loadProfile(profileName)
+			if !profile.IsValid() {
+				return nil, fmt.Errorf("source profile '%s' does not exist or has no components", profileName)
+			}
+			profilesToScan = append(profilesToScan, profile)
+		}
+	}
+
+	// Collect components from each profile
+	for _, profile := range profilesToScan {
+		agents, skills, commands := pm.GetComponentNames(profile)
+
+		for _, name := range agents {
+			items = append(items, ComponentItem{
+				Type:          "agents",
+				Name:          name,
+				SourceProfile: profile.Name,
+			})
+		}
+
+		for _, name := range skills {
+			items = append(items, ComponentItem{
+				Type:          "skills",
+				Name:          name,
+				SourceProfile: profile.Name,
+			})
+		}
+
+		for _, name := range commands {
+			items = append(items, ComponentItem{
+				Type:          "commands",
+				Name:          name,
+				SourceProfile: profile.Name,
+			})
+		}
+	}
+
+	return items, nil
+}
+
+// CherryPickComponents copies selected components from source profiles to target profile
+func (pm *ProfileManager) CherryPickComponents(targetProfile string, components []ComponentItem) error {
+	// Validate target profile
+	if err := validateProfileName(targetProfile); err != nil {
+		return fmt.Errorf("invalid target profile name: %w", err)
+	}
+
+	profile := pm.loadProfile(targetProfile)
+	if !profile.IsValid() {
+		return fmt.Errorf("target profile '%s' does not exist or has no components", targetProfile)
+	}
+
+	fmt.Printf("Cherry-picking %d component(s) to profile '%s'...\n\n", len(components), targetProfile)
+
+	// Copy each component
+	successCount := 0
+	skipCount := 0
+	errorCount := 0
+
+	for _, component := range components {
+		fmt.Printf("Copying %s '%s' from '%s'...\n", component.Type, component.Name, component.SourceProfile)
+
+		err := pm.CopyComponentBetweenProfiles(component.SourceProfile, targetProfile, component.Type, component.Name)
+		if err != nil {
+			// Check if error is due to component already existing
+			if strings.Contains(err.Error(), "already exists") {
+				fmt.Printf("  ⊘ Skipped (already exists)\n\n")
+				skipCount++
+			} else {
+				fmt.Printf("  ✗ Error: %v\n\n", err)
+				errorCount++
+			}
+		} else {
+			fmt.Printf("  ✓ Success\n\n")
+			successCount++
+		}
+	}
+
+	// Print summary
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Printf("\nCherry-pick Summary:\n")
+	fmt.Printf("  ✓ Successfully copied: %d\n", successCount)
+	if skipCount > 0 {
+		fmt.Printf("  ⊘ Skipped (existing):  %d\n", skipCount)
+	}
+	if errorCount > 0 {
+		fmt.Printf("  ✗ Failed:              %d\n", errorCount)
+	}
+	fmt.Printf("\nTotal components in '%s': ", targetProfile)
+
+	// Count final components
+	finalProfile := pm.loadProfile(targetProfile)
+	agents, skills, commands := pm.CountComponents(finalProfile)
+	total := agents + skills + commands
+	fmt.Printf("%d (%d agents, %d skills, %d commands)\n", total, agents, skills, commands)
+
+	if errorCount > 0 {
+		return fmt.Errorf("some components failed to copy")
+	}
+
+	return nil
+}
