@@ -1,6 +1,7 @@
 package updater
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -283,5 +284,323 @@ func TestNewUpdateDetectorWithBaseDir_BaseDirectory(t *testing.T) {
 	// Verify that profileName is empty
 	if detector.profileName != "" {
 		t.Errorf("Expected empty profileName, got %s", detector.profileName)
+	}
+}
+
+// TestLoadMetadata_Success tests successfully loading metadata from a lock file
+func TestLoadMetadata_Success(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "agent-smith-updater-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a sample lock file in the base directory (not in subdirectory)
+	lockFilePath := filepath.Join(tempDir, ".skill-lock.json")
+	lockFileContent := `{
+  "version": 3,
+  "skills": {
+    "test-skill": {
+      "source": "github.com/user/repo",
+      "sourceType": "git",
+      "sourceUrl": "https://github.com/user/repo",
+      "commitHash": "abc123",
+      "installedAt": "2024-01-01T00:00:00Z",
+      "updatedAt": "2024-01-01T00:00:00Z",
+      "version": 3
+    }
+  }
+}`
+	if err := os.WriteFile(lockFilePath, []byte(lockFileContent), 0644); err != nil {
+		t.Fatalf("Failed to write lock file: %v", err)
+	}
+
+	// Create detector
+	detector := NewUpdateDetectorWithBaseDir(tempDir)
+
+	// Load metadata
+	metadata, err := detector.LoadMetadata("skills", "test-skill")
+	if err != nil {
+		t.Fatalf("Failed to load metadata: %v", err)
+	}
+
+	// Verify metadata
+	if metadata.Name != "test-skill" {
+		t.Errorf("Expected name 'test-skill', got '%s'", metadata.Name)
+	}
+	if metadata.Source != "https://github.com/user/repo" {
+		t.Errorf("Expected source 'https://github.com/user/repo', got '%s'", metadata.Source)
+	}
+	if metadata.Commit != "abc123" {
+		t.Errorf("Expected commit 'abc123', got '%s'", metadata.Commit)
+	}
+}
+
+// TestLoadMetadata_NotFound tests loading metadata when component is not found
+func TestLoadMetadata_NotFound(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "agent-smith-updater-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create an empty lock file in the base directory
+	lockFilePath := filepath.Join(tempDir, ".skill-lock.json")
+	lockFileContent := `{
+  "version": 3,
+  "skills": {}
+}`
+	if err := os.WriteFile(lockFilePath, []byte(lockFileContent), 0644); err != nil {
+		t.Fatalf("Failed to write lock file: %v", err)
+	}
+
+	// Create detector
+	detector := NewUpdateDetectorWithBaseDir(tempDir)
+
+	// Attempt to load non-existent metadata
+	_, err = detector.LoadMetadata("skills", "nonexistent-skill")
+	if err == nil {
+		t.Fatal("Expected error when loading non-existent component, got nil")
+	}
+}
+
+// TestLoadMetadata_MissingLockFile tests loading metadata when lock file doesn't exist
+func TestLoadMetadata_MissingLockFile(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "agent-smith-updater-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create detector (no lock file exists)
+	detector := NewUpdateDetectorWithBaseDir(tempDir)
+
+	// Attempt to load metadata
+	_, err = detector.LoadMetadata("skills", "test-skill")
+	if err == nil {
+		t.Fatal("Expected error when lock file doesn't exist, got nil")
+	}
+}
+
+// TestLoadMetadata_AllComponentTypes tests loading metadata for different component types
+func TestLoadMetadata_AllComponentTypes(t *testing.T) {
+	testCases := []struct {
+		componentType string
+		lockFileName  string
+	}{
+		{"skills", ".skill-lock.json"},
+		{"agents", ".agent-lock.json"},
+		{"commands", ".command-lock.json"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.componentType, func(t *testing.T) {
+			// Create a temporary directory for testing
+			tempDir, err := os.MkdirTemp("", "agent-smith-updater-test-*")
+			if err != nil {
+				t.Fatalf("Failed to create temp directory: %v", err)
+			}
+			defer os.RemoveAll(tempDir)
+
+			// Create a sample lock file in the base directory
+			lockFilePath := filepath.Join(tempDir, tc.lockFileName)
+			lockFileContent := fmt.Sprintf(`{
+  "version": 3,
+  "%s": {
+    "test-component": {
+      "source": "github.com/user/repo",
+      "sourceType": "git",
+      "sourceUrl": "https://github.com/user/repo",
+      "commitHash": "def456",
+      "installedAt": "2024-01-01T00:00:00Z",
+      "updatedAt": "2024-01-01T00:00:00Z",
+      "version": 3
+    }
+  }
+}`, tc.componentType)
+			if err := os.WriteFile(lockFilePath, []byte(lockFileContent), 0644); err != nil {
+				t.Fatalf("Failed to write lock file: %v", err)
+			}
+
+			// Create detector
+			detector := NewUpdateDetectorWithBaseDir(tempDir)
+
+			// Load metadata
+			metadata, err := detector.LoadMetadata(tc.componentType, "test-component")
+			if err != nil {
+				t.Fatalf("Failed to load metadata for %s: %v", tc.componentType, err)
+			}
+
+			// Verify metadata
+			if metadata.Name != "test-component" {
+				t.Errorf("Expected name 'test-component', got '%s'", metadata.Name)
+			}
+			if metadata.Commit != "def456" {
+				t.Errorf("Expected commit 'def456', got '%s'", metadata.Commit)
+			}
+		})
+	}
+}
+
+// TestLoadMetadata_NoCommitHash tests behavior when commit hash is missing
+func TestLoadMetadata_NoCommitHash(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "agent-smith-updater-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a lock file without commit hash (old format) in the base directory
+	lockFilePath := filepath.Join(tempDir, ".skill-lock.json")
+	lockFileContent := `{
+  "version": 3,
+  "skills": {
+    "test-skill": {
+      "source": "github.com/user/repo",
+      "sourceType": "git",
+      "sourceUrl": "https://github.com/user/repo",
+      "installedAt": "2024-01-01T00:00:00Z",
+      "updatedAt": "2024-01-01T00:00:00Z",
+      "version": 3
+    }
+  }
+}`
+	if err := os.WriteFile(lockFilePath, []byte(lockFileContent), 0644); err != nil {
+		t.Fatalf("Failed to write lock file: %v", err)
+	}
+
+	// Create detector
+	detector := NewUpdateDetectorWithBaseDir(tempDir)
+
+	// Load metadata
+	metadata, err := detector.LoadMetadata("skills", "test-skill")
+	if err != nil {
+		t.Fatalf("Failed to load metadata: %v", err)
+	}
+
+	// Verify that commit hash is empty
+	if metadata.Commit != "" {
+		t.Errorf("Expected empty commit hash, got '%s'", metadata.Commit)
+	}
+}
+
+// TestHasUpdates_NoCommitHash tests that HasUpdates returns true when no commit hash is stored
+func TestHasUpdates_NoCommitHash(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "agent-smith-updater-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a lock file without commit hash (old format)
+	lockFilePath := filepath.Join(tempDir, ".skill-lock.json")
+	lockFileContent := `{
+  "version": 3,
+  "skills": {
+    "test-skill": {
+      "source": "github.com/user/repo",
+      "sourceType": "git",
+      "sourceUrl": "https://github.com/user/repo",
+      "installedAt": "2024-01-01T00:00:00Z",
+      "updatedAt": "2024-01-01T00:00:00Z",
+      "version": 3
+    }
+  }
+}`
+	if err := os.WriteFile(lockFilePath, []byte(lockFileContent), 0644); err != nil {
+		t.Fatalf("Failed to write lock file: %v", err)
+	}
+
+	// Create detector
+	detector := NewUpdateDetectorWithBaseDir(tempDir)
+
+	// Check for updates (should return true since no commit hash is stored)
+	hasUpdates, err := detector.HasUpdates("skills", "test-skill", "https://github.com/user/repo")
+	if err != nil {
+		t.Fatalf("Failed to check for updates: %v", err)
+	}
+
+	if !hasUpdates {
+		t.Error("Expected HasUpdates to return true when no commit hash is stored")
+	}
+}
+
+// TestHasUpdates_MissingMetadata tests that HasUpdates returns error when metadata is missing
+func TestHasUpdates_MissingMetadata(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "agent-smith-updater-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create an empty lock file
+	lockFilePath := filepath.Join(tempDir, ".skill-lock.json")
+	lockFileContent := `{
+  "version": 3,
+  "skills": {}
+}`
+	if err := os.WriteFile(lockFilePath, []byte(lockFileContent), 0644); err != nil {
+		t.Fatalf("Failed to write lock file: %v", err)
+	}
+
+	// Create detector
+	detector := NewUpdateDetectorWithBaseDir(tempDir)
+
+	// Check for updates (should return error since component doesn't exist)
+	_, err = detector.HasUpdates("skills", "nonexistent-skill", "https://github.com/user/repo")
+	if err == nil {
+		t.Fatal("Expected error when checking updates for non-existent component, got nil")
+	}
+}
+
+// TestUpdateAll_NoComponents tests UpdateAll behavior when no components are installed
+func TestUpdateAll_NoComponents(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "agent-smith-updater-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create detector
+	detector := NewUpdateDetectorWithBaseDir(tempDir)
+
+	// Update all (should complete without errors even with no components)
+	err = detector.UpdateAll()
+	if err != nil {
+		t.Fatalf("UpdateAll failed: %v", err)
+	}
+}
+
+// TestUpdateAll_EmptyDirectories tests UpdateAll behavior with empty component directories
+func TestUpdateAll_EmptyDirectories(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "agent-smith-updater-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create empty component directories
+	for _, componentType := range []string{"skills", "agents", "commands"} {
+		typeDir := filepath.Join(tempDir, componentType)
+		if err := os.MkdirAll(typeDir, 0755); err != nil {
+			t.Fatalf("Failed to create %s directory: %v", componentType, err)
+		}
+	}
+
+	// Create detector
+	detector := NewUpdateDetectorWithBaseDir(tempDir)
+
+	// Update all (should complete without errors)
+	err = detector.UpdateAll()
+	if err != nil {
+		t.Fatalf("UpdateAll failed: %v", err)
 	}
 }
