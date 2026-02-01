@@ -21,7 +21,7 @@ The agent-smith project currently has 3 integration test files at the root level
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want integration tests organized in a dedicated directory so that the root directory is less cluttered and tests are easier to find.
+- [x] Story-001: As a developer, I want integration tests organized in a dedicated directory so that the root directory is less cluttered and tests are easier to find.
 
   **Acceptance Criteria:**
   - `/test/integration/` directory structure exists
@@ -42,7 +42,7 @@ The agent-smith project currently has 3 integration test files at the root level
   - Each test file can be run individually
   - Test output shows correct file paths
 
-- [ ] Story-002: As a developer, I want unit tests to remain separate from integration tests so that I can run fast unit tests during development without running slower integration tests.
+- [x] Story-002: As a developer, I want unit tests to remain separate from integration tests so that I can run fast unit tests during development without running slower integration tests.
 
   **Acceptance Criteria:**
   - `go test ./...` runs only unit tests (excludes integration tests)
@@ -60,7 +60,7 @@ The agent-smith project currently has 3 integration test files at the root level
   - Verify specific test can be targeted with `-run` flag
   - Time execution to confirm unit-only runs are fast
 
-- [ ] Story-003: As a developer, I want updated documentation so that I know where integration tests are located and how to run them.
+- [x] Story-003: As a developer, I want updated documentation so that I know where integration tests are located and how to run them.
 
   **Acceptance Criteria:**
   - TESTING.md "Integration Tests" section updated with new location (line 27-37)
@@ -77,7 +77,7 @@ The agent-smith project currently has 3 integration test files at the root level
   - Verify file paths in documentation match actual file locations
   - Verify example code uses correct import paths
 
-- [ ] Story-004: As a developer, I want old test files removed from root so that there is no confusion about where integration tests are located.
+- [x] Story-004: As a developer, I want old test files removed from root so that there is no confusion about where integration tests are located.
 
   **Acceptance Criteria:**
   - `component_download_integration_test.go` deleted from root
