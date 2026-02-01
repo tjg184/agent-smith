@@ -24,7 +24,10 @@ func TestProfileAddPreservesLockFileEntries(t *testing.T) {
 
 	// Build agent-smith binary
 	binaryPath := filepath.Join(tempDir, "agent-smith")
+	// Build from repository root (../../ from tests/integration)
+	repoRoot := filepath.Join("..", "..")
 	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	cmd.Dir = repoRoot
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", err, string(output))
 	}

@@ -29,12 +29,12 @@ Integration tests verify end-to-end functionality and are distinguished by:
 - Build tag `//go:build integration` at the top of the file
 - Suffix `_integration_test.go` in the filename
 - Test complete workflows involving multiple components
-- Located at repository root for full application access
+- Located in `tests/integration/` directory for better organization
 
 **Current integration tests:**
-- `component_download_integration_test.go`: Component downloading, repository detection, cross-platform paths
-- `e2e_workflow_integration_test.go`: End-to-end workflows (install → link → update → uninstall)
-- `profile_add_lock_preservation_test.go`: Profile addition and lock file preservation
+- `tests/integration/component_download_integration_test.go`: Component downloading, repository detection, cross-platform paths
+- `tests/integration/e2e_workflow_integration_test.go`: End-to-end workflows (install → link → update → uninstall)
+- `tests/integration/profile_add_lock_preservation_test.go`: Profile addition and lock file preservation
 
 ## Running Tests
 
@@ -163,7 +163,7 @@ func TestMyFunction(t *testing.T) {
 ```
 
 ### Adding an Integration Test
-1. Create a file named `<feature>_integration_test.go` in the root directory
+1. Create a file named `<feature>_integration_test.go` in the `tests/integration/` directory
 2. Add build tags at the top:
    ```go
    //go:build integration
@@ -174,6 +174,12 @@ func TestMyFunction(t *testing.T) {
 3. Write test functions starting with `Test`
 4. Use `internal/testutil.NewTestHelper()` for creating test environments
 5. Focus on critical user workflows and end-to-end scenarios
+6. When building the agent-smith binary, set `cmd.Dir` to the repository root:
+   ```go
+   repoRoot := filepath.Join("..", "..")
+   cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+   cmd.Dir = repoRoot
+   ```
 
 Example:
 ```go
