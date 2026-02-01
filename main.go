@@ -163,6 +163,10 @@ func NewUpdateDetector() *UpdateDetector {
 	return updater.NewUpdateDetector()
 }
 
+func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
+	return updater.NewUpdateDetectorWithProfile(profile)
+}
+
 func NewBulkDownloader() *BulkDownloader {
 	return downloader.NewBulkDownloader()
 }
@@ -800,8 +804,8 @@ func main() {
 				}
 			}
 		},
-		func(componentType, componentName string) {
-			detector := NewUpdateDetector()
+		func(componentType, componentName, profile string) {
+			detector := NewUpdateDetectorWithProfile(profile)
 
 			// Load metadata to get source URL
 			metadata, err := detector.LoadMetadata(componentType, componentName)
@@ -813,8 +817,8 @@ func main() {
 				log.Fatal("Failed to update component:", err)
 			}
 		},
-		func() {
-			detector := NewUpdateDetector()
+		func(profile string) {
+			detector := NewUpdateDetectorWithProfile(profile)
 			if err := detector.UpdateAll(); err != nil {
 				log.Fatal("Failed to update components:", err)
 			}

@@ -305,7 +305,7 @@ EXAMPLES:
 
 	rootCmd.AddCommand(installCmd)
 
-	rootCmd.AddCommand(&cobra.Command{
+	updateCmd := &cobra.Command{
 		Use:   "update <type|all> [name]",
 		Short: "Check and update a component or all components",
 		Long: `Check and update a specific component or all downloaded components.
@@ -319,7 +319,11 @@ EXAMPLES:
   agent-smith update skills mcp-builder
 
   # Update all components
-  agent-smith update all`,
+  agent-smith update all
+
+  # Update components in a specific profile (bypasses active profile)
+  agent-smith update all --profile work
+  agent-smith update skills my-skill --profile work`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return fmt.Errorf("missing required arguments\n\nUsage: agent-smith update <type|all> [name]\n\nRun '%s --help' for more information", cmd.CommandPath())
@@ -339,13 +343,16 @@ EXAMPLES:
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
+			profile, _ := cmd.Flags().GetString("profile")
 			if args[0] == "all" {
-				handleUpdateAll()
+				handleUpdateAll(profile)
 			} else {
-				handleUpdate(args[0], args[1])
+				handleUpdate(args[0], args[1], profile)
 			}
 		},
-	})
+	}
+	updateCmd.Flags().StringP("profile", "p", "", "Update components in a specific profile instead of the active profile")
+	rootCmd.AddCommand(updateCmd)
 
 	// Create 'link' parent command with subcommands
 	linkCmd := &cobra.Command{
@@ -1409,8 +1416,8 @@ var (
 	handleAddAgent           func(repoURL, name, profile, targetDir string)
 	handleAddCommand         func(repoURL, name, profile, targetDir string)
 	handleAddAll             func(repoURL, profile, targetDir string)
-	handleUpdate             func(componentType, componentName string)
-	handleUpdateAll          func()
+	handleUpdate             func(componentType, componentName, profile string)
+	handleUpdateAll          func(profile string)
 	handleLink               func(componentType, componentName, targetFilter, profile string)
 	handleLinkAll            func(targetFilter, profile string)
 	handleLinkType           func(componentType, targetFilter, profile string)
@@ -1441,8 +1448,8 @@ func SetHandlers(
 	addAgent func(repoURL, name, profile, targetDir string),
 	addCommand func(repoURL, name, profile, targetDir string),
 	addAll func(repoURL, profile, targetDir string),
-	update func(componentType, componentName string),
-	updateAll func(),
+	update func(componentType, componentName, profile string),
+	updateAll func(profile string),
 	link func(componentType, componentName, targetFilter, profile string),
 	linkAll func(targetFilter, profile string),
 	linkType func(componentType, targetFilter, profile string),

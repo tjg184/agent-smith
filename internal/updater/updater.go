@@ -55,6 +55,49 @@ func NewUpdateDetector() *UpdateDetector {
 	}
 }
 
+// NewUpdateDetectorWithProfile creates a new UpdateDetector instance for a specific profile
+// If profile is empty, it falls back to the active profile or base directory
+func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
+	baseDir, err := paths.GetAgentsDir()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get agents directory: %v", err))
+	}
+
+	var profileName string
+
+	if profile != "" {
+		// Use explicit profile (bypasses active profile logic)
+		profilesDir, err := paths.GetProfilesDir()
+		if err != nil {
+			panic(fmt.Sprintf("Failed to get profiles directory: %v", err))
+		}
+		baseDir = filepath.Join(profilesDir, profile)
+		profileName = profile
+		fmt.Printf("Using specified profile for updates: %s\n", profile)
+	} else {
+		// Check if a profile is active
+		pm, err := profiles.NewProfileManager(nil)
+		if err == nil {
+			activeProfile, err := pm.GetActiveProfile()
+			if err == nil && activeProfile != "" {
+				// Use the active profile directory instead
+				profilesDir, err := paths.GetProfilesDir()
+				if err == nil {
+					baseDir = filepath.Join(profilesDir, activeProfile)
+					profileName = activeProfile
+					fmt.Printf("Using active profile for updates: %s\n", activeProfile)
+				}
+			}
+		}
+	}
+
+	return &UpdateDetector{
+		baseDir:     baseDir,
+		detector:    detector.NewRepositoryDetector(),
+		profileName: profileName,
+	}
+}
+
 // LoadMetadata loads component metadata from lock files only
 func (ud *UpdateDetector) LoadMetadata(componentType, componentName string) (*models.ComponentMetadata, error) {
 	return ud.loadMetadata(componentType, componentName)
