@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Component Scanner for Agent-Smith Profile Builder
-# Scans ~/.agent-smith/ directory for available components
+# Scans ~/.agent-smith/profiles/ directory for available components
 
 AGENT_SMITH_DIR="$HOME/.agent-smith"
 
@@ -14,60 +14,120 @@ NC='\033[0m' # No Color
 
 # Function to scan available skills
 scan_skills() {
-    if [[ -d "$AGENT_SMITH_DIR/skills" ]]; then
-        find "$AGENT_SMITH_DIR/skills" -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | sort
+    local profiles_dir="$AGENT_SMITH_DIR/profiles"
+    
+    # Check if profiles directory exists
+    if [[ ! -d "$profiles_dir" ]]; then
+        return 0
     fi
+    
+    # Scan all profiles for skills and deduplicate
+    # Skills are at: profiles/profile-name/skills/skill-name
+    find "$profiles_dir" -mindepth 3 -maxdepth 3 -type d -path "*/skills/*" -exec basename {} \; | sort -u
 }
 
 # Function to scan available agents
 scan_agents() {
-    if [[ -d "$AGENT_SMITH_DIR/agents" ]]; then
-        find "$AGENT_SMITH_DIR/agents" -type f -name "*.md" | while read -r agent; do
-            # Get relative path from agents directory
-            rel_path=$(echo "$agent" | sed "s|$AGENT_SMITH_DIR/agents/||" | sed 's/\.md$//')
-            echo "$rel_path"
-        done | sort
+    local profiles_dir="$AGENT_SMITH_DIR/profiles"
+    
+    # Check if profiles directory exists
+    if [[ ! -d "$profiles_dir" ]]; then
+        return 0
     fi
+    
+    # Scan all profiles for agents and deduplicate
+    find "$profiles_dir" -type f -path "*/agents/*.md" | while read -r agent; do
+        # Get relative path from agents directory within the profile
+        # Extract everything after "agents/" and remove .md extension
+        rel_path=$(echo "$agent" | sed 's|.*/agents/||' | sed 's/\.md$//')
+        echo "$rel_path"
+    done | sort -u
 }
 
 # Function to scan available agents by category
 scan_agents_by_category() {
-    if [[ -d "$AGENT_SMITH_DIR/agents" ]]; then
-        find "$AGENT_SMITH_DIR/agents" -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | sort
+    local profiles_dir="$AGENT_SMITH_DIR/profiles"
+    
+    # Check if profiles directory exists
+    if [[ ! -d "$profiles_dir" ]]; then
+        return 0
     fi
+    
+    # Scan all profiles for agent categories (directories within agents/) and deduplicate
+    # Agent categories are at: profiles/profile-name/agents/category-name
+    find "$profiles_dir" -mindepth 3 -maxdepth 3 -type d -path "*/agents/*" -exec basename {} \; | sort -u
 }
 
 # Function to scan available commands
 scan_commands() {
-    if [[ -d "$AGENT_SMITH_DIR/commands" ]]; then
-        find "$AGENT_SMITH_DIR/commands" -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | sort
+    local profiles_dir="$AGENT_SMITH_DIR/profiles"
+    
+    # Check if profiles directory exists
+    if [[ ! -d "$profiles_dir" ]]; then
+        return 0
     fi
+    
+    # Scan all profiles for commands and deduplicate
+    # Commands are at: profiles/profile-name/commands/command-name
+    find "$profiles_dir" -mindepth 3 -maxdepth 3 -type d -path "*/commands/*" -exec basename {} \; | sort -u
 }
 
 # Function to check if a skill exists
 skill_exists() {
     local skill_name="$1"
-    [[ -d "$AGENT_SMITH_DIR/skills/$skill_name" ]]
+    local profiles_dir="$AGENT_SMITH_DIR/profiles"
+    
+    # Check if profiles directory exists
+    if [[ ! -d "$profiles_dir" ]]; then
+        return 1
+    fi
+    
+    # Check if skill exists in any profile
+    # Skills are at: profiles/profile-name/skills/skill-name
+    [[ -n $(find "$profiles_dir" -mindepth 3 -maxdepth 3 -type d -path "*/skills/$skill_name" | head -1) ]]
 }
 
 # Function to check if an agent exists
 agent_exists() {
     local agent_path="$1"
-    [[ -f "$AGENT_SMITH_DIR/agents/${agent_path}.md" ]]
+    local profiles_dir="$AGENT_SMITH_DIR/profiles"
+    
+    # Check if profiles directory exists
+    if [[ ! -d "$profiles_dir" ]]; then
+        return 1
+    fi
+    
+    # Check if agent exists in any profile
+    [[ -n $(find "$profiles_dir" -type f -path "*/agents/${agent_path}.md" | head -1) ]]
 }
 
 # Function to check if a command exists
 command_exists() {
     local command_name="$1"
-    [[ -d "$AGENT_SMITH_DIR/commands/$command_name" ]]
+    local profiles_dir="$AGENT_SMITH_DIR/profiles"
+    
+    # Check if profiles directory exists
+    if [[ ! -d "$profiles_dir" ]]; then
+        return 1
+    fi
+    
+    # Check if command exists in any profile
+    # Commands are at: profiles/profile-name/commands/command-name
+    [[ -n $(find "$profiles_dir" -mindepth 3 -maxdepth 3 -type d -path "*/commands/$command_name" | head -1) ]]
 }
 
 # Function to get agents in a category
 get_agents_in_category() {
     local category="$1"
-    if [[ -d "$AGENT_SMITH_DIR/agents/$category" ]]; then
-        find "$AGENT_SMITH_DIR/agents/$category" -maxdepth 1 -type f -name "*.md" -exec basename {} .md \; | sort
+    local profiles_dir="$AGENT_SMITH_DIR/profiles"
+    
+    # Check if profiles directory exists
+    if [[ ! -d "$profiles_dir" ]]; then
+        return 0
     fi
+    
+    # Find all agents in this category across all profiles and deduplicate
+    find "$profiles_dir" -type f -path "*/agents/$category/*.md" -exec basename {} .md \; | sort -u
 }
 
 # Function to find matching skills by pattern
@@ -130,7 +190,7 @@ list_all_components() {
     local agent_count=$(scan_agents | wc -l | tr -d ' ')
     local command_count=$(scan_commands | wc -l | tr -d ' ')
     
-    echo -e "${GREEN}Available Components in ~/.agent-smith/${NC}"
+    echo -e "${GREEN}Available Components in ~/.agent-smith/profiles/${NC}"
     echo -e "${BLUE}Skills:${NC} $skill_count"
     echo -e "${BLUE}Agents:${NC} $agent_count"
     echo -e "${BLUE}Commands:${NC} $command_count"
