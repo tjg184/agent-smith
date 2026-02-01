@@ -195,6 +195,10 @@ func (ud *UpdateDetector) HasUpdates(componentType, componentName, repoURL strin
 
 // UpdateComponent updates a single component if updates are detected
 func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL string) error {
+	// Only show location message if we're using a profile
+	if ud.profileName != "" {
+		fmt.Printf("Updating components in: %s\n", ud.baseDir)
+	}
 	fmt.Printf("Checking for updates to %s/%s...\n", componentType, componentName)
 
 	hasUpdates, err := ud.HasUpdates(componentType, componentName, repoURL)
@@ -263,6 +267,10 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 
 // UpdateAll iterates through all installed components and updates them
 func (ud *UpdateDetector) UpdateAll() error {
+	// Only show location message if we're using a profile
+	if ud.profileName != "" {
+		fmt.Printf("Updating components in: %s\n", ud.baseDir)
+	}
 	fmt.Println("Checking all components for updates...")
 	componentTypes := paths.GetComponentTypes()
 
