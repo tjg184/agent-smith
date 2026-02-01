@@ -484,12 +484,14 @@ func (pm *ProfileManager) copyComponentWithMetadata(
 
 	// Check if source component exists
 	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
-		return fmt.Errorf("component '%s' not found in source directory", componentName)
+		return fmt.Errorf("component '%s' does not exist in source profile (expected at: %s)", componentName, srcDir)
+	} else if err != nil {
+		return fmt.Errorf("failed to access source component '%s' at %s: %w", componentName, srcDir, err)
 	}
 
 	// Check if component already exists in target
 	if _, err := os.Stat(dstDir); err == nil {
-		return fmt.Errorf("component '%s' already exists in target directory", componentName)
+		return fmt.Errorf("component '%s' already exists in target profile at: %s\n\nTo overwrite, first remove the existing component:\n  agent-smith remove %s %s", componentName, dstDir, componentType, componentName)
 	}
 
 	fmt.Printf("Copying component files...\n")
@@ -858,26 +860,39 @@ func (pm *ProfileManager) RemoveComponentFromProfile(profileName, componentType,
 func copyDirectory(src, dst string) error {
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return fmt.Errorf("error accessing path %s: %w", path, err)
 		}
 
 		relPath, err := filepath.Rel(src, path)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to determine relative path for %s: %w", path, err)
 		}
 
 		dstPath := filepath.Join(dst, relPath)
 
 		if info.IsDir() {
-			return os.MkdirAll(dstPath, 0755)
+			if err := os.MkdirAll(dstPath, 0755); err != nil {
+				return fmt.Errorf("failed to create directory %s: %w", dstPath, err)
+			}
+			return nil
 		}
 
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return err
+			if os.IsPermission(err) {
+				return fmt.Errorf("permission denied reading file %s: %w", path, err)
+			}
+			return fmt.Errorf("failed to read file %s: %w", path, err)
 		}
 
-		return os.WriteFile(dstPath, data, 0644)
+		if err := os.WriteFile(dstPath, data, 0644); err != nil {
+			if os.IsPermission(err) {
+				return fmt.Errorf("permission denied writing file %s: %w", dstPath, err)
+			}
+			return fmt.Errorf("failed to write file %s: %w", dstPath, err)
+		}
+
+		return nil
 	})
 }
 

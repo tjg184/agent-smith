@@ -18,7 +18,7 @@ Add functionality to copy components (skills, agents, commands) between profiles
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want to copy a useful skill from my work profile to my personal profile so that I can use the same tool in both contexts and update them independently.
+- [x] Story-001: As a developer, I want to copy a useful skill from my work profile to my personal profile so that I can use the same tool in both contexts and update them independently.
 
   **Acceptance Criteria:**
   - Command accepts four arguments: component type, source profile, target profile, component name
@@ -43,7 +43,7 @@ Add functionality to copy components (skills, agents, commands) between profiles
   **Component Browser Tests:**
   - Not applicable (CLI tool, no browser UI)
 
-- [ ] Story-002: As a developer, I want clear error messages when copy operations fail so that I can understand what went wrong and how to fix it.
+- [x] Story-002: As a developer, I want clear error messages when copy operations fail so that I can understand what went wrong and how to fix it.
 
   **Acceptance Criteria:**
   - Error message when source profile doesn't exist shows profile name
