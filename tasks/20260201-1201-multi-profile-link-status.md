@@ -92,7 +92,7 @@ Add the ability to view link status across all profiles simultaneously in agent-
   **Component Browser Tests:**
   - Not applicable (CLI tool, no browser components)
 
-- [ ] Story-004: As a user running the default link status command, I want the existing behavior to remain unchanged so that I can continue using familiar workflows without disruption.
+- [x] Story-004: As a user running the default link status command, I want the existing behavior to remain unchanged so that I can continue using familiar workflows without disruption.
 
   **Acceptance Criteria:**
   - `agent-smith link status` without flags shows current profile/base only (existing behavior)
