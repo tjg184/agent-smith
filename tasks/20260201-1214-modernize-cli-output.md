@@ -367,7 +367,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   **Component Browser Tests:**
   - Not applicable (internal library)
 
-- [ ] Story-014: As a developer, I want box-drawing utilities so that all commands can easily create consistent bordered sections.
+- [x] Story-014: As a developer, I want box-drawing utilities so that all commands can easily create consistent bordered sections.
 
   **Acceptance Criteria:**
   - New file `internal/formatter/boxes.go` created
@@ -487,7 +487,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   **Component Browser Tests:**
   - Not applicable (internal library)
 
-- [ ] Story-018: As a developer, I want color support in the logger package so that log levels are visually distinct.
+- [x] Story-018: As a developer, I want color support in the logger package so that log levels are visually distinct.
 
   **Acceptance Criteria:**
   - Update `pkg/logger/logger.go` with optional color support
