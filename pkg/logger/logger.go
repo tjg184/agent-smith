@@ -143,19 +143,31 @@ func (l *Logger) log(level Level, format string, args ...interface{}) {
 	// Build the message
 	var msg string
 	if showTags {
-		tag := fmt.Sprintf("[%s] ", level)
-		msg = tag + prefix + fmt.Sprintf(format, args...)
+		tag := fmt.Sprintf("[%s]", level)
+		// Apply color to the tag if enabled
+		if colorize {
+			switch level {
+			case LevelError:
+				tag = colors.ErrorBold(tag)
+			case LevelWarn:
+				tag = colors.WarningBold(tag)
+			case LevelInfo:
+				tag = colors.InfoBold(tag)
+			case LevelDebug:
+				tag = colors.Muted(tag)
+			}
+		}
+		msg = tag + " " + prefix + fmt.Sprintf(format, args...)
 	} else {
 		msg = prefix + fmt.Sprintf(format, args...)
-	}
-
-	// Apply color formatting if enabled
-	if colorize && !showTags {
-		switch level {
-		case LevelError:
-			msg = errors.FormatSimpleError(msg)
-		case LevelWarn:
-			msg = errors.FormatSimpleWarning(msg)
+		// Apply color formatting if enabled and tags are disabled
+		if colorize {
+			switch level {
+			case LevelError:
+				msg = errors.FormatSimpleError(msg)
+			case LevelWarn:
+				msg = errors.FormatSimpleWarning(msg)
+			}
 		}
 	}
 

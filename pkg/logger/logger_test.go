@@ -322,3 +322,116 @@ func TestLogger_Concurrency(t *testing.T) {
 		t.Error("Expected some output from concurrent logging")
 	}
 }
+
+func TestLogger_ColorSupport(t *testing.T) {
+	tests := []struct {
+		name     string
+		level    Level
+		showTags bool
+		colorize bool
+		logFunc  func(*Logger)
+		wantANSI bool
+	}{
+		{
+			name:     "Error with colors and tags",
+			level:    LevelError,
+			showTags: true,
+			colorize: true,
+			logFunc:  func(l *Logger) { l.Error("test") },
+			wantANSI: true,
+		},
+		{
+			name:     "Warn with colors and tags",
+			level:    LevelWarn,
+			showTags: true,
+			colorize: true,
+			logFunc:  func(l *Logger) { l.Warn("test") },
+			wantANSI: true,
+		},
+		{
+			name:     "Info with colors and tags",
+			level:    LevelInfo,
+			showTags: true,
+			colorize: true,
+			logFunc:  func(l *Logger) { l.Info("test") },
+			wantANSI: true,
+		},
+		{
+			name:     "Debug with colors and tags",
+			level:    LevelDebug,
+			showTags: true,
+			colorize: true,
+			logFunc:  func(l *Logger) { l.Debug("test") },
+			wantANSI: true,
+		},
+		{
+			name:     "Error without colors",
+			level:    LevelError,
+			showTags: true,
+			colorize: false,
+			logFunc:  func(l *Logger) { l.Error("test") },
+			wantANSI: false,
+		},
+		{
+			name:     "Error without tags but with colors",
+			level:    LevelError,
+			showTags: false,
+			colorize: true,
+			logFunc:  func(l *Logger) { l.Error("test") },
+			wantANSI: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			logger := New(tt.level)
+			logger.SetOutput(&buf)
+			logger.SetErrorOutput(&buf)
+			logger.SetShowTags(tt.showTags)
+			logger.SetColorize(tt.colorize)
+
+			tt.logFunc(logger)
+
+			output := buf.String()
+			hasANSI := strings.Contains(output, "\x1b[")
+
+			if hasANSI != tt.wantANSI {
+				t.Errorf("Color support failed: wantANSI=%v, hasANSI=%v, output=%q",
+					tt.wantANSI, hasANSI, output)
+			}
+
+			// Ensure message contains "test"
+			if !strings.Contains(output, "test") {
+				t.Errorf("Output should contain 'test', got: %q", output)
+			}
+		})
+	}
+}
+
+func TestLogger_SetColorize(t *testing.T) {
+	var buf bytes.Buffer
+	logger := New(LevelInfo)
+	logger.SetOutput(&buf)
+
+	// Test with colors enabled (default)
+	logger.Info("with colors")
+	withColors := buf.String()
+
+	// Test with colors disabled
+	buf.Reset()
+	logger.SetColorize(false)
+	logger.Info("without colors")
+	withoutColors := buf.String()
+
+	// With colors should have ANSI codes, without should not
+	hasANSIWith := strings.Contains(withColors, "\x1b[")
+	hasANSIWithout := strings.Contains(withoutColors, "\x1b[")
+
+	if !hasANSIWith {
+		t.Error("SetColorize(true) should produce ANSI color codes")
+	}
+	if hasANSIWithout {
+		t.Error("SetColorize(false) should not produce ANSI color codes")
+	}
+}
