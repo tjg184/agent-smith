@@ -38,7 +38,7 @@ This PRD outlines a comprehensive cleanup to:
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want shared test utilities in internal/testutil so that I can write consistent tests across packages without duplication.
+- [x] Story-001: As a developer, I want shared test utilities in internal/testutil so that I can write consistent tests across packages without duplication.
 
   **Acceptance Criteria:**
   - Create `internal/testutil/helpers.go` with TestHelper struct extracted from component_download_integration_test.go
@@ -58,7 +58,7 @@ This PRD outlines a comprehensive cleanup to:
   **Integration Tests:**
   - Note: Will be validated by refactoring component_download_integration_test.go to use new package
 
-- [ ] Story-002: As a developer, I want profile management logic tested at the package level so that profile tests run faster and are easier to debug.
+- [x] Story-002: As a developer, I want profile management logic tested at the package level so that profile tests run faster and are easier to debug.
 
   **Acceptance Criteria:**
   - Add `pkg/profiles/reuse_test.go` covering profile reuse logic from Story-001 integration test
@@ -77,7 +77,7 @@ This PRD outlines a comprehensive cleanup to:
   **Integration Tests:**
   - Note: Core e2e profile workflows will be covered in Story-007 (e2e_workflow_integration_test.go)
 
-- [ ] Story-003: As a developer, I want Git URL normalization tested in internal/git so that URL handling tests are close to the implementation.
+- [x] Story-003: As a developer, I want Git URL normalization tested in internal/git so that URL handling tests are close to the implementation.
 
   **Acceptance Criteria:**
   - Add `internal/git/url_normalization_test.go` (or extend existing if present) covering Story-002 integration test cases
@@ -96,7 +96,7 @@ This PRD outlines a comprehensive cleanup to:
   **Integration Tests:**
   - Note: Will verify URL normalization works end-to-end through profile reuse tests
 
-- [ ] Story-004: As a developer, I want updater logic tested in internal/updater so that update behavior is verified without full CLI integration.
+- [x] Story-004: As a developer, I want updater logic tested in internal/updater so that update behavior is verified without full CLI integration.
 
   **Acceptance Criteria:**
   - Add `internal/updater/profile_update_test.go` covering Story-003, Story-006 update logic
@@ -117,7 +117,7 @@ This PRD outlines a comprehensive cleanup to:
   **Integration Tests:**
   - Note: End-to-end update workflows will be covered in Story-007
 
-- [ ] Story-005: As a developer, I want component downloading tests consolidated so that integration tests focus on real file system operations and cross-platform behavior.
+- [x] Story-005: As a developer, I want component downloading tests consolidated so that integration tests focus on real file system operations and cross-platform behavior.
 
   **Acceptance Criteria:**
   - Refactor `component_download_integration_test.go` to use `internal/testutil` helpers
@@ -142,7 +142,7 @@ This PRD outlines a comprehensive cleanup to:
   **Unit Tests:**
   - Note: Component detection logic already covered in internal/detector/ unit tests
 
-- [ ] Story-006: As a developer, I want a single focused e2e workflow test so that critical user paths are verified without duplicating feature-level tests.
+- [x] Story-006: As a developer, I want a single focused e2e workflow test so that critical user paths are verified without duplicating feature-level tests.
 
   **Acceptance Criteria:**
   - Create `e2e_workflow_integration_test.go` with 4 critical happy path workflows
