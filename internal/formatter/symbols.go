@@ -8,4 +8,5 @@ const (
 	SymbolCopied    = "◆"
 	SymbolNotLinked = "-"
 	SymbolUnknown   = "?"
+	SymbolUpdating  = "⟳" // Sync/updating symbol
 )
