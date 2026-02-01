@@ -197,35 +197,42 @@ func (ud *UpdateDetector) HasUpdates(componentType, componentName, repoURL strin
 
 // UpdateComponent updates a single component if updates are detected
 func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL string) error {
-	// Only show location message if we're using a profile
-	if ud.profileName != "" {
-		cyan := color.New(color.FgCyan).SprintFunc()
-		fmt.Printf("%s Updating components in: %s\n\n", cyan("→"), ud.baseDir)
-	}
-
 	green := color.New(color.FgGreen).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
+	red := color.New(color.FgRed).SprintFunc()
 	gray := color.New(color.FgHiBlack).SprintFunc()
+	cyan := color.New(color.FgCyan).SprintFunc()
 
-	fmt.Printf("Checking %s/%s for updates...\n", gray(componentType), componentName)
+	// Show location header
+	if ud.profileName != "" {
+		fmt.Printf("%s Updating components in: %s\n\n", cyan("→"), ud.baseDir)
+	} else {
+		fmt.Printf("%s Checking for updates...\n\n", cyan("→"))
+	}
+
+	// Check for updates
+	fmt.Printf("Checking %s/%s... ", gray(componentType), componentName)
 
 	hasUpdates, err := ud.HasUpdates(componentType, componentName, repoURL)
 	if err != nil {
+		fmt.Printf("%s Failed\n", red(formatter.SymbolError))
+		fmt.Printf("  %s %v\n\n", gray("└─"), err)
 		return fmt.Errorf("failed to check for updates: %w", err)
 	}
 
 	if !hasUpdates {
-		fmt.Printf("%s %s/%s is already up to date\n", green(formatter.SymbolSuccess), gray(componentType), componentName)
+		fmt.Printf("%s Up to date\n\n", green(formatter.SymbolSuccess))
 		return nil
 	}
 
-	fmt.Printf("%s %s/%s has updates available\n", yellow(formatter.SymbolUpdating), gray(componentType), componentName)
-	fmt.Printf("  Downloading new version...\n")
+	// Component needs updating
+	fmt.Printf("%s Updating\n", yellow(formatter.SymbolUpdating))
 
 	// Remove old component directory to ensure clean re-clone
 	componentDir := filepath.Join(ud.baseDir, componentType, componentName)
 	if _, err := os.Stat(componentDir); err == nil {
 		if err := os.RemoveAll(componentDir); err != nil {
+			fmt.Printf("  %s Failed to remove old version: %v\n\n", red(formatter.SymbolError), err)
 			return fmt.Errorf("failed to remove old component directory: %w", err)
 		}
 	}
@@ -265,27 +272,28 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 	}
 
 	if downloadErr != nil {
+		fmt.Printf("  %s Update failed: %v\n\n", red(formatter.SymbolError), downloadErr)
 		return downloadErr
 	}
 
-	fmt.Printf("%s Successfully updated %s/%s\n\n", green(formatter.SymbolSuccess), gray(componentType), componentName)
+	fmt.Printf("  %s Updated successfully\n\n", green(formatter.SymbolSuccess))
 	return nil
 }
 
 // UpdateAll iterates through all installed components and updates them
 func (ud *UpdateDetector) UpdateAll() error {
-	// Only show location message if we're using a profile
 	cyan := color.New(color.FgCyan).SprintFunc()
+	green := color.New(color.FgGreen).SprintFunc()
+	red := color.New(color.FgRed).SprintFunc()
+	yellow := color.New(color.FgYellow).SprintFunc()
+	gray := color.New(color.FgHiBlack).SprintFunc()
+
+	// Show location header
 	if ud.profileName != "" {
 		fmt.Printf("%s Updating components in: %s\n\n", cyan("→"), ud.baseDir)
 	} else {
 		fmt.Printf("%s Checking all components for updates...\n\n", cyan("→"))
 	}
-
-	green := color.New(color.FgGreen).SprintFunc()
-	red := color.New(color.FgRed).SprintFunc()
-	yellow := color.New(color.FgYellow).SprintFunc()
-	gray := color.New(color.FgHiBlack).SprintFunc()
 
 	componentTypes := paths.GetComponentTypes()
 
@@ -334,13 +342,13 @@ func (ud *UpdateDetector) UpdateAll() error {
 				componentName := entry.Name()
 				totalChecked++
 
-				fmt.Printf("[%d/%d] Checking %s/%s... ", totalChecked, totalComponents, gray(componentType), componentName)
+				fmt.Printf("[%d/%d] %s/%s... ", totalChecked, totalComponents, gray(componentType), componentName)
 
 				// Load metadata to get source URL
 				metadata, err := ud.loadMetadata(componentType, componentName)
 				if err != nil {
 					fmt.Printf("%s Failed\n", red(formatter.SymbolError))
-					fmt.Printf("  %s Failed to load metadata: %v\n", gray("└─"), err)
+					fmt.Printf("  %s %v\n", gray("└─"), err)
 					failed++
 					continue
 				}
@@ -349,7 +357,7 @@ func (ud *UpdateDetector) UpdateAll() error {
 				hasUpdates, err := ud.HasUpdates(componentType, componentName, metadata.Source)
 				if err != nil {
 					fmt.Printf("%s Failed\n", red(formatter.SymbolError))
-					fmt.Printf("  %s Failed to check for updates: %v\n", gray("└─"), err)
+					fmt.Printf("  %s %v\n", gray("└─"), err)
 					failed++
 					continue
 				}
@@ -367,7 +375,7 @@ func (ud *UpdateDetector) UpdateAll() error {
 				componentDir := filepath.Join(ud.baseDir, componentType, componentName)
 				if _, err := os.Stat(componentDir); err == nil {
 					if err := os.RemoveAll(componentDir); err != nil {
-						fmt.Printf("  %s Failed to remove old version: %v\n", red(formatter.SymbolError), err)
+						fmt.Printf("  %s %v\n", red(formatter.SymbolError), err)
 						failed++
 						continue
 					}
@@ -408,7 +416,7 @@ func (ud *UpdateDetector) UpdateAll() error {
 				}
 
 				if downloadErr != nil {
-					fmt.Printf("  %s Update failed: %v\n", red(formatter.SymbolError), downloadErr)
+					fmt.Printf("  %s %v\n", red(formatter.SymbolError), downloadErr)
 					failed++
 				} else {
 					fmt.Printf("  %s Updated successfully\n", green(formatter.SymbolSuccess))

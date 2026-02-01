@@ -202,7 +202,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [ ] Story-008: As a CLI user, I want the profile list command output modernized so that I can easily see all my profiles and their contents.
+- [x] Story-008: As a CLI user, I want the profile list command output modernized so that I can easily see all my profiles and their contents.
 
   **Acceptance Criteria:**
   - Profile list displays in bordered box with title "Available Profiles"
@@ -228,7 +228,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   **Component Browser Tests:**
   - Not applicable (CLI-only feature)
 
-- [ ] Story-009: As a CLI user, I want the update command output modernized so that I can see what's being updated and track progress clearly.
+- [x] Story-009: As a CLI user, I want the update command output modernized so that I can see what's being updated and track progress clearly.
 
   **Acceptance Criteria:**
   - Update starts with "Updating components in: {path}" header
