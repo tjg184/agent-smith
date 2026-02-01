@@ -233,7 +233,7 @@ This PRD outlines a comprehensive cleanup to:
   ./verify-coverage.sh
   ```
 
-- [ ] Story-009: As a developer, I want documentation updated so that the testing guide reflects the new structure.
+- [x] Story-009: As a developer, I want documentation updated so that the testing guide reflects the new structure.
 
   **Acceptance Criteria:**
   - Update `TESTING.md` with new test organization: testutil package, focused integration tests, package-level unit tests
@@ -249,7 +249,7 @@ This PRD outlines a comprehensive cleanup to:
   **Integration Tests:**
   - Note: Documentation accuracy verified by following guide to run tests
 
-- [ ] Story-010: As a developer, I want debug flag tests removed so that we don't test CLI framework functionality unnecessarily.
+- [x] Story-010: As a developer, I want debug flag tests removed so that we don't test CLI framework functionality unnecessarily.
 
   **Acceptance Criteria:**
   - Delete `debug_flag_integration_test.go` (122 lines) - tests Cobra flag parsing, not application logic
