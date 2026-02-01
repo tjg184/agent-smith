@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/tgaines/agent-smith/cmd"
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/downloader"
@@ -1595,15 +1596,17 @@ func main() {
 				}
 			}
 
-			// Display status - use fmt.Println to always show output without flags
-			fmt.Println("Current Configuration:")
-			fmt.Println()
+			// Display status with modern formatting
+			f := formatter.New()
+			f.SectionHeader("Agent Smith Status")
 
 			// Show active profile
 			if activeProfile != "" {
-				fmt.Printf("  Active Profile: %s %s\n", activeProfile, formatter.SymbolSuccess)
+				green := color.New(color.FgGreen).SprintFunc()
+				fmt.Printf("  Active Profile:     %s %s\n", green(activeProfile), formatter.ColoredSuccess())
 			} else {
-				fmt.Println("  Active Profile: None")
+				gray := color.New(color.FgHiBlack).SprintFunc()
+				fmt.Printf("  Active Profile:     %s\n", gray("None"))
 			}
 
 			// Show detected targets
@@ -1612,16 +1615,20 @@ func main() {
 				for _, target := range targets {
 					targetNames = append(targetNames, target.GetName())
 				}
-				fmt.Printf("  Detected Targets: %s\n", joinStrings(targetNames, ", "))
+				cyan := color.New(color.FgCyan).SprintFunc()
+				fmt.Printf("  Detected Targets:   %s\n", cyan(joinStrings(targetNames, ", ")))
 			} else {
-				fmt.Println("  Detected Targets: None")
+				gray := color.New(color.FgHiBlack).SprintFunc()
+				fmt.Printf("  Detected Targets:   %s\n", gray("None"))
 			}
 
+			// Show base components count
 			fmt.Println()
-			fmt.Println("Components in ~/.agent-smith/:")
-			fmt.Printf("  Agents: %d\n", agentsCount)
-			fmt.Printf("  Skills: %d\n", skillsCount)
-			fmt.Printf("  Commands: %d\n", commandsCount)
+			bold := color.New(color.Bold).SprintFunc()
+			fmt.Printf("%s\n", bold("Base Components (~/.agent-smith/)"))
+			fmt.Printf("  • Agents:           %d\n", agentsCount)
+			fmt.Printf("  • Skills:           %d\n", skillsCount)
+			fmt.Printf("  • Commands:         %d\n", commandsCount)
 
 			// If there's an active profile, show its components
 			if activeProfile != "" {
@@ -1631,20 +1638,24 @@ func main() {
 						if profile.Name == activeProfile {
 							agents, skills, commands := pm.CountComponents(profile)
 							fmt.Println()
-							fmt.Printf("Active Profile (%s):\n", activeProfile)
-							fmt.Printf("  Agents: %d\n", agents)
-							fmt.Printf("  Skills: %d\n", skills)
-							fmt.Printf("  Commands: %d\n", commands)
+							green := color.New(color.FgGreen, color.Bold).SprintFunc()
+							fmt.Printf("%s\n", green("Active Profile Components"))
+							fmt.Printf("  • Agents:           %d\n", agents)
+							fmt.Printf("  • Skills:           %d\n", skills)
+							fmt.Printf("  • Commands:         %d\n", commands)
 							break
 						}
 					}
 				}
 			}
 
+			// Show helpful commands
 			fmt.Println()
-			fmt.Println("For more details:")
-			fmt.Println("  - Run 'agent-smith link status' for link information")
-			fmt.Println("  - Run 'agent-smith profile list' to see all profiles")
+			dim := color.New(color.Faint).SprintFunc()
+			fmt.Println(dim("Quick Actions:"))
+			fmt.Printf("  %s agent-smith link status     %s\n", dim("•"), dim("View component link status"))
+			fmt.Printf("  %s agent-smith profile list    %s\n", dim("•"), dim("List all profiles"))
+			fmt.Println()
 		},
 		func(name, path string) {
 			// Load existing config
