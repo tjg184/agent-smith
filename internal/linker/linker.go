@@ -15,6 +15,7 @@ import (
 	"github.com/tgaines/agent-smith/pkg/colors"
 	"github.com/tgaines/agent-smith/pkg/config"
 	"github.com/tgaines/agent-smith/pkg/paths"
+	"github.com/tgaines/agent-smith/pkg/styles"
 )
 
 // ComponentLinker handles linking components to configured targets
@@ -251,25 +252,22 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 
 		// Display inline progress: "Linking {type}: {name}... ✓ Done" or "✗ Failed"
 		if hasSuccess {
-			profileInfo := ""
-			if selectedProfileName != "" && selectedProfileName != "base" {
-				profileInfo = colors.Muted(fmt.Sprintf(" (from profile: %s)", selectedProfileName))
-			}
-			fmt.Printf("Linking %s: %s... %s\n", componentType, componentName, colors.Success(formatter.SymbolSuccess+" Done")+profileInfo)
+			profileNote := styles.ProfileNoteFormat(selectedProfileName)
+			fmt.Printf("%s%s\n", styles.InlineSuccessFormat("Linking", componentType, componentName), profileNote)
 
 			// Show target details
 			for _, result := range linkResults {
 				if result.success {
-					fmt.Printf("  %s %s: %s\n", colors.Muted("→"), result.name, result.path)
+					fmt.Printf("%s\n", styles.IndentedDetailFormat(result.name, result.path))
 				}
 			}
 		} else {
-			fmt.Printf("Linking %s: %s... %s\n", componentType, componentName, colors.Error(formatter.SymbolError+" Failed"))
+			fmt.Printf("%s\n", styles.InlineFailedFormat("Linking", componentType, componentName))
 
 			// Show errors indented
 			for _, result := range linkResults {
 				if !result.success {
-					fmt.Printf("  %s %s: %s\n", colors.Muted("→"), result.name, result.errMsg)
+					fmt.Printf("%s\n", styles.IndentedDetailFormat(result.name, result.errMsg))
 				}
 			}
 			return fmt.Errorf("failed to link to target")

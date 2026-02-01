@@ -15,6 +15,7 @@ import (
 	"github.com/tgaines/agent-smith/pkg/colors"
 	"github.com/tgaines/agent-smith/pkg/paths"
 	"github.com/tgaines/agent-smith/pkg/profiles"
+	"github.com/tgaines/agent-smith/pkg/styles"
 )
 
 // UpdateDetector provides functionality to detect and apply updates to components
@@ -199,34 +200,34 @@ func (ud *UpdateDetector) HasUpdates(componentType, componentName, repoURL strin
 func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL string) error {
 	// Show location header
 	if ud.profileName != "" {
-		fmt.Printf("%s Updating components in: %s\n\n", colors.Info("→"), ud.baseDir)
+		fmt.Printf("%s\n\n", styles.InfoArrowFormat(fmt.Sprintf("Updating components in: %s", ud.baseDir)))
 	} else {
-		fmt.Printf("%s Checking for updates...\n\n", colors.Info("→"))
+		fmt.Printf("%s\n\n", styles.InfoArrowFormat("Checking for updates..."))
 	}
 
 	// Check for updates
-	fmt.Printf("Checking %s/%s... ", colors.Muted(componentType), componentName)
+	fmt.Print(styles.ProgressCheckingFormat(componentType, componentName))
 
 	hasUpdates, err := ud.HasUpdates(componentType, componentName, repoURL)
 	if err != nil {
-		fmt.Printf("%s Failed\n", colors.Error(formatter.SymbolError))
-		fmt.Printf("  %s %v\n\n", colors.Muted("└─"), err)
+		fmt.Printf("%s\n", styles.StatusFailedFormat())
+		fmt.Printf("%s\n\n", styles.IndentedErrorFormat(err.Error()))
 		return fmt.Errorf("failed to check for updates: %w", err)
 	}
 
 	if !hasUpdates {
-		fmt.Printf("%s Up to date\n\n", colors.Success(formatter.SymbolSuccess))
+		fmt.Printf("%s\n\n", styles.StatusUpToDateFormat())
 		return nil
 	}
 
 	// Component needs updating
-	fmt.Printf("%s Updating\n", colors.Warning(formatter.SymbolUpdating))
+	fmt.Printf("%s\n", styles.StatusUpdatingFormat())
 
 	// Remove old component directory to ensure clean re-clone
 	componentDir := filepath.Join(ud.baseDir, componentType, componentName)
 	if _, err := os.Stat(componentDir); err == nil {
 		if err := os.RemoveAll(componentDir); err != nil {
-			fmt.Printf("  %s Failed to remove old version: %v\n\n", colors.Error(formatter.SymbolError), err)
+			fmt.Printf("  %s\n\n", styles.IndentedErrorFormat(fmt.Sprintf("Failed to remove old version: %v", err)))
 			return fmt.Errorf("failed to remove old component directory: %w", err)
 		}
 	}
@@ -266,11 +267,11 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 	}
 
 	if downloadErr != nil {
-		fmt.Printf("  %s Update failed: %v\n\n", colors.Error(formatter.SymbolError), downloadErr)
+		fmt.Printf("  %s\n\n", styles.IndentedErrorFormat(fmt.Sprintf("Update failed: %v", downloadErr)))
 		return downloadErr
 	}
 
-	fmt.Printf("  %s Updated successfully\n\n", colors.Success(formatter.SymbolSuccess))
+	fmt.Printf("  %s\n\n", styles.StatusUpdatedSuccessfullyFormat())
 	return nil
 }
 
@@ -278,9 +279,9 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 func (ud *UpdateDetector) UpdateAll() error {
 	// Show location header
 	if ud.profileName != "" {
-		fmt.Printf("%s Updating components in: %s\n\n", colors.Info("→"), ud.baseDir)
+		fmt.Printf("%s\n\n", styles.InfoArrowFormat(fmt.Sprintf("Updating components in: %s", ud.baseDir)))
 	} else {
-		fmt.Printf("%s Checking all components for updates...\n\n", colors.Info("→"))
+		fmt.Printf("%s\n\n", styles.InfoArrowFormat("Checking all components for updates..."))
 	}
 
 	componentTypes := paths.GetComponentTypes()
@@ -321,7 +322,7 @@ func (ud *UpdateDetector) UpdateAll() error {
 
 		entries, err := os.ReadDir(typeDir)
 		if err != nil {
-			fmt.Printf("%s Failed to read %s directory: %v\n", colors.Error(formatter.SymbolError), componentType, err)
+			fmt.Printf("%s\n", styles.IndentedErrorFormat(fmt.Sprintf("Failed to read %s directory: %v", componentType, err)))
 			continue
 		}
 
@@ -330,13 +331,13 @@ func (ud *UpdateDetector) UpdateAll() error {
 				componentName := entry.Name()
 				totalChecked++
 
-				fmt.Printf("[%d/%d] %s/%s... ", totalChecked, totalComponents, colors.Muted(componentType), componentName)
+				fmt.Print(styles.ComponentProgressFormat(totalChecked, totalComponents, componentType, componentName))
 
 				// Load metadata to get source URL
 				metadata, err := ud.loadMetadata(componentType, componentName)
 				if err != nil {
-					fmt.Printf("%s Failed\n", colors.Error(formatter.SymbolError))
-					fmt.Printf("  %s %v\n", colors.Muted("└─"), err)
+					fmt.Printf("%s\n", styles.StatusFailedFormat())
+					fmt.Printf("%s\n", styles.IndentedErrorFormat(err.Error()))
 					failed++
 					continue
 				}
@@ -344,26 +345,26 @@ func (ud *UpdateDetector) UpdateAll() error {
 				// Check if updates are available
 				hasUpdates, err := ud.HasUpdates(componentType, componentName, metadata.Source)
 				if err != nil {
-					fmt.Printf("%s Failed\n", colors.Error(formatter.SymbolError))
-					fmt.Printf("  %s %v\n", colors.Muted("└─"), err)
+					fmt.Printf("%s\n", styles.StatusFailedFormat())
+					fmt.Printf("%s\n", styles.IndentedErrorFormat(err.Error()))
 					failed++
 					continue
 				}
 
 				if !hasUpdates {
-					fmt.Printf("%s Up to date\n", colors.Success(formatter.SymbolSuccess))
+					fmt.Printf("%s\n", styles.StatusUpToDateFormat())
 					upToDate++
 					continue
 				}
 
 				// Apply the update
-				fmt.Printf("%s Updating\n", colors.Warning(formatter.SymbolUpdating))
+				fmt.Printf("%s\n", styles.StatusUpdatingFormat())
 
 				// Remove old component directory to ensure clean re-clone
 				componentDir := filepath.Join(ud.baseDir, componentType, componentName)
 				if _, err := os.Stat(componentDir); err == nil {
 					if err := os.RemoveAll(componentDir); err != nil {
-						fmt.Printf("  %s %v\n", colors.Error(formatter.SymbolError), err)
+						fmt.Printf("%s\n", styles.IndentedErrorFormat(err.Error()))
 						failed++
 						continue
 					}
@@ -404,28 +405,26 @@ func (ud *UpdateDetector) UpdateAll() error {
 				}
 
 				if downloadErr != nil {
-					fmt.Printf("  %s %v\n", colors.Error(formatter.SymbolError), downloadErr)
+					fmt.Printf("%s\n", styles.IndentedErrorFormat(downloadErr.Error()))
 					failed++
 				} else {
-					fmt.Printf("  %s Updated successfully\n", colors.Success(formatter.SymbolSuccess))
+					fmt.Printf("  %s\n", styles.StatusUpdatedSuccessfullyFormat())
 					updated++
 				}
 			}
 		}
 	}
 
-	// Print summary with box drawing
+	// Print summary with box drawing using styles package
 	fmt.Println()
-	fmt.Println("┌────────────────────────────────────────────────────────────────────────────┐")
-	fmt.Println("│                            Update Summary                                  │")
-	fmt.Println("├────────────────────────────────────────────────────────────────────────────┤")
-	fmt.Printf("│ Total components checked:     %-45d│\n", totalChecked)
-	fmt.Printf("│ %s Already up to date:         %-45d│\n", colors.Success(formatter.SymbolSuccess), upToDate)
-	fmt.Printf("│ %s Successfully updated:       %-45d│\n", colors.Success(formatter.SymbolSuccess), updated)
+	table := styles.SummaryTableFormat("Update Summary", 80)
+	table.AddRow("Total components checked:", totalChecked)
+	table.AddRowWithSymbol(colors.Success(formatter.SymbolSuccess), "Already up to date:", upToDate)
+	table.AddRowWithSymbol(colors.Success(formatter.SymbolSuccess), "Successfully updated:", updated)
 	if failed > 0 {
-		fmt.Printf("│ %s Failed:                     %-45d│\n", colors.Error(formatter.SymbolError), failed)
+		table.AddRowWithSymbol(colors.Error(formatter.SymbolError), "Failed:", failed)
 	}
-	fmt.Println("└────────────────────────────────────────────────────────────────────────────┘")
+	fmt.Println(table.Build())
 	fmt.Println()
 
 	return nil
