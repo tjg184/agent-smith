@@ -103,7 +103,7 @@ The `agent-smith update` command currently only updates components in the base `
   - Update single component without active profile uses base directory
   - Lock files read from base directory when no profile active
 
-- [ ] Story-005: As a developer maintaining the codebase, I want UpdateDetector to accept a configurable base directory so that it can work with both base and profile directories.
+- [x] Story-005: As a developer maintaining the codebase, I want UpdateDetector to accept a configurable base directory so that it can work with both base and profile directories.
 
   **Acceptance Criteria:**
   - `NewUpdateDetector()` constructor accepts optional baseDir parameter
@@ -124,7 +124,7 @@ The `agent-smith update` command currently only updates components in the base `
   - UpdateDetector with default baseDir updates base components
   - Error handling for invalid base directory paths
 
-- [ ] Story-006: As a user running update commands, I want clear feedback about which location is being updated so that I understand where components are being checked.
+- [x] Story-006: As a user running update commands, I want clear feedback about which location is being updated so that I understand where components are being checked.
 
   **Acceptance Criteria:**
   - Display "Using active profile: <name>" when updating from active profile
