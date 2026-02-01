@@ -69,7 +69,7 @@ Add functionality to copy components (skills, agents, commands) between profiles
   **Component Browser Tests:**
   - Not applicable (CLI tool, no browser UI)
 
-- [ ] Story-003: As a developer, I want to create a new profile by cherry-picking components from existing profiles so that I can create specialized toolsets for different projects.
+- [x] Story-003: As a developer, I want to create a new profile by cherry-picking components from existing profiles so that I can create specialized toolsets for different projects.
 
   **Acceptance Criteria:**
   - Can copy multiple components sequentially to build new profile
@@ -93,29 +93,34 @@ Add functionality to copy components (skills, agents, commands) between profiles
   **Component Browser Tests:**
   - Not applicable (CLI tool, no browser UI)
 
-- [ ] Story-004: As a developer, I want the existing `profile add` command to preserve lock file entries so that components added from base installation remain updateable.
+- [x] Story-004: As a developer, I want the existing `profile add` command to preserve lock file entries so that components added from base installation remain updateable.
 
   **Acceptance Criteria:**
-  - `profile add` command uses same lock file copying logic as `profile copy`
-  - Components added via `profile add` have lock file entries in profile
-  - Components added via `profile add` can be updated via `agent-smith update`
-  - No breaking changes to existing `profile add` API
-  - Existing test suite passes with new implementation
+  - `profile add` command uses same lock file copying logic as `profile copy` ✅
+  - Components added via `profile add` have lock file entries in profile ✅
+  - Components added via `profile add` can be updated via `agent-smith update` ✅
+  - No breaking changes to existing `profile add` API ✅
+  - Existing test suite passes with new implementation ✅
   
   **Testing Criteria:**
   **Unit Tests:**
-  - Lock file entry copying in AddComponentToProfile method
-  - Profile add operation preserves all metadata fields
-  - Backward compatibility with manual components (no lock entry)
+  - Lock file entry copying in AddComponentToProfile method ✅
+  - Profile add operation preserves all metadata fields ✅
+  - Backward compatibility with manual components (no lock entry) ✅
   
   **Integration Tests:**
-  - Add component from base installation to profile
-  - Verify lock file entry exists in profile lock file
-  - Update component in profile successfully
-  - Regression tests for existing profile add workflows
+  - Add component from base installation to profile ✅
+  - Verify lock file entry exists in profile lock file ✅
+  - Update component in profile successfully ✅
+  - Regression tests for existing profile add workflows ✅
   
   **Component Browser Tests:**
   - Not applicable (CLI tool, no browser UI)
+
+  **Implementation:**
+  - The `AddComponentToProfile` method in `pkg/profiles/manager.go` already calls `copyComponentWithMetadata` helper (line 802)
+  - The helper function properly copies lock file entries from base installation to profile
+  - Integration test added: `profile_add_lock_preservation_test.go` verifies functionality
 
 - [ ] Story-005: As a developer, I want to test new component versions in an experimental profile while keeping stable versions in production so that I can safely evaluate updates.
 
