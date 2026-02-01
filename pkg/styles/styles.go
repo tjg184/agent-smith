@@ -189,3 +189,53 @@ func StatusSymbol(success bool) string {
 func CounterRowFormat(symbol, label string, count int) string {
 	return fmt.Sprintf("%s %-30s %-45d", symbol, label+":", count)
 }
+
+// ProgressMessage formats a progress message for operations
+// Format: "{action} {type}: {name}... {status}"
+// Example: "Linking skill: api-design... ✓ Done"
+func ProgressMessage(action, componentType, componentName, status string) string {
+	return fmt.Sprintf("%s %s: %s... %s", action, componentType, componentName, status)
+}
+
+// SummaryStats formats summary statistics for operations
+// Returns a formatted string with success, skipped, and failed counts
+func SummaryStats(success, skipped, failed int) string {
+	var parts []string
+
+	if success > 0 {
+		parts = append(parts, fmt.Sprintf("%s %d successful", colors.Success(formatter.SymbolSuccess), success))
+	}
+	if skipped > 0 {
+		parts = append(parts, fmt.Sprintf("%s %d skipped", colors.Warning(formatter.SymbolWarning), skipped))
+	}
+	if failed > 0 {
+		parts = append(parts, fmt.Sprintf("%s %d failed", colors.Error(formatter.SymbolError), failed))
+	}
+
+	if len(parts) == 0 {
+		return "No operations performed"
+	}
+
+	return strings.Join(parts, ", ")
+}
+
+// ComponentCount formats a component count with proper pluralization
+// Format: "X agents" or "1 agent", "Y skills" or "1 skill"
+func ComponentCount(componentType string, count int) string {
+	if count == 1 {
+		// Singular form
+		return fmt.Sprintf("%d %s", count, componentType)
+	}
+	// Plural form - add 's' if not already plural
+	plural := componentType
+	if !strings.HasSuffix(componentType, "s") {
+		plural = componentType + "s"
+	}
+	return fmt.Sprintf("%d %s", count, plural)
+}
+
+// CommandHint formats a command hint with description
+// Format: "• command - description" (command in cyan)
+func CommandHint(command, description string) string {
+	return fmt.Sprintf("  %s %s - %s", colors.Muted("•"), colors.Info(command), description)
+}

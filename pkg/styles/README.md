@@ -41,6 +41,10 @@ This package extracts common formatting patterns that were previously duplicated
 - `ProfileNoteFormat(profileName)` - Formats profile notes (only if not "base")
 - `StatusSymbol(success)` - Returns colored symbol based on success/failure
 - `CounterRowFormat(symbol, label, count)` - Formats counter rows for summaries
+- `ProgressMessage(action, type, name, status)` - Formats progress messages for operations
+- `SummaryStats(success, skipped, failed)` - Formats summary statistics with colored symbols
+- `ComponentCount(type, count)` - Formats component counts with proper pluralization
+- `CommandHint(command, description)` - Formats command hints for "Next steps" sections
 
 ## Usage Examples
 
@@ -92,6 +96,48 @@ fmt.Printf("%s\n", styles.IndentedErrorFormat("File not found"))
 // Show key-value details
 fmt.Printf("%s\n", styles.IndentedDetailFormat("opencode", "/path/to/component"))
 // Output:   → opencode: /path/to/component
+```
+
+### Progress Messages
+
+```go
+// Format a progress message
+msg := styles.ProgressMessage("Linking", "skill", "api-design", colors.Success(formatter.SymbolSuccess+" Done"))
+fmt.Println(msg)
+// Output: Linking skill: api-design... ✓ Done
+```
+
+### Summary Statistics
+
+```go
+// Show operation summary
+summary := styles.SummaryStats(5, 2, 1)
+fmt.Println(summary)
+// Output: ✓ 5 successful, ⚠ 2 skipped, ✗ 1 failed
+
+// No operations
+summary := styles.SummaryStats(0, 0, 0)
+fmt.Println(summary)
+// Output: No operations performed
+```
+
+### Component Counts
+
+```go
+// Proper pluralization
+fmt.Println(styles.ComponentCount("agent", 1))   // Output: 1 agent
+fmt.Println(styles.ComponentCount("agent", 5))   // Output: 5 agents
+fmt.Println(styles.ComponentCount("skill", 3))   // Output: 3 skills
+fmt.Println(styles.ComponentCount("command", 0)) // Output: 0 commands
+```
+
+### Command Hints
+
+```go
+// Format a command hint for "Next steps"
+hint := styles.CommandHint("agent-smith link", "Link components to targets")
+fmt.Println(hint)
+// Output:   • agent-smith link - Link components to targets (command in cyan)
 ```
 
 ### Summary Tables

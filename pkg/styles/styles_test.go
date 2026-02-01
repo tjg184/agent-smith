@@ -317,3 +317,209 @@ func TestSummaryTableBuilderDefaultWidth(t *testing.T) {
 		t.Error("SummaryTableBuilder should contain title")
 	}
 }
+
+func TestProgressMessage(t *testing.T) {
+	// Disable colors for predictable testing
+	colors.Disable()
+	defer colors.Enable()
+
+	tests := []struct {
+		name          string
+		action        string
+		componentType string
+		componentName string
+		status        string
+		expected      string
+	}{
+		{
+			name:          "Linking success",
+			action:        "Linking",
+			componentType: "skill",
+			componentName: "api-design",
+			status:        formatter.SymbolSuccess + " Done",
+			expected:      "Linking skill: api-design... " + formatter.SymbolSuccess + " Done",
+		},
+		{
+			name:          "Installing agent",
+			action:        "Installing",
+			componentType: "agent",
+			componentName: "coder",
+			status:        formatter.SymbolSuccess + " Installed",
+			expected:      "Installing agent: coder... " + formatter.SymbolSuccess + " Installed",
+		},
+		{
+			name:          "Updating command",
+			action:        "Updating",
+			componentType: "command",
+			componentName: "test",
+			status:        formatter.SymbolUpdating + " Updating",
+			expected:      "Updating command: test... " + formatter.SymbolUpdating + " Updating",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ProgressMessage(tt.action, tt.componentType, tt.componentName, tt.status)
+			if result != tt.expected {
+				t.Errorf("ProgressMessage() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSummaryStats(t *testing.T) {
+	// Disable colors for predictable testing
+	colors.Disable()
+	defer colors.Enable()
+
+	tests := []struct {
+		name     string
+		success  int
+		skipped  int
+		failed   int
+		contains []string
+	}{
+		{
+			name:     "All successful",
+			success:  5,
+			skipped:  0,
+			failed:   0,
+			contains: []string{formatter.SymbolSuccess, "5 successful"},
+		},
+		{
+			name:     "Mixed results",
+			success:  3,
+			skipped:  2,
+			failed:   1,
+			contains: []string{formatter.SymbolSuccess, "3 successful", formatter.SymbolWarning, "2 skipped", formatter.SymbolError, "1 failed"},
+		},
+		{
+			name:     "Only failures",
+			success:  0,
+			skipped:  0,
+			failed:   3,
+			contains: []string{formatter.SymbolError, "3 failed"},
+		},
+		{
+			name:     "No operations",
+			success:  0,
+			skipped:  0,
+			failed:   0,
+			contains: []string{"No operations performed"},
+		},
+		{
+			name:     "Success and skipped",
+			success:  2,
+			skipped:  1,
+			failed:   0,
+			contains: []string{formatter.SymbolSuccess, "2 successful", formatter.SymbolWarning, "1 skipped"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SummaryStats(tt.success, tt.skipped, tt.failed)
+			for _, substr := range tt.contains {
+				if !strings.Contains(result, substr) {
+					t.Errorf("SummaryStats(%d, %d, %d) = %q, should contain %q", tt.success, tt.skipped, tt.failed, result, substr)
+				}
+			}
+		})
+	}
+}
+
+func TestComponentCount(t *testing.T) {
+	// Disable colors for predictable testing
+	colors.Disable()
+	defer colors.Enable()
+
+	tests := []struct {
+		name          string
+		componentType string
+		count         int
+		expected      string
+	}{
+		{
+			name:          "Single agent",
+			componentType: "agent",
+			count:         1,
+			expected:      "1 agent",
+		},
+		{
+			name:          "Multiple agents",
+			componentType: "agent",
+			count:         5,
+			expected:      "5 agents",
+		},
+		{
+			name:          "Single skill",
+			componentType: "skill",
+			count:         1,
+			expected:      "1 skill",
+		},
+		{
+			name:          "Multiple skills",
+			componentType: "skill",
+			count:         3,
+			expected:      "3 skills",
+		},
+		{
+			name:          "Zero commands",
+			componentType: "command",
+			count:         0,
+			expected:      "0 commands",
+		},
+		{
+			name:          "Already plural",
+			componentType: "components",
+			count:         2,
+			expected:      "2 components",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ComponentCount(tt.componentType, tt.count)
+			if result != tt.expected {
+				t.Errorf("ComponentCount(%q, %d) = %q, want %q", tt.componentType, tt.count, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCommandHint(t *testing.T) {
+	// Disable colors for predictable testing
+	colors.Disable()
+	defer colors.Enable()
+
+	tests := []struct {
+		name        string
+		command     string
+		description string
+		contains    []string
+	}{
+		{
+			name:        "Basic command hint",
+			command:     "agent-smith link",
+			description: "Link components to targets",
+			contains:    []string{"•", "agent-smith link", "Link components to targets"},
+		},
+		{
+			name:        "Status command",
+			command:     "agent-smith status",
+			description: "View current configuration",
+			contains:    []string{"•", "agent-smith status", "View current configuration"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CommandHint(tt.command, tt.description)
+			for _, substr := range tt.contains {
+				if !strings.Contains(result, substr) {
+					t.Errorf("CommandHint(%q, %q) = %q, should contain %q", tt.command, tt.description, result, substr)
+				}
+			}
+		})
+	}
+}
