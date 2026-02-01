@@ -35,7 +35,6 @@ Integration tests verify end-to-end functionality and are distinguished by:
 - `component_download_integration_test.go`: Component downloading, repository detection, cross-platform paths
 - `e2e_workflow_integration_test.go`: End-to-end workflows (install → link → update → uninstall)
 - `profile_add_lock_preservation_test.go`: Profile addition and lock file preservation
-- `debug_flag_integration_test.go`: Debug flag functionality
 
 ## Running Tests
 
@@ -136,7 +135,7 @@ func TestYourFeature(t *testing.T) {
 | Category | Build Tag | Location | Test Count | Purpose |
 |----------|-----------|----------|------------|---------|
 | Unit Tests | None | Co-located with source | 29 files | Test individual functions and packages |
-| Integration Tests | `integration` | Root level `*_integration_test.go` | 4 files | Test end-to-end workflows |
+| Integration Tests | `integration` | Root level `*_integration_test.go` | 3 files | Test end-to-end workflows |
 
 ## Adding New Tests
 
