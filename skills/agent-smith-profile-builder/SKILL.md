@@ -1,9 +1,9 @@
 ---
-name: profile-builder
+name: agent-smith-profile-builder
 description: Build agent-smith profiles tailored to your development needs. Dynamically discovers and recommends relevant skills, agents, and commands based on your language, framework, and focus areas. Supports both quick-start templates and custom profile creation.
 ---
 
-# Profile Builder
+# Agent Smith Profile Builder
 
 Intelligently build agent-smith profiles by analyzing available components in `~/.agent-smith/` and recommending the best fit for your development needs.
 

@@ -32,6 +32,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Color output works in common terminals (iTerm2, Terminal.app, VS Code integrated terminal)
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Color enabling/disabling logic based on TTY detection
   - `NO_COLOR` environment variable handling
@@ -55,6 +56,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Errors maintain clear hierarchy (main message → details → suggestions)
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Error formatting function with various error types
   - Indentation and line wrapping logic
@@ -79,6 +81,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Empty tables display cleanly without broken borders
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Box-drawing character constants and border generation functions
   - Table row formatting with various content lengths
@@ -105,6 +108,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Summary statistics appear below bordered sections consistently
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Section header formatting function
   - Key-value pair alignment logic
@@ -131,6 +135,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - "For more details" section uses • bullets and cyan-colored commands
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Status data collection and formatting logic
   - Active profile detection and display formatting
@@ -156,6 +161,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Commands in next steps highlighted in cyan color
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Installation summary table generation
   - Component grouping by type for display
@@ -181,6 +187,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Skipped components explanation provided when applicable
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Link progress message formatting
   - Link summary statistics calculation
@@ -206,6 +213,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Empty profiles show "(empty)" instead of component counts
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Profile component counting logic
   - Active profile detection and marking
@@ -231,6 +239,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - ⟳ symbol used for "updating/syncing" status
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Update progress message formatting with item numbers
   - Update status detection (up-to-date vs needs update)
@@ -257,6 +266,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Final summary: "✓ Successfully removed X components" in green
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Component grouping and listing logic
   - Confirmation prompt handling
@@ -283,6 +293,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Already unlinked components handled gracefully with appropriate message
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Unlink progress message formatting
   - Unlink summary statistics calculation
@@ -309,6 +320,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Legend below list explains symbols
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Target detection and status checking
   - Built-in vs custom target separation
@@ -337,6 +349,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Helper functions: Success(), Error(), Warning(), Info(), Muted()
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - TTY detection logic with mocked file descriptors
   - Environment variable handling (NO_COLOR, CLICOLOR, CLICOLOR_FORCE)
@@ -367,6 +380,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Proper padding calculation for content alignment
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Box-drawing character constants validation
   - Border generation with various widths
@@ -399,6 +413,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - All methods respect TTY detection and NO_COLOR
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Each formatter method with various inputs
   - Color integration in formatted output
@@ -428,6 +443,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Proper column alignment maintained
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Table generation with various result sets
   - Component grouping by type
@@ -456,6 +472,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Plural handling for counts (1 agent vs 2 agents)
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Each style pattern function with edge cases
   - Plural handling with various counts (0, 1, 2+)
@@ -483,6 +500,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Logger respects TTY detection and NO_COLOR environment variable
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Logger color enabling/disabling
   - Level tag color application
@@ -510,6 +528,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Fallback to ASCII if unicode not supported (future enhancement)
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Config parsing for display section
   - Default value handling when section missing
@@ -538,6 +557,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   - Logger used for debug/info messages where appropriate
   
   **Testing Criteria:**
+  
   **Unit Tests:**
   - Not applicable (integration-level changes)
   

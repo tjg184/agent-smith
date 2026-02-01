@@ -1,13 +1,13 @@
-# Profile Builder Skill - Quick Start Guide
+# Agent Smith Profile Builder Skill - Quick Start Guide
 
 ## Overview
 
-The Profile Builder skill creates tailored agent-smith profiles by dynamically discovering and recommending skills, agents, and commands from your `~/.agent-smith/` directory.
+The Agent Smith Profile Builder skill creates tailored agent-smith profiles by dynamically discovering and recommending skills, agents, and commands from your `~/.agent-smith/` directory.
 
 ## File Structure
 
 ```
-skills/profile-builder/
+skills/agent-smith-profile-builder/
 ├── SKILL.md                      # Main skill logic (639 lines)
 ├── lib/
 │   └── component-scanner.sh      # Component discovery helper
@@ -208,17 +208,17 @@ EOF
 
 1. **Install it to ~/.agent-smith/skills/**:
    ```bash
-   cp -r skills/profile-builder ~/.agent-smith/skills/
+   cp -r skills/agent-smith-profile-builder ~/.agent-smith/skills/
    ```
 
 2. **Test the scanner**:
    ```bash
-   ~/.agent-smith/skills/profile-builder/lib/component-scanner.sh list-all
+   ~/.agent-smith/skills/agent-smith-profile-builder/lib/component-scanner.sh list-all
    ```
 
 3. **Use in OpenCode/Claude**:
    ```
-   "Use the profile-builder skill to create a Java backend profile"
+   "Use the agent-smith-profile-builder skill to create a Java backend profile"
    ```
 
 ### To test profile creation manually:
@@ -274,4 +274,4 @@ From your ~/.agent-smith/:
 - **107 agents** available
 - **40 commands** available
 
-The profile-builder can mix and match these to create custom profiles!
+The agent-smith-profile-builder can mix and match these to create custom profiles!

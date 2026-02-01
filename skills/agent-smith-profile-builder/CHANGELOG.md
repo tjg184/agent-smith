@@ -1,9 +1,65 @@
-# Profile Builder Skill - Changelog
+# Agent Smith Profile Builder Skill - Changelog
+
+## 2024-02-01 - Rename to agent-smith-profile-builder
+
+### Summary
+Renamed the skill from `profile-builder` to `agent-smith-profile-builder` to clearly indicate it's specifically for building agent-smith profiles, improving discoverability and avoiding ambiguity.
+
+### Changes Made
+
+#### Directory and File Updates
+- **Directory renamed**: `skills/profile-builder/` → `skills/agent-smith-profile-builder/`
+- **SKILL.md**: Updated `name` field from `profile-builder` to `agent-smith-profile-builder`
+- **SKILL.md**: Updated heading from "Profile Builder" to "Agent Smith Profile Builder"
+- **README.md**: Updated title and all file path references
+- **QUICK-START.md**: Updated title and all file path references
+
+#### Installation Commands
+```bash
+# Old command
+cp -r skills/profile-builder ~/.agent-smith/skills/
+
+# New command
+cp -r skills/agent-smith-profile-builder ~/.agent-smith/skills/
+```
+
+#### Usage in AI Assistants
+```bash
+# Old invocation
+"Use the profile-builder skill to create a Java backend profile"
+
+# New invocation
+"Use the agent-smith-profile-builder skill to create a Java backend profile"
+```
+
+### Rationale
+
+1. **Clarity**: The new name immediately indicates this skill is for agent-smith
+2. **Discoverability**: Users browsing skills will instantly understand the purpose
+3. **Consistency**: Follows agent-smith's kebab-case naming conventions
+4. **Future-proofing**: Establishes a naming pattern for other agent-smith-specific skills
+
+### Breaking Changes
+- Installation path changed
+- Skill invocation name changed
+- Existing installations at `~/.agent-smith/skills/profile-builder/` will need to be moved
+
+### Migration Guide
+If you have the old version installed:
+```bash
+# Remove old version
+rm -rf ~/.agent-smith/skills/profile-builder
+
+# Install new version
+cp -r skills/agent-smith-profile-builder ~/.agent-smith/skills/
+```
+
+---
 
 ## 2024-02-01 - Profile Copy Command Update
 
 ### Summary
-Updated the profile-builder skill to correctly use agent-smith's `profile copy` command instead of the incorrect `profiles add` command. The skill now properly copies components from existing profiles in `~/.agent-smith/profiles/` rather than attempting to copy from a non-existent base directory.
+Updated the agent-smith-profile-builder skill to correctly use agent-smith's `profile copy` command instead of the incorrect `profiles add` command. The skill now properly copies components from existing profiles in `~/.agent-smith/profiles/` rather than attempting to copy from a non-existent base directory.
 
 ### Changes Made
 
@@ -84,24 +140,24 @@ The updated workflow now correctly:
 None - the skill instructions are self-contained and guide users through the correct workflow.
 
 ### Files Modified
-- `skills/profile-builder/SKILL.md` - Core skill instructions
-- `skills/profile-builder/README.md` - Documentation and examples
-- `skills/profile-builder/templates/java-backend.yaml` - Template customization examples
+- `skills/agent-smith-profile-builder/SKILL.md` - Core skill instructions
+- `skills/agent-smith-profile-builder/README.md` - Documentation and examples
+- `skills/agent-smith-profile-builder/templates/java-backend.yaml` - Template customization examples
 
 ### Files Unchanged
-- `skills/profile-builder/lib/component-scanner.sh` - Already correctly scanned profiles
-- `skills/profile-builder/templates/python-ml.yaml` - No command examples
-- `skills/profile-builder/templates/react-frontend.yaml` - No command examples
-- `skills/profile-builder/templates/nodejs-fullstack.yaml` - No command examples
-- `skills/profile-builder/templates/mobile-react-native.yaml` - No command examples
-- `skills/profile-builder/templates/devops-platform.yaml` - No command examples
+- `skills/agent-smith-profile-builder/lib/component-scanner.sh` - Already correctly scanned profiles
+- `skills/agent-smith-profile-builder/templates/python-ml.yaml` - No command examples
+- `skills/agent-smith-profile-builder/templates/react-frontend.yaml` - No command examples
+- `skills/agent-smith-profile-builder/templates/nodejs-fullstack.yaml` - No command examples
+- `skills/agent-smith-profile-builder/templates/mobile-react-native.yaml` - No command examples
+- `skills/agent-smith-profile-builder/templates/devops-platform.yaml` - No command examples
 
 ### Testing Recommendations
 
 When using the updated skill:
 1. Ensure agent-smith binary is built: `cd /Users/tgaines/dev/git/agent-smith && go build -o agent-smith .`
 2. Verify profiles exist: `ls ~/.agent-smith/profiles/`
-3. Test component scanner: `skills/profile-builder/lib/component-scanner.sh list-all`
+3. Test component scanner: `skills/agent-smith-profile-builder/lib/component-scanner.sh list-all`
 4. Follow SKILL.md Workflow A for template-based profile creation
 5. Verify new profile contains copied components: `./agent-smith profile show <profile-name>`
 

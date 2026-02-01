@@ -1,8 +1,8 @@
-# Profile Builder - Quick Start Guide
+# Agent Smith Profile Builder - Quick Start Guide
 
 ## What Changed?
 
-The profile-builder skill now correctly uses agent-smith's `profile copy` command to copy components from existing profiles in `~/.agent-smith/profiles/` instead of a non-existent base directory.
+The agent-smith-profile-builder skill now correctly uses agent-smith's `profile copy` command to copy components from existing profiles in `~/.agent-smith/profiles/` instead of a non-existent base directory.
 
 ## How It Works
 
@@ -67,12 +67,12 @@ found: sql-optimization-patterns (in anthropics-skills)
 
 ### 1. Install the skill (if not already)
 ```bash
-cp -r skills/profile-builder ~/.agent-smith/skills/
+cp -r skills/agent-smith-profile-builder ~/.agent-smith/skills/
 ```
 
 ### 2. Use in Claude/OpenCode
 ```
-"Use the profile-builder skill to create a Java backend profile"
+"Use the agent-smith-profile-builder skill to create a Java backend profile"
 ```
 
 ### 3. Follow the prompts
@@ -95,16 +95,16 @@ The component scanner is the heart of the skill:
 
 ```bash
 # List all available components
-~/.agent-smith/skills/profile-builder/lib/component-scanner.sh list-all
+~/.agent-smith/skills/agent-smith-profile-builder/lib/component-scanner.sh list-all
 
 # Find which profile has a skill
-~/.agent-smith/skills/profile-builder/lib/component-scanner.sh find-profiles-with-skill "api-design-principles"
+~/.agent-smith/skills/agent-smith-profile-builder/lib/component-scanner.sh find-profiles-with-skill "api-design-principles"
 
 # Get agents in a category
-~/.agent-smith/skills/profile-builder/lib/component-scanner.sh get-agents-in-category "backend-development"
+~/.agent-smith/skills/agent-smith-profile-builder/lib/component-scanner.sh get-agents-in-category "backend-development"
 
 # List all skills
-~/.agent-smith/skills/profile-builder/lib/component-scanner.sh scan-skills
+~/.agent-smith/skills/agent-smith-profile-builder/lib/component-scanner.sh scan-skills
 ```
 
 ## Troubleshooting
@@ -180,8 +180,8 @@ AI will:
 
 ## Resources
 
-- Full documentation: `skills/profile-builder/README.md`
-- Detailed instructions: `skills/profile-builder/SKILL.md`
-- Change history: `skills/profile-builder/CHANGELOG.md`
-- Templates: `skills/profile-builder/templates/*.yaml`
-- Scanner: `skills/profile-builder/lib/component-scanner.sh`
+- Full documentation: `skills/agent-smith-profile-builder/README.md`
+- Detailed instructions: `skills/agent-smith-profile-builder/SKILL.md`
+- Change history: `skills/agent-smith-profile-builder/CHANGELOG.md`
+- Templates: `skills/agent-smith-profile-builder/templates/*.yaml`
+- Scanner: `skills/agent-smith-profile-builder/lib/component-scanner.sh`
