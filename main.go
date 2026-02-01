@@ -1796,11 +1796,26 @@ func main() {
 			// Get all built-in targets (even if not detected)
 			builtInNames := []string{"opencode", "claudecode"}
 
-			fmt.Println("Available Targets:")
-			fmt.Println()
+			// Create formatter instance
+			f := formatter.New()
+			green := color.New(color.FgGreen).SprintFunc()
+			red := color.New(color.FgRed).SprintFunc()
+			yellow := color.New(color.FgYellow).SprintFunc()
 
-			// Display built-in targets
-			fmt.Println("Built-in Targets:")
+			// Section header
+			f.SectionHeader("Available Targets")
+
+			// Collect all target data
+			type targetInfo struct {
+				name     string
+				baseDir  string
+				exists   bool
+				isCustom bool
+				hasError bool
+			}
+			var allTargets []targetInfo
+
+			// Collect built-in targets
 			for _, name := range builtInNames {
 				var target config.Target
 				var err error
@@ -1812,6 +1827,13 @@ func main() {
 				}
 
 				if err != nil {
+					allTargets = append(allTargets, targetInfo{
+						name:     name,
+						baseDir:  "error loading target",
+						exists:   false,
+						isCustom: false,
+						hasError: true,
+					})
 					continue
 				}
 
@@ -1821,84 +1843,92 @@ func main() {
 					exists = true
 				}
 
-				symbol := formatter.SymbolNotLinked
-				status := "[not found]"
-				if exists {
-					symbol = formatter.SymbolSuccess
-					status = "[detected]"
-				}
-
-				fmt.Printf("  %s %-15s %-30s %s\n", symbol, name, baseDir, status)
+				allTargets = append(allTargets, targetInfo{
+					name:     name,
+					baseDir:  baseDir,
+					exists:   exists,
+					isCustom: false,
+					hasError: false,
+				})
 			}
 
-			// Display custom targets
-			if len(cfg.CustomTargets) > 0 {
-				fmt.Println()
-				fmt.Println("Custom Targets:")
-				for _, customTargetConfig := range cfg.CustomTargets {
-					customTarget, err := config.NewCustomTarget(customTargetConfig)
-					if err != nil {
-						fmt.Printf("  %s %-15s <error loading target>\n", formatter.SymbolError, customTargetConfig.Name)
-						continue
-					}
-
-					baseDir, _ := customTarget.GetBaseDir()
-					exists := false
-					if _, err := os.Stat(baseDir); err == nil {
-						exists = true
-					}
-
-					symbol := formatter.SymbolNotLinked
-					status := "[not found]"
-					if exists {
-						symbol = formatter.SymbolSuccess
-						status = "[detected]"
-					}
-
-					fmt.Printf("  %s %-15s %-30s %s\n", symbol, customTargetConfig.Name, baseDir, status)
+			// Collect custom targets
+			for _, customTargetConfig := range cfg.CustomTargets {
+				customTarget, err := config.NewCustomTarget(customTargetConfig)
+				if err != nil {
+					allTargets = append(allTargets, targetInfo{
+						name:     customTargetConfig.Name,
+						baseDir:  "error loading target",
+						exists:   false,
+						isCustom: true,
+						hasError: true,
+					})
+					continue
 				}
+
+				baseDir, _ := customTarget.GetBaseDir()
+				exists := false
+				if _, err := os.Stat(baseDir); err == nil {
+					exists = true
+				}
+
+				allTargets = append(allTargets, targetInfo{
+					name:     customTargetConfig.Name,
+					baseDir:  baseDir,
+					exists:   exists,
+					isCustom: true,
+					hasError: false,
+				})
+			}
+
+			// Create table with box-drawing characters
+			table := formatter.NewBoxTable(os.Stdout, []string{"Status", "Target", "Type", "Location"})
+
+			// Add rows to table
+			availableCount := 0
+			for _, target := range allTargets {
+				var statusSymbol string
+				var targetType string
+
+				if target.hasError {
+					statusSymbol = red(formatter.SymbolError)
+				} else if target.exists {
+					statusSymbol = green(formatter.SymbolSuccess)
+					availableCount++
+				} else {
+					statusSymbol = yellow(formatter.SymbolNotLinked)
+				}
+
+				if target.isCustom {
+					targetType = "Custom"
+				} else {
+					targetType = "Built-in"
+				}
+
+				table.AddRow([]string{statusSymbol, target.name, targetType, target.baseDir})
+			}
+
+			// Render the table
+			table.Render()
+
+			// Display summary
+			fmt.Println()
+			totalCount := len(allTargets)
+			if availableCount == totalCount {
+				fmt.Printf("%s All %d target(s) detected and available\n", green(formatter.SymbolSuccess), totalCount)
+			} else if availableCount > 0 {
+				fmt.Printf("%s %d of %d target(s) available\n", yellow(formatter.SymbolWarning), availableCount, totalCount)
+			} else {
+				fmt.Printf("%s No targets currently available\n", red(formatter.SymbolError))
 			}
 
 			// Display legend
 			fmt.Println()
 			fmt.Println("Legend:")
-			fmt.Printf("  %s - Target directory exists\n", formatter.SymbolSuccess)
-			fmt.Printf("  %s - Target directory not found\n", formatter.SymbolNotLinked)
-
-			// Count available targets
-			availableCount := 0
-			totalCount := len(builtInNames) + len(cfg.CustomTargets)
-
-			for _, name := range builtInNames {
-				var target config.Target
-				var err error
-
-				if name == "opencode" {
-					target, err = config.NewOpencodeTarget()
-				} else if name == "claudecode" {
-					target, err = config.NewClaudeCodeTarget()
-				}
-
-				if err == nil {
-					baseDir, _ := target.GetBaseDir()
-					if _, err := os.Stat(baseDir); err == nil {
-						availableCount++
-					}
-				}
-			}
-
-			for _, customTargetConfig := range cfg.CustomTargets {
-				customTarget, err := config.NewCustomTarget(customTargetConfig)
-				if err == nil {
-					baseDir, _ := customTarget.GetBaseDir()
-					if _, err := os.Stat(baseDir); err == nil {
-						availableCount++
-					}
-				}
-			}
-
-			fmt.Println()
-			fmt.Printf("Total: %d target(s) (%d available)\n", totalCount, availableCount)
+			fmt.Printf("  %s Available  %s Not found  %s Error\n",
+				green(formatter.SymbolSuccess),
+				yellow(formatter.SymbolNotLinked),
+				red(formatter.SymbolError))
 		},
 	)
 
