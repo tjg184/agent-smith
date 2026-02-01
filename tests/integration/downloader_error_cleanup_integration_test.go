@@ -1,7 +1,7 @@
 //go:build integration
 // +build integration
 
-package downloader
+package main
 
 import (
 	"os"
@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/tgaines/agent-smith/internal/detector"
+	"github.com/tgaines/agent-smith/internal/downloader"
 	"github.com/tgaines/agent-smith/internal/fileutil"
-	gitpkg "github.com/tgaines/agent-smith/internal/git"
 )
 
 // TestAgentDownloadErrorCleanup tests that directories are cleaned up on errors
@@ -28,11 +28,7 @@ func TestAgentDownloadErrorCleanup(t *testing.T) {
 	}
 
 	// Create downloader with test base directory
-	ad := &AgentDownloader{
-		baseDir:  baseDir,
-		detector: detector.NewRepositoryDetector(),
-		cloner:   gitpkg.NewDefaultCloner(),
-	}
+	ad := downloader.NewAgentDownloaderWithParams(baseDir, detector.NewRepositoryDetector())
 
 	// Test case: Invalid repository URL should not leave empty directories
 	t.Run("InvalidRepoURL", func(t *testing.T) {
@@ -110,17 +106,9 @@ func TestCommandDownloadErrorCleanup(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
+	// Create downloader with test base directory (constructor will create commands subdir)
+	cd := downloader.NewCommandDownloaderWithTargetDir(tempDir)
 	baseDir := filepath.Join(tempDir, "commands")
-	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
-		t.Fatalf("Failed to create base directory: %v", err)
-	}
-
-	// Create downloader with test base directory
-	cd := &CommandDownloader{
-		baseDir:  baseDir,
-		detector: detector.NewRepositoryDetector(),
-		cloner:   gitpkg.NewDefaultCloner(),
-	}
 
 	// Test case: Invalid repository URL should not leave empty directories
 	t.Run("InvalidRepoURL", func(t *testing.T) {
@@ -150,17 +138,9 @@ func TestSkillDownloadErrorCleanup(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
+	// Create downloader with test base directory (constructor will create skills subdir)
+	sd := downloader.NewSkillDownloaderWithTargetDir(tempDir)
 	baseDir := filepath.Join(tempDir, "skills")
-	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
-		t.Fatalf("Failed to create base directory: %v", err)
-	}
-
-	// Create downloader with test base directory
-	sd := &SkillDownloader{
-		baseDir:  baseDir,
-		detector: detector.NewRepositoryDetector(),
-		cloner:   gitpkg.NewDefaultCloner(),
-	}
 
 	// Test case: Invalid repository URL should not leave empty directories
 	t.Run("InvalidRepoURL", func(t *testing.T) {
