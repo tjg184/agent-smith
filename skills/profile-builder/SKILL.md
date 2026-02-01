@@ -259,27 +259,63 @@ if [[ ! -f "./agent-smith" ]]; then
   go build -o agent-smith .
 fi
 
+# Get base directory for the skill
+SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCANNER="$SKILL_DIR/lib/component-scanner.sh"
+
 # Create the profile
 ./agent-smith profiles create <profile-name>
 
-# Add all matched skills
+# Copy all matched skills using profile copy command
 for skill in "${matched_skills[@]}"; do
-  echo "Adding skill: $skill"
-  ./agent-smith profiles add skill <profile-name> "$skill"
+  echo "Copying skill: $skill"
+  
+  # Find which profile contains this skill
+  source_profile=$($SCANNER find-profiles-with-skill "$skill" | head -1)
+  
+  if [[ -n "$source_profile" ]]; then
+    ./agent-smith profile copy skills "$source_profile" <profile-name> "$skill"
+  else
+    echo "Warning: Skill '$skill' not found in any profile, skipping"
+  fi
 done
 
-# Add all matched agents
+# Copy all matched agents using profile copy command
 for agent in "${matched_agents[@]}"; do
-  echo "Adding agent: $agent"
-  ./agent-smith profiles add agent <profile-name> "$agent"
+  echo "Copying agent: $agent"
+  
+  # Find which profile contains this agent
+  source_profile=$($SCANNER find-profiles-with-agent "$agent" | head -1)
+  
+  if [[ -n "$source_profile" ]]; then
+    ./agent-smith profile copy agents "$source_profile" <profile-name> "$agent"
+  else
+    echo "Warning: Agent '$agent' not found in any profile, skipping"
+  fi
 done
 
-# Add all matched commands
+# Copy all matched commands using profile copy command
 for command in "${matched_commands[@]}"; do
-  echo "Adding command: $command"
-  ./agent-smith profiles add command <profile-name> "$command"
+  echo "Copying command: $command"
+  
+  # Find which profile contains this command
+  source_profile=$($SCANNER find-profiles-with-command "$command" | head -1)
+  
+  if [[ -n "$source_profile" ]]; then
+    ./agent-smith profile copy commands "$source_profile" <profile-name> "$command"
+  else
+    echo "Warning: Command '$command' not found in any profile, skipping"
+  fi
 done
 ```
+
+**Why use `profile copy` instead of `profiles add`?**
+
+The `profile copy` command:
+- Preserves component metadata from the source profile
+- Copies lock file entries to maintain provenance tracking
+- Creates independent copies (updates to source don't affect the copy)
+- Ensures component integrity across profile boundaries
 
 #### A7. Generate README
 

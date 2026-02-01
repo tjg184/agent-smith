@@ -184,6 +184,71 @@ validate_components() {
     printf '%s\n' "${unavailable[@]}"
 }
 
+# Function to find which profiles contain a specific skill
+find_profiles_with_skill() {
+    local skill_name="$1"
+    local profiles_dir="$AGENT_SMITH_DIR/profiles"
+    
+    # Check if profiles directory exists
+    if [[ ! -d "$profiles_dir" ]]; then
+        return 0
+    fi
+    
+    # Find all profiles containing this skill
+    find "$profiles_dir" -mindepth 3 -maxdepth 3 -type d -path "*/skills/$skill_name" | while read -r skill_path; do
+        # Extract profile name from path
+        # Path format: /path/to/profiles/profile-name/skills/skill-name
+        echo "$skill_path" | sed 's|.*/profiles/\([^/]*\)/skills/.*|\1|'
+    done
+}
+
+# Function to find which profiles contain a specific agent
+find_profiles_with_agent() {
+    local agent_path="$1"
+    local profiles_dir="$AGENT_SMITH_DIR/profiles"
+    
+    # Check if profiles directory exists
+    if [[ ! -d "$profiles_dir" ]]; then
+        return 0
+    fi
+    
+    # Find all profiles containing this agent
+    find "$profiles_dir" -type f -path "*/agents/${agent_path}.md" | while read -r agent_file; do
+        # Extract profile name from path
+        echo "$agent_file" | sed 's|.*/profiles/\([^/]*\)/agents/.*|\1|'
+    done
+}
+
+# Function to find which profiles contain a specific command
+find_profiles_with_command() {
+    local command_name="$1"
+    local profiles_dir="$AGENT_SMITH_DIR/profiles"
+    
+    # Check if profiles directory exists
+    if [[ ! -d "$profiles_dir" ]]; then
+        return 0
+    fi
+    
+    # Find all profiles containing this command
+    find "$profiles_dir" -mindepth 3 -maxdepth 3 -type d -path "*/commands/$command_name" | while read -r command_path; do
+        # Extract profile name from path
+        echo "$command_path" | sed 's|.*/profiles/\([^/]*\)/commands/.*|\1|'
+    done
+}
+
+# Function to list all profiles
+list_profiles() {
+    local profiles_dir="$AGENT_SMITH_DIR/profiles"
+    
+    # Check if profiles directory exists
+    if [[ ! -d "$profiles_dir" ]]; then
+        return 0
+    fi
+    
+    # List all profile directories
+    find "$profiles_dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort
+}
+
 # Function to list all components with counts
 list_all_components() {
     local skill_count=$(scan_skills | wc -l | tr -d ' ')
@@ -228,6 +293,18 @@ case "${1:-}" in
     "find-agents")
         find_matching_agents "$2"
         ;;
+    "find-profiles-with-skill")
+        find_profiles_with_skill "$2"
+        ;;
+    "find-profiles-with-agent")
+        find_profiles_with_agent "$2"
+        ;;
+    "find-profiles-with-command")
+        find_profiles_with_command "$2"
+        ;;
+    "list-profiles")
+        list_profiles
+        ;;
     "validate")
         shift
         component_type="$1"
@@ -238,7 +315,7 @@ case "${1:-}" in
         list_all_components
         ;;
     *)
-        echo "Usage: $0 {scan-skills|scan-agents|scan-agents-categories|scan-commands|skill-exists|agent-exists|command-exists|get-agents-in-category|find-skills|find-agents|validate|list-all}"
+        echo "Usage: $0 {scan-skills|scan-agents|scan-agents-categories|scan-commands|skill-exists|agent-exists|command-exists|get-agents-in-category|find-skills|find-agents|find-profiles-with-skill|find-profiles-with-agent|find-profiles-with-command|list-profiles|validate|list-all}"
         exit 1
         ;;
 esac
