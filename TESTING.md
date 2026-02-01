@@ -38,26 +38,64 @@ Integration tests verify end-to-end functionality and are distinguished by:
 
 ## Running Tests
 
-### Run Unit Tests Only (Default)
+### Quick Start with Makefile (Recommended)
+
+The project includes a Makefile that provides convenient commands for running different types of tests:
+
+```bash
+# Run unit tests only (fast, for development)
+make test
+
+# Run integration tests only
+make test-integration
+
+# Run all tests (unit + integration)
+make test-all
+
+# Run with verbose output
+make test-verbose
+make test-integration-verbose
+
+# Run with coverage
+make coverage
+make coverage-integration
+
+# See all available commands
+make help
+```
+
+**Why use the Makefile?**
+- **Faster development**: `make test` runs only fast unit tests, allowing rapid iteration
+- **Clear separation**: Easy to run unit tests separately from slower integration tests
+- **Convenience**: Shorter commands with sensible defaults
+- **Consistency**: Same commands work for all team members
+
+### Using Go Commands Directly
+
+You can also run tests directly with Go commands:
+
+#### Run Unit Tests Only (Default)
 ```bash
 go test ./...
 ```
 
 This runs all unit tests but skips integration tests due to build tags.
 
-### Run Integration Tests
+#### Run Integration Tests Only
+```bash
+go test -tags=integration ./tests/integration/...
+```
+
+This runs only the integration tests in the `tests/integration/` directory.
+
+#### Run All Tests (Unit + Integration)
 ```bash
 go test -tags=integration ./...
 ```
 
-This runs both unit tests and integration tests.
+This runs both unit tests and integration tests across the entire codebase.
 
-### Run All Tests
-```bash
-go test -tags=integration ./...
-```
-
-### Run Tests in Specific Package
+#### Run Tests in Specific Package
 ```bash
 # Unit tests only
 go test ./internal/detector
@@ -66,28 +104,28 @@ go test ./internal/detector
 go test -tags=integration ./internal/detector
 ```
 
-### Run Specific Test
+#### Run Specific Test
 ```bash
 # Unit test
 go test -run TestComponentExtraction
 
 # Integration test
-go test -tags=integration -run TestPluginMirroringEndToEnd
+go test -tags=integration -run TestPluginMirroringEndToEnd ./tests/integration/...
 ```
 
-### Run Tests with Coverage
+#### Run Tests with Coverage
 ```bash
 # Unit tests
 go test -cover ./...
 
 # Integration tests
-go test -tags=integration -cover ./...
+go test -tags=integration -cover ./tests/integration/...
 ```
 
-### Run Tests with Verbose Output
+#### Run Tests with Verbose Output
 ```bash
 go test -v ./...
-go test -tags=integration -v ./...
+go test -tags=integration -v ./tests/integration/...
 ```
 
 ## Test Utilities
@@ -232,8 +270,29 @@ To run tests in CI/CD pipelines:
 
 ```bash
 # Fast unit tests (suitable for every commit)
-go test ./...
+make test
+# or: go test ./...
 
 # Full test suite (suitable for PRs and releases)
-go test -tags=integration ./...
+make test-all
+# or: go test -tags=integration ./...
 ```
+
+### Recommended Workflow
+
+**During Development:**
+```bash
+# Run fast unit tests frequently while coding
+make test
+```
+
+**Before Committing:**
+```bash
+# Run all tests to ensure nothing is broken
+make test-all
+```
+
+**In CI/CD:**
+- Run `make test` on every push for fast feedback
+- Run `make test-all` for pull requests and before merging
+- Use `make coverage` to track test coverage metrics
