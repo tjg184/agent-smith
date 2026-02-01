@@ -423,6 +423,53 @@ func (pm *ProfileManager) GetComponentNames(profile *Profile) (agents, skills, c
 	return agents, skills, commands
 }
 
+// GetComponentSource returns the source URL for a component from its lock file
+// Returns empty string if the component has no source metadata
+func (pm *ProfileManager) GetComponentSource(profile *Profile, componentType, componentName string) string {
+	lockFilePath := paths.GetComponentLockPath(profile.BasePath, componentType)
+
+	// Read lock file
+	lockData, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		return ""
+	}
+
+	// Parse lock file
+	var lockFile struct {
+		Skills map[string]struct {
+			SourceUrl string `json:"sourceUrl"`
+		} `json:"skills"`
+		Agents map[string]struct {
+			SourceUrl string `json:"sourceUrl"`
+		} `json:"agents,omitempty"`
+		Commands map[string]struct {
+			SourceUrl string `json:"sourceUrl"`
+		} `json:"commands,omitempty"`
+	}
+
+	if err := json.Unmarshal(lockData, &lockFile); err != nil {
+		return ""
+	}
+
+	// Get source URL based on component type
+	switch componentType {
+	case "agents":
+		if entry, exists := lockFile.Agents[componentName]; exists {
+			return entry.SourceUrl
+		}
+	case "skills":
+		if entry, exists := lockFile.Skills[componentName]; exists {
+			return entry.SourceUrl
+		}
+	case "commands":
+		if entry, exists := lockFile.Commands[componentName]; exists {
+			return entry.SourceUrl
+		}
+	}
+
+	return ""
+}
+
 // ActivateProfile activates a profile by updating the active profile state
 // This does not immediately affect the editor - use 'agent-smith link all' to apply changes
 func (pm *ProfileManager) ActivateProfile(profileName string) error {

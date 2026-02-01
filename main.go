@@ -1222,7 +1222,12 @@ func main() {
 			if len(agents) > 0 {
 				fmt.Printf("Agents (%d):\n", len(agents))
 				for _, agent := range agents {
-					fmt.Printf("  - %s\n", agent)
+					sourceURL := pm.GetComponentSource(targetProfile, "agents", agent)
+					if sourceURL != "" {
+						fmt.Printf("  - %s (%s)\n", agent, sourceURL)
+					} else {
+						fmt.Printf("  - %s\n", agent)
+					}
 				}
 				fmt.Println()
 			}
@@ -1231,7 +1236,12 @@ func main() {
 			if len(skills) > 0 {
 				fmt.Printf("Skills (%d):\n", len(skills))
 				for _, skill := range skills {
-					fmt.Printf("  - %s\n", skill)
+					sourceURL := pm.GetComponentSource(targetProfile, "skills", skill)
+					if sourceURL != "" {
+						fmt.Printf("  - %s (%s)\n", skill, sourceURL)
+					} else {
+						fmt.Printf("  - %s\n", skill)
+					}
 				}
 				fmt.Println()
 			}
@@ -1240,7 +1250,12 @@ func main() {
 			if len(commands) > 0 {
 				fmt.Printf("Commands (%d):\n", len(commands))
 				for _, command := range commands {
-					fmt.Printf("  - %s\n", command)
+					sourceURL := pm.GetComponentSource(targetProfile, "commands", command)
+					if sourceURL != "" {
+						fmt.Printf("  - %s (%s)\n", command, sourceURL)
+					} else {
+						fmt.Printf("  - %s\n", command)
+					}
 				}
 				fmt.Println()
 			}
