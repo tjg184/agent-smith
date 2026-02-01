@@ -928,8 +928,10 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 	}
 
 	// Display header
-	fmt.Println("\n=== Link Status Across All Targets ===")
-	fmt.Printf("%s\n\n", cl.getSourceDescription())
+	cl.formatter.EmptyLine()
+	cl.formatter.SectionHeader("Link Status Across All Targets")
+	cl.formatter.InfoMsg(cl.getSourceDescription())
+	cl.formatter.EmptyLine()
 
 	// Get target names for header
 	targetNames := make([]string, 0, len(cl.targets))
@@ -982,15 +984,17 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 	table.Render()
 
 	// Print legend
-	fmt.Println("\nLegend:")
-	fmt.Println("  ✓  Valid symlink")
-	fmt.Println("  ◆  Copied directory")
-	fmt.Println("  ✗  Broken link")
-	fmt.Println("  -  Not linked")
-	fmt.Println("  ?  Unknown status")
+	cl.formatter.EmptyLine()
+	cl.formatter.SubsectionHeader("Legend")
+	cl.formatter.ListItem("✓  Valid symlink")
+	cl.formatter.ListItem("◆  Copied directory")
+	cl.formatter.ListItem("✗  Broken link")
+	cl.formatter.ListItem("-  Not linked")
+	cl.formatter.ListItem("?  Unknown status")
 
 	// Print summary
-	fmt.Println("\nSummary:")
+	cl.formatter.EmptyLine()
+	cl.formatter.SubsectionHeader("Summary")
 	for _, targetName := range targetNames {
 		linkedCount := 0
 		for _, status := range statuses {
@@ -999,7 +1003,7 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 				linkedCount++
 			}
 		}
-		fmt.Printf("  %s: %d/%d components linked\n", strings.ToUpper(targetName), linkedCount, len(statuses))
+		cl.formatter.ListItem("%s: %d/%d components linked", strings.ToUpper(targetName), linkedCount, len(statuses))
 	}
 
 	return nil
@@ -1215,8 +1219,9 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 	}
 
 	// Display header
-	fmt.Println("\n=== Link Status Across All Profiles ===")
-	fmt.Println()
+	cl.formatter.EmptyLine()
+	cl.formatter.SectionHeader("Link Status Across All Profiles")
+	cl.formatter.EmptyLine()
 
 	// Get target names for header
 	targetNames := make([]string, 0, len(cl.targets))
@@ -1269,15 +1274,17 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 	table.Render()
 
 	// Print legend
-	fmt.Println("\nLegend:")
-	fmt.Println("  ✓  Valid symlink")
-	fmt.Println("  ◆  Copied directory")
-	fmt.Println("  ✗  Broken link")
-	fmt.Println("  -  Not linked")
-	fmt.Println("  ?  Unknown status")
+	cl.formatter.EmptyLine()
+	cl.formatter.SubsectionHeader("Legend")
+	cl.formatter.ListItem("✓  Valid symlink")
+	cl.formatter.ListItem("◆  Copied directory")
+	cl.formatter.ListItem("✗  Broken link")
+	cl.formatter.ListItem("-  Not linked")
+	cl.formatter.ListItem("?  Unknown status")
 
 	// Print summary
-	fmt.Println("\nSummary:")
+	cl.formatter.EmptyLine()
+	cl.formatter.SubsectionHeader("Summary")
 
 	// Calculate profile count
 	profileCount := len(filteredProfiles)
@@ -1292,8 +1299,8 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 			profileCountStr = fmt.Sprintf("%d (base + %d custom)", profileCount, len(filteredProfiles))
 		}
 	}
-	fmt.Printf("  Profiles scanned: %s\n", profileCountStr)
-	fmt.Printf("  Total components: %d\n", len(statuses))
+	cl.formatter.ListItem("Profiles scanned: %s", profileCountStr)
+	cl.formatter.ListItem("Total components: %d", len(statuses))
 
 	for _, targetName := range targetNames {
 		linkedCount := 0
@@ -1307,13 +1314,14 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 		if len(statuses) > 0 {
 			percentage = (linkedCount * 100) / len(statuses)
 		}
-		fmt.Printf("  %s: %d/%d linked (%d%%)\n", strings.ToUpper(targetName), linkedCount, len(statuses), percentage)
+		cl.formatter.ListItem("%s: %d/%d linked (%d%%)", strings.ToUpper(targetName), linkedCount, len(statuses), percentage)
 	}
 
 	// Show active profile
 	activeProfile, err := cl.profileManager.GetActiveProfile()
 	if err == nil && activeProfile != "" {
-		fmt.Printf("\nActive Profile: %s\n", activeProfile)
+		cl.formatter.EmptyLine()
+		cl.formatter.InfoMsg("Active Profile: %s", activeProfile)
 	}
 
 	return nil
