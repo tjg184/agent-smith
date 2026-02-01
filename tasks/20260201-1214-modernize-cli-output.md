@@ -460,7 +460,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   **Component Browser Tests:**
   - Not applicable (internal library)
 
-- [ ] Story-017: As a developer, I want common style patterns extracted so that formatting is consistent and easy to maintain.
+- [x] Story-017: As a developer, I want common style patterns extracted so that formatting is consistent and easy to maintain.
 
   **Acceptance Criteria:**
   - New file `internal/formatter/styles.go` created
@@ -516,7 +516,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   **Component Browser Tests:**
   - Not applicable (internal library)
 
-- [ ] Story-019: As a developer, I want configuration support for display settings so that users can control colors and formatting.
+- [x] Story-019: As a developer, I want configuration support for display settings so that users can control colors and formatting.
 
   **Acceptance Criteria:**
   - Update `~/.agent-smith/config.json` schema with display section
@@ -544,7 +544,7 @@ Enhance Agent Smith's command-line interface output to provide a more modern, vi
   **Component Browser Tests:**
   - Not applicable (configuration)
 
-- [ ] Story-020: As a developer, I want all fmt.Printf calls in main.go replaced with formatter calls so that output is consistent and maintainable.
+- [x] Story-020: As a developer, I want all fmt.Printf calls in main.go replaced with formatter calls so that output is consistent and maintainable.
 
   **Acceptance Criteria:**
   - All direct fmt.Printf/Println calls in main.go replaced with formatter methods
