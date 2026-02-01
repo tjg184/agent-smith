@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/fileutil"
 	"github.com/tgaines/agent-smith/internal/formatter"
@@ -22,6 +23,7 @@ type ComponentLinker struct {
 	targets        []config.Target
 	detector       *detector.RepositoryDetector
 	profileManager ProfileManager // Optional - can be nil
+	formatter      *formatter.Formatter
 }
 
 // ProfileManager is an interface for profile scanning operations
@@ -72,6 +74,7 @@ func NewComponentLinker(agentsDir string, targets []config.Target, det *detector
 		targets:        targets,
 		detector:       det,
 		profileManager: pm,
+		formatter:      formatter.New(),
 	}, nil
 }
 
@@ -138,6 +141,11 @@ func (cl *ComponentLinker) copyFile(src, dst string) error {
 
 // LinkComponent links a single component to all configured targets
 func (cl *ComponentLinker) LinkComponent(componentType, componentName string) error {
+	return cl.linkComponentInternal(componentType, componentName, true)
+}
+
+// linkComponentInternal links a single component with optional quiet mode for bulk operations
+func (cl *ComponentLinker) linkComponentInternal(componentType, componentName string, verbose bool) error {
 	srcDir := filepath.Join(cl.agentsDir, componentType, componentName)
 	selectedProfileName := "" // Track which profile was used
 
@@ -166,7 +174,8 @@ func (cl *ComponentLinker) LinkComponent(componentType, componentName string) er
 			// Only one match, use it automatically
 			srcDir = filepath.Join(matches[0].ProfilePath, componentType, componentName)
 			selectedProfileName = matches[0].ProfileName
-			fmt.Printf("Component found in profile: %s\n", selectedProfileName)
+			gray := color.New(color.FgHiBlack).SprintFunc()
+			fmt.Printf("  %s Component found in profile: %s\n", gray("→"), selectedProfileName)
 		}
 	} else {
 		// Component found in current directory - determine profile name
@@ -232,7 +241,7 @@ func (cl *ComponentLinker) LinkComponent(componentType, componentName string) er
 	}
 
 	// Display results with errors inline
-	if len(linkResults) > 0 {
+	if len(linkResults) > 0 && verbose {
 		hasSuccess := false
 		for _, result := range linkResults {
 			if result.success {
@@ -241,17 +250,23 @@ func (cl *ComponentLinker) LinkComponent(componentType, componentName string) er
 			}
 		}
 
+		green := color.New(color.FgGreen).SprintFunc()
+		red := color.New(color.FgRed).SprintFunc()
+		gray := color.New(color.FgHiBlack).SprintFunc()
+
 		// Use simplified single-line output for single target
 		if len(linkResults) == 1 {
 			result := linkResults[0]
 			if result.success {
 				profileInfo := ""
 				if selectedProfileName != "" && selectedProfileName != "base" {
-					profileInfo = fmt.Sprintf(" (from profile: %s)", selectedProfileName)
+					profileInfo = gray(fmt.Sprintf(" (from profile: %s)", selectedProfileName))
 				}
-				fmt.Printf("Successfully linked %s '%s'%s → %s: %s\n", componentType, componentName, profileInfo, result.name, result.path)
+				fmt.Printf("%s Linked %s '%s'%s\n", green(formatter.SymbolSuccess), componentType, componentName, profileInfo)
+				fmt.Printf("  %s %s: %s\n", gray("→"), result.name, result.path)
 			} else {
-				fmt.Printf("Failed to link %s '%s' ✗ %s: %s\n", componentType, componentName, result.name, result.errMsg)
+				fmt.Printf("%s Failed to link %s '%s'\n", red(formatter.SymbolError), componentType, componentName)
+				fmt.Printf("  %s %s: %s\n", red(formatter.SymbolError), result.name, result.errMsg)
 				return fmt.Errorf("failed to link to target")
 			}
 		} else {
@@ -259,25 +274,39 @@ func (cl *ComponentLinker) LinkComponent(componentType, componentName string) er
 			if hasSuccess {
 				profileInfo := ""
 				if selectedProfileName != "" && selectedProfileName != "base" {
-					profileInfo = fmt.Sprintf(" (from profile: %s)", selectedProfileName)
+					profileInfo = gray(fmt.Sprintf(" (from profile: %s)", selectedProfileName))
 				}
-				fmt.Printf("Successfully linked %s '%s'%s:\n", componentType, componentName, profileInfo)
+				fmt.Printf("%s Linked %s '%s'%s\n", green(formatter.SymbolSuccess), componentType, componentName, profileInfo)
 			} else {
-				fmt.Printf("Failed to link %s '%s':\n", componentType, componentName)
+				fmt.Printf("%s Failed to link %s '%s'\n", red(formatter.SymbolError), componentType, componentName)
 			}
 
 			for _, result := range linkResults {
 				if result.success {
-					fmt.Printf("  → %s: %s\n", result.name, result.path)
+					fmt.Printf("  %s %s: %s\n", green(formatter.SymbolSuccess), result.name, result.path)
 				} else {
-					fmt.Printf("  ✗ %s: %s\n", result.name, result.errMsg)
+					fmt.Printf("  %s %s: %s\n", red(formatter.SymbolError), result.name, result.errMsg)
 				}
 			}
-			fmt.Printf("  Source: %s\n", srcDir)
+			fmt.Printf("  %s Source: %s\n", gray("→"), srcDir)
 
 			if !hasSuccess {
 				return fmt.Errorf("failed to link to any target")
 			}
+		}
+	}
+
+	// Return error for failed links even in quiet mode
+	if len(linkResults) > 0 {
+		hasSuccess := false
+		for _, result := range linkResults {
+			if result.success {
+				hasSuccess = true
+				break
+			}
+		}
+		if !hasSuccess {
+			return fmt.Errorf("failed to link to any target")
 		}
 	}
 
@@ -326,7 +355,8 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 
 			// Link as a regular single component
 			if err := cl.LinkComponent(componentType, componentName); err != nil {
-				fmt.Printf("Warning: failed to link %s/%s: %v\n", componentType, componentName, err)
+				yellow := color.New(color.FgYellow).SprintFunc()
+				fmt.Printf("%s Failed to link %s/%s: %v\n", yellow(formatter.SymbolWarning), componentType, componentName, err)
 				errorCount++
 			} else {
 				linkedCount++
@@ -334,11 +364,18 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 		}
 	}
 
-	fmt.Printf("\nSuccessfully linked %d %s", linkedCount, componentType)
+	green := color.New(color.FgGreen).SprintFunc()
+	red := color.New(color.FgRed).SprintFunc()
+
+	cl.formatter.EmptyLine()
 	if errorCount > 0 {
-		fmt.Printf(" (%d errors)", errorCount)
+		fmt.Printf("%s Successfully linked %d %s | %s Failed: %d\n",
+			green(formatter.SymbolSuccess), linkedCount, componentType,
+			red(formatter.SymbolError), errorCount)
+	} else {
+		fmt.Printf("%s Successfully linked %d %s\n",
+			green(formatter.SymbolSuccess), linkedCount, componentType)
 	}
-	fmt.Println()
 
 	return nil
 }
@@ -351,8 +388,12 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 	var successCount, failedCount, skippedCount int
 	var failedComponents []string
 
-	fmt.Println("\n=== Bulk Linking All Components ===")
-	fmt.Println()
+	green := color.New(color.FgGreen).SprintFunc()
+	red := color.New(color.FgRed).SprintFunc()
+	yellow := color.New(color.FgYellow).SprintFunc()
+	gray := color.New(color.FgHiBlack).SprintFunc()
+
+	cl.formatter.SectionHeader("Bulk Linking All Components")
 
 	for _, componentType := range componentTypes {
 		typeDir := filepath.Join(cl.agentsDir, componentType)
@@ -362,7 +403,7 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 
 		entries, err := os.ReadDir(typeDir)
 		if err != nil {
-			fmt.Printf("Warning: failed to read %s directory: %v\n", componentType, err)
+			cl.formatter.WarningMsg("Failed to read %s directory: %v", componentType, err)
 			continue
 		}
 
@@ -379,14 +420,14 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 				// Show progress
 				fmt.Printf("Linking %s: %s... ", componentType, componentName)
 
-				// Link as a regular single component
-				if err := cl.LinkComponent(componentType, componentName); err != nil {
-					fmt.Printf("❌ FAILED\n")
-					fmt.Printf("  Error: %v\n", err)
+				// Link as a regular single component (quiet mode for bulk operations)
+				if err := cl.linkComponentInternal(componentType, componentName, false); err != nil {
+					fmt.Printf("%s\n", red(formatter.SymbolError+" FAILED"))
+					fmt.Printf("  %s %v\n", gray("└─"), err)
 					failedCount++
 					failedComponents = append(failedComponents, fmt.Sprintf("%s/%s", componentType, componentName))
 				} else {
-					fmt.Printf("✓ Done\n")
+					fmt.Printf("%s\n", green(formatter.SymbolSuccess+" Done"))
 					successCount++
 				}
 			}
@@ -394,20 +435,22 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 	}
 
 	// Display summary
-	fmt.Println()
-	fmt.Println("=== Linking Summary ===")
-	fmt.Printf("✓ Successfully linked: %d\n", successCount)
+	cl.formatter.EmptyLine()
+	cl.formatter.SectionHeader("Linking Summary")
+	fmt.Printf("%s Successfully linked: %d\n", green(formatter.SymbolSuccess), successCount)
 	if skippedCount > 0 {
-		fmt.Printf("⊘ Skipped (monorepos): %d\n", skippedCount)
+		fmt.Printf("%s Skipped (monorepos): %d\n", yellow(formatter.SymbolWarning), skippedCount)
 	}
 	if failedCount > 0 {
-		fmt.Printf("❌ Failed: %d\n", failedCount)
-		fmt.Println("\nFailed components:")
+		fmt.Printf("%s Failed: %d\n", red(formatter.SymbolError), failedCount)
+		cl.formatter.EmptyLine()
+		fmt.Println("Failed components:")
 		for _, comp := range failedComponents {
-			fmt.Printf("  - %s\n", comp)
+			fmt.Printf("  • %s\n", comp)
 		}
 	}
-	fmt.Printf("\nTotal: %d linked, %d skipped, %d failed\n", successCount, skippedCount, failedCount)
+	cl.formatter.EmptyLine()
+	fmt.Printf("Total: %d linked, %d skipped, %d failed\n", successCount, skippedCount, failedCount)
 
 	return nil
 }
