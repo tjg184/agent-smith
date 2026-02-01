@@ -143,18 +143,30 @@ func (f *Formatter) Summary(title string, items map[string]interface{}) {
 	}
 }
 
-// CounterSummary prints a summary with counters
+// CounterSummary prints a summary with counters using box-drawing table
 func (f *Formatter) CounterSummary(total, success, failed, skipped int) {
-	fmt.Fprintf(f.writer, "Total: %d\n", total)
+	// Create summary table with box-drawing characters
+	table := NewBoxTable(f.writer, []string{"Status", "Count"})
+
+	// Add total row (always shown)
+	table.AddRow([]string{"Total", fmt.Sprintf("%d", total)})
+
+	// Add success row if there are successes
 	if success > 0 {
-		fmt.Fprintf(f.writer, "%s Successful: %d\n", colors.Success(SymbolSuccess), success)
+		table.AddRow([]string{colors.Success(SymbolSuccess + " Successful"), fmt.Sprintf("%d", success)})
 	}
+
+	// Add failed row if there are failures
 	if failed > 0 {
-		fmt.Fprintf(f.writer, "%s Failed: %d\n", colors.Error(SymbolError), failed)
+		table.AddRow([]string{colors.Error(SymbolError + " Failed"), fmt.Sprintf("%d", failed)})
 	}
+
+	// Add skipped row if there are skipped items
 	if skipped > 0 {
-		fmt.Fprintf(f.writer, "%s Skipped: %d\n", colors.Warning(SymbolWarning), skipped)
+		table.AddRow([]string{colors.Warning(SymbolWarning + " Skipped"), fmt.Sprintf("%d", skipped)})
 	}
+
+	table.Render()
 }
 
 // InlineSuccess prints an inline success message

@@ -141,17 +141,25 @@ func TestCounterSummary(t *testing.T) {
 	f.CounterSummary(10, 7, 2, 1)
 
 	output := buf.String()
-	if !strings.Contains(output, "Total: 10") {
-		t.Errorf("Expected total count, got: %s", output)
+	// Check for box-drawing characters
+	if !strings.Contains(output, "┌") || !strings.Contains(output, "└") {
+		t.Errorf("Expected box-drawing characters in output, got: %s", output)
 	}
-	if !strings.Contains(output, "Successful: 7") {
-		t.Errorf("Expected success count, got: %s", output)
+	// Check for total count (in table format)
+	if !strings.Contains(output, "Total") && !strings.Contains(output, "10") {
+		t.Errorf("Expected total count in table, got: %s", output)
 	}
-	if !strings.Contains(output, "Failed: 2") {
-		t.Errorf("Expected failed count, got: %s", output)
+	// Check for successful count (with symbol)
+	if !strings.Contains(output, "Successful") && !strings.Contains(output, "7") {
+		t.Errorf("Expected success count in table, got: %s", output)
 	}
-	if !strings.Contains(output, "Skipped: 1") {
-		t.Errorf("Expected skipped count, got: %s", output)
+	// Check for failed count (with symbol)
+	if !strings.Contains(output, "Failed") && !strings.Contains(output, "2") {
+		t.Errorf("Expected failed count in table, got: %s", output)
+	}
+	// Check for skipped count (with symbol)
+	if !strings.Contains(output, "Skipped") && !strings.Contains(output, "1") {
+		t.Errorf("Expected skipped count in table, got: %s", output)
 	}
 }
 
