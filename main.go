@@ -1127,12 +1127,12 @@ func main() {
 				} else {
 					fmt.Println("No profiles found in ~/.agent-smith/profiles/")
 					fmt.Println("\nTo create a profile, run:")
-					fmt.Println("  ./agent-smith profile create <profile-name>")
+					fmt.Println("  agent-smith profile create <profile-name>")
 				}
 				return
 			}
 
-			// Print top border
+			// Print top border with title
 			fmt.Println("┌────────────────────────────────────────────────────────────────────────────┐")
 			fmt.Println("│                          Available Profiles                                │")
 			fmt.Println("├────────────────────────────────────────────────────────────────────────────┤")
@@ -1141,16 +1141,28 @@ func main() {
 				// Count components
 				agents, skills, commands := pm.CountComponents(profile)
 
-				// Build component counts string
+				// Build component counts string with proper singular/plural handling
 				var components []string
 				if agents > 0 {
-					components = append(components, fmt.Sprintf("%d agent(s)", agents))
+					if agents == 1 {
+						components = append(components, "1 agent")
+					} else {
+						components = append(components, fmt.Sprintf("%d agents", agents))
+					}
 				}
 				if skills > 0 {
-					components = append(components, fmt.Sprintf("%d skill(s)", skills))
+					if skills == 1 {
+						components = append(components, "1 skill")
+					} else {
+						components = append(components, fmt.Sprintf("%d skills", skills))
+					}
 				}
 				if commands > 0 {
-					components = append(components, fmt.Sprintf("%d command(s)", commands))
+					if commands == 1 {
+						components = append(components, "1 command")
+					} else {
+						components = append(components, fmt.Sprintf("%d commands", commands))
+					}
 				}
 
 				componentStr := ""
