@@ -84,7 +84,7 @@ The `agent-smith update` command currently only updates components in the base `
   - Update single command from active profile succeeds
   - Update single component with --profile flag uses specified profile
 
-- [ ] Story-004: As a user with no active profile, I want update commands to work on my base directory components so that I can still update components without using profiles.
+- [x] Story-004: As a user with no active profile, I want update commands to work on my base directory components so that I can still update components without using profiles.
 
   **Acceptance Criteria:**
   - When no profile is active, `update all` checks `~/.agent-smith/` directory
