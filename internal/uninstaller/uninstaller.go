@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/tgaines/agent-smith/internal/detector"
+	"github.com/tgaines/agent-smith/internal/formatter"
 	"github.com/tgaines/agent-smith/internal/linker"
 	"github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/pkg/paths"
@@ -16,15 +17,17 @@ import (
 
 // Uninstaller handles component removal
 type Uninstaller struct {
-	baseDir string
-	linker  *linker.ComponentLinker
+	baseDir   string
+	linker    *linker.ComponentLinker
+	formatter *formatter.Formatter
 }
 
 // NewUninstaller creates a new Uninstaller instance
 func NewUninstaller(baseDir string, componentLinker *linker.ComponentLinker) *Uninstaller {
 	return &Uninstaller{
-		baseDir: baseDir,
-		linker:  componentLinker,
+		baseDir:   baseDir,
+		linker:    componentLinker,
+		formatter: formatter.New(),
 	}
 }
 
@@ -44,53 +47,67 @@ func (u *Uninstaller) UninstallComponent(componentType, name string) error {
 	// Get component directory path
 	componentDir := filepath.Join(u.baseDir, componentType, name)
 
-	// Display what will be removed
-	fmt.Printf("\nRemoving %s: %s\n", componentType, name)
+	// Display section header
+	u.formatter.SectionHeader(fmt.Sprintf("Uninstalling %s: %s", componentType, name))
+
+	// Show what will be removed
+	u.formatter.InfoMsg("The following will be removed:")
+	u.formatter.EmptyLine()
 
 	// Show source information if available
 	if entry != nil {
 		if entry.SourceUrl != "" {
-			fmt.Printf("  Source: %s\n", entry.SourceUrl)
+			u.formatter.DetailItem("Source", entry.SourceUrl)
 		} else if entry.Source != "" {
-			fmt.Printf("  Source: %s\n", entry.Source)
+			u.formatter.DetailItem("Source", entry.Source)
 		}
 		if entry.CommitHash != "" {
-			fmt.Printf("  Commit: %s\n", entry.CommitHash)
+			u.formatter.DetailItem("Commit", entry.CommitHash)
 		}
 	}
 
-	fmt.Printf("  Directory: %s\n", componentDir)
+	u.formatter.DetailItem("Directory", componentDir)
 
 	// Find and display linked targets
 	linkedTargets := u.findLinkedTargets(componentType, name)
 	if len(linkedTargets) > 0 {
-		fmt.Printf("  Linked to: %s\n", strings.Join(linkedTargets, ", "))
+		u.formatter.DetailItem("Linked to", strings.Join(linkedTargets, ", "))
 	} else {
-		fmt.Printf("  Linked to: (none)\n")
+		u.formatter.DetailItem("Linked to", "(none)")
 	}
 
-	fmt.Println()
+	u.formatter.EmptyLine()
 
 	// Auto-unlink component from all targets (silent if not linked)
 	if u.linker != nil && len(linkedTargets) > 0 {
+		u.formatter.ProgressMsg("Unlinking from targets", name)
 		// Try to unlink, but don't fail if it's not linked
 		// Pass empty targetFilter to unlink from all targets
 		_ = u.linker.UnlinkComponent(componentType, name, "")
+		u.formatter.ProgressComplete()
 	}
 
 	// Remove component directory from filesystem
+	u.formatter.ProgressMsg("Removing directory", componentDir)
 	if err := os.RemoveAll(componentDir); err != nil {
+		u.formatter.ProgressFailed()
 		return fmt.Errorf("failed to remove component directory: %w", err)
 	}
+	u.formatter.ProgressComplete()
 
 	// Remove entry from lock file
+	u.formatter.ProgressMsg("Updating lock file", "")
 	if err := metadata.RemoveLockFileEntry(u.baseDir, componentType, name); err != nil {
+		u.formatter.ProgressFailed()
 		// Log warning but continue - directory is already removed
-		fmt.Printf("Warning: Could not update lock file: %v\n", err)
+		u.formatter.WarningMsg("Could not update lock file: %v", err)
+	} else {
+		u.formatter.ProgressComplete()
 	}
 
 	// Display success message
-	fmt.Printf("✓ Removed %s: %s\n", componentType, name)
+	u.formatter.EmptyLine()
+	u.formatter.SuccessMsg("Removed %s: %s", componentType, name)
 
 	return nil
 }
@@ -117,44 +134,52 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 	}
 
 	if totalComponents == 0 {
-		fmt.Printf("No components found from %s\n", repoURL)
+		u.formatter.InfoMsg("No components found from %s", repoURL)
 		return nil
 	}
 
-	// Display detailed information about what will be removed
-	fmt.Printf("\nThe following will be removed:\n\n")
-	fmt.Printf("Repository: %s\n", repoURL)
-	fmt.Printf("Total components: %d\n\n", totalComponents)
+	// Display section header
+	u.formatter.SectionHeader("Uninstall Preview")
+
+	// Display repository and total count
+	u.formatter.DetailItem("Repository", repoURL)
+	u.formatter.DetailItem("Total components", fmt.Sprintf("%d", totalComponents))
+	u.formatter.EmptyLine()
 
 	// Show breakdown by type with more details
+	u.formatter.InfoMsg("Components to be removed:")
+	u.formatter.EmptyLine()
+
 	for componentType, names := range componentsByType {
 		if len(names) > 0 {
-			fmt.Printf("%s (%d):\n", strings.Title(componentType), len(names))
+			// Component type header
+			u.formatter.Info("%s (%d):", strings.Title(componentType), len(names))
 			for _, name := range names {
 				// Find linked targets for this component
 				linkedTargets := u.findLinkedTargets(componentType, name)
 
 				if len(linkedTargets) > 0 {
-					fmt.Printf("  • %s (linked to: %s)\n", name, strings.Join(linkedTargets, ", "))
+					u.formatter.ListItem("%s (linked to: %s)", name, strings.Join(linkedTargets, ", "))
 				} else {
-					fmt.Printf("  • %s\n", name)
+					u.formatter.ListItem("%s", name)
 				}
 			}
-			fmt.Println()
+			u.formatter.EmptyLine()
 		}
 	}
 
 	// Show what directories will be deleted
-	fmt.Printf("Directories to be deleted:\n")
+	u.formatter.InfoMsg("Directories to be deleted:")
+	u.formatter.EmptyLine()
 	for componentType, names := range componentsByType {
 		if len(names) > 0 {
 			for _, name := range names {
 				componentDir := filepath.Join(u.baseDir, componentType, name)
-				fmt.Printf("  • %s\n", componentDir)
+				u.formatter.ListItem("%s", componentDir)
 			}
 		}
 	}
-	fmt.Println()
+	u.formatter.EmptyLine()
 
 	// Prompt for confirmation unless --force is set
 	if !force {
@@ -167,13 +192,14 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 
 		response = strings.TrimSpace(strings.ToLower(response))
 		if response != "y" && response != "yes" {
-			fmt.Println("Uninstall cancelled")
+			u.formatter.InfoMsg("Uninstall cancelled")
 			return nil
 		}
+		u.formatter.EmptyLine()
 	}
 
-	// Unlink message (displayed once for all components)
-	fmt.Println("Unlinking from targets...")
+	// Display removal header
+	u.formatter.SectionHeader("Removing Components")
 
 	// Remove all components
 	removed := 0
@@ -194,10 +220,14 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 				_ = u.linker.UnlinkComponent(componentType, name, "")
 			}
 
+			// Show progress for removal
+			u.formatter.ProgressMsg(fmt.Sprintf("Removing %s", componentType), name)
+
 			// Remove component directory from filesystem
 			componentDir := filepath.Join(u.baseDir, componentType, name)
 			if err := os.RemoveAll(componentDir); err != nil {
-				fmt.Printf("✗ Failed to remove %s: %s (%v)\n", componentType, name, err)
+				u.formatter.ProgressFailed()
+				u.formatter.ErrorMsg("Failed to remove %s: %s (%v)", componentType, name, err)
 				failed++
 				failedComponents = append(failedComponents, fmt.Sprintf("%s/%s", componentType, name))
 				continue
@@ -205,22 +235,20 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 
 			// Remove entry from lock file
 			if err := metadata.RemoveLockFileEntry(u.baseDir, componentType, name); err != nil {
-				fmt.Printf("Warning: Could not update lock file for %s: %s\n", name, err)
+				u.formatter.WarningMsg("Could not update lock file for %s: %s", name, err)
 			}
 
-			// Display success message
-			fmt.Printf("✓ Removed %s: %s\n", componentType, name)
+			u.formatter.ProgressComplete()
 			removed++
 		}
 	}
 
 	// Display summary
-	fmt.Println()
+	u.formatter.EmptyLine()
+	u.formatter.CounterSummary(totalComponents, removed, failed, 0)
+
 	if failed > 0 {
-		fmt.Printf("Removed %d of %d components (%d failed)\n", removed, totalComponents, failed)
 		return fmt.Errorf("failed to remove %d component(s)", failed)
-	} else {
-		fmt.Printf("Successfully removed %d component(s) from repository\n", removed)
 	}
 
 	return nil
@@ -330,10 +358,10 @@ func (u *Uninstaller) findLinkedTargets(componentType, componentName string) []s
 		return linkedTargets
 	}
 
-	// Check common target locations
+	// Check common target locations (both macOS and Linux paths)
 	targetPaths := map[string]string{
-		"OpenCode":   filepath.Join(homeDir, "Library", "Application Support", "OpenCode", componentType),
-		"ClaudeCode": filepath.Join(homeDir, "Library", "Application Support", "Claude", componentType),
+		"opencode":   filepath.Join(homeDir, ".config", "opencode", componentType),
+		"claudecode": filepath.Join(homeDir, ".claude", componentType),
 	}
 
 	for targetName, targetDir := range targetPaths {
