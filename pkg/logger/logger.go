@@ -6,6 +6,9 @@ import (
 	"io"
 	"os"
 	"sync"
+
+	"github.com/fatih/color"
+	"github.com/tgaines/agent-smith/pkg/errors"
 )
 
 // Level represents the severity level of a log message.
@@ -46,6 +49,7 @@ type Logger struct {
 	errOut   io.Writer
 	prefix   string
 	showTags bool
+	colorize bool
 }
 
 // New creates a new Logger with the specified minimum level.
@@ -56,6 +60,7 @@ func New(level Level) *Logger {
 		output:   os.Stdout,
 		errOut:   os.Stderr,
 		showTags: true,
+		colorize: true,
 	}
 }
 
@@ -101,6 +106,18 @@ func (l *Logger) SetShowTags(show bool) {
 	l.showTags = show
 }
 
+// SetColorize controls whether to use colored output.
+func (l *Logger) SetColorize(colorize bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.colorize = colorize
+	if !colorize {
+		color.NoColor = true
+	} else {
+		color.NoColor = false
+	}
+}
+
 // log is the internal logging function that handles level filtering and formatting.
 func (l *Logger) log(level Level, format string, args ...interface{}) {
 	l.mu.RLock()
@@ -109,6 +126,7 @@ func (l *Logger) log(level Level, format string, args ...interface{}) {
 	errOut := l.errOut
 	prefix := l.prefix
 	showTags := l.showTags
+	colorize := l.colorize
 	l.mu.RUnlock()
 
 	// Filter messages below the current level
@@ -129,6 +147,16 @@ func (l *Logger) log(level Level, format string, args ...interface{}) {
 		msg = tag + prefix + fmt.Sprintf(format, args...)
 	} else {
 		msg = prefix + fmt.Sprintf(format, args...)
+	}
+
+	// Apply color formatting if enabled
+	if colorize && !showTags {
+		switch level {
+		case LevelError:
+			msg = errors.FormatSimpleError(msg)
+		case LevelWarn:
+			msg = errors.FormatSimpleWarning(msg)
+		}
 	}
 
 	// Ensure newline at end
@@ -232,4 +260,29 @@ func Default(debug, verbose bool) *Logger {
 		level = LevelWarn
 	}
 	return New(level)
+}
+
+// ErrorMsg logs a structured error message with context and suggestions.
+func (l *Logger) ErrorMsg(errMsg *errors.ErrorMessage) {
+	l.mu.RLock()
+	errOut := l.errOut
+	l.mu.RUnlock()
+
+	fmt.Fprint(errOut, errMsg.Format())
+}
+
+// FatalMsg logs a structured error message and exits the program with status code 1.
+func (l *Logger) FatalMsg(errMsg *errors.ErrorMessage) {
+	l.ErrorMsg(errMsg)
+	os.Exit(1)
+}
+
+// WarnMsg logs a structured warning message with context and suggestions.
+func (l *Logger) WarnMsg(warnMsg *errors.ErrorMessage) {
+	l.mu.RLock()
+	errOut := l.errOut
+	l.mu.RUnlock()
+
+	warnMsg.AsWarning()
+	fmt.Fprint(errOut, warnMsg.Format())
 }

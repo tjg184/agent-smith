@@ -20,6 +20,7 @@ import (
 	"github.com/tgaines/agent-smith/internal/uninstaller"
 	"github.com/tgaines/agent-smith/internal/updater"
 	"github.com/tgaines/agent-smith/pkg/config"
+	"github.com/tgaines/agent-smith/pkg/errors"
 	"github.com/tgaines/agent-smith/pkg/logger"
 	"github.com/tgaines/agent-smith/pkg/paths"
 	"github.com/tgaines/agent-smith/pkg/profiles"
@@ -519,7 +520,7 @@ func main() {
 			debugPrintf("[DEBUG] handleAddSkill called with repoURL=%s, name=%s, profile=%s, targetDir=%s\n", repoURL, name, profile, targetDir)
 
 			if profile != "" && targetDir != "" {
-				log.Fatal("Cannot specify both --profile and --target-dir flags")
+				appLogger.FatalMsg(errors.NewInvalidFlagsError("--profile", "--target-dir"))
 			}
 
 			if targetDir != "" {
@@ -538,7 +539,7 @@ func main() {
 				infoPrintf("Installing to custom directory: %s\n", resolvedPath)
 				dl := downloader.NewSkillDownloaderWithTargetDir(resolvedPath)
 				if err := dl.DownloadSkill(repoURL, name); err != nil {
-					log.Fatal("Failed to download skill:", err)
+					appLogger.FatalMsg(errors.NewComponentDownloadError("skill", repoURL, err))
 				}
 				debugPrintln("[DEBUG] Skill download completed successfully")
 			} else if profile != "" {
@@ -546,7 +547,7 @@ func main() {
 				debugPrintf("[DEBUG] Installing to profile: %s\n", profile)
 				pm, err := profiles.NewProfileManager(nil)
 				if err != nil {
-					log.Fatal("Failed to create profile manager:", err)
+					appLogger.FatalMsg(errors.NewProfileManagerError(err))
 				}
 
 				// Validate profile exists by scanning
@@ -565,12 +566,12 @@ func main() {
 				}
 
 				if !profileExists {
-					log.Fatalf("Profile '%s' does not exist. Create it first with: agent-smith profiles create %s", profile, profile)
+					appLogger.FatalMsg(errors.NewProfileNotFoundError(profile))
 				}
 
 				dl := downloader.NewSkillDownloaderForProfile(profile)
 				if err := dl.DownloadSkill(repoURL, name); err != nil {
-					log.Fatal("Failed to download skill:", err)
+					appLogger.FatalMsg(errors.NewComponentDownloadError("skill", repoURL, err))
 				}
 				debugPrintln("[DEBUG] Skill download to profile completed successfully")
 
@@ -592,14 +593,14 @@ func main() {
 				debugPrintln("[DEBUG] Installing to standard directory (~/.agent-smith/)")
 				dl := downloader.NewSkillDownloader()
 				if err := dl.DownloadSkill(repoURL, name); err != nil {
-					log.Fatal("Failed to download skill:", err)
+					appLogger.FatalMsg(errors.NewComponentDownloadError("skill", repoURL, err))
 				}
 				debugPrintln("[DEBUG] Skill download completed successfully")
 			}
 		},
 		func(repoURL, name, profile, targetDir string) {
 			if profile != "" && targetDir != "" {
-				log.Fatal("Cannot specify both --profile and --target-dir flags")
+				appLogger.FatalMsg(errors.NewInvalidFlagsError("--profile", "--target-dir"))
 			}
 
 			if targetDir != "" {
