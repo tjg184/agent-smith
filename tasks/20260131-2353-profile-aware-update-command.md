@@ -21,7 +21,7 @@ The `agent-smith update` command currently only updates components in the base `
 
 ## User Stories
 
-- [ ] Story-001: As a user with an active profile, I want update all to check components in my active profile so that my profile components get updated.
+- [x] Story-001: As a user with an active profile, I want update all to check components in my active profile so that my profile components get updated.
 
   **Acceptance Criteria:**
   - When active profile exists, `update all` checks `~/.agent-smith/profiles/<profile-name>/` directory
@@ -42,7 +42,7 @@ The `agent-smith update` command currently only updates components in the base `
   - Lock files are correctly read from profile directory
   - Update statistics reflect actual profile component counts
 
-- [ ] Story-002: As a user managing multiple profiles, I want to use --profile flag to update a specific profile's components so that I can update non-active profiles without switching.
+- [x] Story-002: As a user managing multiple profiles, I want to use --profile flag to update a specific profile's components so that I can update non-active profiles without switching.
 
   **Acceptance Criteria:**
   - `update all --profile <name>` updates specified profile's components
@@ -63,7 +63,7 @@ The `agent-smith update` command currently only updates components in the base `
   - Error handling for non-existent profile names
   - Profile flag works with both "update all" and "update <type> <name>"
 
-- [ ] Story-003: As a user updating a single component, I want update <type> <name> to respect my active profile so that individual component updates work consistently with update all.
+- [x] Story-003: As a user updating a single component, I want update <type> <name> to respect my active profile so that individual component updates work consistently with update all.
 
   **Acceptance Criteria:**
   - `update skills <name>` checks active profile if one exists
