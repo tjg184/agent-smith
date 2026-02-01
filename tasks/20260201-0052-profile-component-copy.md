@@ -122,7 +122,7 @@ Add functionality to copy components (skills, agents, commands) between profiles
   - The helper function properly copies lock file entries from base installation to profile
   - Integration test added: `profile_add_lock_preservation_test.go` verifies functionality
 
-- [ ] Story-005: As a developer, I want to test new component versions in an experimental profile while keeping stable versions in production so that I can safely evaluate updates.
+- [x] Story-005: As a developer, I want to test new component versions in an experimental profile while keeping stable versions in production so that I can safely evaluate updates.
 
   **Acceptance Criteria:**
   - Can copy component from production profile to experimental profile

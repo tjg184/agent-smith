@@ -6,7 +6,7 @@
 
 ## Introduction
 
-The agent-smith project currently has 9 integration test files (3,397 lines) at the repository root. These tests were created incrementally as features were developed, resulting in:
+The agent-smith project currently has 10 integration test files (3,608 lines) at the repository root. These tests were created incrementally as features were developed, resulting in:
 
 - **Duplication**: Multiple story tests verify overlapping functionality
 - **Scope creep**: Story-specific acceptance tests testing business logic that should be in unit tests
@@ -20,17 +20,17 @@ This PRD outlines a comprehensive cleanup to:
 4. **Delete** 7 story-specific integration tests and temporary verification suites
 5. **Verify** test coverage is maintained or improved through each phase
 
-**Success metric**: Reduce integration test code by ~90% (from 3,397 to ~300 lines) while maintaining or improving coverage.
+**Success metric**: Reduce integration test code by ~81% (from 3,608 to ~700 lines) while maintaining or improving coverage.
 
 ---
 
 ## Goals
 
-- Reduce integration test lines of code from 3,397 to ~300 (90% reduction)
+- Reduce integration test lines of code from 3,608 to ~700 (81% reduction)
 - Extract TestHelper and utilities to reusable `internal/testutil/` package
 - Move business logic tests from CLI integration tests to focused package-level unit tests
 - Consolidate to 2 clear-purpose integration tests: e2e workflows and component downloading
-- Delete 8 integration tests (7 story tests + 1 debug flag test) and 1 temporary verification suite
+- Delete 9 integration tests (8 story tests + 1 debug flag test) and 1 feature demo test
 - Maintain or improve test coverage (verified with go test -cover before/after)
 - Execute as single cohesive PR suitable for Ralphy parallel execution
 
@@ -174,8 +174,9 @@ This PRD outlines a comprehensive cleanup to:
   - Delete `story_004_integration_test.go` (374 lines) - profile flag logic now in pkg/profiles/ and e2e_workflow_integration_test.go
   - Delete `story_004_update_base_directory_test.go` (203 lines) - base directory logic now in internal/updater/base_directory_test.go
   - Delete `story_005_verification_integration_test.go` (425 lines) - temporary acceptance test, functionality verified by other tests
+  - Delete `story_005_feature_test.go` (211 lines) - feature demo for Story-005, profile workflows now in e2e_workflow_integration_test.go
   - Delete `story_006_update_location_feedback_test.go` (260 lines) - feedback logic now in internal/updater/profile_update_test.go
-  - Total deletion: 2,267 lines of integration test code
+  - Total deletion: 2,478 lines of integration test code
   
   **Testing Criteria:**
   **Integration Tests:**
@@ -245,7 +246,7 @@ This PRD outlines a comprehensive cleanup to:
 - FR-6: The system SHALL add unit tests in internal/updater/ covering update logic from Story-003, Story-004, Story-006 integration tests
 - FR-7: The system SHALL refactor component_download_integration_test.go to use internal/testutil package
 - FR-8: The system SHALL create e2e_workflow_integration_test.go with 4 focused happy path workflows
-- FR-9: The system SHALL delete 8 integration test files totaling 2,389 lines (7 story tests + 1 debug flag test)
+- FR-9: The system SHALL delete 9 integration test files totaling 2,600 lines (8 story tests + 1 debug flag test)
 - FR-10: The system SHALL delete debug_flag_integration_test.go as it tests Cobra framework functionality
 - FR-11: The system SHALL verify test coverage before and after cleanup using go test -cover
 - FR-12: The system SHALL update TESTING.md to reflect new test organization
@@ -411,22 +412,23 @@ This PRD is designed for single PR execution with these dependencies:
 - `component_download_integration_test.go` (refactored: 808 → ~400 lines)
 - `TESTING.md` (updated with new structure)
 
-**Deleted Files (9 files, ~2,997 lines):**
+**Deleted Files (10 files, ~3,208 lines):**
 - `story_001_integration_test.go` (343 lines)
 - `story_002_integration_test.go` (413 lines)
 - `story_003_update_single_component_test.go` (249 lines)
 - `story_004_integration_test.go` (374 lines)
 - `story_004_update_base_directory_test.go` (203 lines)
 - `story_005_verification_integration_test.go` (425 lines)
+- `story_005_feature_test.go` (211 lines)
 - `story_006_update_location_feedback_test.go` (260 lines)
 - `debug_flag_integration_test.go` (122 lines)
 - `VERIFICATION.md` (101 lines)
 
 **Net Change:**
 - Lines added: ~1,300 (testutil + unit tests + e2e)
-- Lines removed: ~2,997 (story tests + debug test + verification doc + helper refactor)
-- Net reduction: ~1,697 lines
-- Integration test reduction: 3,397 → ~700 lines (79% reduction - component_download ~400 + e2e_workflow ~300)
+- Lines removed: ~3,208 (story tests + debug test + verification doc + helper refactor)
+- Net reduction: ~1,908 lines
+- Integration test reduction: 3,608 → ~700 lines (81% reduction - component_download ~400 + e2e_workflow ~300)
 
 ---
 
@@ -434,8 +436,8 @@ This PRD is designed for single PR execution with these dependencies:
 
 ### Quantitative Metrics
 
-- Integration test files reduced from 9 to 2 (78% reduction)
-- Integration test lines reduced from 3,397 to ~700 (79% reduction)
+- Integration test files reduced from 10 to 2 (80% reduction)
+- Integration test lines reduced from 3,608 to ~700 (81% reduction)
 - Unit test coverage maintained or improved (measured by go test -cover)
 - All tests pass: `go test -tags=integration ./...` exits with 0
 
@@ -503,8 +505,9 @@ This PRD is designed for single PR execution with these dependencies:
 | story_004_integration_test.go | 374 | 2026-01-31 | Force creation of new profiles with --profile flag | **DELETE (move to unit tests)** |
 | story_004_update_base_directory_test.go | 203 | 2026-01-31 | Update commands on base directory | **DELETE (move to unit tests)** |
 | story_005_verification_integration_test.go | 425 | 2026-01-31 | Comprehensive verification suite (temporary) | **DELETE (temporary test)** |
+| story_005_feature_test.go | 211 | 2026-01-31 | Feature demo for Story-005 profile workflows | **DELETE (feature demo)** |
 | story_006_update_location_feedback_test.go | 260 | 2026-01-31 | Location feedback in update commands | **DELETE (move to unit tests)** |
-| **Total** | **3,397** | | | **2 files remain (~700 lines)** |
+| **Total** | **3,608** | | | **2 files remain (~700 lines)** |
 
 ### Unit Tests (Package Level)
 
