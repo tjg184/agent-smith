@@ -36,20 +36,49 @@ func (u *Uninstaller) UninstallComponent(componentType, name string) error {
 	}
 
 	// Check if component exists in lock file
-	_, err := metadata.LoadLockFileEntry(u.baseDir, componentType, name)
+	entry, err := metadata.LoadLockFileEntry(u.baseDir, componentType, name)
 	if err != nil {
 		return fmt.Errorf("component '%s' not installed", name)
 	}
 
+	// Get component directory path
+	componentDir := filepath.Join(u.baseDir, componentType, name)
+
+	// Display what will be removed
+	fmt.Printf("\nRemoving %s: %s\n", componentType, name)
+
+	// Show source information if available
+	if entry != nil {
+		if entry.SourceUrl != "" {
+			fmt.Printf("  Source: %s\n", entry.SourceUrl)
+		} else if entry.Source != "" {
+			fmt.Printf("  Source: %s\n", entry.Source)
+		}
+		if entry.CommitHash != "" {
+			fmt.Printf("  Commit: %s\n", entry.CommitHash)
+		}
+	}
+
+	fmt.Printf("  Directory: %s\n", componentDir)
+
+	// Find and display linked targets
+	linkedTargets := u.findLinkedTargets(componentType, name)
+	if len(linkedTargets) > 0 {
+		fmt.Printf("  Linked to: %s\n", strings.Join(linkedTargets, ", "))
+	} else {
+		fmt.Printf("  Linked to: (none)\n")
+	}
+
+	fmt.Println()
+
 	// Auto-unlink component from all targets (silent if not linked)
-	if u.linker != nil {
+	if u.linker != nil && len(linkedTargets) > 0 {
 		// Try to unlink, but don't fail if it's not linked
 		// Pass empty targetFilter to unlink from all targets
 		_ = u.linker.UnlinkComponent(componentType, name, "")
 	}
 
 	// Remove component directory from filesystem
-	componentDir := filepath.Join(u.baseDir, componentType, name)
 	if err := os.RemoveAll(componentDir); err != nil {
 		return fmt.Errorf("failed to remove component directory: %w", err)
 	}
@@ -92,11 +121,37 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 		return nil
 	}
 
-	// Display what will be removed
-	fmt.Printf("Found %d component(s) from %s:\n", totalComponents, repoURL)
+	// Display detailed information about what will be removed
+	fmt.Printf("\nThe following will be removed:\n\n")
+	fmt.Printf("Repository: %s\n", repoURL)
+	fmt.Printf("Total components: %d\n\n", totalComponents)
+
+	// Show breakdown by type with more details
 	for componentType, names := range componentsByType {
 		if len(names) > 0 {
-			fmt.Printf("  %s (%d): %s\n", componentType, len(names), strings.Join(names, ", "))
+			fmt.Printf("%s (%d):\n", strings.Title(componentType), len(names))
+			for _, name := range names {
+				// Find linked targets for this component
+				linkedTargets := u.findLinkedTargets(componentType, name)
+
+				if len(linkedTargets) > 0 {
+					fmt.Printf("  • %s (linked to: %s)\n", name, strings.Join(linkedTargets, ", "))
+				} else {
+					fmt.Printf("  • %s\n", name)
+				}
+			}
+			fmt.Println()
+		}
+	}
+
+	// Show what directories will be deleted
+	fmt.Printf("Directories to be deleted:\n")
+	for componentType, names := range componentsByType {
+		if len(names) > 0 {
+			for _, name := range names {
+				componentDir := filepath.Join(u.baseDir, componentType, name)
+				fmt.Printf("  • %s\n", componentDir)
+			}
 		}
 	}
 	fmt.Println()
@@ -118,9 +173,7 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 	}
 
 	// Unlink message (displayed once for all components)
-	if u.linker != nil {
-		fmt.Println("Unlinking from targets...")
-	}
+	fmt.Println("Unlinking from targets...")
 
 	// Remove all components
 	removed := 0
@@ -167,7 +220,7 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 		fmt.Printf("Removed %d of %d components (%d failed)\n", removed, totalComponents, failed)
 		return fmt.Errorf("failed to remove %d component(s)", failed)
 	} else {
-		fmt.Printf("Removed %d component(s) from repository\n", removed)
+		fmt.Printf("Successfully removed %d component(s) from repository\n", removed)
 	}
 
 	return nil
@@ -257,4 +310,38 @@ func normalizeURLForComparison(url string) string {
 	url = strings.ToLower(url)
 
 	return url
+}
+
+// findLinkedTargets checks which targets a component is currently linked to
+func (u *Uninstaller) findLinkedTargets(componentType, componentName string) []string {
+	var linkedTargets []string
+
+	if u.linker == nil {
+		return linkedTargets
+	}
+
+	// Get the list of targets from the linker
+	// We need to check each target to see if the component is linked there
+	// This requires accessing the targets, which we can do through the detector
+
+	// For now, we'll check common target directories
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return linkedTargets
+	}
+
+	// Check common target locations
+	targetPaths := map[string]string{
+		"OpenCode":   filepath.Join(homeDir, "Library", "Application Support", "OpenCode", componentType),
+		"ClaudeCode": filepath.Join(homeDir, "Library", "Application Support", "Claude", componentType),
+	}
+
+	for targetName, targetDir := range targetPaths {
+		componentPath := filepath.Join(targetDir, componentName)
+		if _, err := os.Lstat(componentPath); err == nil {
+			linkedTargets = append(linkedTargets, targetName)
+		}
+	}
+
+	return linkedTargets
 }
