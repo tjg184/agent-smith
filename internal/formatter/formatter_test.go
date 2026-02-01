@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"bytes"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -343,5 +344,216 @@ func TestPlainWarning(t *testing.T) {
 	}
 	if !strings.Contains(output, "component/name has no commit hash stored") {
 		t.Errorf("Expected formatted message, got: %s", output)
+	}
+}
+
+func TestSuccessWithDetail(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.SuccessWithDetail("skill", "api-design", "/path/to/skill")
+
+	output := buf.String()
+	if !strings.Contains(output, SymbolSuccess) {
+		t.Errorf("Expected success symbol, got: %s", output)
+	}
+	if !strings.Contains(output, "Successfully skill: api-design") {
+		t.Errorf("Expected success message with component type and name, got: %s", output)
+	}
+	if !strings.Contains(output, "→") {
+		t.Errorf("Expected arrow symbol for detail, got: %s", output)
+	}
+	if !strings.Contains(output, "/path/to/skill") {
+		t.Errorf("Expected detail information, got: %s", output)
+	}
+}
+
+func TestSuccessWithDetail_NoDetail(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.SuccessWithDetail("agent", "test-agent", "")
+
+	output := buf.String()
+	if !strings.Contains(output, SymbolSuccess) {
+		t.Errorf("Expected success symbol, got: %s", output)
+	}
+	if !strings.Contains(output, "Successfully agent: test-agent") {
+		t.Errorf("Expected success message, got: %s", output)
+	}
+	// Should not have arrow symbol when no detail
+	lines := strings.Split(output, "\n")
+	if len(lines) > 2 {
+		t.Errorf("Expected only one line (plus newline) when no detail provided, got: %d lines", len(lines))
+	}
+}
+
+func TestErrorWithContext(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.ErrorWithContext("Failed to download component", nil, "Check your network connection")
+
+	output := buf.String()
+	if !strings.Contains(output, SymbolError) {
+		t.Errorf("Expected error symbol, got: %s", output)
+	}
+	if !strings.Contains(output, "Failed to download component") {
+		t.Errorf("Expected error message, got: %s", output)
+	}
+	if !strings.Contains(output, "Try: Check your network connection") {
+		t.Errorf("Expected suggestion, got: %s", output)
+	}
+
+	// Test with actual error
+	buf.Reset()
+	testErr := errors.New("test error message")
+	f.ErrorWithContext("Failed to read file", testErr, "")
+	output = buf.String()
+	if !strings.Contains(output, "└─") {
+		t.Errorf("Expected error detail symbol, got: %s", output)
+	}
+	if !strings.Contains(output, "test error message") {
+		t.Errorf("Expected error message in detail, got: %s", output)
+	}
+}
+
+func TestSection(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.Section("Configuration")
+
+	output := buf.String()
+	if !strings.Contains(output, "Configuration") {
+		t.Errorf("Expected section title, got: %s", output)
+	}
+	// Should have underline with horizontal line characters
+	if !strings.Contains(output, BoxHorizontal) {
+		t.Errorf("Expected horizontal line for underline, got: %s", output)
+	}
+	// Check that it starts with a newline
+	if !strings.HasPrefix(output, "\n") {
+		t.Errorf("Expected section to start with newline, got: %s", output)
+	}
+}
+
+func TestDivider(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.Divider()
+
+	output := buf.String()
+	if !strings.Contains(output, BoxHorizontal) {
+		t.Errorf("Expected horizontal line character, got: %s", output)
+	}
+	// Should be a full line of horizontal characters
+	lineCount := strings.Count(strings.TrimSpace(output), BoxHorizontal)
+	if lineCount != 40 {
+		t.Errorf("Expected 40 horizontal characters, got: %d", lineCount)
+	}
+}
+
+func TestKeyValue(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.KeyValue("Name", "test-component")
+	f.KeyValue("Type", "skill")
+
+	output := buf.String()
+	if !strings.Contains(output, "Name:") {
+		t.Errorf("Expected 'Name:' key, got: %s", output)
+	}
+	if !strings.Contains(output, "test-component") {
+		t.Errorf("Expected value, got: %s", output)
+	}
+	if !strings.Contains(output, "Type:") {
+		t.Errorf("Expected 'Type:' key, got: %s", output)
+	}
+	if !strings.Contains(output, "skill") {
+		t.Errorf("Expected value, got: %s", output)
+	}
+}
+
+func TestList(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	items := []string{"First item", "Second item", "Third item"}
+	f.List(items)
+
+	output := buf.String()
+	if !strings.Contains(output, "• First item") {
+		t.Errorf("Expected first bullet item, got: %s", output)
+	}
+	if !strings.Contains(output, "• Second item") {
+		t.Errorf("Expected second bullet item, got: %s", output)
+	}
+	if !strings.Contains(output, "• Third item") {
+		t.Errorf("Expected third bullet item, got: %s", output)
+	}
+	// Check that all three items are present
+	bulletCount := strings.Count(output, "•")
+	if bulletCount != 3 {
+		t.Errorf("Expected 3 bullet points, got: %d", bulletCount)
+	}
+}
+
+func TestList_Empty(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.List([]string{})
+
+	output := buf.String()
+	if output != "" {
+		t.Errorf("Expected empty output for empty list, got: %s", output)
+	}
+}
+
+func TestNextSteps(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	commands := map[string]string{
+		"agent-smith link all": "Link components to targets",
+		"agent-smith status":   "View current configuration",
+	}
+	f.NextSteps(commands)
+
+	output := buf.String()
+	if !strings.Contains(output, "Next steps:") {
+		t.Errorf("Expected 'Next steps:' header, got: %s", output)
+	}
+	if !strings.Contains(output, "agent-smith link all") {
+		t.Errorf("Expected first command, got: %s", output)
+	}
+	if !strings.Contains(output, "Link components to targets") {
+		t.Errorf("Expected first description, got: %s", output)
+	}
+	if !strings.Contains(output, "agent-smith status") {
+		t.Errorf("Expected second command, got: %s", output)
+	}
+	if !strings.Contains(output, "View current configuration") {
+		t.Errorf("Expected second description, got: %s", output)
+	}
+	// Should have bullet points for each command
+	bulletCount := strings.Count(output, "•")
+	if bulletCount != 2 {
+		t.Errorf("Expected 2 bullet points, got: %d", bulletCount)
+	}
+}
+
+func TestNextSteps_Empty(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.NextSteps(map[string]string{})
+
+	output := buf.String()
+	if !strings.Contains(output, "Next steps:") {
+		t.Errorf("Expected 'Next steps:' header even for empty map, got: %s", output)
 	}
 }

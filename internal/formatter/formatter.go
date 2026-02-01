@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/tgaines/agent-smith/pkg/colors"
 )
@@ -238,4 +239,74 @@ func (f *Formatter) IndentedSuccess(message string, args ...interface{}) {
 func (f *Formatter) PlainWarning(message string, args ...interface{}) {
 	msg := fmt.Sprintf(message, args...)
 	fmt.Fprintf(f.writer, "Warning: %s\n", msg)
+}
+
+// SuccessWithDetail prints a success message with additional detail information
+// Format: "✓ Successfully {message}"
+//
+//	"  → detail"
+func (f *Formatter) SuccessWithDetail(componentType, name, detail string) {
+	fmt.Fprintf(f.writer, "%s Successfully %s: %s\n", colors.Success(SymbolSuccess), componentType, name)
+	if detail != "" {
+		fmt.Fprintf(f.writer, "  %s %s\n", colors.Muted("→"), detail)
+	}
+}
+
+// ErrorWithContext prints an error message with context and optional suggestion
+// Format: "✗ Error: message"
+//
+//	"  └─ error details"
+//	"  Try: suggestion"
+func (f *Formatter) ErrorWithContext(message string, err error, suggestion string) {
+	fmt.Fprintf(f.writer, "%s %s\n", colors.Error(SymbolError), colors.Error(message))
+	if err != nil {
+		fmt.Fprintf(f.writer, "  %s %v\n", colors.Muted("└─"), err)
+	}
+	if suggestion != "" {
+		fmt.Fprintf(f.writer, "  Try: %s\n", suggestion)
+	}
+}
+
+// Section prints a section header with consistent formatting
+// Format: "Section Title"
+//
+//	"─────────────" (underline)
+func (f *Formatter) Section(title string) {
+	fmt.Fprintf(f.writer, "\n%s\n", colors.InfoBold(title))
+	fmt.Fprintf(f.writer, "%s\n", colors.Muted(strings.Repeat(BoxHorizontal, len(title))))
+}
+
+// Divider prints a visual separator line
+// Format: "────────────────────────────────────────"
+func (f *Formatter) Divider() {
+	fmt.Fprintf(f.writer, "%s\n", colors.Muted(strings.Repeat(BoxHorizontal, 40)))
+}
+
+// KeyValue prints a key-value pair with consistent alignment
+// Format: "Key:     value"
+func (f *Formatter) KeyValue(key, value string) {
+	fmt.Fprintf(f.writer, "%-15s %s\n", colors.Muted(key+":"), value)
+}
+
+// List prints a bulleted list of items
+// Format: "• item1"
+//
+//	"• item2"
+func (f *Formatter) List(items []string) {
+	for _, item := range items {
+		fmt.Fprintf(f.writer, "• %s\n", item)
+	}
+}
+
+// NextSteps prints a "Next steps" section with common follow-up commands
+// Format: "Next steps:"
+//
+//	"  • command1: description"
+//	"  • command2: description"
+func (f *Formatter) NextSteps(commands map[string]string) {
+	f.EmptyLine()
+	fmt.Fprintln(f.writer, "Next steps:")
+	for cmd, desc := range commands {
+		fmt.Fprintf(f.writer, "  • %s: %s\n", colors.Info(cmd), desc)
+	}
 }
