@@ -120,7 +120,7 @@ Implement component materialization to enable copying skills, agents, and comman
   **Component Browser Tests:**
   - Not applicable (CLI tool)
 
-- [ ] Story-005: As a project maintainer, I want to materialize to specific targets so that I can support both OpenCode and Claude Code users.
+- [x] Story-005: As a project maintainer, I want to materialize to specific targets so that I can support both OpenCode and Claude Code users.
 
   **Acceptance Criteria:**
   - `--target opencode` materializes to `.opencode/` directory
@@ -145,7 +145,7 @@ Implement component materialization to enable copying skills, agents, and comman
   **Component Browser Tests:**
   - Not applicable (CLI tool)
 
-- [ ] Story-006: As a project maintainer, I want automatic structure creation so that I don't need to manually set up directories.
+- [x] Story-006: As a project maintainer, I want automatic structure creation so that I don't need to manually set up directories.
 
   **Acceptance Criteria:**
   - First materialize command automatically creates `.opencode/` or `.claude/` directory
