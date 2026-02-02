@@ -307,3 +307,370 @@ func containsAtIndex(s, substr string) bool {
 	}
 	return false
 }
+
+// TestFindProjectRootFromDir_GoProject tests detection of Go projects
+func TestFindProjectRootFromDir_GoProject(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create go.mod file to mark Go project
+	goModPath := filepath.Join(tempDir, "go.mod")
+	if err := os.WriteFile(goModPath, []byte("module test\n"), 0644); err != nil {
+		t.Fatalf("Failed to create go.mod: %v", err)
+	}
+
+	// Create nested directory
+	nestedDir := filepath.Join(tempDir, "internal", "pkg")
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatalf("Failed to create nested directory: %v", err)
+	}
+
+	// Should find project root from nested directory
+	projectRoot, err := FindProjectRootFromDir(nestedDir)
+	if err != nil {
+		t.Fatalf("Expected to find project root, got error: %v", err)
+	}
+
+	if projectRoot != tempDir {
+		t.Errorf("Expected project root to be %q, got %q", tempDir, projectRoot)
+	}
+}
+
+// TestFindProjectRootFromDir_NodeProject tests detection of Node.js projects
+func TestFindProjectRootFromDir_NodeProject(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create package.json file to mark Node.js project
+	packageJsonPath := filepath.Join(tempDir, "package.json")
+	if err := os.WriteFile(packageJsonPath, []byte("{\"name\": \"test\"}\n"), 0644); err != nil {
+		t.Fatalf("Failed to create package.json: %v", err)
+	}
+
+	// Create nested directory
+	nestedDir := filepath.Join(tempDir, "src", "components")
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatalf("Failed to create nested directory: %v", err)
+	}
+
+	// Should find project root from nested directory
+	projectRoot, err := FindProjectRootFromDir(nestedDir)
+	if err != nil {
+		t.Fatalf("Expected to find project root, got error: %v", err)
+	}
+
+	if projectRoot != tempDir {
+		t.Errorf("Expected project root to be %q, got %q", tempDir, projectRoot)
+	}
+}
+
+// TestFindProjectRootFromDir_PythonProject tests detection of Python projects
+func TestFindProjectRootFromDir_PythonProject(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create pyproject.toml file to mark Python project
+	pyprojectPath := filepath.Join(tempDir, "pyproject.toml")
+	if err := os.WriteFile(pyprojectPath, []byte("[tool.poetry]\nname = \"test\"\n"), 0644); err != nil {
+		t.Fatalf("Failed to create pyproject.toml: %v", err)
+	}
+
+	// Create nested directory
+	nestedDir := filepath.Join(tempDir, "src", "app")
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatalf("Failed to create nested directory: %v", err)
+	}
+
+	// Should find project root from nested directory
+	projectRoot, err := FindProjectRootFromDir(nestedDir)
+	if err != nil {
+		t.Fatalf("Expected to find project root, got error: %v", err)
+	}
+
+	if projectRoot != tempDir {
+		t.Errorf("Expected project root to be %q, got %q", tempDir, projectRoot)
+	}
+}
+
+// TestFindProjectRootFromDir_RustProject tests detection of Rust projects
+func TestFindProjectRootFromDir_RustProject(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create Cargo.toml file to mark Rust project
+	cargoPath := filepath.Join(tempDir, "Cargo.toml")
+	if err := os.WriteFile(cargoPath, []byte("[package]\nname = \"test\"\n"), 0644); err != nil {
+		t.Fatalf("Failed to create Cargo.toml: %v", err)
+	}
+
+	// Create nested directory
+	nestedDir := filepath.Join(tempDir, "src", "lib")
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatalf("Failed to create nested directory: %v", err)
+	}
+
+	// Should find project root from nested directory
+	projectRoot, err := FindProjectRootFromDir(nestedDir)
+	if err != nil {
+		t.Fatalf("Expected to find project root, got error: %v", err)
+	}
+
+	if projectRoot != tempDir {
+		t.Errorf("Expected project root to be %q, got %q", tempDir, projectRoot)
+	}
+}
+
+// TestFindProjectRootFromDir_PHPProject tests detection of PHP projects
+func TestFindProjectRootFromDir_PHPProject(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create composer.json file to mark PHP project
+	composerPath := filepath.Join(tempDir, "composer.json")
+	if err := os.WriteFile(composerPath, []byte("{\"name\": \"test/test\"}\n"), 0644); err != nil {
+		t.Fatalf("Failed to create composer.json: %v", err)
+	}
+
+	// Create nested directory
+	nestedDir := filepath.Join(tempDir, "src", "Controller")
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatalf("Failed to create nested directory: %v", err)
+	}
+
+	// Should find project root from nested directory
+	projectRoot, err := FindProjectRootFromDir(nestedDir)
+	if err != nil {
+		t.Fatalf("Expected to find project root, got error: %v", err)
+	}
+
+	if projectRoot != tempDir {
+		t.Errorf("Expected project root to be %q, got %q", tempDir, projectRoot)
+	}
+}
+
+// TestFindProjectRootFromDir_JavaMavenProject tests detection of Java Maven projects
+func TestFindProjectRootFromDir_JavaMavenProject(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create pom.xml file to mark Java Maven project
+	pomPath := filepath.Join(tempDir, "pom.xml")
+	if err := os.WriteFile(pomPath, []byte("<project></project>\n"), 0644); err != nil {
+		t.Fatalf("Failed to create pom.xml: %v", err)
+	}
+
+	// Create nested directory
+	nestedDir := filepath.Join(tempDir, "src", "main", "java")
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatalf("Failed to create nested directory: %v", err)
+	}
+
+	// Should find project root from nested directory
+	projectRoot, err := FindProjectRootFromDir(nestedDir)
+	if err != nil {
+		t.Fatalf("Expected to find project root, got error: %v", err)
+	}
+
+	if projectRoot != tempDir {
+		t.Errorf("Expected project root to be %q, got %q", tempDir, projectRoot)
+	}
+}
+
+// TestFindProjectRootFromDir_JavaGradleProject tests detection of Java Gradle projects
+func TestFindProjectRootFromDir_JavaGradleProject(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create build.gradle file to mark Java Gradle project
+	gradlePath := filepath.Join(tempDir, "build.gradle")
+	if err := os.WriteFile(gradlePath, []byte("plugins {}\n"), 0644); err != nil {
+		t.Fatalf("Failed to create build.gradle: %v", err)
+	}
+
+	// Create nested directory
+	nestedDir := filepath.Join(tempDir, "src", "main", "kotlin")
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatalf("Failed to create nested directory: %v", err)
+	}
+
+	// Should find project root from nested directory
+	projectRoot, err := FindProjectRootFromDir(nestedDir)
+	if err != nil {
+		t.Fatalf("Expected to find project root, got error: %v", err)
+	}
+
+	if projectRoot != tempDir {
+		t.Errorf("Expected project root to be %q, got %q", tempDir, projectRoot)
+	}
+}
+
+// TestFindProjectRootFromDir_RubyProject tests detection of Ruby projects
+func TestFindProjectRootFromDir_RubyProject(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create Gemfile to mark Ruby project
+	gemfilePath := filepath.Join(tempDir, "Gemfile")
+	if err := os.WriteFile(gemfilePath, []byte("source 'https://rubygems.org'\n"), 0644); err != nil {
+		t.Fatalf("Failed to create Gemfile: %v", err)
+	}
+
+	// Create nested directory
+	nestedDir := filepath.Join(tempDir, "lib", "app")
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatalf("Failed to create nested directory: %v", err)
+	}
+
+	// Should find project root from nested directory
+	projectRoot, err := FindProjectRootFromDir(nestedDir)
+	if err != nil {
+		t.Fatalf("Expected to find project root, got error: %v", err)
+	}
+
+	if projectRoot != tempDir {
+		t.Errorf("Expected project root to be %q, got %q", tempDir, projectRoot)
+	}
+}
+
+// TestFindProjectRootFromDir_ElixirProject tests detection of Elixir projects
+func TestFindProjectRootFromDir_ElixirProject(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create mix.exs file to mark Elixir project
+	mixPath := filepath.Join(tempDir, "mix.exs")
+	if err := os.WriteFile(mixPath, []byte("defmodule Test.MixProject do\nend\n"), 0644); err != nil {
+		t.Fatalf("Failed to create mix.exs: %v", err)
+	}
+
+	// Create nested directory
+	nestedDir := filepath.Join(tempDir, "lib", "test")
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatalf("Failed to create nested directory: %v", err)
+	}
+
+	// Should find project root from nested directory
+	projectRoot, err := FindProjectRootFromDir(nestedDir)
+	if err != nil {
+		t.Fatalf("Expected to find project root, got error: %v", err)
+	}
+
+	if projectRoot != tempDir {
+		t.Errorf("Expected project root to be %q, got %q", tempDir, projectRoot)
+	}
+}
+
+// TestFindProjectRootFromDir_MultipleMarkersPreferClosest tests that when multiple markers exist,
+// the closest one to the starting directory is used
+func TestFindProjectRootFromDir_MultipleMarkersPreferClosest(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create outer project with go.mod
+	outerGoMod := filepath.Join(tempDir, "go.mod")
+	if err := os.WriteFile(outerGoMod, []byte("module outer\n"), 0644); err != nil {
+		t.Fatalf("Failed to create outer go.mod: %v", err)
+	}
+
+	// Create nested project directory with package.json
+	innerDir := filepath.Join(tempDir, "frontend")
+	if err := os.MkdirAll(innerDir, 0755); err != nil {
+		t.Fatalf("Failed to create inner directory: %v", err)
+	}
+
+	innerPackageJson := filepath.Join(innerDir, "package.json")
+	if err := os.WriteFile(innerPackageJson, []byte("{\"name\": \"inner\"}\n"), 0644); err != nil {
+		t.Fatalf("Failed to create inner package.json: %v", err)
+	}
+
+	// Create deeply nested directory in inner project
+	deepDir := filepath.Join(innerDir, "src", "components")
+	if err := os.MkdirAll(deepDir, 0755); err != nil {
+		t.Fatalf("Failed to create deep directory: %v", err)
+	}
+
+	// Should find the inner project root (frontend with package.json), not outer (with go.mod)
+	projectRoot, err := FindProjectRootFromDir(deepDir)
+	if err != nil {
+		t.Fatalf("Expected to find project root, got error: %v", err)
+	}
+
+	if projectRoot != innerDir {
+		t.Errorf("Expected project root to be %q (inner), got %q", innerDir, projectRoot)
+	}
+}
+
+// TestFindProjectRootFromDir_PreferProjectMarkersOverBoundaries tests that
+// .opencode and .claude directories are preferred over project boundary markers
+func TestFindProjectRootFromDir_PreferProjectMarkersOverBoundaries(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create .git directory (boundary marker)
+	gitDir := filepath.Join(tempDir, ".git")
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		t.Fatalf("Failed to create .git directory: %v", err)
+	}
+
+	// Create go.mod (boundary marker)
+	goModPath := filepath.Join(tempDir, "go.mod")
+	if err := os.WriteFile(goModPath, []byte("module test\n"), 0644); err != nil {
+		t.Fatalf("Failed to create go.mod: %v", err)
+	}
+
+	// Create .opencode directory (preferred marker) in subdirectory
+	subDir := filepath.Join(tempDir, "subproject")
+	opencodeDir := filepath.Join(subDir, ".opencode")
+	if err := os.MkdirAll(opencodeDir, 0755); err != nil {
+		t.Fatalf("Failed to create .opencode directory: %v", err)
+	}
+
+	// Create nested directory in subproject
+	nestedDir := filepath.Join(subDir, "src")
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatalf("Failed to create nested directory: %v", err)
+	}
+
+	// Should find .opencode in subproject, not stop at .git in parent
+	projectRoot, err := FindProjectRootFromDir(nestedDir)
+	if err != nil {
+		t.Fatalf("Expected to find project root, got error: %v", err)
+	}
+
+	if projectRoot != subDir {
+		t.Errorf("Expected project root to be %q (subproject with .opencode), got %q", subDir, projectRoot)
+	}
+}

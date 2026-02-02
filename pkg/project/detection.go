@@ -9,6 +9,21 @@ import (
 // ProjectMarkers are the directory names that indicate a project root
 var ProjectMarkers = []string{".opencode", ".claude"}
 
+// ProjectBoundaryMarkers are files/directories that indicate a project boundary
+// These are checked as fallbacks if no ProjectMarkers are found
+var ProjectBoundaryMarkers = []string{
+	".git",           // Git repository
+	"go.mod",         // Go project
+	"package.json",   // Node.js project
+	"pyproject.toml", // Python project
+	"Cargo.toml",     // Rust project
+	"composer.json",  // PHP project
+	"pom.xml",        // Java Maven project
+	"build.gradle",   // Java Gradle project
+	"Gemfile",        // Ruby project
+	"mix.exs",        // Elixir project
+}
+
 // FindProjectRoot walks up the directory tree from the current working directory
 // looking for project markers (.opencode or .claude directories).
 // Returns the project root path or an error if no project is found.
@@ -22,9 +37,9 @@ func FindProjectRoot() (string, error) {
 }
 
 // FindProjectRootFromDir walks up the directory tree from the specified directory
-// looking for project markers (.opencode or .claude directories) or .git directory.
+// looking for project markers (.opencode or .claude directories) or project boundary markers.
 // Returns the project root path or an error if no project boundary is found.
-// Stops at .git/ directory (project root), home directory, or filesystem root.
+// Stops at any project boundary marker, home directory, or filesystem root.
 func FindProjectRootFromDir(startDir string) (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -35,7 +50,7 @@ func FindProjectRootFromDir(startDir string) (string, error) {
 
 	// Walk up the directory tree
 	for {
-		// Check for project markers (.opencode or .claude)
+		// Check for project markers (.opencode or .claude) - these are preferred
 		for _, marker := range ProjectMarkers {
 			markerPath := filepath.Join(currentDir, marker)
 			if info, err := os.Stat(markerPath); err == nil && info.IsDir() {
@@ -43,12 +58,20 @@ func FindProjectRootFromDir(startDir string) (string, error) {
 			}
 		}
 
-		// Check if we've reached a .git/ directory (project root boundary)
-		// If we find .git, this is the project root even without .opencode/.claude
-		gitPath := filepath.Join(currentDir, ".git")
-		if info, err := os.Stat(gitPath); err == nil && info.IsDir() {
-			// We're at a git project root, return this as the project root
-			return currentDir, nil
+		// Check for project boundary markers (files or directories)
+		for _, marker := range ProjectBoundaryMarkers {
+			markerPath := filepath.Join(currentDir, marker)
+			if info, err := os.Stat(markerPath); err == nil {
+				// Found a project boundary marker
+				// If it's .git, verify it's a directory
+				if marker == ".git" {
+					if !info.IsDir() {
+						continue
+					}
+				}
+				// Return immediately - this is our project root
+				return currentDir, nil
+			}
 		}
 
 		// Check if we've reached the home directory or filesystem root
