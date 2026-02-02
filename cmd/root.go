@@ -1674,6 +1674,9 @@ EXAMPLES:
   export AGENT_SMITH_TARGET=claudecode
   agent-smith materialize all
 
+  # Materialize from specific profile
+  agent-smith materialize all --target opencode --from-profile work
+
   # Preview without making changes
   agent-smith materialize all --target opencode --dry-run`,
 		Args: cobra.NoArgs,
@@ -1682,13 +1685,15 @@ EXAMPLES:
 			projectDir, _ := cmd.Flags().GetString("project-dir")
 			force, _ := cmd.Flags().GetBool("force")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			handleMaterializeAll(target, projectDir, force, dryRun)
+			fromProfile, _ := cmd.Flags().GetString("from-profile")
+			handleMaterializeAll(target, projectDir, force, dryRun, fromProfile)
 		},
 	}
 	materializeAllCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeAllCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeAllCmd.Flags().BoolP("force", "f", false, "Overwrite existing components if they differ")
 	materializeAllCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
+	materializeAllCmd.Flags().String("from-profile", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
 	materializeCmd.AddCommand(materializeAllCmd)
 
 	materializeListCmd := &cobra.Command{
@@ -1793,7 +1798,7 @@ var (
 	handleTargetRemove         func(name string)
 	handleTargetList           func()
 	handleMaterializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile string)
-	handleMaterializeAll       func(target, projectDir string, force, dryRun bool)
+	handleMaterializeAll       func(target, projectDir string, force, dryRun bool, fromProfile string)
 	handleMaterializeList      func(projectDir string)
 	handleMaterializeInfo      func(componentType, componentName, target, projectDir string)
 )
@@ -1831,7 +1836,7 @@ func SetHandlers(
 	targetRemove func(name string),
 	targetList func(),
 	materializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile string),
-	materializeAll func(target, projectDir string, force, dryRun bool),
+	materializeAll func(target, projectDir string, force, dryRun bool, fromProfile string),
 	materializeList func(projectDir string),
 	materializeInfo func(componentType, componentName, target, projectDir string),
 ) {
