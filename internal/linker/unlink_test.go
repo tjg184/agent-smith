@@ -399,8 +399,8 @@ func TestUnlinkAllComponents_SpecificTarget(t *testing.T) {
 	createSymlink(t, filepath.Join(sourceDir, "commands", "test-command"),
 		filepath.Join(target2Dir, "commands", "test-command"))
 
-	// Unlink all components from target1 only (with force=true to skip confirmation)
-	err = linker.UnlinkAllComponents("target1", true)
+	// Unlink all components from target1 only (with force=true to skip confirmation, allProfiles=true for test)
+	err = linker.UnlinkAllComponents("target1", true, true)
 	if err != nil {
 		t.Fatalf("UnlinkAllComponents failed: %v", err)
 	}
@@ -463,8 +463,8 @@ func TestUnlinkAllComponents_AllTargets(t *testing.T) {
 	createSymlink(t, filepath.Join(sourceDir, "commands", "test-command"),
 		filepath.Join(target2Dir, "commands", "test-command"))
 
-	// Unlink all components from all targets (with force=true to skip confirmation)
-	err = linker.UnlinkAllComponents("", true)
+	// Unlink all components from all targets (with force=true to skip confirmation, allProfiles=true for test)
+	err = linker.UnlinkAllComponents("", true, true)
 	if err != nil {
 		t.Fatalf("UnlinkAllComponents failed: %v", err)
 	}
@@ -512,7 +512,7 @@ func TestUnlinkAllComponents_NonExistentTarget(t *testing.T) {
 	}
 
 	// Try to unlink from non-existent target
-	err = linker.UnlinkAllComponents("nonexistent", true)
+	err = linker.UnlinkAllComponents("nonexistent", true, true)
 	if err == nil {
 		t.Errorf("Expected error when unlinking from non-existent target")
 	}
@@ -901,7 +901,7 @@ func TestUnlinkAllComponents_MixedComponentTypes(t *testing.T) {
 		filepath.Join(target2Dir, "skills", "test-skill"))
 
 	// Unlink all from target1 only
-	err = linker.UnlinkAllComponents("target1", true)
+	err = linker.UnlinkAllComponents("target1", true, true)
 	if err != nil {
 		t.Fatalf("UnlinkAllComponents failed: %v", err)
 	}
@@ -942,7 +942,7 @@ func TestUnlinkAllComponents_EmptyTarget(t *testing.T) {
 		filepath.Join(target2Dir, "agents", "test-agent"))
 
 	// Try to unlink from target1 (which has no components)
-	err = linker.UnlinkAllComponents("target1", true)
+	err = linker.UnlinkAllComponents("target1", true, true)
 	if err != nil {
 		t.Fatalf("UnlinkAllComponents should handle empty target: %v", err)
 	}

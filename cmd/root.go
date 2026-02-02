@@ -954,15 +954,21 @@ EXAMPLES:
 		Short: "Unlink all components from targets",
 		Long: `Unlink all components (skills, agents, and commands) from detected targets.
 
+By default, only components from the currently active profile are unlinked.
+Use --all-profiles to unlink components from all profiles.
+
 This command removes all linked components from OpenCode, Claude Code, or other
 supported targets. Source files in ~/.agent-smith/ are never touched.
 
 EXAMPLES:
-  # Unlink all components with confirmation
+  # Unlink all components from current profile with confirmation
   agent-smith unlink all
 
-  # Unlink all components without confirmation
+  # Unlink all components from current profile without confirmation
   agent-smith unlink all --force
+
+  # Unlink all components from all profiles
+  agent-smith unlink all --all-profiles
 
   # Unlink all components from OpenCode only
   agent-smith unlink all --target opencode`,
@@ -970,11 +976,13 @@ EXAMPLES:
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			force, _ := cmd.Flags().GetBool("force")
-			handleUnlinkAll(targetFilter, force)
+			allProfiles, _ := cmd.Flags().GetBool("all-profiles")
+			handleUnlinkAll(targetFilter, force, allProfiles)
 		},
 	}
 	unlinkAllCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
 	unlinkAllCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
+	unlinkAllCmd.Flags().Bool("all-profiles", false, "Unlink components from all profiles (default: current profile only)")
 	unlinkCmd.AddCommand(unlinkAllCmd)
 
 	rootCmd.AddCommand(unlinkCmd)
@@ -1779,7 +1787,7 @@ var (
 	handleListLinks            func()
 	handleLinkStatus           func(allProfiles bool, profileFilter []string)
 	handleUnlink               func(componentType, componentName, targetFilter string)
-	handleUnlinkAll            func(targetFilter string, force bool)
+	handleUnlinkAll            func(targetFilter string, force bool, allProfiles bool)
 	handleUnlinkType           func(componentType, targetFilter string, force bool)
 	handleUninstall            func(componentType, componentName, profile string)
 	handleUninstallAll         func(repoURL string, force bool)
@@ -1817,7 +1825,7 @@ func SetHandlers(
 	listLinks func(),
 	linkStatus func(allProfiles bool, profileFilter []string),
 	unlink func(componentType, componentName, targetFilter string),
-	unlinkAll func(targetFilter string, force bool),
+	unlinkAll func(targetFilter string, force bool, allProfiles bool),
 	unlinkType func(componentType, targetFilter string, force bool),
 	uninstall func(componentType, componentName, profile string),
 	uninstallAll func(repoURL string, force bool),

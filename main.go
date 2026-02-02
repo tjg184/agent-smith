@@ -995,12 +995,12 @@ func main() {
 				log.Fatal("Failed to unlink component:", err)
 			}
 		},
-		func(targetFilter string, force bool) {
+		func(targetFilter string, force bool, allProfiles bool) {
 			linker, err := NewComponentLinkerWithFilter(targetFilter)
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
 			}
-			if err := linker.UnlinkAllComponents(targetFilter, force); err != nil {
+			if err := linker.UnlinkAllComponents(targetFilter, force, allProfiles); err != nil {
 				log.Fatal("Failed to unlink all components:", err)
 			}
 		},

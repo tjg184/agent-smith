@@ -1640,12 +1640,37 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 	return nil
 }
 
+// isSymlinkFromCurrentProfile checks if a symlink belongs to the current profile
+// by comparing the symlink target path with the ComponentLinker's agentsDir
+func (cl *ComponentLinker) isSymlinkFromCurrentProfile(symlinkPath string) (bool, error) {
+	// Read the symlink target
+	target, err := os.Readlink(symlinkPath)
+	if err != nil {
+		return false, err
+	}
+
+	// Resolve relative paths to absolute
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(filepath.Dir(symlinkPath), target)
+	}
+
+	// Clean both paths for comparison
+	target = filepath.Clean(target)
+	agentsDir := filepath.Clean(cl.agentsDir)
+
+	// Check if the target path starts with the current profile's agents directory
+	// This works for both base installation and profile-specific installations
+	return strings.HasPrefix(target, agentsDir), nil
+}
+
 // UnlinkAllComponents removes all linked components from configured targets
 // targetFilter can be:
 //   - "" (empty): unlink from all targets
 //   - "all": unlink from all targets
 //   - specific target name (e.g., "opencode", "claudecode"): unlink from only that target
-func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool) error {
+//
+// allProfiles: if true, unlinks components from all profiles; if false, only from current profile
+func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, allProfiles bool) error {
 	// Filter targets based on targetFilter parameter
 	targetsToUnlink := cl.filterTargets(targetFilter)
 	if len(targetsToUnlink) == 0 {
@@ -1673,6 +1698,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool) 
 	// First, collect all symlinks across all targets
 	totalLinks := 0
 	copiedDirs := 0
+	skippedProfiles := 0
 
 	for _, target := range targetsToUnlink {
 		for _, componentType := range componentTypes {
@@ -1702,12 +1728,22 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool) 
 					copiedDirs++
 					continue // Skip copied directories
 				}
+
+				// If not unlinking all profiles, check if this symlink belongs to current profile
+				if !allProfiles && linkType == "symlink" {
+					belongsToProfile, err := cl.isSymlinkFromCurrentProfile(fullPath)
+					if err == nil && !belongsToProfile {
+						skippedProfiles++
+						continue
+					}
+				}
+
 				totalLinks++
 			}
 		}
 	}
 
-	if totalLinks == 0 && copiedDirs == 0 {
+	if totalLinks == 0 && copiedDirs == 0 && skippedProfiles == 0 {
 		cl.formatter.InfoMsg("No linked components found")
 		return nil
 	}
@@ -1727,14 +1763,26 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool) 
 				}
 				targetStr = strings.Join(targetNames, ", ")
 			}
-			fmt.Printf("This will unlink %d symlinked components from: %s", totalLinks, targetStr)
+
+			profileMsg := ""
+			if !allProfiles {
+				profileMsg = " from current profile"
+			}
+			fmt.Printf("This will unlink %d symlinked components%s from: %s", totalLinks, profileMsg, targetStr)
 			fmt.Println()
 		}
 		if copiedDirs > 0 {
 			cl.formatter.InfoMsg("Note: %d copied directories will be skipped (not deleted)", copiedDirs)
 		}
+		if skippedProfiles > 0 && !allProfiles {
+			cl.formatter.InfoMsg("Note: %d components from other profiles will be skipped", skippedProfiles)
+		}
 		if totalLinks == 0 {
-			cl.formatter.InfoMsg("No symlinked components to unlink (only copied directories found)")
+			if skippedProfiles > 0 {
+				cl.formatter.InfoMsg("No symlinked components from current profile to unlink (found %d from other profiles)", skippedProfiles)
+			} else {
+				cl.formatter.InfoMsg("No symlinked components to unlink (only copied directories found)")
+			}
 			return nil
 		}
 		fmt.Print("Continue? [y/N]: ")
@@ -1794,6 +1842,15 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool) 
 				if linkType == "copied" {
 					skippedCount++
 					continue
+				}
+
+				// If not unlinking all profiles, check if this symlink belongs to current profile
+				if !allProfiles && linkType == "symlink" {
+					belongsToProfile, err := cl.isSymlinkFromCurrentProfile(fullPath)
+					if err == nil && !belongsToProfile {
+						skippedCount++
+						continue
+					}
 				}
 
 				// Show progress for each item
