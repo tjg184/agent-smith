@@ -1663,6 +1663,57 @@ func (cl *ComponentLinker) isSymlinkFromCurrentProfile(symlinkPath string) (bool
 	return strings.HasPrefix(target, agentsDir), nil
 }
 
+// isSymlinkFromAgentSmith checks if a symlink points to any agent-smith directory
+// (base installation, any profile, etc). Returns false for manually-created external symlinks.
+func (cl *ComponentLinker) isSymlinkFromAgentSmith(symlinkPath string) (bool, error) {
+	// Read the symlink target
+	target, err := os.Readlink(symlinkPath)
+	if err != nil {
+		return false, err
+	}
+
+	// Resolve relative paths to absolute
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(filepath.Dir(symlinkPath), target)
+	}
+
+	// Clean path for comparison
+	target = filepath.Clean(target)
+
+	// First check if target starts with the ComponentLinker's agentsDir
+	// This is important for tests and for the current profile/base installation
+	agentsDir := filepath.Clean(cl.agentsDir)
+	if strings.HasPrefix(target, agentsDir) {
+		return true, nil
+	}
+
+	// Get base agent-smith directory (parent of profiles)
+	baseAgentsDir, err := paths.GetAgentsDir()
+	if err != nil {
+		// If we can't get base agents dir, just rely on the ComponentLinker's agentsDir check above
+		return false, nil
+	}
+
+	// Check if target starts with base agents directory
+	if strings.HasPrefix(target, baseAgentsDir) {
+		return true, nil
+	}
+
+	// Check if target is within any profile
+	profilesDir, err := paths.GetProfilesDir()
+	if err != nil {
+		// If we can't get profiles dir, just rely on checks above
+		return false, nil
+	}
+
+	if strings.HasPrefix(target, profilesDir) {
+		return true, nil
+	}
+
+	// Not from agent-smith
+	return false, nil
+}
+
 // anyProfilesExist checks if any profiles directory exists and contains profiles
 // Returns false for fresh installations with no profiles (backward compatibility)
 func (cl *ComponentLinker) anyProfilesExist() bool {
@@ -1760,8 +1811,19 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 					continue // Skip copied directories
 				}
 
+				// Skip manual/external symlinks (not from agent-smith)
+				if linkType == "symlink" || linkType == "broken" {
+					fromAgentSmith, err := cl.isSymlinkFromAgentSmith(fullPath)
+					if err == nil && !fromAgentSmith {
+						// This is a manually created symlink outside agent-smith - always preserve
+						skippedProfilesCount++
+						continue
+					}
+				}
+
 				// If not unlinking all profiles, check if this symlink belongs to current profile
-				if !allProfiles && linkType == "symlink" {
+				// This applies to both valid symlinks and broken symlinks
+				if !allProfiles && (linkType == "symlink" || linkType == "broken") {
 					belongsToProfile, err := cl.isSymlinkFromCurrentProfile(fullPath)
 					if err == nil && !belongsToProfile {
 						// Track which profile this component belongs to
@@ -1940,8 +2002,19 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 					continue
 				}
 
+				// Skip manual/external symlinks (not from agent-smith)
+				if linkType == "symlink" || linkType == "broken" {
+					fromAgentSmith, err := cl.isSymlinkFromAgentSmith(fullPath)
+					if err == nil && !fromAgentSmith {
+						// This is a manually created symlink outside agent-smith - always preserve
+						skippedCount++
+						continue
+					}
+				}
+
 				// If not unlinking all profiles, check if this symlink belongs to current profile
-				if !allProfiles && linkType == "symlink" {
+				// This applies to both valid symlinks and broken symlinks
+				if !allProfiles && (linkType == "symlink" || linkType == "broken") {
 					belongsToProfile, err := cl.isSymlinkFromCurrentProfile(fullPath)
 					if err == nil && !belongsToProfile {
 						// Track which profile this skipped component belongs to
@@ -1957,7 +2030,8 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 				// Determine profile for progress message
 				profileNote := ""
 				// Only show profile tags when profiles actually exist
-				if profilesExist && linkType == "symlink" {
+				// This applies to both valid symlinks and broken symlinks
+				if profilesExist && (linkType == "symlink" || linkType == "broken") {
 					profileName := GetProfileNameFromSymlink(fullPath)
 					if profileName != "" && profileName != "base" {
 						profileNote = fmt.Sprintf(" [%s]", profileName)
