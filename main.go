@@ -1113,6 +1113,15 @@ func main() {
 				log.Fatal("Failed to unlink component:", err)
 			}
 		},
+		func(componentType, componentName, targetFilter, profile string) {
+			linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
+			if err != nil {
+				log.Fatal("Failed to create component linker:", err)
+			}
+			if err := linker.UnlinkComponent(componentType, componentName, targetFilter); err != nil {
+				log.Fatal("Failed to unlink component:", err)
+			}
+		},
 		func(targetFilter string, force bool, allProfiles bool) {
 			linker, err := NewComponentLinkerWithFilter(targetFilter)
 			if err != nil {
@@ -1122,8 +1131,31 @@ func main() {
 				log.Fatal("Failed to unlink all components:", err)
 			}
 		},
+		func(targetFilter string, force bool, allProfiles bool, profile string) {
+			// Validate flag combination
+			if allProfiles && profile != "" {
+				log.Fatal("Cannot use both --all-profiles and --profile flags together")
+			}
+
+			linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
+			if err != nil {
+				log.Fatal("Failed to create component linker:", err)
+			}
+			if err := linker.UnlinkAllComponents(targetFilter, force, allProfiles); err != nil {
+				log.Fatal("Failed to unlink all components:", err)
+			}
+		},
 		func(componentType, targetFilter string, force bool) {
 			linker, err := NewComponentLinkerWithFilter(targetFilter)
+			if err != nil {
+				log.Fatal("Failed to create component linker:", err)
+			}
+			if err := linker.UnlinkComponentsByType(componentType, targetFilter, force); err != nil {
+				log.Fatal("Failed to unlink components:", err)
+			}
+		},
+		func(componentType, targetFilter string, force bool, profile string) {
+			linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
 			if err != nil {
 				log.Fatal("Failed to create component linker:", err)
 			}
