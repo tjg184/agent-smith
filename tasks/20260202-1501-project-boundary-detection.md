@@ -18,7 +18,7 @@ Fix project detection logic to respect project boundaries (like `.git/`, `go.mod
 
 ## User Stories
 
-- [ ] Story-001: As a developer, I want materialize to stop at my project root (marked by `.git/`) so that `.opencode/` is created in my project, not my home directory.
+- [x] Story-001: As a developer, I want materialize to stop at my project root (marked by `.git/`) so that `.opencode/` is created in my project, not my home directory.
 
   **Acceptance Criteria:**
   - `FindProjectRootFromDir()` detects common project boundary markers
@@ -39,7 +39,7 @@ Fix project detection logic to respect project boundaries (like `.git/`, `go.mod
   - Materialize from nested directory uses project root
   - Home directory `.opencode/` not used when inside project boundary
 
-- [ ] Story-002: As a developer, I want clear errors when no project boundary is detected so I know I'm not in a valid project directory.
+- [x] Story-002: As a developer, I want clear errors when no project boundary is detected so I know I'm not in a valid project directory.
 
   **Acceptance Criteria:**
   - Error message shown when no project markers found

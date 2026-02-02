@@ -241,3 +241,69 @@ func TestFindProjectRootFromDir_DoesNotEscapeGitRepo(t *testing.T) {
 		t.Errorf("Expected project root to be %q (my-project/.git), got %q", projectDir, projectRoot)
 	}
 }
+
+func TestFindProjectRootFromDir_ErrorWhenNoProjectFound(t *testing.T) {
+	// Create temporary directory with no project markers
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a nested directory without any project markers
+	testDir := filepath.Join(tempDir, "no-project")
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatalf("Failed to create test directory: %v", err)
+	}
+
+	// Try to find project root - should return error
+	_, err = FindProjectRootFromDir(testDir)
+	if err == nil {
+		t.Fatal("Expected error when no project markers found, got nil")
+	}
+
+	// Verify error message contains required information
+	errMsg := err.Error()
+
+	// Check for key phrases
+	requiredPhrases := []string{
+		"no project boundary detected",
+		"Supported project markers:",
+		".opencode/",
+		".claude/",
+		".git/",
+		"go.mod",
+		"package.json",
+		"pyproject.toml",
+		"Cargo.toml",
+		"composer.json",
+		"pom.xml",
+		"build.gradle",
+		"Gemfile",
+		"mix.exs",
+		"To fix this:",
+		"mkdir -p .opencode/",
+		"--project-dir",
+		"git init",
+	}
+
+	for _, phrase := range requiredPhrases {
+		if !contains(errMsg, phrase) {
+			t.Errorf("Error message missing required phrase: %q\nFull error: %s", phrase, errMsg)
+		}
+	}
+}
+
+// Helper function to check if string contains substring
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && containsAtIndex(s, substr))
+}
+
+func containsAtIndex(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

@@ -60,7 +60,25 @@ func FindProjectRootFromDir(startDir string) (string, error) {
 		currentDir = parentDir
 	}
 
-	return "", fmt.Errorf("no project found (.opencode/, .claude/, or .git/ directory not found)\n\nTo materialize components to a project:\n  1. Create a project directory: mkdir -p .opencode/\n  2. Run the materialize command from within the project")
+	return "", fmt.Errorf("no project boundary detected\n\n" +
+		"agent-smith looks for project markers to determine where to materialize components.\n\n" +
+		"Supported project markers:\n" +
+		"  • .opencode/    (preferred - agent-smith project)\n" +
+		"  • .claude/      (preferred - Claude project)\n" +
+		"  • .git/         (version control)\n" +
+		"  • go.mod        (Go projects)\n" +
+		"  • package.json  (Node.js projects)\n" +
+		"  • pyproject.toml (Python projects)\n" +
+		"  • Cargo.toml    (Rust projects)\n" +
+		"  • composer.json (PHP projects)\n" +
+		"  • pom.xml       (Java Maven projects)\n" +
+		"  • build.gradle  (Java Gradle projects)\n" +
+		"  • Gemfile       (Ruby projects)\n" +
+		"  • mix.exs       (Elixir projects)\n\n" +
+		"To fix this:\n" +
+		"  1. Create a project marker: mkdir -p .opencode/\n" +
+		"  2. Or use --project-dir flag: agent-smith materialize --project-dir /path/to/project\n" +
+		"  3. Or initialize version control: git init")
 }
 
 // GetTargetDirectory returns the target directory path for a given target name

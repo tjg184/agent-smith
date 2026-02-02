@@ -302,13 +302,33 @@ func TestMaterializeNoProjectFound(t *testing.T) {
 	}
 
 	// Verify error message contains helpful information
-	if !strings.Contains(outputStr, "no project found") && !strings.Contains(outputStr, "not found") {
-		t.Errorf("Expected error message about project not found, got: %s", outputStr)
+	if !strings.Contains(outputStr, "no project boundary detected") {
+		t.Errorf("Expected error message about project boundary not detected, got: %s", outputStr)
 	}
 
-	// Should suggest creating a project directory
-	if !strings.Contains(outputStr, ".opencode") || !strings.Contains(outputStr, ".claude") {
-		t.Errorf("Expected error message to mention .opencode/ or .claude/, got: %s", outputStr)
+	// Should list supported project markers
+	if !strings.Contains(outputStr, "Supported project markers:") {
+		t.Errorf("Expected error message to list supported project markers, got: %s", outputStr)
+	}
+
+	// Should mention preferred markers
+	if !strings.Contains(outputStr, ".opencode/") || !strings.Contains(outputStr, ".claude/") {
+		t.Errorf("Expected error message to mention .opencode/ and .claude/, got: %s", outputStr)
+	}
+
+	// Should suggest fixes
+	if !strings.Contains(outputStr, "To fix this:") {
+		t.Errorf("Expected error message to suggest fixes, got: %s", outputStr)
+	}
+
+	// Should suggest --project-dir flag
+	if !strings.Contains(outputStr, "--project-dir") {
+		t.Errorf("Expected error message to mention --project-dir flag, got: %s", outputStr)
+	}
+
+	// Should suggest git init
+	if !strings.Contains(outputStr, "git init") {
+		t.Errorf("Expected error message to mention git init, got: %s", outputStr)
 	}
 
 	t.Logf("Error handling verified: clear message when no project found")
@@ -399,9 +419,9 @@ func TestMaterializeStopsAtHomeDirectory(t *testing.T) {
 		t.Fatalf("Expected error when reaching home directory without project, but command succeeded")
 	}
 
-	// Verify it stopped at home directory (no project found)
-	if !strings.Contains(outputStr, "no project found") && !strings.Contains(outputStr, "not found") {
-		t.Errorf("Expected error about project not found, got: %s", outputStr)
+	// Verify it stopped at home directory (no project boundary detected)
+	if !strings.Contains(outputStr, "no project boundary detected") {
+		t.Errorf("Expected error about project boundary not detected, got: %s", outputStr)
 	}
 
 	t.Logf("Correctly stopped at home directory boundary")
