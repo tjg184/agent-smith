@@ -18,6 +18,15 @@ import (
 // can all be materialized to project directories with proper metadata tracking.
 // This test covers Story-002 acceptance criteria.
 func TestMaterializeAllComponentTypes(t *testing.T) {
+	// Save current directory and restore it after test
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	t.Cleanup(func() {
+		os.Chdir(originalDir)
+	})
+
 	// Create temporary directory and set HOME
 	tempDir := testutil.CreateTempDir(t, "agent-smith-materialize-all-*")
 	oldHome := os.Getenv("HOME")
@@ -31,13 +40,13 @@ func TestMaterializeAllComponentTypes(t *testing.T) {
 	repoRoot := filepath.Join("..", "..")
 	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
 	cmd.Dir = repoRoot
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", err, string(output))
+	if output, buildErr := cmd.CombinedOutput(); buildErr != nil {
+		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", buildErr, string(output))
 	}
 
 	// Create project directory
 	projectDir := filepath.Join(tempDir, "test-project")
-	err := os.MkdirAll(projectDir, 0755)
+	err = os.MkdirAll(projectDir, 0755)
 	testutil.AssertNoError(t, err, "Failed to create project directory")
 
 	// Create .opencode directory to mark it as a project
@@ -248,6 +257,15 @@ func TestMaterializeAllComponentTypes(t *testing.T) {
 // TestMaterializeComponentNotFound verifies proper error handling when
 // component doesn't exist in ~/.agent-smith/
 func TestMaterializeComponentNotFound(t *testing.T) {
+	// Save current directory and restore it after test
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	t.Cleanup(func() {
+		os.Chdir(originalDir)
+	})
+
 	tempDir := testutil.CreateTempDir(t, "agent-smith-materialize-notfound-*")
 	oldHome := os.Getenv("HOME")
 	os.Setenv("HOME", tempDir)
@@ -260,14 +278,14 @@ func TestMaterializeComponentNotFound(t *testing.T) {
 	repoRoot := filepath.Join("..", "..")
 	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
 	cmd.Dir = repoRoot
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", err, string(output))
+	if output, buildErr := cmd.CombinedOutput(); buildErr != nil {
+		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", buildErr, string(output))
 	}
 
 	// Create project directory with .opencode
 	projectDir := filepath.Join(tempDir, "test-project")
 	opencodeDir := filepath.Join(projectDir, ".opencode")
-	err := os.MkdirAll(opencodeDir, 0755)
+	err = os.MkdirAll(opencodeDir, 0755)
 	testutil.AssertNoError(t, err, "Failed to create project directory")
 
 	err = os.Chdir(projectDir)
@@ -294,6 +312,15 @@ func TestMaterializeComponentNotFound(t *testing.T) {
 // TestMaterializeRecursiveDirectoryStructure verifies that nested directory
 // structures are properly copied during materialization
 func TestMaterializeRecursiveDirectoryStructure(t *testing.T) {
+	// Save current directory and restore it after test
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	t.Cleanup(func() {
+		os.Chdir(originalDir)
+	})
+
 	tempDir := testutil.CreateTempDir(t, "agent-smith-materialize-recursive-*")
 	oldHome := os.Getenv("HOME")
 	os.Setenv("HOME", tempDir)
@@ -306,14 +333,14 @@ func TestMaterializeRecursiveDirectoryStructure(t *testing.T) {
 	repoRoot := filepath.Join("..", "..")
 	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
 	cmd.Dir = repoRoot
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", err, string(output))
+	if output, buildErr := cmd.CombinedOutput(); buildErr != nil {
+		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", buildErr, string(output))
 	}
 
 	// Create project directory
 	projectDir := filepath.Join(tempDir, "test-project")
 	opencodeDir := filepath.Join(projectDir, ".opencode")
-	err := os.MkdirAll(opencodeDir, 0755)
+	err = os.MkdirAll(opencodeDir, 0755)
 	testutil.AssertNoError(t, err, "Failed to create project directory")
 
 	// Create command with nested directory structure
