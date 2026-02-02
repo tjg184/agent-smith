@@ -2322,6 +2322,10 @@ func main() {
 				targets = []string{target}
 			}
 
+			// Track counts for summary
+			successCount := 0
+			skipCount := 0
+
 			// Materialize to each target
 			for _, targetName := range targets {
 				targetDir := project.GetTargetDirectory(projectRoot, targetName)
@@ -2346,6 +2350,7 @@ func main() {
 						} else {
 							infoPrintf("⊘ Skipped %s '%s' to %s (already exists and identical)\n", componentType, componentName, targetName)
 						}
+						skipCount++
 						continue
 					} else {
 						// Component exists and differs
@@ -2385,6 +2390,7 @@ func main() {
 					}
 					infoPrintf("  Destination: %s\n", destPath)
 					infoPrintf("  Provenance:  %s @ %s\n", lockEntry.SourceUrl, lockEntry.CommitHash[:8])
+					successCount++
 				} else {
 					// Ensure target structure exists
 					structureCreated, err := project.EnsureTargetStructure(targetDir)
@@ -2434,6 +2440,30 @@ func main() {
 						infoPrintf("  From Profile: %s\n", sourceProfile)
 					}
 					infoPrintf("  Destination: %s\n", destPath)
+					successCount++
+				}
+			}
+
+			// Print summary (always shown, even without --verbose)
+			if len(targets) > 0 {
+				green := color.New(color.FgGreen).SprintFunc()
+				fmt.Println()
+				fmt.Println("Summary")
+				fmt.Println("=======")
+				if dryRun {
+					if successCount > 0 {
+						fmt.Printf("  %s Would materialize to %d target(s)\n", green(formatter.SymbolSuccess), successCount)
+					}
+					if skipCount > 0 {
+						fmt.Printf("  ⊘ Would skip %d target(s) (already exists and identical)\n", skipCount)
+					}
+				} else {
+					if successCount > 0 {
+						fmt.Printf("  %s Materialized to %d target(s)\n", green(formatter.SymbolSuccess), successCount)
+					}
+					if skipCount > 0 {
+						fmt.Printf("  ⊘ Skipped %d target(s) (already exists and identical)\n", skipCount)
+					}
 				}
 			}
 
@@ -2783,26 +2813,27 @@ func main() {
 				}
 			}
 
-			// Print summary
-			appFormatter.Section("")
-			appFormatter.Section("Summary")
-			infoPrintf("  Total components: %d\n", totalComponents)
+			// Print summary (always shown, even without --verbose)
+			fmt.Println()
+			fmt.Println("Summary")
+			fmt.Println("=======")
+			fmt.Printf("  Total components: %d\n", totalComponents)
 			if dryRun {
-				infoPrintf("  %s Would materialize: %d\n", green(formatter.SymbolSuccess), successCount)
+				fmt.Printf("  %s Would materialize: %d\n", green(formatter.SymbolSuccess), successCount)
 			} else {
-				infoPrintf("  %s Materialized:      %d\n", green(formatter.SymbolSuccess), successCount)
+				fmt.Printf("  %s Materialized:      %d\n", green(formatter.SymbolSuccess), successCount)
 			}
 			if skipCount > 0 {
 				if dryRun {
-					infoPrintf("  ⊘ Would skip:        %d\n", skipCount)
+					fmt.Printf("  ⊘ Would skip:        %d\n", skipCount)
 				} else {
-					infoPrintf("  ⊘ Skipped:           %d\n", skipCount)
+					fmt.Printf("  ⊘ Skipped:           %d\n", skipCount)
 				}
 			}
 			if errorCount > 0 {
-				infoPrintf("  %s Errors:            %d\n", red(formatter.SymbolError), errorCount)
+				fmt.Printf("  %s Errors:            %d\n", red(formatter.SymbolError), errorCount)
 				for _, errorMsg := range errorMessages {
-					infoPrintf("    - %s\n", errorMsg)
+					fmt.Printf("    - %s\n", errorMsg)
 				}
 			}
 
