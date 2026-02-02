@@ -167,7 +167,7 @@ Implement component materialization to enable copying skills, agents, and comman
   **Component Browser Tests:**
   - Not applicable (CLI tool)
 
-- [ ] Story-007: As a project maintainer, I want conflict handling so that I don't accidentally overwrite existing materialized components.
+- [x] Story-007: As a project maintainer, I want conflict handling so that I don't accidentally overwrite existing materialized components.
 
   **Acceptance Criteria:**
   - If component already exists in target directory, skip silently if files are identical (hash match)
@@ -190,7 +190,7 @@ Implement component materialization to enable copying skills, agents, and comman
   **Component Browser Tests:**
   - Not applicable (CLI tool)
 
-- [ ] Story-008: As a project maintainer, I want to materialize all components at once so that I can quickly set up a project.
+- [x] Story-008: As a project maintainer, I want to materialize all components at once so that I can quickly set up a project.
 
   **Acceptance Criteria:**
   - Command `agent-smith materialize all --target <type>` materializes all installed components
@@ -213,7 +213,7 @@ Implement component materialization to enable copying skills, agents, and comman
   **Component Browser Tests:**
   - Not applicable (CLI tool)
 
-- [ ] Story-009: As a developer, I want dry-run mode so that I can preview what will be materialized before doing it.
+- [x] Story-009: As a developer, I want dry-run mode so that I can preview what will be materialized before doing it.
 
   **Acceptance Criteria:**
   - `--dry-run` flag shows what would be materialized without making changes
@@ -234,7 +234,7 @@ Implement component materialization to enable copying skills, agents, and comman
   **Component Browser Tests:**
   - Not applicable (CLI tool)
 
-- [ ] Story-010: As a team member, I want to see which components are materialized in a project so that I know what's available.
+- [x] Story-010: As a team member, I want to see which components are materialized in a project so that I know what's available.
 
   **Acceptance Criteria:**
   - Command `agent-smith materialize list` shows all materialized components in current project

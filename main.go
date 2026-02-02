@@ -2434,6 +2434,113 @@ func main() {
 				os.Exit(1)
 			}
 		},
+		func(projectDir string) {
+			// Handle materialize list command
+			green := color.New(color.FgGreen).SprintFunc()
+			yellow := color.New(color.FgYellow).SprintFunc()
+
+			var projectRoot string
+			var err error
+			if projectDir != "" {
+				// Use specified project directory
+				projectRoot, err = filepath.Abs(projectDir)
+				if err != nil {
+					log.Fatalf("Failed to resolve project directory: %v", err)
+				}
+			} else {
+				// Auto-detect project root
+				projectRoot, err = project.FindProjectRoot()
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+
+			// Display project information
+			infoPrintf("Materialized Components in %s:\n\n", projectRoot)
+
+			// Track if any components were found
+			foundAny := false
+
+			// Check each target
+			for _, targetName := range []string{"opencode", "claudecode"} {
+				targetDir := project.GetTargetDirectory(projectRoot, targetName)
+
+				// Check if target directory exists
+				if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+					continue
+				}
+
+				// Load materialization metadata
+				metadata, err := project.LoadMaterializationMetadata(targetDir)
+				if err != nil {
+					debugPrintf("[DEBUG] Failed to load metadata for %s: %v\n", targetName, err)
+					continue
+				}
+
+				// Count total components
+				totalComponents := len(metadata.Skills) + len(metadata.Agents) + len(metadata.Commands)
+
+				if totalComponents == 0 {
+					continue
+				}
+
+				foundAny = true
+
+				// Display target header
+				var targetLabel string
+				if targetName == "opencode" {
+					targetLabel = "OpenCode (.opencode/)"
+				} else {
+					targetLabel = "Claude Code (.claude/)"
+				}
+				infoPrintf("%s %s\n", green(formatter.SymbolSuccess), targetLabel)
+
+				// Display skills
+				if len(metadata.Skills) > 0 {
+					infoPrintf("  Skills (%d):\n", len(metadata.Skills))
+					for name, meta := range metadata.Skills {
+						sourceInfo := meta.Source
+						if meta.SourceProfile != "" {
+							sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
+						}
+						infoPrintf("    • %-30s (from %s)\n", name, sourceInfo)
+					}
+				}
+
+				// Display agents
+				if len(metadata.Agents) > 0 {
+					infoPrintf("  Agents (%d):\n", len(metadata.Agents))
+					for name, meta := range metadata.Agents {
+						sourceInfo := meta.Source
+						if meta.SourceProfile != "" {
+							sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
+						}
+						infoPrintf("    • %-30s (from %s)\n", name, sourceInfo)
+					}
+				}
+
+				// Display commands
+				if len(metadata.Commands) > 0 {
+					infoPrintf("  Commands (%d):\n", len(metadata.Commands))
+					for name, meta := range metadata.Commands {
+						sourceInfo := meta.Source
+						if meta.SourceProfile != "" {
+							sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
+						}
+						infoPrintf("    • %-30s (from %s)\n", name, sourceInfo)
+					}
+				}
+
+				infoPrintln("")
+			}
+
+			if !foundAny {
+				infoPrintf("%s No components materialized yet\n\n", yellow(formatter.SymbolWarning))
+				infoPrintln("To materialize components:")
+				infoPrintln("  agent-smith materialize skill <name> --target opencode")
+				infoPrintln("  agent-smith materialize all --target opencode")
+			}
+		},
 	)
 
 	// Execute Cobra command

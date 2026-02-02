@@ -1685,6 +1685,33 @@ EXAMPLES:
 	materializeAllCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
 	materializeCmd.AddCommand(materializeAllCmd)
 
+	materializeListCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List all materialized components in the current project",
+		Long: `List all materialized components (skills, agents, commands) in the current project.
+
+This command shows all components that have been materialized to .opencode/ or .claude/
+directories. The output is grouped by target and component type, showing the component
+name and source repository for each.
+
+The command auto-detects the project root by walking up from the current directory
+looking for .opencode/ or .claude/ directories.
+
+EXAMPLES:
+  # List all materialized components in the current project
+  agent-smith materialize list
+
+  # List from a specific project directory
+  agent-smith materialize list --project-dir ~/my-project`,
+		Args: noArgsWithHelp,
+		Run: func(cmd *cobra.Command, args []string) {
+			projectDir, _ := cmd.Flags().GetString("project-dir")
+			handleMaterializeList(projectDir)
+		},
+	}
+	materializeListCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeCmd.AddCommand(materializeListCmd)
+
 	rootCmd.AddCommand(materializeCmd)
 
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
@@ -1727,6 +1754,7 @@ var (
 	handleTargetList           func()
 	handleMaterializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool)
 	handleMaterializeAll       func(target, projectDir string, force, dryRun bool)
+	handleMaterializeList      func(projectDir string)
 )
 
 func SetHandlers(
@@ -1763,6 +1791,7 @@ func SetHandlers(
 	targetList func(),
 	materializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool),
 	materializeAll func(target, projectDir string, force, dryRun bool),
+	materializeList func(projectDir string),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
@@ -1797,4 +1826,5 @@ func SetHandlers(
 	handleTargetList = targetList
 	handleMaterializeComponent = materializeComponent
 	handleMaterializeAll = materializeAll
+	handleMaterializeList = materializeList
 }
