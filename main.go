@@ -1969,7 +1969,8 @@ func main() {
 
 			// Validate target is provided
 			if target == "" {
-				log.Fatal("Target must be specified with --target flag or AGENT_SMITH_TARGET environment variable\n\nValid targets: opencode, claudecode, all\n\nExamples:\n  agent-smith materialize skill my-skill --target opencode\n  export AGENT_SMITH_TARGET=opencode && agent-smith materialize skill my-skill")
+				fmt.Println(errors.NewMissingTargetFlagError("materialize skill <name>").Format())
+				os.Exit(1)
 			}
 
 			// Show dry-run header if enabled
@@ -2040,13 +2041,14 @@ func main() {
 
 			// Check if component exists
 			if _, err := os.Stat(componentSourceDir); os.IsNotExist(err) {
+				var sourcePath string
 				if sourceProfile != "" {
-					log.Fatalf("Component '%s' not found in profile '%s' at %s/%s/\n\nInstall it first with: agent-smith install %s <repo> %s",
-						componentName, sourceProfile, sourceProfile, componentType, componentType, componentName)
+					sourcePath = fmt.Sprintf("profile '%s' (%s/%s/)", sourceProfile, sourceProfile, componentType)
 				} else {
-					log.Fatalf("Component '%s' not found in ~/.agent-smith/%s/\n\nInstall it first with: agent-smith install %s <repo> %s",
-						componentName, componentType, componentType, componentName)
+					sourcePath = fmt.Sprintf("~/.agent-smith/%s/", componentType)
 				}
+				fmt.Println(errors.NewComponentNotInstalledError(componentType, componentName, sourcePath).Format())
+				os.Exit(1)
 			}
 
 			// Get lock file entry for provenance
@@ -2073,7 +2075,8 @@ func main() {
 			for _, targetName := range targets {
 				targetDir := project.GetTargetDirectory(projectRoot, targetName)
 				if targetDir == "" {
-					log.Fatalf("Invalid target: %s", targetName)
+					fmt.Println(errors.NewInvalidTargetError(targetName).Format())
+					os.Exit(1)
 				}
 
 				// Determine destination path
@@ -2087,7 +2090,11 @@ func main() {
 						log.Fatalf("Failed to compare directories: %v", err)
 					}
 					if match {
-						infoPrintf("⊘ Would skip %s '%s' to %s (already exists and identical)\n", componentType, componentName, targetName)
+						if dryRun {
+							infoPrintf("⊘ Would skip %s '%s' to %s (already exists and identical)\n", componentType, componentName, targetName)
+						} else {
+							infoPrintf("⊘ Skipped %s '%s' to %s (already exists and identical)\n", componentType, componentName, targetName)
+						}
 						continue
 					} else {
 						// Component exists and differs
@@ -2207,7 +2214,8 @@ func main() {
 
 			// Validate target is provided
 			if target == "" {
-				log.Fatal("Target must be specified with --target flag or AGENT_SMITH_TARGET environment variable\n\nValid targets: opencode, claudecode, all\n\nExamples:\n  agent-smith materialize all --target opencode\n  export AGENT_SMITH_TARGET=opencode && agent-smith materialize all")
+				fmt.Println(errors.NewMissingTargetFlagError("materialize all").Format())
+				os.Exit(1)
 			}
 
 			// Determine project root
@@ -2648,7 +2656,8 @@ func main() {
 				if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 					if target != "" {
 						// User specified a target that doesn't exist
-						infoPrintf("%s Target directory not found: %s\n", red(formatter.SymbolError), targetName)
+						fmt.Println(errors.NewTargetDirectoryNotFoundError(targetName).Format())
+						os.Exit(1)
 					}
 					continue
 				}
@@ -2738,13 +2747,30 @@ func main() {
 			if !foundInAnyTarget {
 				if target != "" {
 					// Specific target was requested but component not found
-					infoPrintf("\n%s Component '%s' not materialized in %s target\n\n", red(formatter.SymbolError), componentName, target)
+					fmt.Println(errors.NewTargetDirectoryNotFoundError(target).Format())
 				} else {
 					// No target specified and component not found in any target
-					infoPrintf("\n%s Component '%s' (%s) not materialized in current project\n\n", red(formatter.SymbolError), componentName, componentType)
-					infoPrintln("To materialize this component:")
-					infoPrintf("  agent-smith materialize %s %s --target opencode\n", strings.TrimSuffix(componentType, "s"), componentName)
+					// Collect available components from all targets
+					var availableComponents []string
+					for _, targetName := range []string{"opencode", "claudecode"} {
+						targetDir := project.GetTargetDirectory(projectRoot, targetName)
+						if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+							continue
+						}
+						metadata, err := project.LoadMaterializationMetadata(targetDir)
+						if err != nil {
+							continue
+						}
+						componentMap := metadata.GetComponentMap(componentType)
+						if componentMap != nil {
+							for compName := range componentMap {
+								availableComponents = append(availableComponents, compName)
+							}
+						}
+					}
+					fmt.Println(errors.NewComponentNotFoundInProjectError(componentType, componentName, availableComponents).Format())
 				}
+				os.Exit(1)
 			}
 		},
 	)

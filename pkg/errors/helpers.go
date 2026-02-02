@@ -296,6 +296,71 @@ func NewMaterializationError(componentType, componentName string, cause error) *
 	return msg
 }
 
+// NewComponentNotFoundInProjectError creates an error for when a component is not found in the project.
+func NewComponentNotFoundInProjectError(componentType, componentName string, availableComponents []string) *ErrorMessage {
+	msg := New(fmt.Sprintf("Component '%s' (%s) not materialized in current project", componentName, componentType)).
+		WithContext("The component must be materialized before you can view its information")
+
+	if len(availableComponents) > 0 {
+		msg.WithSuggestion("Materialize the component or choose from available components:")
+		for _, comp := range availableComponents {
+			msg.WithDetails(comp)
+		}
+	} else {
+		msg.WithSuggestion("Materialize a component from your installed collection")
+	}
+
+	msg.WithExample(fmt.Sprintf("agent-smith materialize %s %s --target opencode", componentType, componentName))
+
+	return msg
+}
+
+// NewComponentNotInstalledError creates an error for when a component is not installed.
+func NewComponentNotInstalledError(componentType, componentName, source string) *ErrorMessage {
+	msg := New(fmt.Sprintf("Component '%s' not found in %s", componentName, source))
+
+	msg.WithContext(fmt.Sprintf("The %s must be installed before it can be materialized", componentType)).
+		WithSuggestion(fmt.Sprintf("Install the %s first", componentType)).
+		WithExample(fmt.Sprintf("agent-smith install %s <repo-url> %s", componentType, componentName))
+
+	return msg
+}
+
+// NewMissingTargetFlagError creates an error for when the --target flag is missing.
+func NewMissingTargetFlagError(command string) *ErrorMessage {
+	return New("Target must be specified with --target flag or AGENT_SMITH_TARGET environment variable").
+		WithContext("Valid targets: opencode, claudecode, all").
+		WithSuggestion("Specify a target using the --target flag or set AGENT_SMITH_TARGET").
+		WithExample(fmt.Sprintf("agent-smith %s --target opencode", command)).
+		WithDetails("export AGENT_SMITH_TARGET=opencode  # Set default target")
+}
+
+// NewInvalidTargetError creates an error for when an invalid target is specified.
+func NewInvalidTargetError(targetName string) *ErrorMessage {
+	return New(fmt.Sprintf("Invalid target: %s", targetName)).
+		WithContext("Valid targets are: opencode, claudecode, all").
+		WithSuggestion("Use one of the valid target names").
+		WithExample("agent-smith materialize skill my-skill --target opencode")
+}
+
+// NewTargetDirectoryNotFoundError creates an error for when a target directory doesn't exist.
+func NewTargetDirectoryNotFoundError(targetName string) *ErrorMessage {
+	var dirName string
+	switch targetName {
+	case "opencode":
+		dirName = ".opencode/"
+	case "claudecode":
+		dirName = ".claude/"
+	default:
+		dirName = targetName
+	}
+
+	return New(fmt.Sprintf("Target directory not found: %s", targetName)).
+		WithContext(fmt.Sprintf("The %s directory does not exist in this project", dirName)).
+		WithSuggestion("Create the directory or materialize to a different target").
+		WithExample(fmt.Sprintf("mkdir -p %s", dirName))
+}
+
 // Helper function to check if a string contains a substring (case-insensitive)
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr ||

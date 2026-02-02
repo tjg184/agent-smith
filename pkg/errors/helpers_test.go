@@ -382,3 +382,155 @@ func TestErrorMessagesContainActionableInformation(t *testing.T) {
 		})
 	}
 }
+
+// TestNewComponentNotFoundInProjectError verifies component not found error is helpful
+func TestNewComponentNotFoundInProjectError(t *testing.T) {
+	tests := []struct {
+		name                string
+		componentType       string
+		componentName       string
+		availableComponents []string
+		expectedPhrases     []string
+	}{
+		{
+			name:                "with available components",
+			componentType:       "skill",
+			componentName:       "my-skill",
+			availableComponents: []string{"skill-a", "skill-b", "skill-c"},
+			expectedPhrases: []string{
+				"my-skill",
+				"not materialized",
+				"available components",
+				"skill-a",
+				"agent-smith materialize",
+			},
+		},
+		{
+			name:                "without available components",
+			componentType:       "agent",
+			componentName:       "my-agent",
+			availableComponents: []string{},
+			expectedPhrases: []string{
+				"my-agent",
+				"not materialized",
+				"Materialize a component",
+				"agent-smith materialize",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := NewComponentNotFoundInProjectError(tt.componentType, tt.componentName, tt.availableComponents)
+			errMsg := err.Format()
+
+			for _, phrase := range tt.expectedPhrases {
+				if !strings.Contains(errMsg, phrase) {
+					t.Errorf("Expected error to contain %q, but got:\n%s", phrase, errMsg)
+				}
+			}
+		})
+	}
+}
+
+// TestNewComponentNotInstalledError verifies component not installed error is helpful
+func TestNewComponentNotInstalledError(t *testing.T) {
+	err := NewComponentNotInstalledError("skill", "my-skill", "~/.agent-smith/skills/")
+	errMsg := err.Format()
+
+	expectedPhrases := []string{
+		"my-skill",
+		"not found",
+		"must be installed",
+		"agent-smith install",
+	}
+
+	for _, phrase := range expectedPhrases {
+		if !strings.Contains(errMsg, phrase) {
+			t.Errorf("Expected error to contain %q, but got:\n%s", phrase, errMsg)
+		}
+	}
+}
+
+// TestNewMissingTargetFlagError verifies missing target flag error is helpful
+func TestNewMissingTargetFlagError(t *testing.T) {
+	err := NewMissingTargetFlagError("materialize skill my-skill")
+	errMsg := err.Format()
+
+	expectedPhrases := []string{
+		"--target flag",
+		"AGENT_SMITH_TARGET",
+		"opencode",
+		"claudecode",
+		"agent-smith",
+	}
+
+	for _, phrase := range expectedPhrases {
+		if !strings.Contains(errMsg, phrase) {
+			t.Errorf("Expected error to contain %q, but got:\n%s", phrase, errMsg)
+		}
+	}
+}
+
+// TestNewInvalidTargetError verifies invalid target error is helpful
+func TestNewInvalidTargetError(t *testing.T) {
+	err := NewInvalidTargetError("invalid-target")
+	errMsg := err.Format()
+
+	expectedPhrases := []string{
+		"Invalid target",
+		"invalid-target",
+		"opencode",
+		"claudecode",
+		"all",
+	}
+
+	for _, phrase := range expectedPhrases {
+		if !strings.Contains(errMsg, phrase) {
+			t.Errorf("Expected error to contain %q, but got:\n%s", phrase, errMsg)
+		}
+	}
+}
+
+// TestNewTargetDirectoryNotFoundError verifies target directory not found error is helpful
+func TestNewTargetDirectoryNotFoundError(t *testing.T) {
+	tests := []struct {
+		name            string
+		targetName      string
+		expectedPhrases []string
+	}{
+		{
+			name:       "opencode target",
+			targetName: "opencode",
+			expectedPhrases: []string{
+				"Target directory not found",
+				"opencode",
+				".opencode/",
+				"mkdir",
+			},
+		},
+		{
+			name:       "claudecode target",
+			targetName: "claudecode",
+			expectedPhrases: []string{
+				"Target directory not found",
+				"claudecode",
+				".claude/",
+				"mkdir",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := NewTargetDirectoryNotFoundError(tt.targetName)
+			errMsg := err.Format()
+
+			for _, phrase := range tt.expectedPhrases {
+				if !strings.Contains(errMsg, phrase) {
+					t.Errorf("Expected error to contain %q, but got:\n%s", phrase, errMsg)
+				}
+			}
+		})
+	}
+}
