@@ -278,7 +278,7 @@ Implement component materialization to enable copying skills, agents, and comman
   **Component Browser Tests:**
   - Not applicable (CLI tool)
 
-- [ ] Story-012: As a developer, I want helpful error messages so that I can quickly resolve issues.
+- [x] Story-012: As a developer, I want helpful error messages so that I can quickly resolve issues.
 
   **Acceptance Criteria:**
   - Component not installed in ~/.agent-smith/: suggest install command
@@ -323,7 +323,7 @@ Implement component materialization to enable copying skills, agents, and comman
   **Component Browser Tests:**
   - Not applicable (CLI tool)
 
-- [ ] Story-014: As a project maintainer, I want to materialize from specific profile so that I can choose which profile to copy from.
+- [x] Story-014: As a project maintainer, I want to materialize from specific profile so that I can choose which profile to copy from.
 
   **Acceptance Criteria:**
   - `--from-profile <name>` flag allows explicit profile selection
@@ -349,7 +349,7 @@ Implement component materialization to enable copying skills, agents, and comman
   **Component Browser Tests:**
   - Not applicable (CLI tool)
 
-- [ ] Story-015: As a team member, I want to see which profile a component came from so that I know where to install it if needed.
+- [x] Story-015: As a team member, I want to see which profile a component came from so that I know where to install it if needed.
 
   **Acceptance Criteria:**
   - `materialize list` shows profile name for each component (if materialized from profile)
