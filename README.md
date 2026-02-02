@@ -5,6 +5,7 @@ Agent Smith is a powerful CLI tool for downloading, managing, and executing AI a
 Install, manage, and link AI components with ease:
 - Download and install agents, skills, and commands from any git repository
 - Link components to supported targets (OpenCode, Claude Code, etc.)
+- Materialize components to project directories for version control and team sharing
 - Manage multiple profiles for context switching
 - Update and maintain installed components
 - Remove components cleanly when no longer needed
@@ -206,6 +207,8 @@ agent-smith uninstall skill mcp-builder --profile work
 
 Manage profiles for context switching between different component sets.
 
+#### Basic Profile Management
+
 ```bash
 # Create a new profile
 agent-smith profile create work
@@ -219,6 +222,9 @@ agent-smith profile deactivate
 # List all profiles
 agent-smith profile list
 
+# Show details about a specific profile
+agent-smith profile show work
+
 # Delete a profile
 agent-smith profile delete work
 ```
@@ -227,6 +233,35 @@ When a profile is active:
 - Install commands save components to the profile directory
 - Link commands use components from the active profile
 - Uninstall commands remove components from the active profile
+
+#### Advanced Profile Operations
+
+```bash
+# Add an existing component from ~/.agent-smith/ to a profile
+agent-smith profile add skills work-profile api-design
+agent-smith profile add agents work-profile code-reviewer
+agent-smith profile add commands dev-profile test-runner
+
+# Copy a component from one profile to another
+agent-smith profile copy skills work-profile personal-profile api-design
+agent-smith profile copy agents team-profile solo-profile code-reviewer
+
+# Remove a component from a profile
+agent-smith profile remove skills work-profile old-skill
+agent-smith profile remove agents work-profile deprecated-agent
+
+# Cherry-pick components interactively from existing profiles
+agent-smith profile cherry-pick new-profile
+agent-smith profile cherry-pick project-x --source work-profile
+agent-smith profile cherry-pick custom --source work --source personal
+```
+
+**Profile operations:**
+- `add` - Copy an existing component from `~/.agent-smith/` to a profile
+- `copy` - Copy a component between profiles with independent lock entries
+- `remove` - Remove a component from a profile directory
+- `cherry-pick` - Interactive UI to select and copy components from existing profiles
+- `show` - Display detailed information about a profile's components
 
 ### Target
 
@@ -288,6 +323,58 @@ agent-smith update skill mcp-builder
 agent-smith update all
 ```
 
+### Materialize
+
+Materialize components from `~/.agent-smith/` to project directories for version control and team sharing.
+
+```bash
+# Materialize a skill to OpenCode
+agent-smith materialize skill mcp-builder --target opencode
+
+# Materialize an agent to Claude Code
+agent-smith materialize agent coding-assistant --target claudecode
+
+# Materialize a command to both targets
+agent-smith materialize command format-json --target all
+
+# Materialize from a specific profile
+agent-smith materialize skill api-design --target opencode --from-profile work
+
+# Materialize from base ~/.agent-smith/ directory
+agent-smith materialize skill mcp-builder --target opencode --from-profile base
+
+# Force overwrite existing component
+agent-smith materialize skill mcp-builder --target opencode --force
+
+# Preview without making changes
+agent-smith materialize skill mcp-builder --target opencode --dry-run
+
+# Override project directory detection
+agent-smith materialize skill mcp-builder --target opencode --project-dir ./my-project
+```
+
+**What is materialization?**
+Materialization copies components from your global `~/.agent-smith/` directory (or a profile) to project-local directories like `.opencode/` or `.claude/`. This allows you to:
+- **Version control**: Commit components alongside your project code
+- **Team sharing**: Share components with your team via git
+- **Project isolation**: Lock specific component versions per project
+- **Offline work**: Bundle components with your project
+
+**Materialization targets:**
+- `opencode` - Materialize to `.opencode/` directory
+- `claudecode` - Materialize to `.claude/` directory  
+- `all` - Materialize to both directories
+
+**Environment variable:**
+Set `AGENT_SMITH_TARGET` to avoid repeating `--target` flag:
+```bash
+export AGENT_SMITH_TARGET=opencode
+agent-smith materialize skill mcp-builder
+```
+
+**Provenance tracking:**
+Materialized components are tracked in `.materializations.json` with full provenance including source path, git URL, commit hash, and timestamps. This enables updates and conflict detection.
+
 ### Status
 
 Show current status and active profile.
@@ -318,6 +405,22 @@ Agent Smith stores components and configuration in the following locations:
         ├── .skill-lock.json
         ├── .agent-lock.json
         └── .command-lock.json
+```
+
+**Project directories (materialized components):**
+
+```
+~/my-project/
+├── .opencode/
+│   ├── skills/              # Materialized skills
+│   ├── agents/              # Materialized agents
+│   ├── commands/            # Materialized commands
+│   └── .materializations.json  # Provenance tracking
+└── .claude/
+    ├── skills/              # Materialized skills
+    ├── agents/              # Materialized agents
+    ├── commands/            # Materialized commands
+    └── .materializations.json  # Provenance tracking
 ```
 
 ## Common Workflows
@@ -437,6 +540,65 @@ tar -czf ai-components.tar.gz -C ./dist ai-components
 tar -xzf ai-components.tar.gz
 ls -la ai-components/skills/
 ls -la ai-components/agents/
+```
+
+### Materialize components for team sharing
+
+```bash
+# Install and link components globally
+agent-smith install all owner/team-components
+agent-smith link all
+
+# Materialize specific components to your project for version control
+cd ~/my-project
+agent-smith materialize skill api-design --target opencode
+agent-smith materialize agent code-reviewer --target opencode
+agent-smith materialize command test-runner --target opencode
+
+# Commit to version control
+git add .opencode/
+git commit -m "Add team AI components"
+git push
+
+# Team members can now use the materialized components
+# They're automatically available in .opencode/ directory
+```
+
+### Build specialized profiles with cherry-pick
+
+```bash
+# Create profiles with different component sets
+agent-smith profile create backend
+agent-smith profile activate backend
+agent-smith install all company/backend-tools
+
+agent-smith profile create frontend
+agent-smith profile activate frontend
+agent-smith install all company/frontend-tools
+
+# Create a full-stack profile by cherry-picking from both
+agent-smith profile cherry-pick fullstack --source backend --source frontend
+# Interactive UI lets you select specific components
+
+# Activate the combined profile
+agent-smith profile activate fullstack
+agent-smith link all
+```
+
+### Share components between profiles
+
+```bash
+# Add a component from base installation to a profile
+agent-smith profile add skills work-profile mcp-builder
+
+# Copy a component from one profile to another
+agent-smith profile copy skills personal-profile work-profile api-design
+
+# Remove outdated components from a profile
+agent-smith profile remove skills work-profile deprecated-skill
+
+# View what's in a profile
+agent-smith profile show work-profile
 ```
 
 ## Testing
