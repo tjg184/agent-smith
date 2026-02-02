@@ -2443,21 +2443,27 @@ func main() {
 			if len(targets) > 0 {
 				green := color.New(color.FgGreen).SprintFunc()
 				fmt.Println()
-				fmt.Println("Summary")
-				fmt.Println("=======")
+
+				// Build summary message
 				if dryRun {
 					if successCount > 0 {
-						fmt.Printf("  %s Would materialize to %d target(s)\n", green(formatter.SymbolSuccess), successCount)
-					}
-					if skipCount > 0 {
-						fmt.Printf("  ⊘ Would skip %d target(s) (already exists and identical)\n", skipCount)
+						msg := fmt.Sprintf("%s Would materialize to %d target(s)", green(formatter.SymbolSuccess), successCount)
+						if skipCount > 0 {
+							msg += fmt.Sprintf(" (%d skipped)", skipCount)
+						}
+						fmt.Println(msg)
+					} else if skipCount > 0 {
+						fmt.Printf("⊘ Would skip %d target(s) (already exists and identical)\n", skipCount)
 					}
 				} else {
 					if successCount > 0 {
-						fmt.Printf("  %s Materialized to %d target(s)\n", green(formatter.SymbolSuccess), successCount)
-					}
-					if skipCount > 0 {
-						fmt.Printf("  ⊘ Skipped %d target(s) (already exists and identical)\n", skipCount)
+						msg := fmt.Sprintf("%s Successfully materialized to %d target(s)", green(formatter.SymbolSuccess), successCount)
+						if skipCount > 0 {
+							msg += fmt.Sprintf(" (%d skipped)", skipCount)
+						}
+						fmt.Println(msg)
+					} else if skipCount > 0 {
+						fmt.Printf("⊘ Skipped %d target(s) (already exists and identical)\n", skipCount)
 					}
 				}
 			}
@@ -2471,7 +2477,6 @@ func main() {
 		func(target, projectDir string, force, dryRun bool, fromProfile string) {
 			// Define color functions
 			green := color.New(color.FgGreen).SprintFunc()
-			red := color.New(color.FgRed).SprintFunc()
 
 			// Show dry-run header if enabled
 			if dryRun {
@@ -2805,25 +2810,51 @@ func main() {
 
 			// Print summary (always shown, even without --verbose)
 			fmt.Println()
-			fmt.Println("Summary")
-			fmt.Println("=======")
-			fmt.Printf("  Total components: %d\n", totalComponents)
+
+			// Build concise summary message
 			if dryRun {
-				fmt.Printf("  %s Would materialize: %d\n", green(formatter.SymbolSuccess), successCount)
+				if successCount > 0 || skipCount > 0 || errorCount > 0 {
+					msg := fmt.Sprintf("%s Would materialize %d of %d component(s)", green(formatter.SymbolSuccess), successCount, totalComponents)
+
+					// Add skip/error info inline
+					var details []string
+					if skipCount > 0 {
+						details = append(details, fmt.Sprintf("%d skipped", skipCount))
+					}
+					if errorCount > 0 {
+						details = append(details, fmt.Sprintf("%d errors", errorCount))
+					}
+					if len(details) > 0 {
+						msg += fmt.Sprintf(" (%s)", strings.Join(details, ", "))
+					}
+					fmt.Println(msg)
+				}
 			} else {
-				fmt.Printf("  %s Materialized:      %d\n", green(formatter.SymbolSuccess), successCount)
-			}
-			if skipCount > 0 {
-				if dryRun {
-					fmt.Printf("  ⊘ Would skip:        %d\n", skipCount)
-				} else {
-					fmt.Printf("  ⊘ Skipped:           %d\n", skipCount)
+				if successCount > 0 {
+					msg := fmt.Sprintf("%s Successfully materialized %d component(s)", green(formatter.SymbolSuccess), successCount)
+
+					// Add skip/error info inline
+					var details []string
+					if skipCount > 0 {
+						details = append(details, fmt.Sprintf("%d skipped", skipCount))
+					}
+					if errorCount > 0 {
+						details = append(details, fmt.Sprintf("%d errors", errorCount))
+					}
+					if len(details) > 0 {
+						msg += fmt.Sprintf(" (%s)", strings.Join(details, ", "))
+					}
+					fmt.Println(msg)
+				} else if skipCount > 0 {
+					fmt.Printf("⊘ All %d component(s) already materialized and identical\n", skipCount)
 				}
 			}
+
+			// Show error details if any
 			if errorCount > 0 {
-				fmt.Printf("  %s Errors:            %d\n", red(formatter.SymbolError), errorCount)
+				fmt.Println("\nErrors:")
 				for _, errorMsg := range errorMessages {
-					fmt.Printf("    - %s\n", errorMsg)
+					fmt.Printf("  - %s\n", errorMsg)
 				}
 			}
 
