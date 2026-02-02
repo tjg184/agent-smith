@@ -11,13 +11,13 @@ This document describes the test organization and how to run different types of 
 **How do I run the tests?**
 ```bash
 # Run unit tests only (fast, for development)
-make test
+just test
 
 # Run integration tests only
-make test-integration
+just test-integration
 
 # Run all tests (unit + integration)
-make test-all
+just test-all
 ```
 
 **Using Go commands directly:**
@@ -70,34 +70,34 @@ Integration tests verify end-to-end functionality and are distinguished by:
 
 ## Running Tests
 
-### Quick Start with Makefile (Recommended)
+### Quick Start with justfile (Recommended)
 
-The project includes a Makefile that provides convenient commands for running different types of tests:
+The project includes a justfile that provides convenient commands for running different types of tests:
 
 ```bash
 # Run unit tests only (fast, for development)
-make test
+just test
 
 # Run integration tests only
-make test-integration
+just test-integration
 
 # Run all tests (unit + integration)
-make test-all
+just test-all
 
 # Run with verbose output
-make test-verbose
-make test-integration-verbose
+just test-verbose
+just test-integration-verbose
 
 # Run with coverage
-make coverage
-make coverage-integration
+just coverage
+just coverage-integration
 
 # See all available commands
-make help
+just
 ```
 
-**Why use the Makefile?**
-- **Faster development**: `make test` runs only fast unit tests, allowing rapid iteration
+**Why use the justfile?**
+- **Faster development**: `just test` runs only fast unit tests, allowing rapid iteration
 - **Clear separation**: Easy to run unit tests separately from slower integration tests
 - **Convenience**: Shorter commands with sensible defaults
 - **Consistency**: Same commands work for all team members
@@ -302,11 +302,11 @@ To run tests in CI/CD pipelines:
 
 ```bash
 # Fast unit tests (suitable for every commit)
-make test
+just test
 # or: go test ./...
 
 # Full test suite (suitable for PRs and releases)
-make test-all
+just test-all
 # or: go test -tags=integration ./...
 ```
 
@@ -315,16 +315,16 @@ make test-all
 **During Development:**
 ```bash
 # Run fast unit tests frequently while coding
-make test
+just test
 ```
 
 **Before Committing:**
 ```bash
 # Run all tests to ensure nothing is broken
-make test-all
+just test-all
 ```
 
 **In CI/CD:**
-- Run `make test` on every push for fast feedback
-- Run `make test-all` for pull requests and before merging
-- Use `make coverage` to track test coverage metrics
+- Run `just test` on every push for fast feedback
+- Run `just test-all` for pull requests and before merging
+- Use `just coverage` to track test coverage metrics

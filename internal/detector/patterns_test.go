@@ -221,7 +221,7 @@ func TestMatchesFileExtension(t *testing.T) {
 		},
 		{
 			name:     "No match - no extension",
-			fileName: "Makefile",
+			fileName: "justfile",
 			expected: false,
 		},
 	}
