@@ -19,7 +19,7 @@ Currently, users can link components from a specific profile using `link all --p
 
 ## User Stories
 
-- [ ] Story-001: As a developer with multiple profiles, I want to unlink components from a specific profile without switching to it so that I can quickly clean up linked components without disrupting my current workspace.
+- [x] Story-001: As a developer with multiple profiles, I want to unlink components from a specific profile without switching to it so that I can quickly clean up linked components without disrupting my current workspace.
 
   **Acceptance Criteria:**
   - User can run `agent-smith unlink all --profile work`
@@ -40,7 +40,7 @@ Currently, users can link components from a specific profile using `link all --p
   - Test combination with --target flag
   - Test combination with --force flag
 
-- [ ] Story-002: As a user, I want to receive a clear error message when I specify an invalid profile so that I can correct my command and understand what went wrong.
+- [x] Story-002: As a user, I want to receive a clear error message when I specify an invalid profile so that I can correct my command and understand what went wrong.
 
   **Acceptance Criteria:**
   - Command fails with error: `profile 'invalid' does not exist`
@@ -53,7 +53,7 @@ Currently, users can link components from a specific profile using `link all --p
   - Verify error message matches expected format
   - Verify no components were unlinked
 
-- [ ] Story-003: As a user, I want to be prevented from using conflicting flags so that I don't accidentally perform unintended operations.
+- [x] Story-003: As a user, I want to be prevented from using conflicting flags so that I don't accidentally perform unintended operations.
 
   **Acceptance Criteria:**
   - Cannot use `--profile` and `--all-profiles` together
