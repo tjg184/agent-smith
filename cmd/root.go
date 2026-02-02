@@ -271,11 +271,23 @@ This command fetches a repository and automatically detects all AI components
 within it, then downloads them to their respective directories. Components are
 detected based on the presence of SKILL.md files or path patterns.
 
+AUTOMATIC PROFILE CREATION:
+By default, this command creates a repository-sourced profile (📦) to namespace
+the components from the repository. The profile name is generated from the
+repository URL (e.g., "owner-repo"). If a profile already exists for the same
+repository, it will be reused and updated.
+
+Repository-sourced profiles make it easy to:
+  - Keep all components from a repo organized together
+  - Update all components from the repo with 'update all'
+  - Switch between different repositories
+
 REQUIRED PARAMETERS:
   <repository-url>  The URL or path to the git repository containing components
 
 EXAMPLES:
   # Download all components from GitHub using shorthand
+  # Creates profile: openai-cookbook (📦)
   agent-smith install all openai/cookbook
 
   # Download using full URL
@@ -284,11 +296,8 @@ EXAMPLES:
   # Download from local repository
   agent-smith install all /path/to/local/repo
 
-  # Install to a custom target directory (project-local)
+  # Install to a custom target directory (project-local, no profile)
   agent-smith install all openai/cookbook --target-dir ./tools
-
-  # Install to a custom directory with tilde expansion
-  agent-smith install all openai/cookbook --target-dir ~/my-project/agents
 
   # Force creation of a new profile with a custom name
   agent-smith install all openai/cookbook --profile my-custom-profile`,
@@ -1165,9 +1174,20 @@ SAFETY:
 		Short: "Manage profiles for context switching",
 		Long: `Manage profiles to switch between different sets of agents, skills, and commands.
 		
-Profiles allow you to organize and switch between different configurations
-of AI components. Each profile can contain its own set of agents, skills,
-and commands, making it easy to switch contexts for different projects or tasks.`,
+Profiles serve two purposes in agent-smith:
+
+1. Repository Namespaces (📦):
+   - Automatically created when you run 'install all <repo-url>'
+   - Tied to the source repository for easy updates
+   - Used to namespace components from a specific repo
+
+2. User Collections (👤):
+   - Manually created via 'profiles create'
+   - Used for organizing and cherry-picking components across repos
+   - Fully customizable for different projects or workflows
+
+Both profile types can be activated, linked, and managed identically.
+Use 'profile list --type repo' or '--type user' to filter by type.`,
 	}
 
 	profilesListCmd := &cobra.Command{
@@ -1179,19 +1199,26 @@ This command shows all valid profiles (those containing at least one component
 directory), indicates which profile is currently active, and displays component
 counts for each profile.
 
+Profiles are marked with visual indicators:
+  📦 - Repository-sourced profiles (created from install all)
+  👤 - User-created profiles (created via profiles create)
+
 Filtering options:
   --profile: Filter to show only specific profiles (can be specified multiple times)
-  --active-only: Show only the currently active profile`,
+  --active-only: Show only the currently active profile
+  --type: Filter by profile type (repo or user)`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			profileFilter, _ := cmd.Flags().GetStringSlice("profile")
 			activeOnly, _ := cmd.Flags().GetBool("active-only")
-			handleProfilesList(profileFilter, activeOnly)
+			typeFilter, _ := cmd.Flags().GetString("type")
+			handleProfilesList(profileFilter, activeOnly, typeFilter)
 		},
 	}
 
 	profilesListCmd.Flags().StringSlice("profile", []string{}, "Filter to specific profiles")
 	profilesListCmd.Flags().Bool("active-only", false, "Show only the active profile")
+	profilesListCmd.Flags().String("type", "", "Filter by profile type (repo or user)")
 
 	profilesShowCmd := &cobra.Command{
 		Use:   "show <profile-name>",
@@ -1222,14 +1249,25 @@ EXAMPLES:
 
 	profilesCreateCmd := &cobra.Command{
 		Use:   "create <profile-name>",
-		Short: "Create a new empty profile",
-		Long: `Create a new profile with empty component directories.
+		Short: "Create a new user-created profile (👤)",
+		Long: `Create a new user-created profile with empty component directories.
 
-This command creates a new profile directory structure at ~/.agent-smith/profiles/<profile-name>/
+This command creates a profile marked as type="user" (👤), intended for 
+organizing and cherry-picking components across different repositories.
+
+The profile directory structure is created at ~/.agent-smith/profiles/<profile-name>/
 with the following subdirectories:
   - agents/
   - skills/
   - commands/
+
+User-created profiles are ideal for:
+  - Organizing components from multiple repositories
+  - Creating custom collections for specific workflows
+  - Building project-specific component sets
+
+Note: Repository-sourced profiles (📦) are automatically created when you
+run 'install all <repo-url>' and are tied to their source repository.
 
 After creation, you can add components to the profile and activate it with:
   agent-smith profile activate <profile-name>`,
@@ -1836,7 +1874,7 @@ var (
 	handleUnlinkTypeWithProfile func(componentType, targetFilter string, force bool, profile string)
 	handleUninstall             func(componentType, componentName, profile string)
 	handleUninstallAll          func(repoURL string, force bool)
-	handleProfilesList          func(profileFilter []string, activeOnly bool)
+	handleProfilesList          func(profileFilter []string, activeOnly bool, typeFilter string)
 	handleProfilesShow          func(profileName string)
 	handleProfilesCreate        func(profileName string)
 	handleProfilesDelete        func(profileName string)
@@ -1877,7 +1915,7 @@ func SetHandlers(
 	unlinkTypeWithProfile func(componentType, targetFilter string, force bool, profile string),
 	uninstall func(componentType, componentName, profile string),
 	uninstallAll func(repoURL string, force bool),
-	profilesList func(profileFilter []string, activeOnly bool),
+	profilesList func(profileFilter []string, activeOnly bool, typeFilter string),
 	profilesShow func(profileName string),
 	profilesCreate func(profileName string),
 	profilesDelete func(profileName string),

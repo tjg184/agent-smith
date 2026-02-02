@@ -23,7 +23,8 @@ type ProfileManager struct {
 
 // ProfileMetadata stores metadata about a profile's source
 type ProfileMetadata struct {
-	SourceURL string `json:"source_url"`
+	Type      string `json:"type"`       // "repo" or "user"
+	SourceURL string `json:"source_url"` // Only populated for type="repo"
 }
 
 // NewProfileManager creates a new ProfileManager instance
@@ -58,6 +59,7 @@ func (pm *ProfileManager) SaveProfileMetadata(profileName, sourceURL string) err
 	}
 
 	metadata := ProfileMetadata{
+		Type:      "repo",
 		SourceURL: normalizedURL,
 	}
 
@@ -71,6 +73,29 @@ func (pm *ProfileManager) SaveProfileMetadata(profileName, sourceURL string) err
 	}
 
 	fmt.Printf("✓ Profile metadata saved successfully\n")
+	return nil
+}
+
+// SaveUserProfileMetadata saves metadata for a user-created profile.
+// This creates a metadata file marking the profile as type="user" with no source URL.
+// Returns an error if the metadata file cannot be written.
+func (pm *ProfileManager) SaveUserProfileMetadata(profileName string) error {
+	profileDir := filepath.Join(pm.profilesDir, profileName)
+	metadataPath := filepath.Join(profileDir, ".profile-metadata")
+
+	metadata := ProfileMetadata{
+		Type: "user",
+	}
+
+	data, err := json.MarshalIndent(metadata, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	if err := os.WriteFile(metadataPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write metadata file: %w", err)
+	}
+
 	return nil
 }
 
@@ -98,6 +123,26 @@ func (pm *ProfileManager) LoadProfileMetadata(profileName string) (*ProfileMetad
 	}
 
 	return &metadata, nil
+}
+
+// GetProfileType returns the type of a profile ("repo", "user", or "unknown").
+// Returns "unknown" for profiles without metadata (legacy profiles).
+// Returns an error only if there's a problem reading the metadata file.
+func (pm *ProfileManager) GetProfileType(profileName string) (string, error) {
+	metadata, err := pm.LoadProfileMetadata(profileName)
+	if err != nil {
+		return "", fmt.Errorf("failed to load metadata: %w", err)
+	}
+
+	if metadata == nil {
+		return "unknown", nil // No metadata file
+	}
+
+	if metadata.Type == "" {
+		return "unknown", nil // Metadata exists but no type field (legacy)
+	}
+
+	return metadata.Type, nil
 }
 
 // FindProfileBySourceURL finds a profile that matches the given source URL.
@@ -1019,6 +1064,12 @@ func (pm *ProfileManager) CreateProfile(profileName string) error {
 	fmt.Printf("  - %s\n", paths.CommandsSubDir)
 	fmt.Println("\nYou can now add components to this profile and activate it with:")
 	fmt.Printf("  agent-smith profiles activate %s\n", profileName)
+
+	// Save user-type metadata
+	if err := pm.SaveUserProfileMetadata(profileName); err != nil {
+		// Log warning but don't fail the operation
+		fmt.Printf("Warning: Failed to save profile metadata: %v\n", err)
+	}
 
 	return nil
 }

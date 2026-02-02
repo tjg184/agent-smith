@@ -1261,10 +1261,15 @@ func main() {
 				log.Fatal("Failed to uninstall components:", err)
 			}
 		},
-		func(profileFilter []string, activeOnly bool) {
+		func(profileFilter []string, activeOnly bool, typeFilter string) {
 			pm, err := profiles.NewProfileManager(nil)
 			if err != nil {
 				log.Fatal("Failed to create profile manager:", err)
+			}
+
+			// Validate typeFilter if provided
+			if typeFilter != "" && typeFilter != "repo" && typeFilter != "user" {
+				log.Fatalf("Invalid type filter '%s'. Valid values are: repo, user", typeFilter)
 			}
 
 			profilesList, err := pm.ScanProfiles()
@@ -1319,6 +1324,22 @@ func main() {
 				filteredProfiles = profilesList
 			}
 
+			// Apply type filter if specified
+			if typeFilter != "" {
+				var typeFilteredProfiles []*profiles.Profile
+				for _, profile := range filteredProfiles {
+					profileType, err := pm.GetProfileType(profile.Name)
+					if err != nil {
+						// Log warning but continue
+						continue
+					}
+					if profileType == typeFilter {
+						typeFilteredProfiles = append(typeFilteredProfiles, profile)
+					}
+				}
+				filteredProfiles = typeFilteredProfiles
+			}
+
 			// Display results
 			if len(filteredProfiles) == 0 {
 				if activeOnly {
@@ -1339,6 +1360,21 @@ func main() {
 
 			// Add rows to table
 			for _, profile := range filteredProfiles {
+				// Get profile type and metadata
+				profileType, err := pm.GetProfileType(profile.Name)
+				if err != nil {
+					profileType = "unknown"
+				}
+
+				// Get metadata for repo profiles
+				var sourceURL string
+				if profileType == "repo" {
+					metadata, err := pm.LoadProfileMetadata(profile.Name)
+					if err == nil && metadata != nil {
+						sourceURL = metadata.SourceURL
+					}
+				}
+
 				// Count components
 				agents, skills, commands := pm.CountComponents(profile)
 
@@ -1373,12 +1409,30 @@ func main() {
 					componentStr = "(empty)"
 				}
 
-				// Build profile cell with active indicator
+				// Build profile cell with active indicator and type emoji
 				activeIndicator := " "
 				if profile.Name == activeProfile {
 					activeIndicator = formatter.ColoredSuccess()
 				}
-				profileCell := fmt.Sprintf("%s %s", activeIndicator, profile.Name)
+
+				// Add type emoji
+				var typeEmoji string
+				switch profileType {
+				case "repo":
+					typeEmoji = "📦"
+				case "user":
+					typeEmoji = "👤"
+				default:
+					typeEmoji = "❓"
+				}
+
+				// Build profile name with source URL for repo types
+				profileName := profile.Name
+				if profileType == "repo" && sourceURL != "" {
+					profileName = fmt.Sprintf("%s (%s)", profile.Name, sourceURL)
+				}
+
+				profileCell := fmt.Sprintf("%s %s %s", activeIndicator, typeEmoji, profileName)
 
 				// Add row to table
 				table.AddRow([]string{profileCell, componentStr})
@@ -1391,9 +1445,11 @@ func main() {
 			appFormatter.EmptyLine()
 			appFormatter.Info("Legend:")
 			appFormatter.Info("  %s - Currently active profile", formatter.ColoredSuccess())
+			appFormatter.Info("  📦 - Repository-sourced profile")
+			appFormatter.Info("  👤 - User-created profile")
 
 			// Display total count
-			if len(profileFilter) > 0 || activeOnly {
+			if len(profileFilter) > 0 || activeOnly || typeFilter != "" {
 				appFormatter.Info("\nShowing: %d profile(s) (filtered from %d total)", len(filteredProfiles), len(profilesList))
 			} else {
 				appFormatter.Info("\nTotal: %d profile(s)", len(filteredProfiles))
