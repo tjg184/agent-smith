@@ -1712,6 +1712,40 @@ EXAMPLES:
 	materializeListCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeCmd.AddCommand(materializeListCmd)
 
+	materializeInfoCmd := &cobra.Command{
+		Use:   "info <type> <name>",
+		Short: "Show provenance information for a materialized component",
+		Long: `Show detailed provenance information for a specific materialized component.
+
+This command displays the origin and metadata for a component that has been
+materialized to the current project, including source repository, commit hash,
+materialization time, and sync status.
+
+The component type must be one of: skills, agents, commands
+
+EXAMPLES:
+  # Show info for a materialized skill
+  agent-smith materialize info skills my-skill
+
+  # Show info for a materialized agent
+  agent-smith materialize info agents my-agent
+
+  # Show info for a specific target
+  agent-smith materialize info skills my-skill --target opencode
+
+  # Show info from a specific project directory
+  agent-smith materialize info skills my-skill --project-dir ~/my-project`,
+		Args: exactArgsWithComponentTypeValidation(2, 0, "agent-smith materialize info <type> <name>"),
+		Run: func(cmd *cobra.Command, args []string) {
+			target, _ := cmd.Flags().GetString("target")
+			projectDir, _ := cmd.Flags().GetString("project-dir")
+			handleMaterializeInfo(args[0], args[1], target, projectDir)
+		},
+	}
+	materializeInfoCmd.Flags().StringP("target", "t", "", "Optional target to check (opencode or claudecode). If not specified, shows info for all targets")
+	materializeInfoCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeCmd.AddCommand(materializeInfoCmd)
+
 	rootCmd.AddCommand(materializeCmd)
 
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
@@ -1755,6 +1789,7 @@ var (
 	handleMaterializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool)
 	handleMaterializeAll       func(target, projectDir string, force, dryRun bool)
 	handleMaterializeList      func(projectDir string)
+	handleMaterializeInfo      func(componentType, componentName, target, projectDir string)
 )
 
 func SetHandlers(
@@ -1792,6 +1827,7 @@ func SetHandlers(
 	materializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool),
 	materializeAll func(target, projectDir string, force, dryRun bool),
 	materializeList func(projectDir string),
+	materializeInfo func(componentType, componentName, target, projectDir string),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
@@ -1827,4 +1863,5 @@ func SetHandlers(
 	handleMaterializeComponent = materializeComponent
 	handleMaterializeAll = materializeAll
 	handleMaterializeList = materializeList
+	handleMaterializeInfo = materializeInfo
 }

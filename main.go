@@ -2541,6 +2541,148 @@ func main() {
 				infoPrintln("  agent-smith materialize all --target opencode")
 			}
 		},
+		func(componentType, componentName, target, projectDir string) {
+			// Handle materialize info command
+			green := color.New(color.FgGreen).SprintFunc()
+			yellow := color.New(color.FgYellow).SprintFunc()
+			red := color.New(color.FgRed).SprintFunc()
+			cyan := color.New(color.FgCyan).SprintFunc()
+			bold := color.New(color.Bold).SprintFunc()
+
+			var projectRoot string
+			var err error
+			if projectDir != "" {
+				// Use specified project directory
+				projectRoot, err = filepath.Abs(projectDir)
+				if err != nil {
+					log.Fatalf("Failed to resolve project directory: %v", err)
+				}
+			} else {
+				// Auto-detect project root
+				projectRoot, err = project.FindProjectRoot()
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+
+			// Track if we found the component in any target
+			foundInAnyTarget := false
+
+			// Determine which targets to check
+			var targetsToCheck []string
+			if target != "" {
+				targetsToCheck = []string{target}
+			} else {
+				targetsToCheck = []string{"opencode", "claudecode"}
+			}
+
+			// Check each target
+			for _, targetName := range targetsToCheck {
+				targetDir := project.GetTargetDirectory(projectRoot, targetName)
+
+				// Check if target directory exists
+				if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+					if target != "" {
+						// User specified a target that doesn't exist
+						infoPrintf("%s Target directory not found: %s\n", red(formatter.SymbolError), targetName)
+					}
+					continue
+				}
+
+				// Load materialization metadata
+				metadata, err := project.LoadMaterializationMetadata(targetDir)
+				if err != nil {
+					debugPrintf("[DEBUG] Failed to load metadata for %s: %v\n", targetName, err)
+					continue
+				}
+
+				// Get the component map for the given type
+				componentMap := metadata.GetComponentMap(componentType)
+				if componentMap == nil {
+					log.Fatalf("Invalid component type: %s (must be skills, agents, or commands)", componentType)
+				}
+
+				// Look up the component
+				meta, exists := componentMap[componentName]
+				if !exists {
+					if target != "" {
+						// User specified a target but component not found
+						infoPrintf("%s Component '%s' not found in %s target\n", red(formatter.SymbolError), componentName, targetName)
+					}
+					continue
+				}
+
+				foundInAnyTarget = true
+
+				// Display target header
+				var targetLabel string
+				if targetName == "opencode" {
+					targetLabel = "OpenCode (.opencode/)"
+				} else {
+					targetLabel = "Claude Code (.claude/)"
+				}
+
+				infoPrintf("\n%s Provenance Information - %s\n\n", green(formatter.SymbolSuccess), bold(targetLabel))
+
+				// Display component information
+				infoPrintf("  %s: %s\n", cyan("Component"), componentName)
+				infoPrintf("  %s: %s\n", cyan("Type"), componentType)
+				infoPrintln("")
+
+				// Display source information
+				infoPrintf("  %s\n", bold("Source Information:"))
+				infoPrintf("    %s: %s\n", cyan("Repository"), meta.Source)
+				infoPrintf("    %s: %s\n", cyan("Source Type"), meta.SourceType)
+				if meta.SourceProfile != "" {
+					infoPrintf("    %s: %s\n", cyan("Profile"), meta.SourceProfile)
+				}
+				infoPrintf("    %s: %s\n", cyan("Commit Hash"), meta.CommitHash)
+				infoPrintf("    %s: %s\n", cyan("Original Path"), meta.OriginalPath)
+				infoPrintln("")
+
+				// Display materialization information
+				infoPrintf("  %s\n", bold("Materialization:"))
+				infoPrintf("    %s: %s\n", cyan("Materialized At"), meta.MaterializedAt)
+				infoPrintf("    %s: %s\n", cyan("Target Directory"), targetDir)
+				infoPrintln("")
+
+				// Display hash information for sync status
+				infoPrintf("  %s\n", bold("Sync Status:"))
+				infoPrintf("    %s: %s\n", cyan("Source Hash"), meta.SourceHash)
+
+				// Recalculate current hash from the actual directory
+				componentPath := filepath.Join(targetDir, componentType, componentName)
+				actualCurrentHash, err := materializer.CalculateDirectoryHash(componentPath)
+				if err != nil {
+					debugPrintf("[DEBUG] Failed to calculate current hash: %v\n", err)
+					// Fall back to stored hash
+					actualCurrentHash = meta.CurrentHash
+				}
+
+				infoPrintf("    %s: %s\n", cyan("Current Hash"), actualCurrentHash)
+
+				// Check if hashes match
+				if meta.SourceHash == actualCurrentHash {
+					infoPrintf("    %s: %s (component is unchanged)\n", cyan("Status"), green("In Sync"))
+				} else {
+					infoPrintf("    %s: %s (component has been modified)\n", cyan("Status"), yellow("Modified"))
+				}
+
+				infoPrintln("")
+			}
+
+			if !foundInAnyTarget {
+				if target != "" {
+					// Specific target was requested but component not found
+					infoPrintf("\n%s Component '%s' not materialized in %s target\n\n", red(formatter.SymbolError), componentName, target)
+				} else {
+					// No target specified and component not found in any target
+					infoPrintf("\n%s Component '%s' (%s) not materialized in current project\n\n", red(formatter.SymbolError), componentName, componentType)
+					infoPrintln("To materialize this component:")
+					infoPrintf("  agent-smith materialize %s %s --target opencode\n", strings.TrimSuffix(componentType, "s"), componentName)
+				}
+			}
+		},
 	)
 
 	// Execute Cobra command
