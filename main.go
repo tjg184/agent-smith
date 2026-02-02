@@ -2185,7 +2185,12 @@ func main() {
 				// Auto-detect project root
 				projectRoot, err = project.FindProjectRoot()
 				if err != nil {
-					log.Fatal(err)
+					// No project found, use current directory
+					debugPrintln("[DEBUG] No project found, using current directory")
+					projectRoot, err = os.Getwd()
+					if err != nil {
+						log.Fatalf("Failed to get current directory: %v", err)
+					}
 				}
 			}
 
@@ -2477,7 +2482,12 @@ func main() {
 				// Auto-detect project root
 				projectRoot, err = project.FindProjectRoot()
 				if err != nil {
-					log.Fatal(err)
+					// No project found, use current directory
+					debugPrintln("[DEBUG] No project found, using current directory")
+					projectRoot, err = os.Getwd()
+					if err != nil {
+						log.Fatalf("Failed to get current directory: %v", err)
+					}
 				}
 			}
 
