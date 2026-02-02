@@ -13,7 +13,6 @@ Install, manage, and link AI components with ease:
 
 ## Documentation
 
-- [CONFIG.md](CONFIG.md) - Comprehensive configuration guide
 - [TESTING.md](TESTING.md) - Testing guide
 
 ## Installation
@@ -294,7 +293,7 @@ agent-smith link status
 ```
 
 **Custom target configuration:**
-Custom targets are stored in `~/.agent-smith/config.json`. See [CONFIG.md](CONFIG.md) for detailed documentation.
+Custom targets are stored in `~/.agent-smith/config.json`:
 
 ```json
 {
