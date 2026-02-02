@@ -2041,8 +2041,12 @@ func main() {
 				}
 
 				// Ensure target structure exists
-				if err := project.EnsureTargetStructure(targetDir); err != nil {
+				structureCreated, err := project.EnsureTargetStructure(targetDir)
+				if err != nil {
 					log.Fatalf("Failed to create target structure: %v", err)
+				}
+				if structureCreated {
+					infoPrintf("%s Created project structure: %s/ (skills/, agents/, commands/)\n", formatter.SymbolSuccess, targetDir)
 				}
 
 				// Determine destination path

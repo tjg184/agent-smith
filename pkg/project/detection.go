@@ -69,20 +69,31 @@ func GetTargetDirectory(projectRoot, targetName string) string {
 
 // EnsureTargetStructure creates the target directory structure if it doesn't exist.
 // Creates the target directory and subdirectories: skills/, agents/, commands/
-func EnsureTargetStructure(targetDir string) error {
+// Returns true if any directories were created (structure was initialized), false if all existed.
+func EnsureTargetStructure(targetDir string) (bool, error) {
+	created := false
+
+	// Check if target directory exists
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+		created = true
+	}
+
 	// Create target directory
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		return fmt.Errorf("failed to create target directory: %w", err)
+		return false, fmt.Errorf("failed to create target directory: %w", err)
 	}
 
 	// Create subdirectories
 	subdirs := []string{"skills", "agents", "commands"}
 	for _, subdir := range subdirs {
 		subdirPath := filepath.Join(targetDir, subdir)
+		if _, err := os.Stat(subdirPath); os.IsNotExist(err) {
+			created = true
+		}
 		if err := os.MkdirAll(subdirPath, 0755); err != nil {
-			return fmt.Errorf("failed to create subdirectory %s: %w", subdir, err)
+			return false, fmt.Errorf("failed to create subdirectory %s: %w", subdir, err)
 		}
 	}
 
-	return nil
+	return created, nil
 }
