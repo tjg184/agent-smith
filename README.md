@@ -382,6 +382,106 @@ Show current status and active profile.
 agent-smith status
 ```
 
+## Project Detection
+
+Agent Smith uses intelligent project detection to determine where to materialize components. Understanding how this works helps you control where `.opencode/` or `.claude/` directories will be created.
+
+### How Project Detection Works
+
+When you run materialization commands (e.g., `agent-smith materialize skill api-design --target opencode`), agent-smith walks up the directory tree from your current location looking for project markers.
+
+**Search order:**
+1. **Preferred markers** (`.opencode/` or `.claude/` directories) - If found, this directory is immediately used as the project root
+2. **Project boundary markers** - Common project indicators that define where your project begins
+3. **Stop conditions** - Home directory or filesystem root (search stops, error returned)
+
+### Supported Project Markers
+
+**Preferred markers** (immediately recognized):
+- `.opencode/` - Agent Smith project directory
+- `.claude/` - Claude project directory
+
+**Project boundary markers** (define project root):
+- `.git/` - Git repository
+- `go.mod` - Go projects
+- `package.json` - Node.js projects
+- `pyproject.toml` - Python projects
+- `Cargo.toml` - Rust projects
+- `composer.json` - PHP projects
+- `pom.xml` - Java Maven projects
+- `build.gradle` - Java Gradle projects
+- `Gemfile` - Ruby projects
+- `mix.exs` - Elixir projects
+
+### Examples
+
+**Example 1: Working in a nested directory**
+```bash
+# Directory structure:
+# ~/projects/my-app/
+# ├── .git/
+# ├── src/
+# │   └── components/  ← You are here
+# └── tests/
+
+cd ~/projects/my-app/src/components
+agent-smith materialize skill api-design --target opencode
+
+# Result: Creates ~/projects/my-app/.opencode/
+# Detection: Found .git/ at ~/projects/my-app/, created .opencode/ there
+```
+
+**Example 2: Project with existing .opencode/**
+```bash
+# Directory structure:
+# ~/projects/my-app/
+# ├── .git/
+# ├── .opencode/  ← Already exists
+# └── src/
+#     └── api/  ← You are here
+
+cd ~/projects/my-app/src/api
+agent-smith materialize skill api-design --target opencode
+
+# Result: Uses existing ~/projects/my-app/.opencode/
+# Detection: Found .opencode/ at ~/projects/my-app/, uses it immediately
+```
+
+**Example 3: No project markers**
+```bash
+# Directory structure:
+# ~/random-scripts/  ← No .git, no project files
+#     └── utils/  ← You are here
+
+cd ~/random-scripts/utils
+agent-smith materialize skill api-design --target opencode
+
+# Result: Error - no project boundary detected
+# Fix: Either run 'git init' or 'mkdir .opencode' or use --project-dir flag
+```
+
+**Example 4: Overriding detection**
+```bash
+# Use --project-dir to explicitly specify where to materialize
+agent-smith materialize skill api-design --target opencode --project-dir ~/my-custom-location
+
+# Result: Creates ~/my-custom-location/.opencode/
+# Detection: Bypassed - explicit directory provided
+```
+
+### Important Notes
+
+- **Home directory isolation**: If you have `~/.opencode/` in your home directory, it will NOT be used when you're inside a project boundary (e.g., a Git repository). Agent-smith respects project boundaries and won't cross them.
+
+- **Project boundaries are respected**: Once a project boundary marker is found (like `.git/`), the search stops. Agent-smith will not look in parent directories beyond the project root.
+
+- **Creating .opencode/ automatically**: If you're in a project (detected via boundary markers like `.git/`) but no `.opencode/` exists, it will be created at the project root automatically.
+
+- **No project detected**: If you're in a directory without any project markers, materialization will fail with a helpful error message. You can fix this by:
+  1. Running `git init` to create a Git repository
+  2. Running `mkdir .opencode` to create the preferred marker
+  3. Using `--project-dir` flag to explicitly specify the location
+
 ## Directory Structure
 
 Agent Smith stores components and configuration in the following locations:
