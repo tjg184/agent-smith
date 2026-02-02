@@ -42,7 +42,7 @@ This PRD addresses the inconsistency by making `unlink all` profile-aware to mat
   **Component Browser Tests:**
   - Not applicable (CLI command)
 
-- [ ] Story-002: As a user managing multiple profiles, I want an `--all-profiles` flag for `unlink all` so that I can bulk unlink components from all profiles when needed.
+- [x] Story-002: As a user managing multiple profiles, I want an `--all-profiles` flag for `unlink all` so that I can bulk unlink components from all profiles when needed.
 
   **Acceptance Criteria:**
   - `unlink all --all-profiles` unlinks components from all profiles, not just active one
@@ -63,7 +63,7 @@ This PRD addresses the inconsistency by making `unlink all` profile-aware to mat
   **Component Browser Tests:**
   - Not applicable (CLI command)
 
-- [ ] Story-003: As a user with an active profile, I want `link all` to support `--all-profiles` flag so that I can link components from all profiles simultaneously when needed.
+- [x] Story-003: As a user with an active profile, I want `link all` to support `--all-profiles` flag so that I can link components from all profiles simultaneously when needed.
 
   **Acceptance Criteria:**
   - `link all --all-profiles` links components from all profiles to targets
@@ -86,7 +86,7 @@ This PRD addresses the inconsistency by making `unlink all` profile-aware to mat
   **Component Browser Tests:**
   - Not applicable (CLI command)
 
-- [ ] Story-004: As a developer, I want a reusable method to determine which profile a symlink belongs to so that profile-aware operations can share this logic.
+- [x] Story-004: As a developer, I want a reusable method to determine which profile a symlink belongs to so that profile-aware operations can share this logic.
 
   **Acceptance Criteria:**
   - New method `isSymlinkFromProfile(symlinkPath, profilePath)` returns boolean and profile name
@@ -109,7 +109,7 @@ This PRD addresses the inconsistency by making `unlink all` profile-aware to mat
   **Component Browser Tests:**
   - Not applicable (internal utility method)
 
-- [ ] Story-005: As a user, I want clear messaging during unlink operations so that I understand which profiles are being affected and what is being skipped.
+- [x] Story-005: As a user, I want clear messaging during unlink operations so that I understand which profiles are being affected and what is being skipped.
 
   **Acceptance Criteria:**
   - Confirmation prompts show exact profile names being affected

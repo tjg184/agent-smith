@@ -46,6 +46,25 @@ func getProfileFromPath(path string) string {
 	}
 }
 
+// GetProfileNameFromSymlink extracts the profile name from a symlink's target path
+// Returns the profile name if the symlink points to a profile, or "base" if it points to base installation
+// Returns empty string if the symlink is broken or invalid
+func GetProfileNameFromSymlink(symlinkPath string) string {
+	// Read the symlink target
+	target, err := os.Readlink(symlinkPath)
+	if err != nil {
+		return "" // Broken or not a symlink
+	}
+
+	// Resolve relative paths
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(filepath.Dir(symlinkPath), target)
+	}
+
+	// Use getProfileFromPath to extract profile name
+	return getProfileFromPath(target)
+}
+
 // analyzeLinkStatus analyzes the status of a link/directory
 func (cl *ComponentLinker) analyzeLinkStatus(path string) (linkType string, target string, valid bool) {
 	info, err := os.Lstat(path)

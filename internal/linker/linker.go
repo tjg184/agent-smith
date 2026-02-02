@@ -1698,7 +1698,8 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 	// First, collect all symlinks across all targets
 	totalLinks := 0
 	copiedDirs := 0
-	skippedProfiles := 0
+	skippedProfilesCount := 0
+	skippedProfilesMap := make(map[string]int) // Track count per profile
 
 	for _, target := range targetsToUnlink {
 		for _, componentType := range componentTypes {
@@ -1733,7 +1734,12 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 				if !allProfiles && linkType == "symlink" {
 					belongsToProfile, err := cl.isSymlinkFromCurrentProfile(fullPath)
 					if err == nil && !belongsToProfile {
-						skippedProfiles++
+						// Track which profile this component belongs to
+						profileName := GetProfileNameFromSymlink(fullPath)
+						if profileName != "" {
+							skippedProfilesMap[profileName]++
+						}
+						skippedProfilesCount++
 						continue
 					}
 				}
@@ -1743,10 +1749,13 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 		}
 	}
 
-	if totalLinks == 0 && copiedDirs == 0 && skippedProfiles == 0 {
+	if totalLinks == 0 && copiedDirs == 0 && skippedProfilesCount == 0 {
 		cl.formatter.InfoMsg("No linked components found")
 		return nil
 	}
+
+	// Determine current profile name for messaging
+	currentProfileName := getProfileFromPath(cl.agentsDir)
 
 	// Require force flag or confirmation
 	if !force {
@@ -1768,7 +1777,11 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 			if allProfiles {
 				profileMsg = " from all profiles"
 			} else {
-				profileMsg = " from current profile"
+				if currentProfileName == "base" {
+					profileMsg = " from base installation"
+				} else {
+					profileMsg = fmt.Sprintf(" from profile '%s'", currentProfileName)
+				}
 			}
 			fmt.Printf("This will unlink %d symlinked components%s from: %s", totalLinks, profileMsg, targetStr)
 			fmt.Println()
@@ -1776,12 +1789,29 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 		if copiedDirs > 0 {
 			cl.formatter.InfoMsg("Note: %d copied directories will be skipped (not deleted)", copiedDirs)
 		}
-		if skippedProfiles > 0 && !allProfiles {
-			cl.formatter.InfoMsg("Note: %d components from other profiles will be skipped", skippedProfiles)
+		if skippedProfilesCount > 0 && !allProfiles {
+			// Show detailed breakdown of skipped profiles
+			profileNames := make([]string, 0, len(skippedProfilesMap))
+			for profileName := range skippedProfilesMap {
+				profileNames = append(profileNames, profileName)
+			}
+			if len(profileNames) == 1 {
+				cl.formatter.InfoMsg("Note: %d components from profile '%s' will be skipped", skippedProfilesCount, profileNames[0])
+			} else if len(profileNames) > 1 {
+				cl.formatter.InfoMsg("Note: %d components from other profiles will be skipped:", skippedProfilesCount)
+				for _, profileName := range profileNames {
+					count := skippedProfilesMap[profileName]
+					fmt.Printf("  - %s: %d components\n", profileName, count)
+				}
+			}
 		}
 		if totalLinks == 0 {
-			if skippedProfiles > 0 {
-				cl.formatter.InfoMsg("No symlinked components from current profile to unlink (found %d from other profiles)", skippedProfiles)
+			if skippedProfilesCount > 0 {
+				if currentProfileName == "base" {
+					cl.formatter.InfoMsg("No symlinked components from base installation to unlink (found %d from profiles)", skippedProfilesCount)
+				} else {
+					cl.formatter.InfoMsg("No symlinked components from profile '%s' to unlink (found %d from other profiles)", currentProfileName, skippedProfilesCount)
+				}
 			} else {
 				cl.formatter.InfoMsg("No symlinked components to unlink (only copied directories found)")
 			}
@@ -1798,21 +1828,41 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 		}
 	}
 
-	// Print header showing what we're unlinking
+	// Print header showing what we're unlinking with profile context
+	headerMsg := ""
 	if targetFilter != "" && targetFilter != "all" {
-		cl.formatter.SectionHeader(fmt.Sprintf("Unlinking all components from: %s", targetFilter))
+		if allProfiles {
+			headerMsg = fmt.Sprintf("Unlinking all components (all profiles) from: %s", targetFilter)
+		} else {
+			if currentProfileName == "base" {
+				headerMsg = fmt.Sprintf("Unlinking components (base installation) from: %s", targetFilter)
+			} else {
+				headerMsg = fmt.Sprintf("Unlinking components (profile '%s') from: %s", currentProfileName, targetFilter)
+			}
+		}
 	} else {
 		// Build list of target names
 		targetNames := make([]string, 0, len(targetsToUnlink))
 		for _, target := range targetsToUnlink {
 			targetNames = append(targetNames, target.GetName())
 		}
-		cl.formatter.SectionHeader(fmt.Sprintf("Unlinking all components from: %s", strings.Join(targetNames, ", ")))
+		targetList := strings.Join(targetNames, ", ")
+		if allProfiles {
+			headerMsg = fmt.Sprintf("Unlinking all components (all profiles) from: %s", targetList)
+		} else {
+			if currentProfileName == "base" {
+				headerMsg = fmt.Sprintf("Unlinking components (base installation) from: %s", targetList)
+			} else {
+				headerMsg = fmt.Sprintf("Unlinking components (profile '%s') from: %s", currentProfileName, targetList)
+			}
+		}
 	}
+	cl.formatter.SectionHeader(headerMsg)
 
-	// Remove all symlinks (skip copied directories)
+	// Remove all symlinks (skip copied directories and other profiles' components)
 	removedCount := 0
 	skippedCount := 0
+	skippedByProfile := make(map[string][]string) // Track skipped items by profile
 	errorCount := 0
 
 	for _, target := range targetsToUnlink {
@@ -1850,13 +1900,27 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 				if !allProfiles && linkType == "symlink" {
 					belongsToProfile, err := cl.isSymlinkFromCurrentProfile(fullPath)
 					if err == nil && !belongsToProfile {
+						// Track which profile this skipped component belongs to
+						profileName := GetProfileNameFromSymlink(fullPath)
+						if profileName != "" {
+							skippedByProfile[profileName] = append(skippedByProfile[profileName], fmt.Sprintf("%s/%s", componentType, entry.Name()))
+						}
 						skippedCount++
 						continue
 					}
 				}
 
-				// Show progress for each item
-				cl.formatter.ProgressMsg(fmt.Sprintf("Unlinking %s from %s", componentType, target.GetName()), entry.Name())
+				// Determine profile for progress message
+				profileNote := ""
+				if linkType == "symlink" {
+					profileName := GetProfileNameFromSymlink(fullPath)
+					if profileName != "" && profileName != "base" {
+						profileNote = fmt.Sprintf(" [%s]", profileName)
+					}
+				}
+
+				// Show progress for each item with profile context
+				cl.formatter.ProgressMsg(fmt.Sprintf("Unlinking %s from %s%s", componentType, target.GetName(), profileNote), entry.Name())
 
 				// Remove symlinks and broken links
 				var err error
@@ -1874,9 +1938,27 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 		}
 	}
 
-	// Display summary
+	// Display summary with profile breakdown
 	cl.formatter.EmptyLine()
 	cl.formatter.CounterSummary(removedCount+errorCount, removedCount, errorCount, skippedCount)
+
+	// Show detailed breakdown of skipped items by profile if any
+	if len(skippedByProfile) > 0 && !allProfiles {
+		cl.formatter.EmptyLine()
+		fmt.Println("Skipped components from other profiles:")
+		for profileName, components := range skippedByProfile {
+			fmt.Printf("  Profile '%s' (%d components):\n", profileName, len(components))
+			for _, comp := range components {
+				fmt.Printf("    - %s\n", comp)
+			}
+		}
+		cl.formatter.EmptyLine()
+		if currentProfileName == "base" {
+			cl.formatter.InfoMsg("Use --all-profiles flag to unlink components from all profiles")
+		} else {
+			cl.formatter.InfoMsg("Use --all-profiles flag to unlink components from all profiles, or switch to the respective profile")
+		}
+	}
 
 	return nil
 }
