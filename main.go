@@ -918,17 +918,79 @@ func main() {
 			}
 			debugPrintln("[DEBUG] Component linked successfully")
 		},
-		func(targetFilter, profile string) {
-			debugPrintf("[DEBUG] handleLinkAll called with targetFilter=%s, profile=%s\n", targetFilter, profile)
-			linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
-			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
+		func(targetFilter, profile string, allProfiles bool) {
+			debugPrintf("[DEBUG] handleLinkAll called with targetFilter=%s, profile=%s, allProfiles=%v\n", targetFilter, profile, allProfiles)
+
+			// Validate flag combination
+			if allProfiles && profile != "" {
+				log.Fatal("Cannot use both --all-profiles and --profile flags together")
 			}
-			debugPrintln("[DEBUG] Component linker created successfully")
-			if err := linker.LinkAllComponents(); err != nil {
-				log.Fatal("Failed to link all components:", err)
+
+			if allProfiles {
+				// Link from all profiles
+				debugPrintln("[DEBUG] Linking from all profiles")
+
+				// Create profile manager
+				pm, err := profiles.NewProfileManager(nil)
+				if err != nil {
+					log.Fatal("Failed to create profile manager:", err)
+				}
+
+				// Get all profiles
+				allProfilesList, err := pm.ScanProfiles()
+				if err != nil {
+					log.Fatal("Failed to scan profiles:", err)
+				}
+
+				if len(allProfilesList) == 0 {
+					log.Fatal("No profiles found. Create a profile first with: agent-smith profile create <name>")
+				}
+
+				// Color helpers
+				bold := color.New(color.Bold).SprintFunc()
+				green := color.New(color.FgGreen, color.Bold).SprintFunc()
+				cyan := color.New(color.FgCyan).SprintFunc()
+				gray := color.New(color.FgHiBlack).SprintFunc()
+
+				// Link from each profile
+				fmt.Printf("\n%s\n", bold("Linking components from all profiles..."))
+				fmt.Println()
+
+				for _, profileItem := range allProfilesList {
+					fmt.Printf("%s\n", cyan(fmt.Sprintf("Profile: %s", profileItem.Name)))
+
+					linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profileItem.Name)
+					if err != nil {
+						log.Fatalf("Failed to create component linker for profile '%s': %v", profileItem.Name, err)
+					}
+
+					// Count components before linking to check if profile has any
+					agents, skills, commands := pm.CountComponents(profileItem)
+					totalComponents := agents + skills + commands
+
+					if totalComponents == 0 {
+						fmt.Printf("  %s\n\n", gray("(no components)"))
+						continue
+					}
+
+					if err := linker.LinkAllComponents(); err != nil {
+						log.Fatalf("Failed to link components from profile '%s': %v", profileItem.Name, err)
+					}
+				}
+
+				fmt.Printf("\n%s\n", green("✓ Successfully linked components from all profiles"))
+			} else {
+				// Link from single profile (existing behavior)
+				linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
+				if err != nil {
+					log.Fatal("Failed to create component linker:", err)
+				}
+				debugPrintln("[DEBUG] Component linker created successfully")
+				if err := linker.LinkAllComponents(); err != nil {
+					log.Fatal("Failed to link all components:", err)
+				}
+				debugPrintln("[DEBUG] All components linked successfully")
 			}
-			debugPrintln("[DEBUG] All components linked successfully")
 		},
 		func(componentType, targetFilter, profile string) {
 			debugPrintf("[DEBUG] handleLinkType called with componentType=%s, targetFilter=%s, profile=%s\n", componentType, targetFilter, profile)

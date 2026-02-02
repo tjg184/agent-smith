@@ -618,6 +618,7 @@ PROFILE AWARENESS:
   - With active profile: Links components from the active profile
   - No active profile: Links all components from ~/.agent-smith/ (base installation)
   - With --profile flag: Links components from the specified profile (bypasses active profile)
+  - With --all-profiles flag: Links components from all profiles simultaneously
 
 TWO-STEP WORKFLOW:
   1. Activate a profile: agent-smith profile activate <name>
@@ -636,24 +637,29 @@ EXAMPLES:
   agent-smith link all --all-targets
 
   # Link all components from a specific profile (bypasses active profile)
-  agent-smith link all --profile work`,
+  agent-smith link all --profile work
+
+  # Link all components from all profiles simultaneously
+  agent-smith link all --all-profiles`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			allTargets, _ := cmd.Flags().GetBool("all-targets")
 			profile, _ := cmd.Flags().GetString("profile")
+			allProfiles, _ := cmd.Flags().GetBool("all-profiles")
 
 			// If --all-targets is specified, override targetFilter to "all"
 			if allTargets {
 				targetFilter = "all"
 			}
 
-			handleLinkAll(targetFilter, profile)
+			handleLinkAll(targetFilter, profile, allProfiles)
 		},
 	}
 	linkAllCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
 	linkAllCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
 	linkAllCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
+	linkAllCmd.Flags().Bool("all-profiles", false, "Link components from all profiles simultaneously")
 	linkCmd.AddCommand(linkAllCmd)
 
 	linkAutoCmd := &cobra.Command{
@@ -1781,7 +1787,7 @@ var (
 	handleUpdate               func(componentType, componentName, profile string)
 	handleUpdateAll            func(profile string)
 	handleLink                 func(componentType, componentName, targetFilter, profile string)
-	handleLinkAll              func(targetFilter, profile string)
+	handleLinkAll              func(targetFilter, profile string, allProfiles bool)
 	handleLinkType             func(componentType, targetFilter, profile string)
 	handleAutoLink             func()
 	handleListLinks            func()
@@ -1819,7 +1825,7 @@ func SetHandlers(
 	update func(componentType, componentName, profile string),
 	updateAll func(profile string),
 	link func(componentType, componentName, targetFilter, profile string),
-	linkAll func(targetFilter, profile string),
+	linkAll func(targetFilter, profile string, allProfiles bool),
 	linkType func(componentType, targetFilter, profile string),
 	autoLink func(),
 	listLinks func(),
