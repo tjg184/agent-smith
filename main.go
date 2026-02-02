@@ -1953,7 +1953,7 @@ func main() {
 				yellow(formatter.SymbolNotLinked),
 				red(formatter.SymbolError))
 		},
-		func(componentType, componentName, target, projectDir string, force, dryRun bool) {
+		func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile string) {
 			// Import necessary packages at the top of main.go
 			// - "github.com/tgaines/agent-smith/pkg/project"
 			// - "github.com/tgaines/agent-smith/internal/materializer"
@@ -1997,34 +1997,88 @@ func main() {
 				}
 			}
 
-			// Get source directory (from ~/.agent-smith/ or active profile)
+			// Get source directory (from ~/.agent-smith/ or profile)
 			baseDir, err := paths.GetAgentsDir()
 			if err != nil {
 				log.Fatalf("Failed to get agent-smith directory: %v", err)
 			}
 
-			// Check if there's an active profile
+			// Check if there's an active profile or --from-profile flag
 			profileMgr, err := profiles.NewProfileManager(nil)
 			if err != nil {
 				log.Fatalf("Failed to initialize profile manager: %v", err)
 			}
 
-			activeProfile, err := profileMgr.GetActiveProfile()
-			if err != nil {
-				log.Fatalf("Failed to check active profile: %v", err)
-			}
-
-			// Determine source directory based on active profile
+			// Determine source profile based on --from-profile flag or active profile
 			var sourceProfile string
-			if activeProfile != "" {
-				// Use profile directory as source
-				profilesDir, err := paths.GetProfilesDir()
-				if err != nil {
-					log.Fatalf("Failed to get profiles directory: %v", err)
+			if fromProfile != "" {
+				// --from-profile flag is specified
+				if fromProfile == "base" {
+					// Special value "base" means use ~/.agent-smith/
+					sourceProfile = ""
+					debugPrintln("[DEBUG] Using base directory (~/.agent-smith/) as source via --from-profile base")
+				} else {
+					// Validate that the specified profile exists
+					profilesList, err := profileMgr.ScanProfiles()
+					if err != nil {
+						log.Fatalf("Failed to scan profiles: %v", err)
+					}
+
+					profileExists := false
+					for _, p := range profilesList {
+						if p.Name == fromProfile {
+							profileExists = true
+							break
+						}
+					}
+
+					if !profileExists {
+						// Build list of available profiles for error message
+						var availableProfiles []string
+						for _, p := range profilesList {
+							availableProfiles = append(availableProfiles, p.Name)
+						}
+						fmt.Println(errors.NewProfileNotFoundError(fromProfile).Format())
+						if len(availableProfiles) > 0 {
+							infoPrintln("\nAvailable profiles:")
+							for _, name := range availableProfiles {
+								infoPrintf("  - %s\n", name)
+							}
+						} else {
+							infoPrintln("\nNo profiles found. Create one with: agent-smith profile create <name>")
+						}
+						os.Exit(1)
+					}
+
+					// Use the specified profile
+					profilesDir, err := paths.GetProfilesDir()
+					if err != nil {
+						log.Fatalf("Failed to get profiles directory: %v", err)
+					}
+					baseDir = filepath.Join(profilesDir, fromProfile)
+					sourceProfile = fromProfile
+					debugPrintf("[DEBUG] Using specified profile '%s' as source via --from-profile\n", fromProfile)
 				}
-				baseDir = filepath.Join(profilesDir, activeProfile)
-				sourceProfile = activeProfile
-				debugPrintf("[DEBUG] Using active profile '%s' as source\n", activeProfile)
+			} else {
+				// No --from-profile flag, check active profile
+				activeProfile, err := profileMgr.GetActiveProfile()
+				if err != nil {
+					log.Fatalf("Failed to check active profile: %v", err)
+				}
+
+				if activeProfile != "" {
+					// Use active profile directory as source
+					profilesDir, err := paths.GetProfilesDir()
+					if err != nil {
+						log.Fatalf("Failed to get profiles directory: %v", err)
+					}
+					baseDir = filepath.Join(profilesDir, activeProfile)
+					sourceProfile = activeProfile
+					debugPrintf("[DEBUG] Using active profile '%s' as source\n", activeProfile)
+				} else {
+					// No active profile, use base directory
+					debugPrintln("[DEBUG] No active profile, using base directory (~/.agent-smith/) as source")
+				}
 			}
 
 			var componentSourceDir string

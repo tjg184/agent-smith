@@ -1562,13 +1562,15 @@ EXAMPLES:
 			projectDir, _ := cmd.Flags().GetString("project-dir")
 			force, _ := cmd.Flags().GetBool("force")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			handleMaterializeComponent("skills", args[0], target, projectDir, force, dryRun)
+			fromProfile, _ := cmd.Flags().GetString("from-profile")
+			handleMaterializeComponent("skills", args[0], target, projectDir, force, dryRun, fromProfile)
 		},
 	}
 	materializeSkillCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeSkillCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeSkillCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeSkillCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
+	materializeSkillCmd.Flags().String("from-profile", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
 	materializeCmd.AddCommand(materializeSkillCmd)
 
 	materializeAgentCmd := &cobra.Command{
@@ -1600,13 +1602,15 @@ EXAMPLES:
 			projectDir, _ := cmd.Flags().GetString("project-dir")
 			force, _ := cmd.Flags().GetBool("force")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			handleMaterializeComponent("agents", args[0], target, projectDir, force, dryRun)
+			fromProfile, _ := cmd.Flags().GetString("from-profile")
+			handleMaterializeComponent("agents", args[0], target, projectDir, force, dryRun, fromProfile)
 		},
 	}
 	materializeAgentCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeAgentCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeAgentCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeAgentCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
+	materializeAgentCmd.Flags().String("from-profile", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
 	materializeCmd.AddCommand(materializeAgentCmd)
 
 	materializeCommandCmd := &cobra.Command{
@@ -1638,13 +1642,15 @@ EXAMPLES:
 			projectDir, _ := cmd.Flags().GetString("project-dir")
 			force, _ := cmd.Flags().GetBool("force")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			handleMaterializeComponent("commands", args[0], target, projectDir, force, dryRun)
+			fromProfile, _ := cmd.Flags().GetString("from-profile")
+			handleMaterializeComponent("commands", args[0], target, projectDir, force, dryRun, fromProfile)
 		},
 	}
 	materializeCommandCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeCommandCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeCommandCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeCommandCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
+	materializeCommandCmd.Flags().String("from-profile", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
 	materializeCmd.AddCommand(materializeCommandCmd)
 
 	materializeAllCmd := &cobra.Command{
@@ -1786,7 +1792,7 @@ var (
 	handleTargetAdd            func(name, path string)
 	handleTargetRemove         func(name string)
 	handleTargetList           func()
-	handleMaterializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool)
+	handleMaterializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile string)
 	handleMaterializeAll       func(target, projectDir string, force, dryRun bool)
 	handleMaterializeList      func(projectDir string)
 	handleMaterializeInfo      func(componentType, componentName, target, projectDir string)
@@ -1824,7 +1830,7 @@ func SetHandlers(
 	targetAdd func(name, path string),
 	targetRemove func(name string),
 	targetList func(),
-	materializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool),
+	materializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile string),
 	materializeAll func(target, projectDir string, force, dryRun bool),
 	materializeList func(projectDir string),
 	materializeInfo func(componentType, componentName, target, projectDir string),
