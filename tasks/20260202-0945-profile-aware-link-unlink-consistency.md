@@ -131,7 +131,7 @@ This PRD addresses the inconsistency by making `unlink all` profile-aware to mat
   **Component Browser Tests:**
   - Not applicable (CLI output verification)
 
-- [ ] Story-006: As a user, I want the `--all-profiles` flag to fail gracefully when no profile manager is available so that I get clear error messages.
+- [x] Story-006: As a user, I want the `--all-profiles` flag to fail gracefully when no profile manager is available so that I get clear error messages.
 
   **Acceptance Criteria:**
   - Error message when --all-profiles used but profile manager not initialized
@@ -150,7 +150,7 @@ This PRD addresses the inconsistency by making `unlink all` profile-aware to mat
   **Component Browser Tests:**
   - Not applicable (error handling)
 
-- [ ] Story-007: As a user without profiles, I want existing link/unlink behavior to remain unchanged so that profile support doesn't break my workflow.
+- [x] Story-007: As a user without profiles, I want existing link/unlink behavior to remain unchanged so that profile support doesn't break my workflow.
 
   **Acceptance Criteria:**
   - With no active profile, `link all` links from base ~/.agent-smith/

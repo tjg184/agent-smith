@@ -1663,6 +1663,36 @@ func (cl *ComponentLinker) isSymlinkFromCurrentProfile(symlinkPath string) (bool
 	return strings.HasPrefix(target, agentsDir), nil
 }
 
+// anyProfilesExist checks if any profiles directory exists and contains profiles
+// Returns false for fresh installations with no profiles (backward compatibility)
+func (cl *ComponentLinker) anyProfilesExist() bool {
+	profilesDir, err := paths.GetProfilesDir()
+	if err != nil {
+		return false
+	}
+
+	// Check if profiles directory exists
+	info, err := os.Stat(profilesDir)
+	if err != nil || !info.IsDir() {
+		return false
+	}
+
+	// Check if there are any profile directories inside
+	entries, err := os.ReadDir(profilesDir)
+	if err != nil {
+		return false
+	}
+
+	// Check for at least one valid profile directory
+	for _, entry := range entries {
+		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
+			return true
+		}
+	}
+
+	return false
+}
+
 // UnlinkAllComponents removes all linked components from configured targets
 // targetFilter can be:
 //   - "" (empty): unlink from all targets
@@ -1757,6 +1787,9 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 	// Determine current profile name for messaging
 	currentProfileName := getProfileFromPath(cl.agentsDir)
 
+	// Check if any profiles exist at all (for backward compatibility messaging)
+	profilesExist := cl.anyProfilesExist()
+
 	// Require force flag or confirmation
 	if !force {
 		if totalLinks > 0 {
@@ -1774,15 +1807,18 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 			}
 
 			profileMsg := ""
+			// Only show profile-related messages if profiles exist or --all-profiles was used
 			if allProfiles {
 				profileMsg = " from all profiles"
-			} else {
+			} else if profilesExist {
+				// Show profile context only when profiles actually exist
 				if currentProfileName == "base" {
 					profileMsg = " from base installation"
 				} else {
 					profileMsg = fmt.Sprintf(" from profile '%s'", currentProfileName)
 				}
 			}
+			// If no profiles exist and not using --all-profiles, don't add any profile message
 			fmt.Printf("This will unlink %d symlinked components%s from: %s", totalLinks, profileMsg, targetStr)
 			fmt.Println()
 		}
@@ -1833,12 +1869,16 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 	if targetFilter != "" && targetFilter != "all" {
 		if allProfiles {
 			headerMsg = fmt.Sprintf("Unlinking all components (all profiles) from: %s", targetFilter)
-		} else {
+		} else if profilesExist {
+			// Only show profile context in header when profiles actually exist
 			if currentProfileName == "base" {
 				headerMsg = fmt.Sprintf("Unlinking components (base installation) from: %s", targetFilter)
 			} else {
 				headerMsg = fmt.Sprintf("Unlinking components (profile '%s') from: %s", currentProfileName, targetFilter)
 			}
+		} else {
+			// No profiles exist - use simple messaging for backward compatibility
+			headerMsg = fmt.Sprintf("Unlinking components from: %s", targetFilter)
 		}
 	} else {
 		// Build list of target names
@@ -1849,12 +1889,16 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 		targetList := strings.Join(targetNames, ", ")
 		if allProfiles {
 			headerMsg = fmt.Sprintf("Unlinking all components (all profiles) from: %s", targetList)
-		} else {
+		} else if profilesExist {
+			// Only show profile context in header when profiles actually exist
 			if currentProfileName == "base" {
 				headerMsg = fmt.Sprintf("Unlinking components (base installation) from: %s", targetList)
 			} else {
 				headerMsg = fmt.Sprintf("Unlinking components (profile '%s') from: %s", currentProfileName, targetList)
 			}
+		} else {
+			// No profiles exist - use simple messaging for backward compatibility
+			headerMsg = fmt.Sprintf("Unlinking components from: %s", targetList)
 		}
 	}
 	cl.formatter.SectionHeader(headerMsg)
@@ -1912,7 +1956,8 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 
 				// Determine profile for progress message
 				profileNote := ""
-				if linkType == "symlink" {
+				// Only show profile tags when profiles actually exist
+				if profilesExist && linkType == "symlink" {
 					profileName := GetProfileNameFromSymlink(fullPath)
 					if profileName != "" && profileName != "base" {
 						profileNote = fmt.Sprintf(" [%s]", profileName)
