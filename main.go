@@ -1996,10 +1996,34 @@ func main() {
 				}
 			}
 
-			// Get source directory (from ~/.agent-smith/)
+			// Get source directory (from ~/.agent-smith/ or active profile)
 			baseDir, err := paths.GetAgentsDir()
 			if err != nil {
 				log.Fatalf("Failed to get agent-smith directory: %v", err)
+			}
+
+			// Check if there's an active profile
+			profileMgr, err := profiles.NewProfileManager(nil)
+			if err != nil {
+				log.Fatalf("Failed to initialize profile manager: %v", err)
+			}
+
+			activeProfile, err := profileMgr.GetActiveProfile()
+			if err != nil {
+				log.Fatalf("Failed to check active profile: %v", err)
+			}
+
+			// Determine source directory based on active profile
+			var sourceProfile string
+			if activeProfile != "" {
+				// Use profile directory as source
+				profilesDir, err := paths.GetProfilesDir()
+				if err != nil {
+					log.Fatalf("Failed to get profiles directory: %v", err)
+				}
+				baseDir = filepath.Join(profilesDir, activeProfile)
+				sourceProfile = activeProfile
+				debugPrintf("[DEBUG] Using active profile '%s' as source\n", activeProfile)
 			}
 
 			var componentSourceDir string
@@ -2016,8 +2040,13 @@ func main() {
 
 			// Check if component exists
 			if _, err := os.Stat(componentSourceDir); os.IsNotExist(err) {
-				log.Fatalf("Component '%s' not found in ~/.agent-smith/%s/\n\nInstall it first with: agent-smith install %s <repo> %s",
-					componentName, componentType, componentType, componentName)
+				if sourceProfile != "" {
+					log.Fatalf("Component '%s' not found in profile '%s' at %s/%s/\n\nInstall it first with: agent-smith install %s <repo> %s",
+						componentName, sourceProfile, sourceProfile, componentType, componentType, componentName)
+				} else {
+					log.Fatalf("Component '%s' not found in ~/.agent-smith/%s/\n\nInstall it first with: agent-smith install %s <repo> %s",
+						componentName, componentType, componentType, componentName)
+				}
 			}
 
 			// Get lock file entry for provenance
@@ -2093,6 +2122,9 @@ func main() {
 					// In dry-run mode, just show what would happen
 					infoPrintf("%s Would materialize %s '%s' to %s\n", formatter.SymbolSuccess, componentType, componentName, targetName)
 					infoPrintf("  Source:      %s\n", componentSourceDir)
+					if sourceProfile != "" {
+						infoPrintf("  From Profile: %s\n", sourceProfile)
+					}
 					infoPrintf("  Destination: %s\n", destPath)
 					infoPrintf("  Provenance:  %s @ %s\n", lockEntry.SourceUrl, lockEntry.CommitHash[:8])
 				} else {
@@ -2126,7 +2158,7 @@ func main() {
 						componentName,
 						lockEntry.SourceUrl,
 						lockEntry.SourceType,
-						"", // sourceProfile (not implemented yet)
+						sourceProfile, // sourceProfile from active profile
 						lockEntry.CommitHash,
 						lockEntry.OriginalPath,
 						sourceHash,
@@ -2140,6 +2172,9 @@ func main() {
 
 					infoPrintf("%s Materialized %s '%s' to %s\n", formatter.SymbolSuccess, componentType, componentName, targetName)
 					infoPrintf("  Source:      %s\n", componentSourceDir)
+					if sourceProfile != "" {
+						infoPrintf("  From Profile: %s\n", sourceProfile)
+					}
 					infoPrintf("  Destination: %s\n", destPath)
 				}
 			}
@@ -2192,10 +2227,34 @@ func main() {
 				}
 			}
 
-			// Get source directory (from ~/.agent-smith/)
+			// Get source directory (from ~/.agent-smith/ or active profile)
 			baseDir, err := paths.GetAgentsDir()
 			if err != nil {
 				log.Fatalf("Failed to get agent-smith directory: %v", err)
+			}
+
+			// Check if there's an active profile
+			profileMgr, err := profiles.NewProfileManager(nil)
+			if err != nil {
+				log.Fatalf("Failed to initialize profile manager: %v", err)
+			}
+
+			activeProfile, err := profileMgr.GetActiveProfile()
+			if err != nil {
+				log.Fatalf("Failed to check active profile: %v", err)
+			}
+
+			// Determine source directory based on active profile
+			var sourceProfile string
+			if activeProfile != "" {
+				// Use profile directory as source
+				profilesDir, err := paths.GetProfilesDir()
+				if err != nil {
+					log.Fatalf("Failed to get profiles directory: %v", err)
+				}
+				baseDir = filepath.Join(profilesDir, activeProfile)
+				sourceProfile = activeProfile
+				debugPrintf("[DEBUG] Using active profile '%s' as source\n", activeProfile)
 			}
 
 			// Determine which targets to materialize to
@@ -2238,7 +2297,12 @@ func main() {
 
 					// Check if component exists
 					if _, err := os.Stat(componentSourceDir); os.IsNotExist(err) {
-						errorMsg := fmt.Sprintf("Component '%s' (%s) not found in ~/.agent-smith/%s/", componentName, componentType, componentType)
+						var errorMsg string
+						if sourceProfile != "" {
+							errorMsg = fmt.Sprintf("Component '%s' (%s) not found in profile '%s' at %s/%s/", componentName, componentType, sourceProfile, sourceProfile, componentType)
+						} else {
+							errorMsg = fmt.Sprintf("Component '%s' (%s) not found in ~/.agent-smith/%s/", componentName, componentType, componentType)
+						}
 						errorMessages = append(errorMessages, errorMsg)
 						errorCount++
 						continue
@@ -2379,7 +2443,7 @@ func main() {
 								componentName,
 								lockEntry.SourceUrl,
 								lockEntry.SourceType,
-								"", // sourceProfile (not implemented yet)
+								sourceProfile, // sourceProfile from active profile
 								lockEntry.CommitHash,
 								lockEntry.OriginalPath,
 								sourceHash,
