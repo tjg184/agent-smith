@@ -74,7 +74,7 @@ Implement component materialization to enable copying skills, agents, and comman
   **Component Browser Tests:**
   - Not applicable (CLI tool)
 
-- [ ] Story-003: As a project maintainer, I want project directory auto-detection so that I can materialize from anywhere in my project.
+- [x] Story-003: As a project maintainer, I want project directory auto-detection so that I can materialize from anywhere in my project.
 
   **Acceptance Criteria:**
   - System walks up directory tree from current working directory
@@ -97,7 +97,7 @@ Implement component materialization to enable copying skills, agents, and comman
   **Component Browser Tests:**
   - Not applicable (CLI tool)
 
-- [ ] Story-004: As a project maintainer, I want provenance tracking so that I know where each materialized component came from.
+- [x] Story-004: As a project maintainer, I want provenance tracking so that I know where each materialized component came from.
 
   **Acceptance Criteria:**
   - `.materializations.json` file created in `.opencode/` or `.claude/` directory
