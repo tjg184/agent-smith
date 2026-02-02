@@ -27,9 +27,9 @@ const (
 // ansiRegex matches ANSI color codes
 var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
-// visibleLength returns the visible length of a string, excluding ANSI color codes
+// VisibleLength returns the visible length of a string, excluding ANSI color codes
 // and accounting for multi-byte Unicode characters
-func visibleLength(s string) int {
+func VisibleLength(s string) int {
 	// Remove ANSI color codes first
 	stripped := ansiRegex.ReplaceAllString(s, "")
 
@@ -75,7 +75,7 @@ type BoxTable struct {
 func NewBoxTable(writer io.Writer, headers []string) *BoxTable {
 	columnSizes := make([]int, len(headers))
 	for i, header := range headers {
-		columnSizes[i] = visibleLength(header)
+		columnSizes[i] = VisibleLength(header)
 	}
 	return &BoxTable{
 		writer:      writer,
@@ -90,7 +90,7 @@ func (bt *BoxTable) AddRow(cells []string) {
 	// Update column sizes if needed
 	for i, cell := range cells {
 		if i < len(bt.columnSizes) {
-			cellLen := visibleLength(cell)
+			cellLen := VisibleLength(cell)
 			if cellLen > bt.columnSizes[i] {
 				bt.columnSizes[i] = cellLen
 			}
@@ -108,7 +108,7 @@ func (bt *BoxTable) Render() {
 	fmt.Fprint(bt.writer, BoxVertical)
 	for i, header := range bt.headers {
 		// Calculate padding needed to account for ANSI color codes
-		visLen := visibleLength(header)
+		visLen := VisibleLength(header)
 		padding := bt.columnSizes[i] - visLen
 		fmt.Fprintf(bt.writer, " %s%s %s", header, strings.Repeat(" ", padding), BoxVertical)
 	}
@@ -123,7 +123,7 @@ func (bt *BoxTable) Render() {
 		for i, cell := range row {
 			if i < len(bt.columnSizes) {
 				// Calculate padding needed to account for ANSI color codes
-				visLen := visibleLength(cell)
+				visLen := VisibleLength(cell)
 				padding := bt.columnSizes[i] - visLen
 				fmt.Fprintf(bt.writer, " %s%s %s", cell, strings.Repeat(" ", padding), BoxVertical)
 			}

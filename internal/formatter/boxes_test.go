@@ -493,3 +493,171 @@ func TestBoxCharacterConstants(t *testing.T) {
 		}
 	}
 }
+
+func TestDrawHeaderWithUTF8(t *testing.T) {
+	tests := []struct {
+		name  string
+		title string
+		width int
+	}{
+		{
+			name:  "header with checkmark",
+			title: "✓ Success",
+			width: 40,
+		},
+		{
+			name:  "header with emoji",
+			title: "🚀 Deployment",
+			width: 40,
+		},
+		{
+			name:  "header with multi-byte chars",
+			title: "日本語タイトル",
+			width: 40,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := DrawHeader(tt.title, tt.width)
+
+			// Verify title is present
+			if !strings.Contains(result, tt.title) {
+				t.Errorf("DrawHeader() should contain title %q\nGot: %s", tt.title, result)
+			}
+
+			// Verify box characters are present
+			if !strings.HasPrefix(result, BoxTopLeft) {
+				t.Errorf("DrawHeader() should start with BoxTopLeft")
+			}
+			if !strings.HasSuffix(result, BoxTopRight) {
+				t.Errorf("DrawHeader() should end with BoxTopRight")
+			}
+		})
+	}
+}
+
+func TestFormatContentLineWithUTF8(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		width   int
+	}{
+		{
+			name:    "content with checkmark",
+			content: "✓ All tests passed",
+			width:   40,
+		},
+		{
+			name:    "content with emoji",
+			content: "🎉 Celebration time!",
+			width:   40,
+		},
+		{
+			name:    "content with multi-byte chars",
+			content: "こんにちは世界",
+			width:   40,
+		},
+		{
+			name:    "long UTF-8 content should truncate",
+			content: "✓ This is a very long line with UTF-8 characters that should be truncated properly",
+			width:   30,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatContentLine(tt.content, tt.width)
+
+			// Verify box characters are present
+			if !strings.HasPrefix(result, BoxVertical) {
+				t.Errorf("formatContentLine() should start with BoxVertical")
+			}
+			if !strings.HasSuffix(result, BoxVertical) {
+				t.Errorf("formatContentLine() should end with BoxVertical")
+			}
+
+			// For non-truncated cases, verify content is present
+			if tt.width >= 40 && !strings.Contains(result, "...") {
+				// Content should be fully present (accounting for possible truncation)
+				hasContent := true
+				for _, char := range tt.content {
+					if !strings.ContainsRune(result, char) {
+						hasContent = false
+						break
+					}
+				}
+				if !hasContent && !strings.Contains(result, "...") {
+					t.Errorf("formatContentLine() should contain content or ellipsis\nGot: %s", result)
+				}
+			}
+		})
+	}
+}
+
+func TestTruncateToWidth(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		maxWidth int
+		verify   func(t *testing.T, result string)
+	}{
+		{
+			name:     "short string no truncation",
+			input:    "Hello",
+			maxWidth: 10,
+			verify: func(t *testing.T, result string) {
+				if result != "Hello" {
+					t.Errorf("truncateToWidth() = %q, want %q", result, "Hello")
+				}
+			},
+		},
+		{
+			name:     "exact length no truncation",
+			input:    "Hello",
+			maxWidth: 5,
+			verify: func(t *testing.T, result string) {
+				if result != "Hello" {
+					t.Errorf("truncateToWidth() = %q, want %q", result, "Hello")
+				}
+			},
+		},
+		{
+			name:     "long string needs truncation",
+			input:    "Hello World",
+			maxWidth: 5,
+			verify: func(t *testing.T, result string) {
+				if VisibleLength(result) > 5 {
+					t.Errorf("truncateToWidth() result length = %d, want <= 5", VisibleLength(result))
+				}
+			},
+		},
+		{
+			name:     "UTF-8 string with checkmark",
+			input:    "✓ Success Message",
+			maxWidth: 10,
+			verify: func(t *testing.T, result string) {
+				if VisibleLength(result) > 10 {
+					t.Errorf("truncateToWidth() result length = %d, want <= 10", VisibleLength(result))
+				}
+			},
+		},
+		{
+			name:     "emoji string",
+			input:    "🚀 Deployment Status",
+			maxWidth: 8,
+			verify: func(t *testing.T, result string) {
+				if VisibleLength(result) > 8 {
+					t.Errorf("truncateToWidth() result length = %d, want <= 8", VisibleLength(result))
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := truncateToWidth(tt.input, tt.maxWidth)
+			tt.verify(t, result)
+		})
+	}
+}

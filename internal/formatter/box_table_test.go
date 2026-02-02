@@ -144,9 +144,9 @@ func TestVisibleLength(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := visibleLength(tt.input)
+			result := VisibleLength(tt.input)
 			if result != tt.expected {
-				t.Errorf("visibleLength(%q) = %d, want %d", tt.input, result, tt.expected)
+				t.Errorf("VisibleLength(%q) = %d, want %d", tt.input, result, tt.expected)
 			}
 		})
 	}

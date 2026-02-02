@@ -364,7 +364,7 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 	cl.formatter.EmptyLine()
 
 	// Create summary table
-	table := formatter.NewBoxTable(os.Stdout, []string{"Status", "Count"})
+	table := formatter.NewBoxTable(cl.formatter.Writer(), []string{"Status", "Count"})
 	table.AddRow([]string{colors.Success(formatter.SymbolSuccess + " Success"), fmt.Sprintf("%d", successCount)})
 	if skippedCount > 0 {
 		table.AddRow([]string{colors.Warning(formatter.SymbolWarning + " Skipped"), fmt.Sprintf("%d (monorepos)", skippedCount)})
@@ -455,7 +455,7 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 	cl.formatter.EmptyLine()
 
 	// Create summary table
-	table := formatter.NewBoxTable(os.Stdout, []string{"Status", "Count"})
+	table := formatter.NewBoxTable(cl.formatter.Writer(), []string{"Status", "Count"})
 	table.AddRow([]string{colors.Success(formatter.SymbolSuccess + " Success"), fmt.Sprintf("%d", successCount)})
 	if skippedCount > 0 {
 		table.AddRow([]string{colors.Warning(formatter.SymbolWarning + " Skipped"), fmt.Sprintf("%d (monorepos)", skippedCount)})
@@ -945,8 +945,8 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 		headers = append(headers, strings.ToUpper(targetName))
 	}
 
-	// Create table
-	table := formatter.NewBoxTable(os.Stdout, headers)
+	// Create table using formatter's writer
+	table := formatter.NewBoxTable(cl.formatter.Writer(), headers)
 
 	// Group by type and sort by name within each type
 	byType := make(map[string][]ComponentStatus)
@@ -1236,7 +1236,7 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 	}
 
 	// Create table
-	table := formatter.NewBoxTable(os.Stdout, headers)
+	table := formatter.NewBoxTable(cl.formatter.Writer(), headers)
 
 	// Group by type and sort by name within each type
 	byType := make(map[string][]ComponentStatus)

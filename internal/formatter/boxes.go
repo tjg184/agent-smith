@@ -7,6 +7,23 @@ import (
 // Default box width (80 characters including borders)
 const DefaultBoxWidth = 80
 
+// truncateToWidth truncates a string to fit within maxWidth visual characters
+func truncateToWidth(s string, maxWidth int) string {
+	if VisibleLength(s) <= maxWidth {
+		return s
+	}
+
+	// Truncate rune by rune until we fit
+	runes := []rune(s)
+	for i := len(runes); i > 0; i-- {
+		candidate := string(runes[:i])
+		if VisibleLength(candidate) <= maxWidth {
+			return candidate
+		}
+	}
+	return ""
+}
+
 // DrawBox creates a complete bordered box with a title and content
 // The title is centered in the top border, and content is padded inside
 func DrawBox(title, content string, width int) string {
@@ -53,12 +70,13 @@ func DrawHeader(title string, width int) string {
 	// Calculate padding for centered title
 	// Format: ┌─── Title ───┐
 	titleWithSpaces := " " + title + " "
-	titleLen := len(titleWithSpaces)
+	titleLen := VisibleLength(titleWithSpaces)
 
 	if titleLen >= innerWidth {
 		// Title too long, truncate it
-		titleWithSpaces = " " + title[:innerWidth-5] + "... "
-		titleLen = innerWidth
+		truncatedTitle := truncateToWidth(title, innerWidth-5)
+		titleWithSpaces = " " + truncatedTitle + "... "
+		titleLen = VisibleLength(titleWithSpaces)
 	}
 
 	leftPadding := (innerWidth - titleLen) / 2
@@ -107,12 +125,12 @@ func formatContentLine(content string, width int) string {
 	contentWidth := innerWidth - 2
 
 	// Truncate if content is too long
-	if len(content) > contentWidth {
-		content = content[:contentWidth-3] + "..."
+	if VisibleLength(content) > contentWidth {
+		content = truncateToWidth(content, contentWidth-3) + "..."
 	}
 
 	// Pad to full width
-	padding := contentWidth - len(content)
+	padding := contentWidth - VisibleLength(content)
 
 	return BoxVertical + " " + content + strings.Repeat(" ", padding) + " " + BoxVertical
 }

@@ -1334,11 +1334,10 @@ func main() {
 				return
 			}
 
-			// Print top border with title - centered "Available Profiles" header
-			appFormatter.Info("┌────────────────────────────────────────────────────────────────────────────┐")
-			appFormatter.Info("│                            Available Profiles                              │")
-			appFormatter.Info("├────────────────────────────────────────────────────────────────────────────┤")
+			// Create table with box-drawing characters
+			table := formatter.NewBoxTable(os.Stdout, []string{"Profile", "Components"})
 
+			// Add rows to table
 			for _, profile := range filteredProfiles {
 				// Count components
 				agents, skills, commands := pm.CountComponents(profile)
@@ -1374,55 +1373,19 @@ func main() {
 					componentStr = "(empty)"
 				}
 
-				// Check if this is the active profile
+				// Build profile cell with active indicator
 				activeIndicator := " "
 				if profile.Name == activeProfile {
 					activeIndicator = formatter.ColoredSuccess()
 				}
+				profileCell := fmt.Sprintf("%s %s", activeIndicator, profile.Name)
 
-				// Format the line: "│ ✓ profile-name                (X agents, Y skills, Z commands)     │"
-				// Total width: 80 characters (including borders)
-				// Inner width: 76 characters (80 - 2 for borders - 2 for padding)
-				// Layout: " [indicator] [name with padding] [component counts with padding] "
-
-				// Available space: 76 - 1 (indicator) - 2 (spaces around indicator) = 73
-				availableSpace := 73
-
-				// Calculate how much space we need
-				nameLen := len(profile.Name)
-				countLen := len(componentStr)
-
-				// We want to pad between name and count
-				totalContentLen := nameLen + countLen
-				padding := availableSpace - totalContentLen
-				if padding < 2 {
-					padding = 2 // Minimum 2 spaces between name and count
-				}
-
-				// Truncate name if too long
-				displayName := profile.Name
-				if nameLen > 40 {
-					displayName = displayName[:37] + "..."
-					nameLen = 40
-					padding = availableSpace - nameLen - countLen
-					if padding < 2 {
-						padding = 2
-					}
-				}
-
-				// Calculate final padding to fill the line
-				rightPadding := availableSpace - nameLen - countLen - padding
-
-				appFormatter.Info("│ %s %s%s%s%s │",
-					activeIndicator,
-					displayName,
-					strings.Repeat(" ", padding),
-					componentStr,
-					strings.Repeat(" ", rightPadding))
+				// Add row to table
+				table.AddRow([]string{profileCell, componentStr})
 			}
 
-			// Print bottom border
-			appFormatter.Info("└────────────────────────────────────────────────────────────────────────────┘")
+			// Render the table
+			table.Render()
 
 			// Display legend
 			appFormatter.EmptyLine()

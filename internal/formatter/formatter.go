@@ -29,6 +29,11 @@ func NewWithWriter(w io.Writer) *Formatter {
 	}
 }
 
+// Writer returns the underlying writer used by this formatter
+func (f *Formatter) Writer() io.Writer {
+	return f.writer
+}
+
 // Success prints a success message for a component installation
 func (f *Formatter) Success(componentType, name string) {
 	fmt.Fprintf(f.writer, "%s Installed %s: %s\n", colors.Success(SymbolSuccess), componentType, name)
