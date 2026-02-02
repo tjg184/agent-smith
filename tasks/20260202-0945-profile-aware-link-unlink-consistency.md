@@ -171,7 +171,7 @@ This PRD addresses the inconsistency by making `unlink all` profile-aware to mat
   **Component Browser Tests:**
   - Not applicable (backward compatibility verification)
 
-- [ ] Story-008: As a developer, I want comprehensive tests for mixed-profile scenarios so that edge cases are properly handled.
+- [x] Story-008: As a developer, I want comprehensive tests for mixed-profile scenarios so that edge cases are properly handled.
 
   **Acceptance Criteria:**
   - Tests cover active profile with other profiles' symlinks present
