@@ -66,7 +66,7 @@ Currently, users can link components from a specific profile using `link all --p
   - Verify error message matches expected format
   - Verify no unlinking operation was performed
 
-- [ ] Story-004: As a maintainer, I want the help documentation and README updated so that users understand the new --profile flag capability.
+- [x] Story-004: As a maintainer, I want the help documentation and README updated so that users understand the new --profile flag capability.
 
   **Acceptance Criteria:**
   - `unlinkAllCmd` Long description explains `--profile` flag usage
