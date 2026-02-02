@@ -121,6 +121,12 @@ agent-smith link all
 agent-smith link skill mcp-builder --target opencode
 agent-smith link all --target cursor
 
+# Link all components from a specific profile (bypasses active profile)
+agent-smith link all --profile work
+
+# Link all components from all profiles simultaneously
+agent-smith link all --all-profiles
+
 # Show link status
 agent-smith link status
 
@@ -129,7 +135,7 @@ agent-smith link list
 ```
 
 **Profile awareness:**
-When a profile is active, link commands automatically use components from the active profile directory.
+When a profile is active, link commands automatically use components from the active profile directory. You can also use the `--profile` flag to link components from a specific profile without switching to it first, or use `--all-profiles` to link components from all profiles simultaneously.
 
 **Custom targets:**
 Link commands work seamlessly with custom targets defined via `agent-smith target add`. Use the `--target` flag to link to a specific custom target, or `link all` to link to all detected targets (including custom ones).
@@ -150,7 +156,16 @@ agent-smith unlink all
 
 # Unlink from specific target
 agent-smith unlink skill mcp-builder --target opencode
+
+# Unlink all components from a specific profile (bypasses active profile)
+agent-smith unlink all --profile work
+
+# Unlink all components from all profiles
+agent-smith unlink all --all-profiles
 ```
+
+**Profile awareness:**
+By default, unlink commands work with components from the currently active profile. You can use the `--profile` flag to unlink components from a specific profile without switching to it first, or use `--all-profiles` to unlink components from all profiles.
 
 ### Uninstall
 
@@ -352,6 +367,23 @@ agent-smith link all
 # Switch back to personal setup
 agent-smith profile deactivate
 agent-smith link all
+```
+
+### Work with profiles without switching context
+
+```bash
+# Link components from a specific profile without activating it
+agent-smith link all --profile work
+
+# Unlink components from a specific profile without switching
+agent-smith unlink all --profile work
+
+# Quickly switch between different profile contexts
+agent-smith link all --profile personal
+agent-smith link all --profile work
+
+# Link components from all profiles at once
+agent-smith link all --all-profiles
 ```
 
 ### Clean up unwanted components
