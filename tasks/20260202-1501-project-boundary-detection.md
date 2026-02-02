@@ -57,7 +57,7 @@ Fix project detection logic to respect project boundaries (like `.git/`, `go.mod
   - Error message displayed to user
   - No `.opencode/` directory created
 
-- [ ] Story-003: As a developer, I want support for multiple project types so the detection works regardless of my tech stack.
+- [x] Story-003: As a developer, I want support for multiple project types so the detection works regardless of my tech stack.
 
   **Acceptance Criteria:**
   - Detects Git repositories (`.git/`)
@@ -75,7 +75,7 @@ Fix project detection logic to respect project boundaries (like `.git/`, `go.mod
   - Each project marker type is detected correctly
   - Multiple markers in same directory handled properly
 
-- [ ] Story-004: As a developer, I want the fallback logic removed from `main.go` so that project detection is handled consistently in one place.
+- [x] Story-004: As a developer, I want the fallback logic removed from `main.go` so that project detection is handled consistently in one place.
 
   **Acceptance Criteria:**
   - Remove fallback to `os.Getwd()` in materialize skill command
