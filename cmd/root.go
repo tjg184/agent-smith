@@ -1628,6 +1628,39 @@ EXAMPLES:
 	materializeCommandCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeCmd.AddCommand(materializeCommandCmd)
 
+	materializeAllCmd := &cobra.Command{
+		Use:   "all",
+		Short: "Materialize all installed components to project directories",
+		Long: `Materialize all installed components (skills, agents, commands) to project directories.
+
+This command copies all components from ~/.agent-smith/ to .opencode/ or .claude/
+with full provenance tracking. It continues on error with individual components.
+
+The target can be specified with --target flag or AGENT_SMITH_TARGET environment variable.
+
+EXAMPLES:
+  # Materialize all components to OpenCode
+  agent-smith materialize all --target opencode
+
+  # Materialize all to both targets
+  agent-smith materialize all --target all
+
+  # Use environment variable for default target
+  export AGENT_SMITH_TARGET=claudecode
+  agent-smith materialize all`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			target, _ := cmd.Flags().GetString("target")
+			projectDir, _ := cmd.Flags().GetString("project-dir")
+			force, _ := cmd.Flags().GetBool("force")
+			handleMaterializeAll(target, projectDir, force)
+		},
+	}
+	materializeAllCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
+	materializeAllCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeAllCmd.Flags().BoolP("force", "f", false, "Overwrite existing components if they differ")
+	materializeCmd.AddCommand(materializeAllCmd)
+
 	rootCmd.AddCommand(materializeCmd)
 
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
@@ -1669,6 +1702,7 @@ var (
 	handleTargetRemove         func(name string)
 	handleTargetList           func()
 	handleMaterializeComponent func(componentType, componentName, target, projectDir string, force bool)
+	handleMaterializeAll       func(target, projectDir string, force bool)
 )
 
 func SetHandlers(
@@ -1704,6 +1738,7 @@ func SetHandlers(
 	targetRemove func(name string),
 	targetList func(),
 	materializeComponent func(componentType, componentName, target, projectDir string, force bool),
+	materializeAll func(target, projectDir string, force bool),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
@@ -1737,4 +1772,5 @@ func SetHandlers(
 	handleTargetRemove = targetRemove
 	handleTargetList = targetList
 	handleMaterializeComponent = materializeComponent
+	handleMaterializeAll = materializeAll
 }

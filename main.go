@@ -2113,6 +2113,242 @@ func main() {
 				infoPrintf("  Destination: %s\n", destPath)
 			}
 		},
+		func(target, projectDir string, force bool) {
+			// Define color functions
+			green := color.New(color.FgGreen).SprintFunc()
+			red := color.New(color.FgRed).SprintFunc()
+
+			// If target is not provided via flag, check environment variable
+			if target == "" {
+				target = config.GetTargetFromEnv()
+				if target != "" {
+					debugPrintf("[DEBUG] Using target from AGENT_SMITH_TARGET environment variable: %s\n", target)
+				}
+			}
+
+			// Validate target is provided
+			if target == "" {
+				log.Fatal("Target must be specified with --target flag or AGENT_SMITH_TARGET environment variable\n\nValid targets: opencode, claudecode, all\n\nExamples:\n  agent-smith materialize all --target opencode\n  export AGENT_SMITH_TARGET=opencode && agent-smith materialize all")
+			}
+
+			// Determine project root
+			var projectRoot string
+			var err error
+			if projectDir != "" {
+				// Use specified project directory
+				projectRoot, err = filepath.Abs(projectDir)
+				if err != nil {
+					log.Fatalf("Failed to resolve project directory: %v", err)
+				}
+			} else {
+				// Auto-detect project root
+				projectRoot, err = project.FindProjectRoot()
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+
+			// Get source directory (from ~/.agent-smith/)
+			baseDir, err := paths.GetAgentsDir()
+			if err != nil {
+				log.Fatalf("Failed to get agent-smith directory: %v", err)
+			}
+
+			// Determine which targets to materialize to
+			var targets []string
+			if target == "all" {
+				targets = []string{"opencode", "claudecode"}
+			} else {
+				targets = []string{target}
+			}
+
+			// Track counts for summary
+			totalComponents := 0
+			successCount := 0
+			skipCount := 0
+			errorCount := 0
+			var errorMessages []string
+
+			// Materialize all component types
+			componentTypes := []string{"skills", "agents", "commands"}
+			for _, componentType := range componentTypes {
+				// Get all component names from lock file
+				componentNames, err := metadataPkg.GetAllComponentNames(baseDir, componentType)
+				if err != nil {
+					errorMsg := fmt.Sprintf("Failed to load %s from lock file: %v", componentType, err)
+					errorMessages = append(errorMessages, errorMsg)
+					errorCount++
+					continue
+				}
+
+				if len(componentNames) == 0 {
+					debugPrintf("[DEBUG] No %s found in lock file\n", componentType)
+					continue
+				}
+
+				totalComponents += len(componentNames)
+
+				// Materialize each component
+				for _, componentName := range componentNames {
+					componentSourceDir := filepath.Join(baseDir, componentType, componentName)
+
+					// Check if component exists
+					if _, err := os.Stat(componentSourceDir); os.IsNotExist(err) {
+						errorMsg := fmt.Sprintf("Component '%s' (%s) not found in ~/.agent-smith/%s/", componentName, componentType, componentType)
+						errorMessages = append(errorMessages, errorMsg)
+						errorCount++
+						continue
+					}
+
+					// Get lock file entry for provenance
+					lockEntry, err := metadataPkg.LoadLockFileEntry(baseDir, componentType, componentName)
+					if err != nil {
+						errorMsg := fmt.Sprintf("Failed to load metadata for %s '%s': %v", componentType, componentName, err)
+						errorMessages = append(errorMessages, errorMsg)
+						errorCount++
+						continue
+					}
+
+					// Calculate source hash
+					sourceHash, err := materializer.CalculateDirectoryHash(componentSourceDir)
+					if err != nil {
+						errorMsg := fmt.Sprintf("Failed to calculate hash for %s '%s': %v", componentType, componentName, err)
+						errorMessages = append(errorMessages, errorMsg)
+						errorCount++
+						continue
+					}
+
+					// Materialize to each target
+					for _, targetName := range targets {
+						targetDir := project.GetTargetDirectory(projectRoot, targetName)
+						if targetDir == "" {
+							errorMsg := fmt.Sprintf("Invalid target: %s", targetName)
+							errorMessages = append(errorMessages, errorMsg)
+							errorCount++
+							continue
+						}
+
+						// Ensure target structure exists
+						structureCreated, err := project.EnsureTargetStructure(targetDir)
+						if err != nil {
+							errorMsg := fmt.Sprintf("Failed to create target structure: %v", err)
+							errorMessages = append(errorMessages, errorMsg)
+							errorCount++
+							continue
+						}
+						if structureCreated {
+							infoPrintf("%s Created project structure: %s/ (skills/, agents/, commands/)\n", formatter.SymbolSuccess, targetDir)
+						}
+
+						// Determine destination path
+						destPath := filepath.Join(targetDir, componentType, componentName)
+
+						// Check if component already exists
+						componentSkipped := false
+						if _, err := os.Stat(destPath); err == nil {
+							// Component exists, check if it's identical
+							match, err := materializer.DirectoriesMatch(componentSourceDir, destPath)
+							if err != nil {
+								errorMsg := fmt.Sprintf("Failed to compare directories for %s '%s': %v", componentType, componentName, err)
+								errorMessages = append(errorMessages, errorMsg)
+								errorCount++
+								continue
+							}
+							if match {
+								infoPrintf("⊘ Skipped %s '%s' to %s (already exists and identical)\n", componentType, componentName, targetName)
+								skipCount++
+								componentSkipped = true
+								continue
+							} else {
+								// Component exists and differs
+								if !force {
+									errorMsg := fmt.Sprintf("Component '%s' (%s) already exists in %s and differs. Use --force to overwrite", componentName, componentType, targetName)
+									errorMessages = append(errorMessages, errorMsg)
+									errorCount++
+									continue
+								}
+								// Force flag is set, remove existing component before copying
+								infoPrintf("⚠ Overwriting %s '%s' in %s (--force)\n", componentType, componentName, targetName)
+								if err := os.RemoveAll(destPath); err != nil {
+									errorMsg := fmt.Sprintf("Failed to remove existing %s '%s': %v", componentType, componentName, err)
+									errorMessages = append(errorMessages, errorMsg)
+									errorCount++
+									continue
+								}
+							}
+						}
+
+						if componentSkipped {
+							continue
+						}
+
+						// Copy the component
+						if err := materializer.CopyDirectory(componentSourceDir, destPath); err != nil {
+							errorMsg := fmt.Sprintf("Failed to copy %s '%s': %v", componentType, componentName, err)
+							errorMessages = append(errorMessages, errorMsg)
+							errorCount++
+							continue
+						}
+
+						// Calculate current hash (should match source hash immediately after copy)
+						currentHash := sourceHash
+
+						// Load or create materialization metadata
+						matMetadata, err := project.LoadMaterializationMetadata(targetDir)
+						if err != nil {
+							errorMsg := fmt.Sprintf("Failed to load materialization metadata: %v", err)
+							errorMessages = append(errorMessages, errorMsg)
+							errorCount++
+							continue
+						}
+
+						// Add entry to metadata
+						project.AddMaterializationEntry(
+							matMetadata,
+							componentType,
+							componentName,
+							lockEntry.SourceUrl,
+							lockEntry.SourceType,
+							"", // sourceProfile (not implemented yet)
+							lockEntry.CommitHash,
+							lockEntry.OriginalPath,
+							sourceHash,
+							currentHash,
+						)
+
+						// Save metadata
+						if err := project.SaveMaterializationMetadata(targetDir, matMetadata); err != nil {
+							errorMsg := fmt.Sprintf("Failed to save materialization metadata: %v", err)
+							errorMessages = append(errorMessages, errorMsg)
+							errorCount++
+							continue
+						}
+
+						infoPrintf("%s Materialized %s '%s' to %s\n", formatter.SymbolSuccess, componentType, componentName, targetName)
+						successCount++
+					}
+				}
+			}
+
+			// Print summary
+			appFormatter.Section("")
+			appFormatter.Section("Summary")
+			infoPrintf("  Total components: %d\n", totalComponents)
+			infoPrintf("  %s Materialized:  %d\n", green(formatter.SymbolSuccess), successCount)
+			if skipCount > 0 {
+				infoPrintf("  ⊘ Skipped:       %d\n", skipCount)
+			}
+			if errorCount > 0 {
+				infoPrintf("  %s Errors:        %d\n", red(formatter.SymbolError), errorCount)
+				for _, errorMsg := range errorMessages {
+					infoPrintf("    - %s\n", errorMsg)
+				}
+			}
+
+			if errorCount > 0 {
+				os.Exit(1)
+			}
+		},
 	)
 
 	// Execute Cobra command

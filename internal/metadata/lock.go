@@ -229,3 +229,44 @@ func RemoveLockFileEntry(baseDir, componentType, componentName string) error {
 
 	return os.WriteFile(lockFilePath, jsonData, 0644)
 }
+
+// GetAllComponentNames returns all component names from the lock file for a given type
+func GetAllComponentNames(baseDir, componentType string) ([]string, error) {
+	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
+
+	// Read lock file
+	lockData, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Lock file doesn't exist, return empty list
+			return []string{}, nil
+		}
+		return nil, fmt.Errorf("failed to read lock file: %w", err)
+	}
+
+	var lockFile models.ComponentLockFile
+	if err := json.Unmarshal(lockData, &lockFile); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal lock file: %w", err)
+	}
+
+	// Get the appropriate map for this component type
+	var entries map[string]models.ComponentLockEntry
+	switch componentType {
+	case "skills":
+		entries = lockFile.Skills
+	case "agents":
+		entries = lockFile.Agents
+	case "commands":
+		entries = lockFile.Commands
+	default:
+		return nil, fmt.Errorf("unknown component type: %s", componentType)
+	}
+
+	// Extract component names
+	names := make([]string, 0, len(entries))
+	for name := range entries {
+		names = append(names, name)
+	}
+
+	return names, nil
+}
