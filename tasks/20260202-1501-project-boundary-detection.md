@@ -93,7 +93,7 @@ Fix project detection logic to respect project boundaries (like `.git/`, `go.mod
   - All materialize commands use consistent project detection
   - Commands error appropriately when no project found
 
-- [ ] Story-005: As a developer, I want updated documentation explaining how project detection works so I understand where `.opencode/` will be created.
+- [x] Story-005: As a developer, I want updated documentation explaining how project detection works so I understand where `.opencode/` will be created.
 
   **Acceptance Criteria:**
   - README includes "Project Detection" section
