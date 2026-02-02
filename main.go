@@ -318,10 +318,49 @@ func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string)
 			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
 		}
 
-		// Validate that the profile exists
+		// Validate that the profile exists and is valid
 		profilePath := filepath.Join(profilesDir, profile)
 		if _, err := os.Stat(profilePath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("profile '%s' does not exist", profile)
+			// Profile directory doesn't exist - provide helpful error with available profiles
+			pm, pmErr := profiles.NewProfileManager(nil)
+			if pmErr == nil {
+				availableProfiles, scanErr := pm.ScanProfiles()
+				if scanErr == nil && len(availableProfiles) > 0 {
+					profileNames := make([]string, len(availableProfiles))
+					for i, p := range availableProfiles {
+						profileNames[i] = p.Name
+					}
+					return nil, fmt.Errorf("profile '%s' does not exist\n\nAvailable profiles:\n  - %s\n\nTo create this profile:\n  agent-smith profile create %s",
+						profile, strings.Join(profileNames, "\n  - "), profile)
+				}
+			}
+			// Fallback if we can't list profiles
+			return nil, fmt.Errorf("profile '%s' does not exist\n\nTo create this profile:\n  agent-smith profile create %s\n\nTo list available profiles:\n  agent-smith profile list", profile, profile)
+		}
+
+		// Verify the profile is valid (has at least one component directory)
+		profileObj := &profiles.Profile{
+			Name:        profile,
+			BasePath:    profilePath,
+			HasAgents:   false,
+			HasSkills:   false,
+			HasCommands: false,
+		}
+
+		// Check which component directories exist
+		if _, err := os.Stat(filepath.Join(profilePath, paths.AgentsSubDir)); err == nil {
+			profileObj.HasAgents = true
+		}
+		if _, err := os.Stat(filepath.Join(profilePath, paths.SkillsSubDir)); err == nil {
+			profileObj.HasSkills = true
+		}
+		if _, err := os.Stat(filepath.Join(profilePath, paths.CommandsSubDir)); err == nil {
+			profileObj.HasCommands = true
+		}
+
+		if !profileObj.HasAgents && !profileObj.HasSkills && !profileObj.HasCommands {
+			return nil, fmt.Errorf("profile '%s' exists but has no components\n\nThe profile directory is empty. To add components to this profile:\n  agent-smith install skill <repo-url> <name> --profile %s\n  agent-smith install agent <repo-url> <name> --profile %s\n  agent-smith install command <repo-url> <name> --profile %s",
+				profile, profile, profile, profile)
 		}
 
 		agentsDir = profilePath
@@ -910,7 +949,8 @@ func main() {
 			debugPrintf("[DEBUG] handleLink called with componentType=%s, componentName=%s, targetFilter=%s, profile=%s\n", componentType, componentName, targetFilter, profile)
 			linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
 			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
+				fmt.Fprintf(os.Stderr, "Error: Failed to create component linker\n\n%v\n", err)
+				os.Exit(1)
 			}
 			debugPrintln("[DEBUG] Component linker created successfully")
 			if err := linker.LinkComponent(componentType, componentName); err != nil {
@@ -1003,7 +1043,8 @@ func main() {
 				// Link from single profile (existing behavior)
 				linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
 				if err != nil {
-					log.Fatal("Failed to create component linker:", err)
+					fmt.Fprintf(os.Stderr, "Error: Failed to create component linker\n\n%v\n", err)
+					os.Exit(1)
 				}
 				debugPrintln("[DEBUG] Component linker created successfully")
 				if err := linker.LinkAllComponents(); err != nil {
@@ -1016,7 +1057,8 @@ func main() {
 			debugPrintf("[DEBUG] handleLinkType called with componentType=%s, targetFilter=%s, profile=%s\n", componentType, targetFilter, profile)
 			linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
 			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
+				fmt.Fprintf(os.Stderr, "Error: Failed to create component linker\n\n%v\n", err)
+				os.Exit(1)
 			}
 			debugPrintln("[DEBUG] Component linker created successfully")
 			if err := linker.LinkComponentsByType(componentType); err != nil {
