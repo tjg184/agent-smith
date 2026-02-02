@@ -18,7 +18,7 @@ Fix two critical issues with the `agent-smith materialize all --target opencode`
 
 ## User Stories
 
-- [ ] Story-001: As a user, I want to run `materialize all --target opencode` in a directory without an existing `.opencode` folder so that I can quickly set up a new project.
+- [x] Story-001: As a user, I want to run `materialize all --target opencode` in a directory without an existing `.opencode` folder so that I can quickly set up a new project.
 
   **Acceptance Criteria:**
   - Command succeeds when no `.opencode` directory exists
@@ -38,7 +38,7 @@ Fix two critical issues with the `agent-smith materialize all --target opencode`
   - Verify components are materialized successfully
   - Verify output contains "creating new project" message
 
-- [ ] Story-002: As a user, I want to see the summary of what was materialized even when running without `--verbose` so that I can verify the command succeeded.
+- [x] Story-002: As a user, I want to see the summary of what was materialized even when running without `--verbose` so that I can verify the command succeeded.
 
   **Acceptance Criteria:**
   - Summary section displays without `--verbose` flag
@@ -59,7 +59,7 @@ Fix two critical issues with the `agent-smith materialize all --target opencode`
   - Verify summary contains "Materialized:" line with count
   - Verify summary is not empty or hidden
 
-- [ ] Story-003: As a developer, I want the project root detection to gracefully fallback to current directory so that new projects can be created without pre-existing markers.
+- [x] Story-003: As a developer, I want the project root detection to gracefully fallback to current directory so that new projects can be created without pre-existing markers.
 
   **Acceptance Criteria:**
   - When `FindProjectRoot()` fails to locate existing project markers, use current working directory

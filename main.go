@@ -2185,12 +2185,12 @@ func main() {
 				// Auto-detect project root
 				projectRoot, err = project.FindProjectRoot()
 				if err != nil {
-					// No project found, use current directory
-					debugPrintln("[DEBUG] No project found, using current directory")
+					// No existing project found, use current directory
 					projectRoot, err = os.Getwd()
 					if err != nil {
 						log.Fatalf("Failed to get current directory: %v", err)
 					}
+					infoPrintf("No existing project found, creating new project in: %s\n", projectRoot)
 				}
 			}
 
@@ -2512,12 +2512,12 @@ func main() {
 				// Auto-detect project root
 				projectRoot, err = project.FindProjectRoot()
 				if err != nil {
-					// No project found, use current directory
-					debugPrintln("[DEBUG] No project found, using current directory")
+					// No existing project found, use current directory
 					projectRoot, err = os.Getwd()
 					if err != nil {
 						log.Fatalf("Failed to get current directory: %v", err)
 					}
+					infoPrintf("No existing project found, creating new project in: %s\n", projectRoot)
 				}
 			}
 
@@ -2864,7 +2864,12 @@ func main() {
 				// Auto-detect project root
 				projectRoot, err = project.FindProjectRoot()
 				if err != nil {
-					log.Fatal(err)
+					// No existing project found, use current directory
+					projectRoot, err = os.Getwd()
+					if err != nil {
+						log.Fatalf("Failed to get current directory: %v", err)
+					}
+					infoPrintf("No existing project found, creating new project in: %s\n", projectRoot)
 				}
 			}
 
@@ -2974,7 +2979,12 @@ func main() {
 				// Auto-detect project root
 				projectRoot, err = project.FindProjectRoot()
 				if err != nil {
-					log.Fatal(err)
+					// No existing project found, use current directory
+					projectRoot, err = os.Getwd()
+					if err != nil {
+						log.Fatalf("Failed to get current directory: %v", err)
+					}
+					infoPrintf("No existing project found, creating new project in: %s\n", projectRoot)
 				}
 			}
 
