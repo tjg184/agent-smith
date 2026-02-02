@@ -175,6 +175,127 @@ func NewConfigurationError(setting string, cause error) *ErrorMessage {
 	return msg.WithSuggestion("Check your configuration files and settings")
 }
 
+// NewAgentsDirectoryError creates an error for when the agents directory cannot be accessed.
+func NewAgentsDirectoryError(cause error) *ErrorMessage {
+	msg := New("Failed to access agents directory")
+
+	if cause != nil {
+		msg.WithContext(fmt.Sprintf("Error: %v", cause))
+
+		causeStr := cause.Error()
+		if contains(causeStr, "permission") {
+			msg.WithSuggestion("Check that you have read/write permissions to ~/.agent-smith/")
+		} else if contains(causeStr, "not found") || contains(causeStr, "no such file") {
+			msg.WithSuggestion("The agents directory may not be initialized. Try installing a component first").
+				WithExample("agent-smith install skill <repo-url> <name>")
+		}
+	}
+
+	return msg
+}
+
+// NewTargetDetectionError creates an error for target detection failures.
+func NewTargetDetectionError(cause error) *ErrorMessage {
+	msg := New("Failed to detect installation targets")
+
+	if cause != nil {
+		msg.WithContext(fmt.Sprintf("Error: %v", cause))
+		msg.WithSuggestion("Ensure OpenCode, Claude Code, or a custom target is configured properly")
+	}
+
+	return msg
+}
+
+// NewActiveProfileError creates an error for profile activation issues.
+func NewActiveProfileError(cause error) *ErrorMessage {
+	msg := New("Failed to get active profile")
+
+	if cause != nil {
+		msg.WithContext(fmt.Sprintf("Error: %v", cause))
+		msg.WithSuggestion("Check profile configuration or create a new profile").
+			WithExample("agent-smith profile list")
+	}
+
+	return msg
+}
+
+// NewMissingArgumentsError creates an error for missing command arguments.
+func NewMissingArgumentsError(command, usage string) *ErrorMessage {
+	return New(fmt.Sprintf("Missing required arguments for '%s'", command)).
+		WithSuggestion(fmt.Sprintf("Usage: %s", usage)).
+		WithExample(fmt.Sprintf("%s --help", command))
+}
+
+// NewTooManyArgumentsError creates an error for too many command arguments.
+func NewTooManyArgumentsError(command, usage string) *ErrorMessage {
+	return New(fmt.Sprintf("Too many arguments provided for '%s'", command)).
+		WithSuggestion(fmt.Sprintf("Usage: %s", usage)).
+		WithExample(fmt.Sprintf("%s --help", command))
+}
+
+// NewUnknownComponentTypeError creates an error for unknown component types.
+func NewUnknownComponentTypeError(componentType string) *ErrorMessage {
+	return New(fmt.Sprintf("Unknown component type: %s", componentType)).
+		WithContext("Component type must be one of: skills, agents, commands").
+		WithSuggestion("Check the component type spelling").
+		WithExample("agent-smith install skill <repo-url> <name>")
+}
+
+// NewLockFileError creates an error for lock file operations.
+func NewLockFileError(operation, componentType string, cause error) *ErrorMessage {
+	msg := New(fmt.Sprintf("Failed to %s lock file for %s", operation, componentType))
+
+	if cause != nil {
+		msg.WithContext(fmt.Sprintf("Error: %v", cause))
+
+		causeStr := cause.Error()
+		if contains(causeStr, "permission") {
+			msg.WithSuggestion("Check file permissions in the agents directory")
+		} else if contains(causeStr, "not found") {
+			msg.WithSuggestion(fmt.Sprintf("The %s may not be installed yet", componentType))
+		} else if contains(causeStr, "invalid") || contains(causeStr, "unmarshal") {
+			msg.WithSuggestion("The lock file may be corrupted. Try reinstalling the component")
+		}
+	}
+
+	return msg
+}
+
+// NewProjectDetectionError creates an error for project detection failures.
+func NewProjectDetectionError(cause error) *ErrorMessage {
+	msg := New("No project directory found")
+
+	if cause != nil {
+		msg.WithContext(fmt.Sprintf("Error: %v", cause))
+	}
+
+	return msg.WithContext("A project directory (.opencode/ or .claude/) is required for this operation").
+		WithSuggestion("Navigate to a project directory or create one").
+		WithExample("mkdir -p .opencode/ && cd .opencode")
+}
+
+// NewMaterializationError creates an error for component materialization failures.
+func NewMaterializationError(componentType, componentName string, cause error) *ErrorMessage {
+	msg := New(fmt.Sprintf("Failed to materialize %s '%s'", componentType, componentName))
+
+	if cause != nil {
+		msg.WithContext(fmt.Sprintf("Error: %v", cause))
+
+		causeStr := cause.Error()
+		if contains(causeStr, "not found") || contains(causeStr, "does not exist") {
+			msg.WithSuggestion(fmt.Sprintf("Ensure the %s is installed before materializing", componentType)).
+				WithExample(fmt.Sprintf("agent-smith install %s <repo-url> %s", componentType, componentName))
+		} else if contains(causeStr, "permission") {
+			msg.WithSuggestion("Check that you have write permissions to the project directory")
+		} else if contains(causeStr, "already exists") {
+			msg.WithSuggestion("Use --force to overwrite existing components").
+				WithExample(fmt.Sprintf("agent-smith materialize %s %s --force", componentType, componentName))
+		}
+	}
+
+	return msg
+}
+
 // Helper function to check if a string contains a substring (case-insensitive)
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr ||
