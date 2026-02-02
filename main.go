@@ -933,17 +933,37 @@ func main() {
 				// Create profile manager
 				pm, err := profiles.NewProfileManager(nil)
 				if err != nil {
-					log.Fatal("Failed to create profile manager:", err)
+					appFormatter.EmptyLine()
+					appFormatter.ErrorMsg("Failed to initialize profile manager")
+					appFormatter.DetailItem("Error", err.Error())
+					appFormatter.EmptyLine()
+					appFormatter.InfoMsg("The --all-profiles flag requires a working profile system.")
+					appFormatter.InfoMsg("Please check your ~/.agent-smith/ directory permissions.")
+					os.Exit(1)
 				}
 
 				// Get all profiles
 				allProfilesList, err := pm.ScanProfiles()
 				if err != nil {
-					log.Fatal("Failed to scan profiles:", err)
+					appFormatter.EmptyLine()
+					appFormatter.ErrorMsg("Failed to scan profiles")
+					appFormatter.DetailItem("Error", err.Error())
+					appFormatter.EmptyLine()
+					appFormatter.InfoMsg("The --all-profiles flag requires at least one profile.")
+					appFormatter.InfoMsg("Try running without --all-profiles, or create a profile first:")
+					appFormatter.InfoMsg("  agent-smith profile create <name>")
+					os.Exit(1)
 				}
 
 				if len(allProfilesList) == 0 {
-					log.Fatal("No profiles found. Create a profile first with: agent-smith profile create <name>")
+					appFormatter.EmptyLine()
+					appFormatter.InfoMsg("No profiles found")
+					appFormatter.EmptyLine()
+					appFormatter.InfoMsg("The --all-profiles flag requires at least one profile.")
+					appFormatter.InfoMsg("Options:")
+					appFormatter.InfoMsg("  1. Run without --all-profiles to link components from base installation")
+					appFormatter.InfoMsg("  2. Create a profile first: agent-smith profile create <name>")
+					os.Exit(1)
 				}
 
 				// Color helpers
@@ -1032,7 +1052,37 @@ func main() {
 				// Create linker with ProfileManager for multi-profile view
 				pm, err := profiles.NewProfileManager(nil)
 				if err != nil {
-					log.Fatal("Failed to create profile manager:", err)
+					appFormatter.EmptyLine()
+					appFormatter.ErrorMsg("Failed to initialize profile manager")
+					appFormatter.DetailItem("Error", err.Error())
+					appFormatter.EmptyLine()
+					appFormatter.InfoMsg("The --all-profiles flag requires a working profile system.")
+					appFormatter.InfoMsg("Please check your ~/.agent-smith/ directory permissions.")
+					os.Exit(1)
+				}
+
+				// Check if any profiles exist
+				profilesList, err := pm.ScanProfiles()
+				if err != nil {
+					appFormatter.EmptyLine()
+					appFormatter.ErrorMsg("Failed to scan profiles")
+					appFormatter.DetailItem("Error", err.Error())
+					appFormatter.EmptyLine()
+					appFormatter.InfoMsg("The --all-profiles flag requires at least one profile.")
+					appFormatter.InfoMsg("Try running without --all-profiles, or create a profile first:")
+					appFormatter.InfoMsg("  agent-smith profile create <name>")
+					os.Exit(1)
+				}
+
+				if len(profilesList) == 0 {
+					appFormatter.EmptyLine()
+					appFormatter.InfoMsg("No profiles found")
+					appFormatter.EmptyLine()
+					appFormatter.InfoMsg("The --all-profiles flag requires at least one profile.")
+					appFormatter.InfoMsg("Options:")
+					appFormatter.InfoMsg("  1. Run without --all-profiles to show components from base installation")
+					appFormatter.InfoMsg("  2. Create a profile first: agent-smith profile create <name>")
+					os.Exit(1)
 				}
 
 				linker, err := NewComponentLinkerWithProfileManager(pm)
