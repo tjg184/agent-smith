@@ -337,10 +337,10 @@ agent-smith materialize agent coding-assistant --target claudecode
 agent-smith materialize command format-json --target all
 
 # Materialize from a specific profile
-agent-smith materialize skill api-design --target opencode --from-profile work
+agent-smith materialize skill api-design --target opencode --profile work
 
 # Materialize from base ~/.agent-smith/ directory
-agent-smith materialize skill mcp-builder --target opencode --from-profile base
+agent-smith materialize skill mcp-builder --target opencode --profile base
 
 # Force overwrite existing component
 agent-smith materialize skill mcp-builder --target opencode --force

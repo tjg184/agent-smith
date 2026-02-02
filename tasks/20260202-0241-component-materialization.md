@@ -326,9 +326,9 @@ Implement component materialization to enable copying skills, agents, and comman
 - [x] Story-014: As a project maintainer, I want to materialize from specific profile so that I can choose which profile to copy from.
 
   **Acceptance Criteria:**
-  - `--from-profile <name>` flag allows explicit profile selection
+  - `--profile <name>` flag allows explicit profile selection
   - Overrides active profile if both specified
-  - Special value `--from-profile base` materializes from `~/.agent-smith/` (no profile)
+  - Special value `--profile base` materializes from `~/.agent-smith/` (no profile)
   - Error if specified profile doesn't exist with list of available profiles
   - Error if component doesn't exist in specified profile
   - Profile name recorded in metadata
@@ -340,7 +340,7 @@ Implement component materialization to enable copying skills, agents, and comman
   - "base" special value handling
   
   **Integration Tests:**
-  - Materialize with --from-profile flag
+  - Materialize with --profile flag
   - Override active profile with explicit flag
   - Error handling for non-existent profile
   - Error handling for missing component in profile
@@ -384,8 +384,8 @@ Implement component materialization to enable copying skills, agents, and comman
 - FR-5: The system SHALL detect active profile and use it as default materialization source
 - FR-6: The system SHALL copy from `~/.agent-smith/profiles/<profile-name>/{type}/` when profile is active
 - FR-7: The system SHALL copy from `~/.agent-smith/{type}/` when no profile is active
-- FR-8: The system SHALL support `--from-profile <name>` flag to explicitly select source profile
-- FR-9: The system SHALL support `--from-profile base` to materialize from base directory regardless of active profile
+- FR-8: The system SHALL support `--profile <name>` flag to explicitly select source profile
+- FR-9: The system SHALL support `--profile base` to materialize from base directory regardless of active profile
 - FR-10: The system SHALL record source profile name in metadata
 - FR-11: The system SHALL error if specified profile doesn't exist
 - FR-12: The system SHALL error if component doesn't exist in specified profile
@@ -528,7 +528,7 @@ agent-smith materialize
 
 ### Common Flags
 - `--target <opencode|claudecode|all>` - Required, which target(s) to materialize to
-- `--from-profile <name>` - Optional, materialize from specific profile (use "base" for ~/.agent-smith/)
+- `--profile <name>` - Optional, materialize from specific profile (use "base" for ~/.agent-smith/)
 - `--project-dir <path>` - Optional, override project directory detection
 - `--force` - Optional, overwrite existing components
 - `--dry-run` - Optional, preview without making changes
@@ -595,7 +595,7 @@ agent-smith profile activate work
 
 # But want to materialize from personal profile
 cd ~/projects/side-project
-agent-smith materialize skill my-custom-tool --target opencode --from-profile personal
+agent-smith materialize skill my-custom-tool --target opencode --profile personal
 
 # Output shows:
 # ✓ Materialized skill 'my-custom-tool' from profile 'personal'
@@ -603,7 +603,7 @@ agent-smith materialize skill my-custom-tool --target opencode --from-profile pe
 #   Destination: .opencode/skills/my-custom-tool/
 ```
 
-**Result**: `--from-profile` overrides active profile
+**Result**: `--profile` overrides active profile
 
 ### Workflow 3: Materialize from Base (No Profile)
 
@@ -631,7 +631,7 @@ agent-smith profile activate work
 
 # But want component from base directory
 cd ~/projects/mixed-app
-agent-smith materialize skill standard-tool --target opencode --from-profile base
+agent-smith materialize skill standard-tool --target opencode --profile base
 
 # Output shows:
 # ✓ Materialized skill 'standard-tool' from base
@@ -639,7 +639,7 @@ agent-smith materialize skill standard-tool --target opencode --from-profile bas
 #   Destination: .opencode/skills/standard-tool/
 ```
 
-**Result**: `--from-profile base` forces base directory regardless of active profile
+**Result**: `--profile base` forces base directory regardless of active profile
 
 ### Workflow 5: Team Member Sees Profile Provenance
 
@@ -732,9 +732,9 @@ agent-smith materialize info skill enterprise-auth
 
 ### Profile Scenarios
 - Materialize from active profile
-- Materialize from specific profile with --from-profile flag
-- Materialize from base with --from-profile base
-- Override active profile with explicit --from-profile
+- Materialize from specific profile with --profile flag
+- Materialize from base with --profile base
+- Override active profile with explicit --profile
 - List shows profile information
 - Info displays profile in provenance
 

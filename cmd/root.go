@@ -1650,15 +1650,15 @@ EXAMPLES:
 			projectDir, _ := cmd.Flags().GetString("project-dir")
 			force, _ := cmd.Flags().GetBool("force")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			fromProfile, _ := cmd.Flags().GetString("from-profile")
-			handleMaterializeComponent("skills", args[0], target, projectDir, force, dryRun, fromProfile)
+			profile, _ := cmd.Flags().GetString("profile")
+			handleMaterializeComponent("skills", args[0], target, projectDir, force, dryRun, profile)
 		},
 	}
 	materializeSkillCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeSkillCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeSkillCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeSkillCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
-	materializeSkillCmd.Flags().String("from-profile", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
+	materializeSkillCmd.Flags().StringP("profile", "p", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
 	materializeCmd.AddCommand(materializeSkillCmd)
 
 	materializeAgentCmd := &cobra.Command{
@@ -1690,15 +1690,15 @@ EXAMPLES:
 			projectDir, _ := cmd.Flags().GetString("project-dir")
 			force, _ := cmd.Flags().GetBool("force")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			fromProfile, _ := cmd.Flags().GetString("from-profile")
-			handleMaterializeComponent("agents", args[0], target, projectDir, force, dryRun, fromProfile)
+			profile, _ := cmd.Flags().GetString("profile")
+			handleMaterializeComponent("agents", args[0], target, projectDir, force, dryRun, profile)
 		},
 	}
 	materializeAgentCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeAgentCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeAgentCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeAgentCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
-	materializeAgentCmd.Flags().String("from-profile", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
+	materializeAgentCmd.Flags().StringP("profile", "p", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
 	materializeCmd.AddCommand(materializeAgentCmd)
 
 	materializeCommandCmd := &cobra.Command{
@@ -1730,15 +1730,15 @@ EXAMPLES:
 			projectDir, _ := cmd.Flags().GetString("project-dir")
 			force, _ := cmd.Flags().GetBool("force")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			fromProfile, _ := cmd.Flags().GetString("from-profile")
-			handleMaterializeComponent("commands", args[0], target, projectDir, force, dryRun, fromProfile)
+			profile, _ := cmd.Flags().GetString("profile")
+			handleMaterializeComponent("commands", args[0], target, projectDir, force, dryRun, profile)
 		},
 	}
 	materializeCommandCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeCommandCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeCommandCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeCommandCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
-	materializeCommandCmd.Flags().String("from-profile", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
+	materializeCommandCmd.Flags().StringP("profile", "p", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
 	materializeCmd.AddCommand(materializeCommandCmd)
 
 	materializeAllCmd := &cobra.Command{
@@ -1763,7 +1763,7 @@ EXAMPLES:
   agent-smith materialize all
 
   # Materialize from specific profile
-  agent-smith materialize all --target opencode --from-profile work
+  agent-smith materialize all --target opencode --profile work
 
   # Preview without making changes
   agent-smith materialize all --target opencode --dry-run`,
@@ -1773,15 +1773,15 @@ EXAMPLES:
 			projectDir, _ := cmd.Flags().GetString("project-dir")
 			force, _ := cmd.Flags().GetBool("force")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			fromProfile, _ := cmd.Flags().GetString("from-profile")
-			handleMaterializeAll(target, projectDir, force, dryRun, fromProfile)
+			profile, _ := cmd.Flags().GetString("profile")
+			handleMaterializeAll(target, projectDir, force, dryRun, profile)
 		},
 	}
 	materializeAllCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeAllCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeAllCmd.Flags().BoolP("force", "f", false, "Overwrite existing components if they differ")
 	materializeAllCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
-	materializeAllCmd.Flags().String("from-profile", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
+	materializeAllCmd.Flags().StringP("profile", "p", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
 	materializeCmd.AddCommand(materializeAllCmd)
 
 	materializeListCmd := &cobra.Command{

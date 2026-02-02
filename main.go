@@ -2164,7 +2164,7 @@ func main() {
 				yellow(formatter.SymbolNotLinked),
 				red(formatter.SymbolError))
 		},
-		func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile string) {
+		func(componentType, componentName, target, projectDir string, force, dryRun bool, profile string) {
 			// Import necessary packages at the top of main.go
 			// - "github.com/tgaines/agent-smith/pkg/project"
 			// - "github.com/tgaines/agent-smith/internal/materializer"
@@ -2214,20 +2214,20 @@ func main() {
 				log.Fatalf("Failed to get agent-smith directory: %v", err)
 			}
 
-			// Check if there's an active profile or --from-profile flag
+			// Check if there's an active profile or --profile flag
 			profileMgr, err := profiles.NewProfileManager(nil)
 			if err != nil {
 				log.Fatalf("Failed to initialize profile manager: %v", err)
 			}
 
-			// Determine source profile based on --from-profile flag or active profile
+			// Determine source profile based on --profile flag or active profile
 			var sourceProfile string
-			if fromProfile != "" {
-				// --from-profile flag is specified
-				if fromProfile == "base" {
+			if profile != "" {
+				// --profile flag is specified
+				if profile == "base" {
 					// Special value "base" means use ~/.agent-smith/
 					sourceProfile = ""
-					debugPrintln("[DEBUG] Using base directory (~/.agent-smith/) as source via --from-profile base")
+					debugPrintln("[DEBUG] Using base directory (~/.agent-smith/) as source via --profile base")
 				} else {
 					// Validate that the specified profile exists
 					profilesList, err := profileMgr.ScanProfiles()
@@ -2237,7 +2237,7 @@ func main() {
 
 					profileExists := false
 					for _, p := range profilesList {
-						if p.Name == fromProfile {
+						if p.Name == profile {
 							profileExists = true
 							break
 						}
@@ -2249,7 +2249,7 @@ func main() {
 						for _, p := range profilesList {
 							availableProfiles = append(availableProfiles, p.Name)
 						}
-						fmt.Println(errors.NewProfileNotFoundError(fromProfile).Format())
+						fmt.Println(errors.NewProfileNotFoundError(profile).Format())
 						if len(availableProfiles) > 0 {
 							infoPrintln("\nAvailable profiles:")
 							for _, name := range availableProfiles {
@@ -2266,12 +2266,12 @@ func main() {
 					if err != nil {
 						log.Fatalf("Failed to get profiles directory: %v", err)
 					}
-					baseDir = filepath.Join(profilesDir, fromProfile)
-					sourceProfile = fromProfile
-					debugPrintf("[DEBUG] Using specified profile '%s' as source via --from-profile\n", fromProfile)
+					baseDir = filepath.Join(profilesDir, profile)
+					sourceProfile = profile
+					debugPrintf("[DEBUG] Using specified profile '%s' as source via --profile\n", profile)
 				}
 			} else {
-				// No --from-profile flag, check active profile
+				// No --profile flag, check active profile
 				activeProfile, err := profileMgr.GetActiveProfile()
 				if err != nil {
 					log.Fatalf("Failed to check active profile: %v", err)
@@ -2493,7 +2493,7 @@ func main() {
 				infoPrintln("Run without --dry-run to apply these changes")
 			}
 		},
-		func(target, projectDir string, force, dryRun bool, fromProfile string) {
+		func(target, projectDir string, force, dryRun bool, profile string) {
 			// Define color functions
 			green := color.New(color.FgGreen).SprintFunc()
 
@@ -2541,20 +2541,20 @@ func main() {
 				log.Fatalf("Failed to get agent-smith directory: %v", err)
 			}
 
-			// Check if there's an active profile or --from-profile flag
+			// Check if there's an active profile or --profile flag
 			profileMgr, err := profiles.NewProfileManager(nil)
 			if err != nil {
 				log.Fatalf("Failed to initialize profile manager: %v", err)
 			}
 
-			// Determine source profile based on --from-profile flag or active profile
+			// Determine source profile based on --profile flag or active profile
 			var sourceProfile string
-			if fromProfile != "" {
-				// --from-profile flag is specified
-				if fromProfile == "base" {
+			if profile != "" {
+				// --profile flag is specified
+				if profile == "base" {
 					// Special value "base" means use ~/.agent-smith/
 					sourceProfile = ""
-					debugPrintln("[DEBUG] Using base directory (~/.agent-smith/) as source via --from-profile base")
+					debugPrintln("[DEBUG] Using base directory (~/.agent-smith/) as source via --profile base")
 				} else {
 					// Validate that the specified profile exists
 					profilesList, err := profileMgr.ScanProfiles()
@@ -2564,7 +2564,7 @@ func main() {
 
 					profileExists := false
 					for _, p := range profilesList {
-						if p.Name == fromProfile {
+						if p.Name == profile {
 							profileExists = true
 							break
 						}
@@ -2576,7 +2576,7 @@ func main() {
 						for _, p := range profilesList {
 							availableProfiles = append(availableProfiles, p.Name)
 						}
-						fmt.Println(errors.NewProfileNotFoundError(fromProfile).Format())
+						fmt.Println(errors.NewProfileNotFoundError(profile).Format())
 						if len(availableProfiles) > 0 {
 							infoPrintln("\nAvailable profiles:")
 							for _, name := range availableProfiles {
@@ -2593,12 +2593,12 @@ func main() {
 					if err != nil {
 						log.Fatalf("Failed to get profiles directory: %v", err)
 					}
-					baseDir = filepath.Join(profilesDir, fromProfile)
-					sourceProfile = fromProfile
-					debugPrintf("[DEBUG] Using specified profile '%s' as source via --from-profile\n", fromProfile)
+					baseDir = filepath.Join(profilesDir, profile)
+					sourceProfile = profile
+					debugPrintf("[DEBUG] Using specified profile '%s' as source via --profile\n", profile)
 				}
 			} else {
-				// No --from-profile flag, check active profile
+				// No --profile flag, check active profile
 				activeProfile, err := profileMgr.GetActiveProfile()
 				if err != nil {
 					log.Fatalf("Failed to check active profile: %v", err)
