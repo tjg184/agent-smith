@@ -470,7 +470,13 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 		det.SetLogger(appLogger)
 	}
 
-	return linker.NewComponentLinker(agentsDir, targets, det, nil)
+	// Create a wrapper to adapt profiles.ProfileManager to linker.ProfileManager
+	var linkerPM linker.ProfileManager
+	if profileManager != nil {
+		linkerPM = &profileManagerAdapter{pm: profileManager}
+	}
+
+	return linker.NewComponentLinker(agentsDir, targets, det, linkerPM)
 }
 
 // getTargetNames returns a slice of target names for error reporting

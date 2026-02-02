@@ -1765,7 +1765,9 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 			}
 
 			profileMsg := ""
-			if !allProfiles {
+			if allProfiles {
+				profileMsg = " from all profiles"
+			} else {
 				profileMsg = " from current profile"
 			}
 			fmt.Printf("This will unlink %d symlinked components%s from: %s", totalLinks, profileMsg, targetStr)

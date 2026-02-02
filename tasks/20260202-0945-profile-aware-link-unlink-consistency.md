@@ -20,7 +20,7 @@ This PRD addresses the inconsistency by making `unlink all` profile-aware to mat
 
 ## User Stories
 
-- [ ] Story-001: As a user with an active profile, I want `unlink all` to only unlink components from my current profile so that I don't accidentally remove links from other profiles.
+- [x] Story-001: As a user with an active profile, I want `unlink all` to only unlink components from my current profile so that I don't accidentally remove links from other profiles.
 
   **Acceptance Criteria:**
   - When a profile is active, `unlink all` only removes symlinks pointing to that profile's components
