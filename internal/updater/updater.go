@@ -10,6 +10,7 @@ import (
 	"github.com/tgaines/agent-smith/internal/detector"
 	"github.com/tgaines/agent-smith/internal/downloader"
 	"github.com/tgaines/agent-smith/internal/formatter"
+	gitpkg "github.com/tgaines/agent-smith/internal/git"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/colors"
@@ -153,12 +154,19 @@ func (ud *UpdateDetector) getCurrentRepoSHA(repoURL string) (string, error) {
 	defer os.RemoveAll(tempDir)
 
 	// Clone repository to get current HEAD
-	repo, err := git.PlainClone(tempDir, true, &git.CloneOptions{
+	cloneOpts := &git.CloneOptions{
 		URL:           fullURL,
 		Depth:         1,
 		ReferenceName: plumbing.HEAD,
 		SingleBranch:  true,
-	})
+	}
+
+	// Add authentication if needed
+	if auth, _ := gitpkg.GetAuthMethod(fullURL); auth != nil {
+		cloneOpts.Auth = auth
+	}
+
+	repo, err := git.PlainClone(tempDir, true, cloneOpts)
 	if err != nil {
 		return "", fmt.Errorf("failed to clone repository: %w", err)
 	}

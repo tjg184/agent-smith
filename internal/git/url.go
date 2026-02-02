@@ -5,18 +5,18 @@ import (
 	"strings"
 )
 
-// NormalizeURL normalizes a Git repository URL to a canonical HTTPS format.
+// NormalizeURL normalizes a Git repository URL to a canonical format.
 // It handles various URL formats including:
 // - HTTPS URLs (https://github.com/owner/repo)
 // - HTTP URLs (converted to HTTPS)
-// - SSH URLs (git@github.com:owner/repo.git)
-// - SSH protocol URLs (ssh://git@github.com/owner/repo)
-// - Shorthand notation (owner/repo, defaults to GitHub)
+// - SSH URLs (git@github.com:owner/repo.git) - preserved as SSH
+// - SSH protocol URLs (ssh://git@github.com/owner/repo) - preserved as SSH
+// - Shorthand notation (owner/repo, defaults to GitHub HTTPS)
 //
 // The function:
 // - Removes trailing slashes
 // - Removes .git suffixes
-// - Converts SSH format to HTTPS
+// - Preserves SSH URLs (no longer converts to HTTPS)
 // - Normalizes domain names to lowercase
 // - Upgrades HTTP to HTTPS
 func NormalizeURL(repoURL string) (string, error) {
@@ -30,22 +30,16 @@ func NormalizeURL(repoURL string) (string, error) {
 	repoURL = strings.TrimRight(repoURL, "/")
 	repoURL = strings.TrimSuffix(repoURL, ".git")
 
-	// Convert SSH format to HTTPS (git@github.com:owner/repo -> https://github.com/owner/repo)
+	// Preserve SSH URLs (git@github.com:owner/repo format)
 	if strings.HasPrefix(strings.ToLower(repoURL), "git@") {
-		// Format: git@github.com:owner/repo
-		repoURL = strings.TrimPrefix(repoURL, "git@")
-		repoURL = strings.TrimPrefix(repoURL, "GIT@") // Handle uppercase
-		repoURL = strings.Replace(repoURL, ":", "/", 1)
-		repoURL = "https://" + repoURL
+		// SSH URLs are already in canonical format, just return them
+		return repoURL, nil
 	}
 
-	// Convert ssh:// format to HTTPS (ssh://git@github.com/owner/repo -> https://github.com/owner/repo)
+	// Preserve SSH protocol URLs (ssh://git@github.com/owner/repo format)
 	if strings.HasPrefix(strings.ToLower(repoURL), "ssh://") {
-		repoURL = strings.TrimPrefix(repoURL, "ssh://")
-		repoURL = strings.TrimPrefix(repoURL, "SSH://") // Handle uppercase
-		repoURL = strings.TrimPrefix(repoURL, "git@")
-		repoURL = strings.TrimPrefix(repoURL, "GIT@") // Handle uppercase
-		repoURL = "https://" + repoURL
+		// SSH URLs are already in canonical format, just return them
+		return repoURL, nil
 	}
 
 	// Normalize protocol and domain to lowercase for case-insensitive comparison

@@ -82,49 +82,49 @@ func TestNormalizeURL(t *testing.T) {
 			shouldErr: false,
 		},
 
-		// SSH URLs (git@host:path format)
+		// SSH URLs (git@host:path format) - preserved as SSH
 		{
 			name:      "GitHub SSH URL",
 			url:       "git@github.com:owner/repo.git",
-			expected:  "https://github.com/owner/repo",
+			expected:  "git@github.com:owner/repo",
 			shouldErr: false,
 		},
 		{
 			name:      "GitHub SSH URL without .git",
 			url:       "git@github.com:owner/repo",
-			expected:  "https://github.com/owner/repo",
+			expected:  "git@github.com:owner/repo",
 			shouldErr: false,
 		},
 		{
 			name:      "GitLab SSH URL",
 			url:       "git@gitlab.com:owner/repo.git",
-			expected:  "https://gitlab.com/owner/repo",
+			expected:  "git@gitlab.com:owner/repo",
 			shouldErr: false,
 		},
 		{
 			name:      "Bitbucket SSH URL",
 			url:       "git@bitbucket.org:owner/repo.git",
-			expected:  "https://bitbucket.org/owner/repo",
+			expected:  "git@bitbucket.org:owner/repo",
 			shouldErr: false,
 		},
 
-		// SSH URLs (ssh://git@host/path format)
+		// SSH URLs (ssh://git@host/path format) - preserved as SSH
 		{
 			name:      "GitHub SSH protocol URL",
 			url:       "ssh://git@github.com/owner/repo.git",
-			expected:  "https://github.com/owner/repo",
+			expected:  "ssh://git@github.com/owner/repo",
 			shouldErr: false,
 		},
 		{
 			name:      "GitHub SSH protocol URL without .git",
 			url:       "ssh://git@github.com/owner/repo",
-			expected:  "https://github.com/owner/repo",
+			expected:  "ssh://git@github.com/owner/repo",
 			shouldErr: false,
 		},
 		{
 			name:      "GitLab SSH protocol URL",
 			url:       "ssh://git@gitlab.com/owner/repo.git",
-			expected:  "https://gitlab.com/owner/repo",
+			expected:  "ssh://git@gitlab.com/owner/repo",
 			shouldErr: false,
 		},
 
@@ -150,13 +150,13 @@ func TestNormalizeURL(t *testing.T) {
 		{
 			name:      "Uppercase SSH format",
 			url:       "GIT@github.com:owner/repo.git",
-			expected:  "https://github.com/owner/repo",
+			expected:  "GIT@github.com:owner/repo",
 			shouldErr: false,
 		},
 		{
 			name:      "Uppercase SSH protocol",
 			url:       "SSH://GIT@github.com/owner/repo.git",
-			expected:  "https://github.com/owner/repo",
+			expected:  "SSH://GIT@github.com/owner/repo",
 			shouldErr: false,
 		},
 
@@ -233,51 +233,81 @@ func TestNormalizeURL(t *testing.T) {
 }
 
 // TestNormalizeURLEquivalence tests that different URL formats for the same repository
-// normalize to the same canonical form. This is critical for ensuring consistent
-// handling of repository URLs across different formats.
+// normalize to consistent canonical forms. HTTPS URLs normalize together, and SSH URLs
+// are preserved as SSH (not converted to HTTPS).
 func TestNormalizeURLEquivalence(t *testing.T) {
 	equivalentGroups := []struct {
 		name string
 		urls []string
 	}{
 		{
-			name: "GitHub repository variations",
+			name: "GitHub HTTPS repository variations",
 			urls: []string{
 				"https://github.com/owner/repo",
 				"https://github.com/owner/repo/",
 				"https://github.com/owner/repo.git",
 				"http://github.com/owner/repo",
-				"git@github.com:owner/repo",
-				"git@github.com:owner/repo.git",
-				"ssh://git@github.com/owner/repo",
-				"ssh://git@github.com/owner/repo.git",
 				"owner/repo",
 				"HTTPS://GITHUB.COM/owner/repo",
 				"https://GitHub.Com/owner/repo",
 			},
 		},
 		{
-			name: "GitLab repository variations",
+			name: "GitHub SSH repository variations",
+			urls: []string{
+				"git@github.com:owner/repo",
+				"git@github.com:owner/repo.git",
+			},
+		},
+		{
+			name: "GitHub SSH protocol variations",
+			urls: []string{
+				"ssh://git@github.com/owner/repo",
+				"ssh://git@github.com/owner/repo.git",
+			},
+		},
+		{
+			name: "GitLab HTTPS repository variations",
 			urls: []string{
 				"https://gitlab.com/owner/repo",
 				"https://gitlab.com/owner/repo/",
 				"https://gitlab.com/owner/repo.git",
 				"http://gitlab.com/owner/repo",
+			},
+		},
+		{
+			name: "GitLab SSH repository variations",
+			urls: []string{
 				"git@gitlab.com:owner/repo",
 				"git@gitlab.com:owner/repo.git",
+			},
+		},
+		{
+			name: "GitLab SSH protocol variations",
+			urls: []string{
 				"ssh://git@gitlab.com/owner/repo",
 				"ssh://git@gitlab.com/owner/repo.git",
 			},
 		},
 		{
-			name: "Bitbucket repository variations",
+			name: "Bitbucket HTTPS repository variations",
 			urls: []string{
 				"https://bitbucket.org/owner/repo",
 				"https://bitbucket.org/owner/repo/",
 				"https://bitbucket.org/owner/repo.git",
 				"http://bitbucket.org/owner/repo",
+			},
+		},
+		{
+			name: "Bitbucket SSH repository variations",
+			urls: []string{
 				"git@bitbucket.org:owner/repo",
 				"git@bitbucket.org:owner/repo.git",
+			},
+		},
+		{
+			name: "Bitbucket SSH protocol variations",
+			urls: []string{
 				"ssh://git@bitbucket.org/owner/repo",
 			},
 		},
@@ -323,7 +353,7 @@ func TestNormalizeURLRealWorldExamples(t *testing.T) {
 		{
 			name:     "Anthropic skills repo SSH",
 			input:    "git@github.com:anthropics/skills.git",
-			expected: "https://github.com/anthropics/skills",
+			expected: "git@github.com:anthropics/skills",
 		},
 		{
 			name:     "Anthropic skills repo shorthand",

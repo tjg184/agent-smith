@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/tgaines/agent-smith/internal/fileutil"
+	gitpkg "github.com/tgaines/agent-smith/internal/git"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/logger"
 	"github.com/tgaines/agent-smith/pkg/paths"
@@ -218,6 +219,7 @@ func (rd *RepositoryDetector) DetectProvider(repoURL string) string {
 }
 
 // NormalizeURL normalizes a repository URL
+// NormalizeURL normalizes a repository URL
 func (rd *RepositoryDetector) NormalizeURL(repoURL string) (string, error) {
 	repoURL = strings.TrimSpace(repoURL)
 
@@ -236,79 +238,8 @@ func (rd *RepositoryDetector) NormalizeURL(repoURL string) (string, error) {
 		return absPath, nil
 	}
 
-	// Remove trailing slashes and .git suffix
-	repoURL = strings.TrimRight(repoURL, "/")
-	repoURL = strings.TrimSuffix(repoURL, ".git")
-
-	// Convert SSH format to HTTPS (git@github.com:owner/repo -> https://github.com/owner/repo)
-	if strings.HasPrefix(strings.ToLower(repoURL), "git@") {
-		// Format: git@github.com:owner/repo
-		repoURL = strings.TrimPrefix(repoURL, "git@")
-		repoURL = strings.TrimPrefix(repoURL, "GIT@") // Handle uppercase
-		repoURL = strings.Replace(repoURL, ":", "/", 1)
-		repoURL = "https://" + repoURL
-	}
-
-	// Convert ssh:// format to HTTPS (ssh://git@github.com/owner/repo -> https://github.com/owner/repo)
-	if strings.HasPrefix(strings.ToLower(repoURL), "ssh://") {
-		repoURL = strings.TrimPrefix(repoURL, "ssh://")
-		repoURL = strings.TrimPrefix(repoURL, "SSH://") // Handle uppercase
-		repoURL = strings.TrimPrefix(repoURL, "git@")
-		repoURL = strings.TrimPrefix(repoURL, "GIT@") // Handle uppercase
-		repoURL = "https://" + repoURL
-	}
-
-	// Normalize protocol and domain to lowercase for case-insensitive comparison
-	if strings.HasPrefix(strings.ToLower(repoURL), "https://") || strings.HasPrefix(strings.ToLower(repoURL), "http://") {
-		// Parse URL to normalize the domain
-		parts := strings.SplitN(repoURL, "://", 2)
-		if len(parts) == 2 {
-			protocol := strings.ToLower(parts[0])
-			remainder := parts[1]
-			// Split domain from path
-			domainAndPath := strings.SplitN(remainder, "/", 2)
-			domain := strings.ToLower(domainAndPath[0])
-			path := ""
-			if len(domainAndPath) > 1 {
-				path = "/" + domainAndPath[1]
-			}
-			repoURL = protocol + "://" + domain + path
-		}
-	}
-
-	// If it's already an HTTPS URL, validate and return
-	if strings.HasPrefix(strings.ToLower(repoURL), "https://") {
-		// Basic URL validation
-		if !strings.Contains(repoURL, "://") {
-			return "", fmt.Errorf("invalid URL format: %s", repoURL)
-		}
-		return repoURL, nil
-	}
-
-	// Convert HTTP to HTTPS
-	if strings.HasPrefix(strings.ToLower(repoURL), "http://") {
-		repoURL = strings.Replace(repoURL, "http://", "https://", 1)
-		repoURL = strings.Replace(repoURL, "HTTP://", "https://", 1)
-		return repoURL, nil
-	}
-
-	// Handle GitHub shorthand (owner/repo)
-	if !strings.Contains(repoURL, "/") {
-		return "", fmt.Errorf("invalid repository format: %s", repoURL)
-	}
-
-	parts := strings.Split(repoURL, "/")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid repository format: %s", repoURL)
-	}
-
-	// Validate shorthand format
-	if parts[0] == "" || parts[1] == "" {
-		return "", fmt.Errorf("invalid repository format: %s", repoURL)
-	}
-
-	// Default to GitHub for shorthand notation
-	return fmt.Sprintf("https://github.com/%s", repoURL), nil
+	// Delegate to git package's NormalizeURL for remote repositories
+	return gitpkg.NormalizeURL(repoURL)
 }
 
 // ValidateRepository validates a repository URL

@@ -139,12 +139,19 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		defer os.RemoveAll(tempDir)
 
 		// Clone repository to temporary location for detection
-		repo, err := git.PlainClone(tempDir, false, &git.CloneOptions{
+		cloneOpts := &git.CloneOptions{
 			URL:           fullURL,
 			Depth:         1,
 			ReferenceName: plumbing.HEAD,
 			SingleBranch:  true,
-		})
+		}
+
+		// Add authentication if needed
+		if auth, _ := gitpkg.GetAuthMethod(fullURL); auth != nil {
+			cloneOpts.Auth = auth
+		}
+
+		repo, err := git.PlainClone(tempDir, false, cloneOpts)
 		if err != nil {
 			return fmt.Errorf("failed to clone repository for detection: %w", err)
 		}
@@ -316,12 +323,19 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 	}()
 
 	// Clone repository directly
-	_, err := git.PlainClone(agentDir, false, &git.CloneOptions{
+	cloneOpts := &git.CloneOptions{
 		URL:           fullURL,
 		Depth:         1,
 		ReferenceName: plumbing.HEAD,
 		SingleBranch:  true,
-	})
+	}
+
+	// Add authentication if needed
+	if auth, _ := gitpkg.GetAuthMethod(fullURL); auth != nil {
+		cloneOpts.Auth = auth
+	}
+
+	_, err := git.PlainClone(agentDir, false, cloneOpts)
 	if err != nil {
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
