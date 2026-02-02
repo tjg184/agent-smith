@@ -30,7 +30,7 @@ Implement component materialization to enable copying skills, agents, and comman
 
 ## User Stories
 
-- [ ] Story-001: As a project maintainer, I want to materialize a skill to my project so that my team can use it by cloning the repo.
+- [x] Story-001: As a project maintainer, I want to materialize a skill to my project so that my team can use it by cloning the repo.
 
   **Acceptance Criteria:**
   - Command `agent-smith materialize skill <name> --target <opencode|claudecode|all>` copies skill from `~/.agent-smith/skills/` to `.opencode/skills/` or `.claude/skills/`
@@ -53,7 +53,7 @@ Implement component materialization to enable copying skills, agents, and comman
   **Component Browser Tests:**
   - Not applicable (CLI tool)
 
-- [ ] Story-002: As a project maintainer, I want to materialize agents and commands to my project so that all component types are supported.
+- [x] Story-002: As a project maintainer, I want to materialize agents and commands to my project so that all component types are supported.
 
   **Acceptance Criteria:**
   - Command `agent-smith materialize agent <name> --target <type>` copies agent to project
