@@ -116,3 +116,128 @@ func TestEnsureTargetStructure_PartialStructure(t *testing.T) {
 		}
 	}
 }
+
+func TestFindProjectRootFromDir_StopsAtGitDirectory(t *testing.T) {
+	// Create temporary directory structure:
+	// tempDir/
+	//   .git/
+	//   src/
+	//     components/
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create .git directory to mark project root
+	gitDir := filepath.Join(tempDir, ".git")
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		t.Fatalf("Failed to create .git directory: %v", err)
+	}
+
+	// Create nested directory
+	nestedDir := filepath.Join(tempDir, "src", "components")
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatalf("Failed to create nested directory: %v", err)
+	}
+
+	// Try to find project root from nested directory
+	// Should find the .git directory and return it as project root
+	projectRoot, err := FindProjectRootFromDir(nestedDir)
+	if err != nil {
+		t.Fatalf("Expected to find project root at .git/, got error: %v", err)
+	}
+
+	// Verify project root is the temp directory (where .git is)
+	if projectRoot != tempDir {
+		t.Errorf("Expected project root to be %q, got %q", tempDir, projectRoot)
+	}
+}
+
+func TestFindProjectRootFromDir_FindsProjectWithinGitRepo(t *testing.T) {
+	// Create temporary directory structure:
+	// tempDir/
+	//   .git/
+	//   .opencode/
+	//   src/
+	//     components/
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create .git directory to mark project root
+	gitDir := filepath.Join(tempDir, ".git")
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		t.Fatalf("Failed to create .git directory: %v", err)
+	}
+
+	// Create .opencode directory at project root
+	opencodeDir := filepath.Join(tempDir, ".opencode")
+	if err := os.MkdirAll(opencodeDir, 0755); err != nil {
+		t.Fatalf("Failed to create .opencode directory: %v", err)
+	}
+
+	// Create nested directory
+	nestedDir := filepath.Join(tempDir, "src", "components")
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatalf("Failed to create nested directory: %v", err)
+	}
+
+	// Try to find project root from nested directory
+	projectRoot, err := FindProjectRootFromDir(nestedDir)
+	if err != nil {
+		t.Fatalf("Expected to find project root, got error: %v", err)
+	}
+
+	// Verify project root is the temp directory (where .opencode and .git are)
+	if projectRoot != tempDir {
+		t.Errorf("Expected project root to be %q, got %q", tempDir, projectRoot)
+	}
+}
+
+func TestFindProjectRootFromDir_DoesNotEscapeGitRepo(t *testing.T) {
+	// Create temporary directory structure:
+	// tempDir/
+	//   .opencode/  (this should NOT be found)
+	//   my-project/
+	//     .git/
+	//     src/
+	tempDir, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create .opencode in parent directory
+	parentOpencode := filepath.Join(tempDir, ".opencode")
+	if err := os.MkdirAll(parentOpencode, 0755); err != nil {
+		t.Fatalf("Failed to create parent .opencode directory: %v", err)
+	}
+
+	// Create project directory with .git
+	projectDir := filepath.Join(tempDir, "my-project")
+	gitDir := filepath.Join(projectDir, ".git")
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		t.Fatalf("Failed to create .git directory: %v", err)
+	}
+
+	// Create nested directory in project
+	srcDir := filepath.Join(projectDir, "src")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("Failed to create src directory: %v", err)
+	}
+
+	// Try to find project root from src directory
+	// Should find the .git directory in my-project, NOT the parent .opencode
+	projectRoot, err := FindProjectRootFromDir(srcDir)
+	if err != nil {
+		t.Fatalf("Expected to find project root at .git/, got error: %v", err)
+	}
+
+	// Verify project root is the my-project directory (where .git is)
+	if projectRoot != projectDir {
+		t.Errorf("Expected project root to be %q (my-project/.git), got %q", projectDir, projectRoot)
+	}
+}

@@ -22,8 +22,9 @@ func FindProjectRoot() (string, error) {
 }
 
 // FindProjectRootFromDir walks up the directory tree from the specified directory
-// looking for project markers (.opencode or .claude directories).
-// Returns the project root path or an error if no project is found.
+// looking for project markers (.opencode or .claude directories) or .git directory.
+// Returns the project root path or an error if no project boundary is found.
+// Stops at .git/ directory (project root), home directory, or filesystem root.
 func FindProjectRootFromDir(startDir string) (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -34,12 +35,20 @@ func FindProjectRootFromDir(startDir string) (string, error) {
 
 	// Walk up the directory tree
 	for {
-		// Check for project markers
+		// Check for project markers (.opencode or .claude)
 		for _, marker := range ProjectMarkers {
 			markerPath := filepath.Join(currentDir, marker)
 			if info, err := os.Stat(markerPath); err == nil && info.IsDir() {
 				return currentDir, nil
 			}
+		}
+
+		// Check if we've reached a .git/ directory (project root boundary)
+		// If we find .git, this is the project root even without .opencode/.claude
+		gitPath := filepath.Join(currentDir, ".git")
+		if info, err := os.Stat(gitPath); err == nil && info.IsDir() {
+			// We're at a git project root, return this as the project root
+			return currentDir, nil
 		}
 
 		// Check if we've reached the home directory or filesystem root
@@ -51,7 +60,7 @@ func FindProjectRootFromDir(startDir string) (string, error) {
 		currentDir = parentDir
 	}
 
-	return "", fmt.Errorf("no project found (.opencode/ or .claude/ directory not found)\n\nTo materialize components to a project:\n  1. Create a project directory: mkdir -p .opencode/\n  2. Run the materialize command from within the project")
+	return "", fmt.Errorf("no project found (.opencode/, .claude/, or .git/ directory not found)\n\nTo materialize components to a project:\n  1. Create a project directory: mkdir -p .opencode/\n  2. Run the materialize command from within the project")
 }
 
 // GetTargetDirectory returns the target directory path for a given target name
