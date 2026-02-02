@@ -1490,6 +1490,116 @@ EXAMPLES:
 
 	rootCmd.AddCommand(targetCmd)
 
+	// Create 'materialize' parent command with subcommands
+	materializeCmd := &cobra.Command{
+		Use:   "materialize",
+		Short: "Materialize components to project directories",
+		Long: `Materialize components (skills, agents, commands) to project directories for version control.
+
+This command copies components from ~/.agent-smith/ to project-local directories
+(.opencode/ or .claude/) so they can be committed to version control and shared
+with your team.
+
+USAGE:
+  agent-smith materialize skill <name> --target <opencode|claudecode|all>
+  agent-smith materialize agent <name> --target <opencode|claudecode|all>
+  agent-smith materialize command <name> --target <opencode|claudecode|all>
+
+FLAGS:
+  --target, -t <target>  - Required, which target(s) to materialize to (opencode, claudecode, or all)
+  --project-dir <path>   - Optional, override project directory detection
+
+EXAMPLES:
+  # Materialize a skill to OpenCode
+  agent-smith materialize skill my-skill --target opencode
+
+  # Materialize to both targets
+  agent-smith materialize skill my-skill --target all
+
+  # Materialize from specific directory
+  agent-smith materialize skill my-skill --target opencode --project-dir ./my-project`,
+	}
+
+	materializeSkillCmd := &cobra.Command{
+		Use:   "skill <name>",
+		Short: "Materialize a skill to project directories",
+		Long: `Materialize a skill from ~/.agent-smith/skills/ to project directories.
+
+This command copies the entire skill directory to .opencode/skills/ or .claude/skills/
+with full provenance tracking in .materializations.json.
+
+EXAMPLES:
+  # Materialize a skill to OpenCode
+  agent-smith materialize skill my-skill --target opencode
+
+  # Materialize to both targets
+  agent-smith materialize skill my-skill --target all`,
+		Args: exactArgsWithHelp(1, "agent-smith materialize skill <name>"),
+		Run: func(cmd *cobra.Command, args []string) {
+			target, _ := cmd.Flags().GetString("target")
+			projectDir, _ := cmd.Flags().GetString("project-dir")
+			handleMaterializeComponent("skills", args[0], target, projectDir)
+		},
+	}
+	materializeSkillCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all)")
+	materializeSkillCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeSkillCmd.MarkFlagRequired("target")
+	materializeCmd.AddCommand(materializeSkillCmd)
+
+	materializeAgentCmd := &cobra.Command{
+		Use:   "agent <name>",
+		Short: "Materialize an agent to project directories",
+		Long: `Materialize an agent from ~/.agent-smith/agents/ to project directories.
+
+This command copies the entire agent directory to .opencode/agents/ or .claude/agents/
+with full provenance tracking in .materializations.json.
+
+EXAMPLES:
+  # Materialize an agent to OpenCode
+  agent-smith materialize agent my-agent --target opencode
+
+  # Materialize to both targets
+  agent-smith materialize agent my-agent --target all`,
+		Args: exactArgsWithHelp(1, "agent-smith materialize agent <name>"),
+		Run: func(cmd *cobra.Command, args []string) {
+			target, _ := cmd.Flags().GetString("target")
+			projectDir, _ := cmd.Flags().GetString("project-dir")
+			handleMaterializeComponent("agents", args[0], target, projectDir)
+		},
+	}
+	materializeAgentCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all)")
+	materializeAgentCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeAgentCmd.MarkFlagRequired("target")
+	materializeCmd.AddCommand(materializeAgentCmd)
+
+	materializeCommandCmd := &cobra.Command{
+		Use:   "command <name>",
+		Short: "Materialize a command to project directories",
+		Long: `Materialize a command from ~/.agent-smith/commands/ to project directories.
+
+This command copies the entire command directory to .opencode/commands/ or .claude/commands/
+with full provenance tracking in .materializations.json.
+
+EXAMPLES:
+  # Materialize a command to OpenCode
+  agent-smith materialize command my-command --target opencode
+
+  # Materialize to both targets
+  agent-smith materialize command my-command --target all`,
+		Args: exactArgsWithHelp(1, "agent-smith materialize command <name>"),
+		Run: func(cmd *cobra.Command, args []string) {
+			target, _ := cmd.Flags().GetString("target")
+			projectDir, _ := cmd.Flags().GetString("project-dir")
+			handleMaterializeComponent("commands", args[0], target, projectDir)
+		},
+	}
+	materializeCommandCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all)")
+	materializeCommandCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeCommandCmd.MarkFlagRequired("target")
+	materializeCmd.AddCommand(materializeCommandCmd)
+
+	rootCmd.AddCommand(materializeCmd)
+
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
 	rootCmd.PersistentFlags().Bool("verbose", false, "Show informational output (default: show only errors)")
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable verbose debug output for troubleshooting")
@@ -1497,37 +1607,38 @@ EXAMPLES:
 
 // These functions will be implemented in main.go to keep existing logic
 var (
-	handleAddSkill           func(repoURL, name, profile, targetDir string)
-	handleAddAgent           func(repoURL, name, profile, targetDir string)
-	handleAddCommand         func(repoURL, name, profile, targetDir string)
-	handleAddAll             func(repoURL, profile, targetDir string)
-	handleUpdate             func(componentType, componentName, profile string)
-	handleUpdateAll          func(profile string)
-	handleLink               func(componentType, componentName, targetFilter, profile string)
-	handleLinkAll            func(targetFilter, profile string)
-	handleLinkType           func(componentType, targetFilter, profile string)
-	handleAutoLink           func()
-	handleListLinks          func()
-	handleLinkStatus         func(allProfiles bool, profileFilter []string)
-	handleUnlink             func(componentType, componentName, targetFilter string)
-	handleUnlinkAll          func(targetFilter string, force bool)
-	handleUnlinkType         func(componentType, targetFilter string, force bool)
-	handleUninstall          func(componentType, componentName, profile string)
-	handleUninstallAll       func(repoURL string, force bool)
-	handleProfilesList       func(profileFilter []string, activeOnly bool)
-	handleProfilesShow       func(profileName string)
-	handleProfilesCreate     func(profileName string)
-	handleProfilesDelete     func(profileName string)
-	handleProfilesActivate   func(profileName string)
-	handleProfilesDeactivate func()
-	handleProfilesAdd        func(componentType, profileName, componentName string)
-	handleProfilesCopy       func(componentType, sourceProfile, targetProfile, componentName string)
-	handleProfilesRemove     func(componentType, profileName, componentName string)
-	handleProfilesCherryPick func(targetProfile string, sourceProfiles []string)
-	handleStatus             func()
-	handleTargetAdd          func(name, path string)
-	handleTargetRemove       func(name string)
-	handleTargetList         func()
+	handleAddSkill             func(repoURL, name, profile, targetDir string)
+	handleAddAgent             func(repoURL, name, profile, targetDir string)
+	handleAddCommand           func(repoURL, name, profile, targetDir string)
+	handleAddAll               func(repoURL, profile, targetDir string)
+	handleUpdate               func(componentType, componentName, profile string)
+	handleUpdateAll            func(profile string)
+	handleLink                 func(componentType, componentName, targetFilter, profile string)
+	handleLinkAll              func(targetFilter, profile string)
+	handleLinkType             func(componentType, targetFilter, profile string)
+	handleAutoLink             func()
+	handleListLinks            func()
+	handleLinkStatus           func(allProfiles bool, profileFilter []string)
+	handleUnlink               func(componentType, componentName, targetFilter string)
+	handleUnlinkAll            func(targetFilter string, force bool)
+	handleUnlinkType           func(componentType, targetFilter string, force bool)
+	handleUninstall            func(componentType, componentName, profile string)
+	handleUninstallAll         func(repoURL string, force bool)
+	handleProfilesList         func(profileFilter []string, activeOnly bool)
+	handleProfilesShow         func(profileName string)
+	handleProfilesCreate       func(profileName string)
+	handleProfilesDelete       func(profileName string)
+	handleProfilesActivate     func(profileName string)
+	handleProfilesDeactivate   func()
+	handleProfilesAdd          func(componentType, profileName, componentName string)
+	handleProfilesCopy         func(componentType, sourceProfile, targetProfile, componentName string)
+	handleProfilesRemove       func(componentType, profileName, componentName string)
+	handleProfilesCherryPick   func(targetProfile string, sourceProfiles []string)
+	handleStatus               func()
+	handleTargetAdd            func(name, path string)
+	handleTargetRemove         func(name string)
+	handleTargetList           func()
+	handleMaterializeComponent func(componentType, componentName, target, projectDir string)
 )
 
 func SetHandlers(
@@ -1562,6 +1673,7 @@ func SetHandlers(
 	targetAdd func(name, path string),
 	targetRemove func(name string),
 	targetList func(),
+	materializeComponent func(componentType, componentName, target, projectDir string),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
@@ -1594,4 +1706,5 @@ func SetHandlers(
 	handleTargetAdd = targetAdd
 	handleTargetRemove = targetRemove
 	handleTargetList = targetList
+	handleMaterializeComponent = materializeComponent
 }

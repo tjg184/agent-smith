@@ -16,6 +16,7 @@ import (
 	"github.com/tgaines/agent-smith/internal/fileutil"
 	"github.com/tgaines/agent-smith/internal/formatter"
 	"github.com/tgaines/agent-smith/internal/linker"
+	"github.com/tgaines/agent-smith/internal/materializer"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/internal/uninstaller"
@@ -25,6 +26,7 @@ import (
 	"github.com/tgaines/agent-smith/pkg/logger"
 	"github.com/tgaines/agent-smith/pkg/paths"
 	"github.com/tgaines/agent-smith/pkg/profiles"
+	"github.com/tgaines/agent-smith/pkg/project"
 )
 
 // appLogger is the global logger instance used throughout the application
@@ -1950,6 +1952,141 @@ func main() {
 				green(formatter.SymbolSuccess),
 				yellow(formatter.SymbolNotLinked),
 				red(formatter.SymbolError))
+		},
+		func(componentType, componentName, target, projectDir string) {
+			// Import necessary packages at the top of main.go
+			// - "github.com/tgaines/agent-smith/pkg/project"
+			// - "github.com/tgaines/agent-smith/internal/materializer"
+			// - "github.com/tgaines/agent-smith/internal/metadata"
+
+			// Determine project root
+			var projectRoot string
+			var err error
+			if projectDir != "" {
+				// Use specified project directory
+				projectRoot, err = filepath.Abs(projectDir)
+				if err != nil {
+					log.Fatalf("Failed to resolve project directory: %v", err)
+				}
+			} else {
+				// Auto-detect project root
+				projectRoot, err = project.FindProjectRoot()
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+
+			// Get source directory (from ~/.agent-smith/)
+			baseDir, err := paths.GetAgentsDir()
+			if err != nil {
+				log.Fatalf("Failed to get agent-smith directory: %v", err)
+			}
+
+			var componentSourceDir string
+			switch componentType {
+			case "skills":
+				componentSourceDir = filepath.Join(baseDir, "skills", componentName)
+			case "agents":
+				componentSourceDir = filepath.Join(baseDir, "agents", componentName)
+			case "commands":
+				componentSourceDir = filepath.Join(baseDir, "commands", componentName)
+			default:
+				log.Fatalf("Invalid component type: %s", componentType)
+			}
+
+			// Check if component exists
+			if _, err := os.Stat(componentSourceDir); os.IsNotExist(err) {
+				log.Fatalf("Component '%s' not found in ~/.agent-smith/%s/\n\nInstall it first with: agent-smith install %s <repo> %s",
+					componentName, componentType, componentType, componentName)
+			}
+
+			// Get lock file entry for provenance
+			lockEntry, err := metadataPkg.LoadLockFileEntry(baseDir, componentType, componentName)
+			if err != nil {
+				log.Fatalf("Failed to load component metadata: %v", err)
+			}
+
+			// Calculate source hash
+			sourceHash, err := materializer.CalculateDirectoryHash(componentSourceDir)
+			if err != nil {
+				log.Fatalf("Failed to calculate source hash: %v", err)
+			}
+
+			// Determine which targets to materialize to
+			var targets []string
+			if target == "all" {
+				targets = []string{"opencode", "claudecode"}
+			} else {
+				targets = []string{target}
+			}
+
+			// Materialize to each target
+			for _, targetName := range targets {
+				targetDir := project.GetTargetDirectory(projectRoot, targetName)
+				if targetDir == "" {
+					log.Fatalf("Invalid target: %s", targetName)
+				}
+
+				// Ensure target structure exists
+				if err := project.EnsureTargetStructure(targetDir); err != nil {
+					log.Fatalf("Failed to create target structure: %v", err)
+				}
+
+				// Determine destination path
+				destPath := filepath.Join(targetDir, componentType, componentName)
+
+				// Check if component already exists
+				if _, err := os.Stat(destPath); err == nil {
+					// Component exists, check if it's identical
+					match, err := materializer.DirectoriesMatch(componentSourceDir, destPath)
+					if err != nil {
+						log.Fatalf("Failed to compare directories: %v", err)
+					}
+					if match {
+						infoPrintf("⊘ Skipped %s '%s' to %s (already exists and identical)\n", componentType, componentName, targetName)
+						continue
+					} else {
+						log.Fatalf("Component '%s' already exists in %s and differs.\n\nUse --force to overwrite (not yet implemented in this version)", componentName, targetName)
+					}
+				}
+
+				// Copy the component
+				if err := materializer.CopyDirectory(componentSourceDir, destPath); err != nil {
+					log.Fatalf("Failed to copy component: %v", err)
+				}
+
+				// Calculate current hash (should match source hash immediately after copy)
+				currentHash := sourceHash
+
+				// Load or create materialization metadata
+				matMetadata, err := project.LoadMaterializationMetadata(targetDir)
+				if err != nil {
+					log.Fatalf("Failed to load materialization metadata: %v", err)
+				}
+
+				// Add entry to metadata
+				project.AddMaterializationEntry(
+					matMetadata,
+					componentType,
+					componentName,
+					lockEntry.SourceUrl,
+					lockEntry.SourceType,
+					"", // sourceProfile (not implemented yet)
+					lockEntry.CommitHash,
+					lockEntry.OriginalPath,
+					sourceHash,
+					currentHash,
+				)
+
+				// Save metadata
+				if err := project.SaveMaterializationMetadata(targetDir, matMetadata); err != nil {
+					log.Fatalf("Failed to save materialization metadata: %v", err)
+				}
+
+				infoPrintf("%s Materialized %s '%s' to %s\n", formatter.SymbolSuccess, componentType, componentName, targetName)
+				infoPrintf("  Source:      %s\n", componentSourceDir)
+				infoPrintf("  Destination: %s\n", destPath)
+			}
 		},
 	)
 
