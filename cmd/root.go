@@ -1506,7 +1506,8 @@ USAGE:
   agent-smith materialize command <name> --target <opencode|claudecode|all>
 
 FLAGS:
-  --target, -t <target>  - Required, which target(s) to materialize to (opencode, claudecode, or all)
+  --target, -t <target>  - Target to materialize to (opencode, claudecode, or all)
+                           Can also be set via AGENT_SMITH_TARGET environment variable
   --project-dir <path>   - Optional, override project directory detection
 
 EXAMPLES:
@@ -1515,6 +1516,10 @@ EXAMPLES:
 
   # Materialize to both targets
   agent-smith materialize skill my-skill --target all
+
+  # Materialize using environment variable
+  export AGENT_SMITH_TARGET=opencode
+  agent-smith materialize skill my-skill
 
   # Materialize from specific directory
   agent-smith materialize skill my-skill --target opencode --project-dir ./my-project`,
@@ -1528,12 +1533,18 @@ EXAMPLES:
 This command copies the entire skill directory to .opencode/skills/ or .claude/skills/
 with full provenance tracking in .materializations.json.
 
+The target can be specified with --target flag or AGENT_SMITH_TARGET environment variable.
+
 EXAMPLES:
   # Materialize a skill to OpenCode
   agent-smith materialize skill my-skill --target opencode
 
   # Materialize to both targets
-  agent-smith materialize skill my-skill --target all`,
+  agent-smith materialize skill my-skill --target all
+
+  # Use environment variable for default target
+  export AGENT_SMITH_TARGET=opencode
+  agent-smith materialize skill my-skill`,
 		Args: exactArgsWithHelp(1, "agent-smith materialize skill <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			target, _ := cmd.Flags().GetString("target")
@@ -1541,9 +1552,8 @@ EXAMPLES:
 			handleMaterializeComponent("skills", args[0], target, projectDir)
 		},
 	}
-	materializeSkillCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all)")
+	materializeSkillCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeSkillCmd.Flags().String("project-dir", "", "Override project directory detection")
-	materializeSkillCmd.MarkFlagRequired("target")
 	materializeCmd.AddCommand(materializeSkillCmd)
 
 	materializeAgentCmd := &cobra.Command{
@@ -1554,12 +1564,18 @@ EXAMPLES:
 This command copies the entire agent directory to .opencode/agents/ or .claude/agents/
 with full provenance tracking in .materializations.json.
 
+The target can be specified with --target flag or AGENT_SMITH_TARGET environment variable.
+
 EXAMPLES:
   # Materialize an agent to OpenCode
   agent-smith materialize agent my-agent --target opencode
 
   # Materialize to both targets
-  agent-smith materialize agent my-agent --target all`,
+  agent-smith materialize agent my-agent --target all
+
+  # Use environment variable for default target
+  export AGENT_SMITH_TARGET=claudecode
+  agent-smith materialize agent my-agent`,
 		Args: exactArgsWithHelp(1, "agent-smith materialize agent <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			target, _ := cmd.Flags().GetString("target")
@@ -1567,9 +1583,8 @@ EXAMPLES:
 			handleMaterializeComponent("agents", args[0], target, projectDir)
 		},
 	}
-	materializeAgentCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all)")
+	materializeAgentCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeAgentCmd.Flags().String("project-dir", "", "Override project directory detection")
-	materializeAgentCmd.MarkFlagRequired("target")
 	materializeCmd.AddCommand(materializeAgentCmd)
 
 	materializeCommandCmd := &cobra.Command{
@@ -1580,12 +1595,18 @@ EXAMPLES:
 This command copies the entire command directory to .opencode/commands/ or .claude/commands/
 with full provenance tracking in .materializations.json.
 
+The target can be specified with --target flag or AGENT_SMITH_TARGET environment variable.
+
 EXAMPLES:
   # Materialize a command to OpenCode
   agent-smith materialize command my-command --target opencode
 
   # Materialize to both targets
-  agent-smith materialize command my-command --target all`,
+  agent-smith materialize command my-command --target all
+
+  # Use environment variable for default target
+  export AGENT_SMITH_TARGET=all
+  agent-smith materialize command my-command`,
 		Args: exactArgsWithHelp(1, "agent-smith materialize command <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			target, _ := cmd.Flags().GetString("target")
@@ -1593,9 +1614,8 @@ EXAMPLES:
 			handleMaterializeComponent("commands", args[0], target, projectDir)
 		},
 	}
-	materializeCommandCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all)")
+	materializeCommandCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeCommandCmd.Flags().String("project-dir", "", "Override project directory detection")
-	materializeCommandCmd.MarkFlagRequired("target")
 	materializeCmd.AddCommand(materializeCommandCmd)
 
 	rootCmd.AddCommand(materializeCmd)

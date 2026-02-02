@@ -1959,6 +1959,19 @@ func main() {
 			// - "github.com/tgaines/agent-smith/internal/materializer"
 			// - "github.com/tgaines/agent-smith/internal/metadata"
 
+			// If target is not provided via flag, check environment variable
+			if target == "" {
+				target = config.GetTargetFromEnv()
+				if target != "" {
+					debugPrintf("[DEBUG] Using target from AGENT_SMITH_TARGET environment variable: %s\n", target)
+				}
+			}
+
+			// Validate target is provided
+			if target == "" {
+				log.Fatal("Target must be specified with --target flag or AGENT_SMITH_TARGET environment variable\n\nValid targets: opencode, claudecode, all\n\nExamples:\n  agent-smith materialize skill my-skill --target opencode\n  export AGENT_SMITH_TARGET=opencode && agent-smith materialize skill my-skill")
+			}
+
 			// Determine project root
 			var projectRoot string
 			var err error
