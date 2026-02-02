@@ -256,7 +256,7 @@ Implement component materialization to enable copying skills, agents, and comman
   **Component Browser Tests:**
   - Not applicable (CLI tool)
 
-- [ ] Story-011: As a team member, I want to see provenance information for a specific component so that I can understand its origin.
+- [x] Story-011: As a team member, I want to see provenance information for a specific component so that I can understand its origin.
 
   **Acceptance Criteria:**
   - Command `agent-smith materialize info <type> <name>` shows detailed provenance
@@ -299,7 +299,7 @@ Implement component materialization to enable copying skills, agents, and comman
   **Component Browser Tests:**
   - Not applicable (CLI tool)
 
-- [ ] Story-013: As a project maintainer, I want to materialize from active profile so that I can share profile-specific components with my team.
+- [x] Story-013: As a project maintainer, I want to materialize from active profile so that I can share profile-specific components with my team.
 
   **Acceptance Criteria:**
   - When profile is active, materialize copies from `~/.agent-smith/profiles/<profile-name>/skills/` instead of `~/.agent-smith/skills/`
