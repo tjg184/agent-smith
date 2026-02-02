@@ -1953,7 +1953,7 @@ func main() {
 				yellow(formatter.SymbolNotLinked),
 				red(formatter.SymbolError))
 		},
-		func(componentType, componentName, target, projectDir string) {
+		func(componentType, componentName, target, projectDir string, force bool) {
 			// Import necessary packages at the top of main.go
 			// - "github.com/tgaines/agent-smith/pkg/project"
 			// - "github.com/tgaines/agent-smith/internal/materializer"
@@ -2063,7 +2063,15 @@ func main() {
 						infoPrintf("⊘ Skipped %s '%s' to %s (already exists and identical)\n", componentType, componentName, targetName)
 						continue
 					} else {
-						log.Fatalf("Component '%s' already exists in %s and differs.\n\nUse --force to overwrite (not yet implemented in this version)", componentName, targetName)
+						// Component exists and differs
+						if !force {
+							log.Fatalf("Component '%s' already exists in %s and differs.\n\nUse --force to overwrite", componentName, targetName)
+						}
+						// Force flag is set, remove existing component before copying
+						infoPrintf("⚠ Overwriting %s '%s' in %s (--force)\n", componentType, componentName, targetName)
+						if err := os.RemoveAll(destPath); err != nil {
+							log.Fatalf("Failed to remove existing component: %v", err)
+						}
 					}
 				}
 

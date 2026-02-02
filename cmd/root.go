@@ -1509,6 +1509,7 @@ FLAGS:
   --target, -t <target>  - Target to materialize to (opencode, claudecode, or all)
                            Can also be set via AGENT_SMITH_TARGET environment variable
   --project-dir <path>   - Optional, override project directory detection
+  --force, -f            - Overwrite existing component if it differs
 
 EXAMPLES:
   # Materialize a skill to OpenCode
@@ -1522,7 +1523,10 @@ EXAMPLES:
   agent-smith materialize skill my-skill
 
   # Materialize from specific directory
-  agent-smith materialize skill my-skill --target opencode --project-dir ./my-project`,
+  agent-smith materialize skill my-skill --target opencode --project-dir ./my-project
+  
+  # Force overwrite existing component
+  agent-smith materialize skill my-skill --target opencode --force`,
 	}
 
 	materializeSkillCmd := &cobra.Command{
@@ -1549,11 +1553,13 @@ EXAMPLES:
 		Run: func(cmd *cobra.Command, args []string) {
 			target, _ := cmd.Flags().GetString("target")
 			projectDir, _ := cmd.Flags().GetString("project-dir")
-			handleMaterializeComponent("skills", args[0], target, projectDir)
+			force, _ := cmd.Flags().GetBool("force")
+			handleMaterializeComponent("skills", args[0], target, projectDir, force)
 		},
 	}
 	materializeSkillCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeSkillCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeSkillCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeCmd.AddCommand(materializeSkillCmd)
 
 	materializeAgentCmd := &cobra.Command{
@@ -1580,11 +1586,13 @@ EXAMPLES:
 		Run: func(cmd *cobra.Command, args []string) {
 			target, _ := cmd.Flags().GetString("target")
 			projectDir, _ := cmd.Flags().GetString("project-dir")
-			handleMaterializeComponent("agents", args[0], target, projectDir)
+			force, _ := cmd.Flags().GetBool("force")
+			handleMaterializeComponent("agents", args[0], target, projectDir, force)
 		},
 	}
 	materializeAgentCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeAgentCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeAgentCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeCmd.AddCommand(materializeAgentCmd)
 
 	materializeCommandCmd := &cobra.Command{
@@ -1611,11 +1619,13 @@ EXAMPLES:
 		Run: func(cmd *cobra.Command, args []string) {
 			target, _ := cmd.Flags().GetString("target")
 			projectDir, _ := cmd.Flags().GetString("project-dir")
-			handleMaterializeComponent("commands", args[0], target, projectDir)
+			force, _ := cmd.Flags().GetBool("force")
+			handleMaterializeComponent("commands", args[0], target, projectDir, force)
 		},
 	}
 	materializeCommandCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeCommandCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeCommandCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeCmd.AddCommand(materializeCommandCmd)
 
 	rootCmd.AddCommand(materializeCmd)
@@ -1658,7 +1668,7 @@ var (
 	handleTargetAdd            func(name, path string)
 	handleTargetRemove         func(name string)
 	handleTargetList           func()
-	handleMaterializeComponent func(componentType, componentName, target, projectDir string)
+	handleMaterializeComponent func(componentType, componentName, target, projectDir string, force bool)
 )
 
 func SetHandlers(
@@ -1693,7 +1703,7 @@ func SetHandlers(
 	targetAdd func(name, path string),
 	targetRemove func(name string),
 	targetList func(),
-	materializeComponent func(componentType, componentName, target, projectDir string),
+	materializeComponent func(componentType, componentName, target, projectDir string, force bool),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
