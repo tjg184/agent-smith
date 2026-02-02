@@ -1953,7 +1953,7 @@ func main() {
 				yellow(formatter.SymbolNotLinked),
 				red(formatter.SymbolError))
 		},
-		func(componentType, componentName, target, projectDir string, force bool) {
+		func(componentType, componentName, target, projectDir string, force, dryRun bool) {
 			// Import necessary packages at the top of main.go
 			// - "github.com/tgaines/agent-smith/pkg/project"
 			// - "github.com/tgaines/agent-smith/internal/materializer"
@@ -1970,6 +1970,13 @@ func main() {
 			// Validate target is provided
 			if target == "" {
 				log.Fatal("Target must be specified with --target flag or AGENT_SMITH_TARGET environment variable\n\nValid targets: opencode, claudecode, all\n\nExamples:\n  agent-smith materialize skill my-skill --target opencode\n  export AGENT_SMITH_TARGET=opencode && agent-smith materialize skill my-skill")
+			}
+
+			// Show dry-run header if enabled
+			if dryRun {
+				infoPrintln("=== DRY RUN MODE ===")
+				infoPrintln("No changes will be made to the filesystem")
+				infoPrintln("")
 			}
 
 			// Determine project root
@@ -2040,15 +2047,6 @@ func main() {
 					log.Fatalf("Invalid target: %s", targetName)
 				}
 
-				// Ensure target structure exists
-				structureCreated, err := project.EnsureTargetStructure(targetDir)
-				if err != nil {
-					log.Fatalf("Failed to create target structure: %v", err)
-				}
-				if structureCreated {
-					infoPrintf("%s Created project structure: %s/ (skills/, agents/, commands/)\n", formatter.SymbolSuccess, targetDir)
-				}
-
 				// Determine destination path
 				destPath := filepath.Join(targetDir, componentType, componentName)
 
@@ -2060,63 +2058,109 @@ func main() {
 						log.Fatalf("Failed to compare directories: %v", err)
 					}
 					if match {
-						infoPrintf("⊘ Skipped %s '%s' to %s (already exists and identical)\n", componentType, componentName, targetName)
+						infoPrintf("⊘ Would skip %s '%s' to %s (already exists and identical)\n", componentType, componentName, targetName)
 						continue
 					} else {
 						// Component exists and differs
 						if !force {
+							if dryRun {
+								infoPrintf("⚠ Would fail: Component '%s' already exists in %s and differs (use --force to overwrite)\n", componentName, targetName)
+								continue
+							}
 							log.Fatalf("Component '%s' already exists in %s and differs.\n\nUse --force to overwrite", componentName, targetName)
 						}
-						// Force flag is set, remove existing component before copying
-						infoPrintf("⚠ Overwriting %s '%s' in %s (--force)\n", componentType, componentName, targetName)
-						if err := os.RemoveAll(destPath); err != nil {
-							log.Fatalf("Failed to remove existing component: %v", err)
+						// Force flag is set, would remove existing component before copying
+						if dryRun {
+							infoPrintf("⚠ Would overwrite %s '%s' in %s (--force)\n", componentType, componentName, targetName)
+						} else {
+							infoPrintf("⚠ Overwriting %s '%s' in %s (--force)\n", componentType, componentName, targetName)
+							if err := os.RemoveAll(destPath); err != nil {
+								log.Fatalf("Failed to remove existing component: %v", err)
+							}
+						}
+					}
+				} else {
+					// Component doesn't exist
+					if dryRun {
+						// Check if target structure needs to be created
+						if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+							infoPrintf("%s Would create project structure: %s/ (skills/, agents/, commands/)\n", formatter.SymbolSuccess, targetDir)
 						}
 					}
 				}
 
-				// Copy the component
-				if err := materializer.CopyDirectory(componentSourceDir, destPath); err != nil {
-					log.Fatalf("Failed to copy component: %v", err)
+				if dryRun {
+					// In dry-run mode, just show what would happen
+					infoPrintf("%s Would materialize %s '%s' to %s\n", formatter.SymbolSuccess, componentType, componentName, targetName)
+					infoPrintf("  Source:      %s\n", componentSourceDir)
+					infoPrintf("  Destination: %s\n", destPath)
+					infoPrintf("  Provenance:  %s @ %s\n", lockEntry.SourceUrl, lockEntry.CommitHash[:8])
+				} else {
+					// Ensure target structure exists
+					structureCreated, err := project.EnsureTargetStructure(targetDir)
+					if err != nil {
+						log.Fatalf("Failed to create target structure: %v", err)
+					}
+					if structureCreated {
+						infoPrintf("%s Created project structure: %s/ (skills/, agents/, commands/)\n", formatter.SymbolSuccess, targetDir)
+					}
+
+					// Copy the component
+					if err := materializer.CopyDirectory(componentSourceDir, destPath); err != nil {
+						log.Fatalf("Failed to copy component: %v", err)
+					}
+
+					// Calculate current hash (should match source hash immediately after copy)
+					currentHash := sourceHash
+
+					// Load or create materialization metadata
+					matMetadata, err := project.LoadMaterializationMetadata(targetDir)
+					if err != nil {
+						log.Fatalf("Failed to load materialization metadata: %v", err)
+					}
+
+					// Add entry to metadata
+					project.AddMaterializationEntry(
+						matMetadata,
+						componentType,
+						componentName,
+						lockEntry.SourceUrl,
+						lockEntry.SourceType,
+						"", // sourceProfile (not implemented yet)
+						lockEntry.CommitHash,
+						lockEntry.OriginalPath,
+						sourceHash,
+						currentHash,
+					)
+
+					// Save metadata
+					if err := project.SaveMaterializationMetadata(targetDir, matMetadata); err != nil {
+						log.Fatalf("Failed to save materialization metadata: %v", err)
+					}
+
+					infoPrintf("%s Materialized %s '%s' to %s\n", formatter.SymbolSuccess, componentType, componentName, targetName)
+					infoPrintf("  Source:      %s\n", componentSourceDir)
+					infoPrintf("  Destination: %s\n", destPath)
 				}
+			}
 
-				// Calculate current hash (should match source hash immediately after copy)
-				currentHash := sourceHash
-
-				// Load or create materialization metadata
-				matMetadata, err := project.LoadMaterializationMetadata(targetDir)
-				if err != nil {
-					log.Fatalf("Failed to load materialization metadata: %v", err)
-				}
-
-				// Add entry to metadata
-				project.AddMaterializationEntry(
-					matMetadata,
-					componentType,
-					componentName,
-					lockEntry.SourceUrl,
-					lockEntry.SourceType,
-					"", // sourceProfile (not implemented yet)
-					lockEntry.CommitHash,
-					lockEntry.OriginalPath,
-					sourceHash,
-					currentHash,
-				)
-
-				// Save metadata
-				if err := project.SaveMaterializationMetadata(targetDir, matMetadata); err != nil {
-					log.Fatalf("Failed to save materialization metadata: %v", err)
-				}
-
-				infoPrintf("%s Materialized %s '%s' to %s\n", formatter.SymbolSuccess, componentType, componentName, targetName)
-				infoPrintf("  Source:      %s\n", componentSourceDir)
-				infoPrintf("  Destination: %s\n", destPath)
+			if dryRun {
+				infoPrintln("")
+				infoPrintln("=== DRY RUN COMPLETE ===")
+				infoPrintln("Run without --dry-run to apply these changes")
 			}
 		},
-		func(target, projectDir string, force bool) {
+		func(target, projectDir string, force, dryRun bool) {
 			// Define color functions
 			green := color.New(color.FgGreen).SprintFunc()
 			red := color.New(color.FgRed).SprintFunc()
+
+			// Show dry-run header if enabled
+			if dryRun {
+				infoPrintln("=== DRY RUN MODE ===")
+				infoPrintln("No changes will be made to the filesystem")
+				infoPrintln("")
+			}
 
 			// If target is not provided via flag, check environment variable
 			if target == "" {
@@ -2228,18 +2272,6 @@ func main() {
 							continue
 						}
 
-						// Ensure target structure exists
-						structureCreated, err := project.EnsureTargetStructure(targetDir)
-						if err != nil {
-							errorMsg := fmt.Sprintf("Failed to create target structure: %v", err)
-							errorMessages = append(errorMessages, errorMsg)
-							errorCount++
-							continue
-						}
-						if structureCreated {
-							infoPrintf("%s Created project structure: %s/ (skills/, agents/, commands/)\n", formatter.SymbolSuccess, targetDir)
-						}
-
 						// Determine destination path
 						destPath := filepath.Join(targetDir, componentType, componentName)
 
@@ -2255,25 +2287,46 @@ func main() {
 								continue
 							}
 							if match {
-								infoPrintf("⊘ Skipped %s '%s' to %s (already exists and identical)\n", componentType, componentName, targetName)
+								if dryRun {
+									infoPrintf("⊘ Would skip %s '%s' to %s (already exists and identical)\n", componentType, componentName, targetName)
+								} else {
+									infoPrintf("⊘ Skipped %s '%s' to %s (already exists and identical)\n", componentType, componentName, targetName)
+								}
 								skipCount++
 								componentSkipped = true
 								continue
 							} else {
 								// Component exists and differs
 								if !force {
-									errorMsg := fmt.Sprintf("Component '%s' (%s) already exists in %s and differs. Use --force to overwrite", componentName, componentType, targetName)
+									var errorMsg string
+									if dryRun {
+										errorMsg = fmt.Sprintf("Would fail: Component '%s' (%s) already exists in %s and differs (use --force to overwrite)", componentName, componentType, targetName)
+									} else {
+										errorMsg = fmt.Sprintf("Component '%s' (%s) already exists in %s and differs. Use --force to overwrite", componentName, componentType, targetName)
+									}
 									errorMessages = append(errorMessages, errorMsg)
 									errorCount++
 									continue
 								}
-								// Force flag is set, remove existing component before copying
-								infoPrintf("⚠ Overwriting %s '%s' in %s (--force)\n", componentType, componentName, targetName)
-								if err := os.RemoveAll(destPath); err != nil {
-									errorMsg := fmt.Sprintf("Failed to remove existing %s '%s': %v", componentType, componentName, err)
-									errorMessages = append(errorMessages, errorMsg)
-									errorCount++
-									continue
+								// Force flag is set
+								if dryRun {
+									infoPrintf("⚠ Would overwrite %s '%s' in %s (--force)\n", componentType, componentName, targetName)
+								} else {
+									infoPrintf("⚠ Overwriting %s '%s' in %s (--force)\n", componentType, componentName, targetName)
+									if err := os.RemoveAll(destPath); err != nil {
+										errorMsg := fmt.Sprintf("Failed to remove existing %s '%s': %v", componentType, componentName, err)
+										errorMessages = append(errorMessages, errorMsg)
+										errorCount++
+										continue
+									}
+								}
+							}
+						} else {
+							// Component doesn't exist
+							if dryRun {
+								// Check if target structure needs to be created
+								if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+									infoPrintf("%s Would create project structure: %s/ (skills/, agents/, commands/)\n", formatter.SymbolSuccess, targetDir)
 								}
 							}
 						}
@@ -2282,50 +2335,68 @@ func main() {
 							continue
 						}
 
-						// Copy the component
-						if err := materializer.CopyDirectory(componentSourceDir, destPath); err != nil {
-							errorMsg := fmt.Sprintf("Failed to copy %s '%s': %v", componentType, componentName, err)
-							errorMessages = append(errorMessages, errorMsg)
-							errorCount++
-							continue
+						if dryRun {
+							// In dry-run mode, just show what would happen
+							infoPrintf("%s Would materialize %s '%s' to %s\n", formatter.SymbolSuccess, componentType, componentName, targetName)
+							successCount++
+						} else {
+							// Ensure target structure exists
+							structureCreated, err := project.EnsureTargetStructure(targetDir)
+							if err != nil {
+								errorMsg := fmt.Sprintf("Failed to create target structure: %v", err)
+								errorMessages = append(errorMessages, errorMsg)
+								errorCount++
+								continue
+							}
+							if structureCreated {
+								infoPrintf("%s Created project structure: %s/ (skills/, agents/, commands/)\n", formatter.SymbolSuccess, targetDir)
+							}
+
+							// Copy the component
+							if err := materializer.CopyDirectory(componentSourceDir, destPath); err != nil {
+								errorMsg := fmt.Sprintf("Failed to copy %s '%s': %v", componentType, componentName, err)
+								errorMessages = append(errorMessages, errorMsg)
+								errorCount++
+								continue
+							}
+
+							// Calculate current hash (should match source hash immediately after copy)
+							currentHash := sourceHash
+
+							// Load or create materialization metadata
+							matMetadata, err := project.LoadMaterializationMetadata(targetDir)
+							if err != nil {
+								errorMsg := fmt.Sprintf("Failed to load materialization metadata: %v", err)
+								errorMessages = append(errorMessages, errorMsg)
+								errorCount++
+								continue
+							}
+
+							// Add entry to metadata
+							project.AddMaterializationEntry(
+								matMetadata,
+								componentType,
+								componentName,
+								lockEntry.SourceUrl,
+								lockEntry.SourceType,
+								"", // sourceProfile (not implemented yet)
+								lockEntry.CommitHash,
+								lockEntry.OriginalPath,
+								sourceHash,
+								currentHash,
+							)
+
+							// Save metadata
+							if err := project.SaveMaterializationMetadata(targetDir, matMetadata); err != nil {
+								errorMsg := fmt.Sprintf("Failed to save materialization metadata: %v", err)
+								errorMessages = append(errorMessages, errorMsg)
+								errorCount++
+								continue
+							}
+
+							infoPrintf("%s Materialized %s '%s' to %s\n", formatter.SymbolSuccess, componentType, componentName, targetName)
+							successCount++
 						}
-
-						// Calculate current hash (should match source hash immediately after copy)
-						currentHash := sourceHash
-
-						// Load or create materialization metadata
-						matMetadata, err := project.LoadMaterializationMetadata(targetDir)
-						if err != nil {
-							errorMsg := fmt.Sprintf("Failed to load materialization metadata: %v", err)
-							errorMessages = append(errorMessages, errorMsg)
-							errorCount++
-							continue
-						}
-
-						// Add entry to metadata
-						project.AddMaterializationEntry(
-							matMetadata,
-							componentType,
-							componentName,
-							lockEntry.SourceUrl,
-							lockEntry.SourceType,
-							"", // sourceProfile (not implemented yet)
-							lockEntry.CommitHash,
-							lockEntry.OriginalPath,
-							sourceHash,
-							currentHash,
-						)
-
-						// Save metadata
-						if err := project.SaveMaterializationMetadata(targetDir, matMetadata); err != nil {
-							errorMsg := fmt.Sprintf("Failed to save materialization metadata: %v", err)
-							errorMessages = append(errorMessages, errorMsg)
-							errorCount++
-							continue
-						}
-
-						infoPrintf("%s Materialized %s '%s' to %s\n", formatter.SymbolSuccess, componentType, componentName, targetName)
-						successCount++
 					}
 				}
 			}
@@ -2334,15 +2405,29 @@ func main() {
 			appFormatter.Section("")
 			appFormatter.Section("Summary")
 			infoPrintf("  Total components: %d\n", totalComponents)
-			infoPrintf("  %s Materialized:  %d\n", green(formatter.SymbolSuccess), successCount)
+			if dryRun {
+				infoPrintf("  %s Would materialize: %d\n", green(formatter.SymbolSuccess), successCount)
+			} else {
+				infoPrintf("  %s Materialized:      %d\n", green(formatter.SymbolSuccess), successCount)
+			}
 			if skipCount > 0 {
-				infoPrintf("  ⊘ Skipped:       %d\n", skipCount)
+				if dryRun {
+					infoPrintf("  ⊘ Would skip:        %d\n", skipCount)
+				} else {
+					infoPrintf("  ⊘ Skipped:           %d\n", skipCount)
+				}
 			}
 			if errorCount > 0 {
-				infoPrintf("  %s Errors:        %d\n", red(formatter.SymbolError), errorCount)
+				infoPrintf("  %s Errors:            %d\n", red(formatter.SymbolError), errorCount)
 				for _, errorMsg := range errorMessages {
 					infoPrintf("    - %s\n", errorMsg)
 				}
+			}
+
+			if dryRun {
+				infoPrintln("")
+				infoPrintln("=== DRY RUN COMPLETE ===")
+				infoPrintln("Run without --dry-run to apply these changes")
 			}
 
 			if errorCount > 0 {

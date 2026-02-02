@@ -1510,6 +1510,7 @@ FLAGS:
                            Can also be set via AGENT_SMITH_TARGET environment variable
   --project-dir <path>   - Optional, override project directory detection
   --force, -f            - Overwrite existing component if it differs
+  --dry-run              - Preview what will be materialized without making changes
 
 EXAMPLES:
   # Materialize a skill to OpenCode
@@ -1526,7 +1527,10 @@ EXAMPLES:
   agent-smith materialize skill my-skill --target opencode --project-dir ./my-project
   
   # Force overwrite existing component
-  agent-smith materialize skill my-skill --target opencode --force`,
+  agent-smith materialize skill my-skill --target opencode --force
+
+  # Preview materialization without making changes
+  agent-smith materialize skill my-skill --target opencode --dry-run`,
 	}
 
 	materializeSkillCmd := &cobra.Command{
@@ -1548,18 +1552,23 @@ EXAMPLES:
 
   # Use environment variable for default target
   export AGENT_SMITH_TARGET=opencode
-  agent-smith materialize skill my-skill`,
+  agent-smith materialize skill my-skill
+
+  # Preview without making changes
+  agent-smith materialize skill my-skill --target opencode --dry-run`,
 		Args: exactArgsWithHelp(1, "agent-smith materialize skill <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			target, _ := cmd.Flags().GetString("target")
 			projectDir, _ := cmd.Flags().GetString("project-dir")
 			force, _ := cmd.Flags().GetBool("force")
-			handleMaterializeComponent("skills", args[0], target, projectDir, force)
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			handleMaterializeComponent("skills", args[0], target, projectDir, force, dryRun)
 		},
 	}
 	materializeSkillCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeSkillCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeSkillCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
+	materializeSkillCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
 	materializeCmd.AddCommand(materializeSkillCmd)
 
 	materializeAgentCmd := &cobra.Command{
@@ -1581,18 +1590,23 @@ EXAMPLES:
 
   # Use environment variable for default target
   export AGENT_SMITH_TARGET=claudecode
-  agent-smith materialize agent my-agent`,
+  agent-smith materialize agent my-agent
+
+  # Preview without making changes
+  agent-smith materialize agent my-agent --target opencode --dry-run`,
 		Args: exactArgsWithHelp(1, "agent-smith materialize agent <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			target, _ := cmd.Flags().GetString("target")
 			projectDir, _ := cmd.Flags().GetString("project-dir")
 			force, _ := cmd.Flags().GetBool("force")
-			handleMaterializeComponent("agents", args[0], target, projectDir, force)
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			handleMaterializeComponent("agents", args[0], target, projectDir, force, dryRun)
 		},
 	}
 	materializeAgentCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeAgentCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeAgentCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
+	materializeAgentCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
 	materializeCmd.AddCommand(materializeAgentCmd)
 
 	materializeCommandCmd := &cobra.Command{
@@ -1614,18 +1628,23 @@ EXAMPLES:
 
   # Use environment variable for default target
   export AGENT_SMITH_TARGET=all
-  agent-smith materialize command my-command`,
+  agent-smith materialize command my-command
+
+  # Preview without making changes
+  agent-smith materialize command my-command --target opencode --dry-run`,
 		Args: exactArgsWithHelp(1, "agent-smith materialize command <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			target, _ := cmd.Flags().GetString("target")
 			projectDir, _ := cmd.Flags().GetString("project-dir")
 			force, _ := cmd.Flags().GetBool("force")
-			handleMaterializeComponent("commands", args[0], target, projectDir, force)
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			handleMaterializeComponent("commands", args[0], target, projectDir, force, dryRun)
 		},
 	}
 	materializeCommandCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeCommandCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeCommandCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
+	materializeCommandCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
 	materializeCmd.AddCommand(materializeCommandCmd)
 
 	materializeAllCmd := &cobra.Command{
@@ -1647,18 +1666,23 @@ EXAMPLES:
 
   # Use environment variable for default target
   export AGENT_SMITH_TARGET=claudecode
-  agent-smith materialize all`,
+  agent-smith materialize all
+
+  # Preview without making changes
+  agent-smith materialize all --target opencode --dry-run`,
 		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			target, _ := cmd.Flags().GetString("target")
 			projectDir, _ := cmd.Flags().GetString("project-dir")
 			force, _ := cmd.Flags().GetBool("force")
-			handleMaterializeAll(target, projectDir, force)
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			handleMaterializeAll(target, projectDir, force, dryRun)
 		},
 	}
 	materializeAllCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeAllCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeAllCmd.Flags().BoolP("force", "f", false, "Overwrite existing components if they differ")
+	materializeAllCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
 	materializeCmd.AddCommand(materializeAllCmd)
 
 	rootCmd.AddCommand(materializeCmd)
@@ -1701,8 +1725,8 @@ var (
 	handleTargetAdd            func(name, path string)
 	handleTargetRemove         func(name string)
 	handleTargetList           func()
-	handleMaterializeComponent func(componentType, componentName, target, projectDir string, force bool)
-	handleMaterializeAll       func(target, projectDir string, force bool)
+	handleMaterializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool)
+	handleMaterializeAll       func(target, projectDir string, force, dryRun bool)
 )
 
 func SetHandlers(
@@ -1737,8 +1761,8 @@ func SetHandlers(
 	targetAdd func(name, path string),
 	targetRemove func(name string),
 	targetList func(),
-	materializeComponent func(componentType, componentName, target, projectDir string, force bool),
-	materializeAll func(target, projectDir string, force bool),
+	materializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool),
+	materializeAll func(target, projectDir string, force, dryRun bool),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
