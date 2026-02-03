@@ -20,7 +20,6 @@ import (
 	"github.com/tgaines/agent-smith/internal/materializer"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
-	"github.com/tgaines/agent-smith/internal/uninstaller"
 	"github.com/tgaines/agent-smith/internal/updater"
 	"github.com/tgaines/agent-smith/pkg/config"
 	"github.com/tgaines/agent-smith/pkg/errors"
@@ -28,6 +27,12 @@ import (
 	"github.com/tgaines/agent-smith/pkg/paths"
 	"github.com/tgaines/agent-smith/pkg/profiles"
 	"github.com/tgaines/agent-smith/pkg/project"
+	"github.com/tgaines/agent-smith/pkg/services"
+	installsvc "github.com/tgaines/agent-smith/pkg/services/install"
+	statussvc "github.com/tgaines/agent-smith/pkg/services/status"
+	targetsvc "github.com/tgaines/agent-smith/pkg/services/target"
+	uninstallsvc "github.com/tgaines/agent-smith/pkg/services/uninstall"
+	updatesvc "github.com/tgaines/agent-smith/pkg/services/update"
 )
 
 // appLogger is the global logger instance used throughout the application
@@ -569,381 +574,77 @@ func main() {
 		SetVerboseMode(true)
 	}
 
+	// Initialize services with dependency injection
+	profileManager, err := profiles.NewProfileManager(nil)
+	if err != nil {
+		log.Fatal("Failed to initialize profile manager:", err)
+	}
+
+	// Create component linker for services that need it
+	componentLinker, err := NewComponentLinker()
+	if err != nil {
+		log.Fatal("Failed to initialize component linker:", err)
+	}
+
+	// Initialize all services
+	installService := installsvc.NewService(profileManager, appLogger, appFormatter)
+	updateService := updatesvc.NewService(appLogger, appFormatter)
+	uninstallService := uninstallsvc.NewService(componentLinker, appLogger, appFormatter)
+	targetService := targetsvc.NewService(appLogger, appFormatter)
+	statusService := statussvc.NewService(profileManager, appLogger, appFormatter)
+
 	// Set up handlers for Cobra commands
 	cmd.SetHandlers(
 		func(repoURL, name, profile, targetDir string) {
-			debugPrintf("[DEBUG] handleAddSkill called with repoURL=%s, name=%s, profile=%s, targetDir=%s\n", repoURL, name, profile, targetDir)
-
-			if profile != "" && targetDir != "" {
-				appLogger.FatalMsg(errors.NewInvalidFlagsError("--profile", "--target-dir"))
+			opts := services.InstallOptions{
+				Profile:   profile,
+				TargetDir: targetDir,
 			}
-
-			if targetDir != "" {
-				// Install to custom target directory (isolated testing)
-				debugPrintln("[DEBUG] Installing to custom target directory")
-				resolvedPath, err := paths.ResolveTargetDir(targetDir)
-				if err != nil {
-					log.Fatal("Failed to resolve target directory:", err)
-				}
-				debugPrintf("[DEBUG] Resolved target directory: %s\n", resolvedPath)
-
-				if err := fileutil.CreateDirectoryWithPermissions(resolvedPath); err != nil {
-					log.Fatal("Failed to create target directory:", err)
-				}
-
-				infoPrintf("Installing to custom directory: %s\n", resolvedPath)
-				dl := downloader.NewSkillDownloaderWithTargetDir(resolvedPath)
-				if err := dl.DownloadSkill(repoURL, name); err != nil {
-					appLogger.FatalMsg(errors.NewComponentDownloadError("skill", repoURL, err))
-				}
-				debugPrintln("[DEBUG] Skill download completed successfully")
-			} else if profile != "" {
-				// Install directly to profile
-				debugPrintf("[DEBUG] Installing to profile: %s\n", profile)
-				pm, err := profiles.NewProfileManager(nil)
-				if err != nil {
-					appLogger.FatalMsg(errors.NewProfileManagerError(err))
-				}
-
-				// Validate profile exists by scanning
-				profilesList, err := pm.ScanProfiles()
-				if err != nil {
-					log.Fatal("Failed to scan profiles:", err)
-				}
-				debugPrintf("[DEBUG] Found %d profiles\n", len(profilesList))
-
-				profileExists := false
-				for _, p := range profilesList {
-					if p.Name == profile {
-						profileExists = true
-						break
-					}
-				}
-
-				if !profileExists {
-					appLogger.FatalMsg(errors.NewProfileNotFoundError(profile))
-				}
-
-				dl := downloader.NewSkillDownloaderForProfile(profile)
-				if err := dl.DownloadSkill(repoURL, name); err != nil {
-					appLogger.FatalMsg(errors.NewComponentDownloadError("skill", repoURL, err))
-				}
-				debugPrintln("[DEBUG] Skill download to profile completed successfully")
-
-				// Auto-activate profile if no profile is currently active
-				activeProfile, err := pm.GetActiveProfile()
-				if err != nil {
-					log.Fatal("Failed to get active profile:", err)
-				}
-				if activeProfile == "" {
-					debugPrintf("[DEBUG] No active profile detected, auto-activating profile: %s\n", profile)
-					if err := pm.ActivateProfile(profile); err != nil {
-						log.Fatal("Failed to auto-activate profile:", err)
-					}
-					infoPrintf("Profile '%s' has been automatically activated as your first profile.\n", profile)
-					infoPrintln("Components from this profile are now ready to be linked.")
-				}
-			} else {
-				// Standard installation to ~/.agent-smith/
-				debugPrintln("[DEBUG] Installing to standard directory (~/.agent-smith/)")
-				dl := downloader.NewSkillDownloader()
-				if err := dl.DownloadSkill(repoURL, name); err != nil {
-					appLogger.FatalMsg(errors.NewComponentDownloadError("skill", repoURL, err))
-				}
-				debugPrintln("[DEBUG] Skill download completed successfully")
+			if err := installService.InstallSkill(repoURL, name, opts); err != nil {
+				log.Fatal("Failed to install skill:", err)
 			}
 		},
 		func(repoURL, name, profile, targetDir string) {
-			if profile != "" && targetDir != "" {
-				appLogger.FatalMsg(errors.NewInvalidFlagsError("--profile", "--target-dir"))
+			opts := services.InstallOptions{
+				Profile:   profile,
+				TargetDir: targetDir,
 			}
-
-			if targetDir != "" {
-				// Install to custom target directory (isolated testing)
-				resolvedPath, err := paths.ResolveTargetDir(targetDir)
-				if err != nil {
-					log.Fatal("Failed to resolve target directory:", err)
-				}
-
-				if err := fileutil.CreateDirectoryWithPermissions(resolvedPath); err != nil {
-					log.Fatal("Failed to create target directory:", err)
-				}
-
-				infoPrintf("Installing to custom directory: %s\n", resolvedPath)
-				dl := downloader.NewAgentDownloaderWithTargetDir(resolvedPath)
-				if err := dl.DownloadAgent(repoURL, name); err != nil {
-					log.Fatal("Failed to download agent:", err)
-				}
-			} else if profile != "" {
-				// Install directly to profile
-				pm, err := profiles.NewProfileManager(nil)
-				if err != nil {
-					log.Fatal("Failed to create profile manager:", err)
-				}
-
-				// Validate profile exists by scanning
-				profilesList, err := pm.ScanProfiles()
-				if err != nil {
-					log.Fatal("Failed to scan profiles:", err)
-				}
-
-				profileExists := false
-				for _, p := range profilesList {
-					if p.Name == profile {
-						profileExists = true
-						break
-					}
-				}
-
-				if !profileExists {
-					log.Fatalf("Profile '%s' does not exist. Create it first with: agent-smith profiles create %s", profile, profile)
-				}
-
-				dl := downloader.NewAgentDownloaderForProfile(profile)
-				if err := dl.DownloadAgent(repoURL, name); err != nil {
-					log.Fatal("Failed to download agent:", err)
-				}
-
-				// Auto-activate profile if no profile is currently active
-				activeProfile, err := pm.GetActiveProfile()
-				if err != nil {
-					log.Fatal("Failed to get active profile:", err)
-				}
-				if activeProfile == "" {
-					debugPrintf("[DEBUG] No active profile detected, auto-activating profile: %s\n", profile)
-					if err := pm.ActivateProfile(profile); err != nil {
-						log.Fatal("Failed to auto-activate profile:", err)
-					}
-					infoPrintf("Profile '%s' has been automatically activated as your first profile.\n", profile)
-					infoPrintln("Components from this profile are now ready to be linked.")
-				}
-			} else {
-				// Standard installation to ~/.agent-smith/
-				dl := downloader.NewAgentDownloader()
-				if err := dl.DownloadAgent(repoURL, name); err != nil {
-					log.Fatal("Failed to download agent:", err)
-				}
+			if err := installService.InstallAgent(repoURL, name, opts); err != nil {
+				log.Fatal("Failed to install agent:", err)
 			}
 		},
 		func(repoURL, name, profile, targetDir string) {
-			if profile != "" && targetDir != "" {
-				log.Fatal("Cannot specify both --profile and --target-dir flags")
+			opts := services.InstallOptions{
+				Profile:   profile,
+				TargetDir: targetDir,
 			}
-
-			if targetDir != "" {
-				// Install to custom target directory (isolated testing)
-				resolvedPath, err := paths.ResolveTargetDir(targetDir)
-				if err != nil {
-					log.Fatal("Failed to resolve target directory:", err)
-				}
-
-				if err := fileutil.CreateDirectoryWithPermissions(resolvedPath); err != nil {
-					log.Fatal("Failed to create target directory:", err)
-				}
-
-				infoPrintf("Installing to custom directory: %s\n", resolvedPath)
-				dl := downloader.NewCommandDownloaderWithTargetDir(resolvedPath)
-				if err := dl.DownloadCommand(repoURL, name); err != nil {
-					log.Fatal("Failed to download command:", err)
-				}
-			} else if profile != "" {
-				// Install directly to profile
-				pm, err := profiles.NewProfileManager(nil)
-				if err != nil {
-					log.Fatal("Failed to create profile manager:", err)
-				}
-
-				// Validate profile exists by scanning
-				profilesList, err := pm.ScanProfiles()
-				if err != nil {
-					log.Fatal("Failed to scan profiles:", err)
-				}
-
-				profileExists := false
-				for _, p := range profilesList {
-					if p.Name == profile {
-						profileExists = true
-						break
-					}
-				}
-
-				if !profileExists {
-					log.Fatalf("Profile '%s' does not exist. Create it first with: agent-smith profiles create %s", profile, profile)
-				}
-
-				dl := downloader.NewCommandDownloaderForProfile(profile)
-				if err := dl.DownloadCommand(repoURL, name); err != nil {
-					log.Fatal("Failed to download command:", err)
-				}
-
-				// Auto-activate profile if no profile is currently active
-				activeProfile, err := pm.GetActiveProfile()
-				if err != nil {
-					log.Fatal("Failed to get active profile:", err)
-				}
-				if activeProfile == "" {
-					debugPrintf("[DEBUG] No active profile detected, auto-activating profile: %s\n", profile)
-					if err := pm.ActivateProfile(profile); err != nil {
-						log.Fatal("Failed to auto-activate profile:", err)
-					}
-					infoPrintf("Profile '%s' has been automatically activated as your first profile.\n", profile)
-					infoPrintln("Components from this profile are now ready to be linked.")
-				}
-			} else {
-				// Standard installation to ~/.agent-smith/
-				dl := downloader.NewCommandDownloader()
-				if err := dl.DownloadCommand(repoURL, name); err != nil {
-					log.Fatal("Failed to download command:", err)
-				}
+			if err := installService.InstallCommand(repoURL, name, opts); err != nil {
+				log.Fatal("Failed to install command:", err)
 			}
 		},
 		func(repoURL, profile, targetDir string) {
-			var bulkDownloader *downloader.BulkDownloader
-
-			if profile != "" && targetDir != "" {
-				log.Fatal("Cannot specify both --profile and --target-dir flags")
+			opts := services.InstallOptions{
+				Profile:   profile,
+				TargetDir: targetDir,
 			}
-
-			if targetDir != "" {
-				// Resolve the target directory path
-				resolvedPath, err := paths.ResolveTargetDir(targetDir)
-				if err != nil {
-					log.Fatal("Failed to resolve target directory:", err)
-				}
-
-				// Create the target directory if it doesn't exist
-				if err := fileutil.CreateDirectoryWithPermissions(resolvedPath); err != nil {
-					log.Fatal("Failed to create target directory:", err)
-				}
-
-				infoPrintf("Installing to custom directory: %s\n", resolvedPath)
-				bulkDownloader = downloader.NewBulkDownloaderWithTargetDir(resolvedPath)
-
-				if err := bulkDownloader.AddAll(repoURL); err != nil {
-					log.Fatal("Failed to bulk download components:", err)
-				}
-			} else {
-				// Automatically create a profile from the repository URL
-				pm, err := profiles.NewProfileManager(nil)
-				if err != nil {
-					log.Fatal("Failed to create profile manager:", err)
-				}
-
-				var profileName string
-
-				if profile != "" {
-					// Custom profile name provided via --profile flag
-					// Check if profile with this name already exists
-					profilesList, err := pm.ScanProfiles()
-					if err != nil {
-						log.Fatal("Failed to scan profiles:", err)
-					}
-
-					profileExists := false
-					for _, p := range profilesList {
-						if p.Name == profile {
-							profileExists = true
-							break
-						}
-					}
-
-					if profileExists {
-						log.Fatalf("Profile '%s' already exists. Please choose a different name or remove the --profile flag to update the existing profile.", profile)
-					}
-
-					profileName = profile
-					infoPrintf("Creating profile: %s\n", profileName)
-
-					// Create the profile with metadata
-					if err := pm.CreateProfileWithMetadata(profileName, repoURL); err != nil {
-						log.Fatal("Failed to create profile:", err)
-					}
-				} else {
-					// No custom profile name - use auto-detection and reuse logic
-					// Check if a profile already exists for this repository
-					existingProfileName, err := pm.FindProfileBySourceURL(repoURL)
-					if err != nil {
-						log.Fatal("Failed to search for existing profile:", err)
-					}
-
-					if existingProfileName != "" {
-						// Profile already exists, reuse it
-						profileName = existingProfileName
-						infoPrintf("Found existing profile for repository: %s\n", profileName)
-						infoPrintf("Updating profile with latest components...\n")
-					} else {
-						// Get existing profiles for name generation
-						existingProfiles, err := pm.ScanProfiles()
-						if err != nil {
-							log.Fatal("Failed to scan profiles:", err)
-						}
-
-						existingProfileNames := make([]string, len(existingProfiles))
-						for i, p := range existingProfiles {
-							existingProfileNames[i] = p.Name
-						}
-
-						// Generate a unique profile name
-						profileName = profiles.GenerateProfileNameFromRepo(repoURL, existingProfileNames)
-						infoPrintf("Creating profile: %s\n", profileName)
-
-						// Create the profile with metadata
-						if err := pm.CreateProfileWithMetadata(profileName, repoURL); err != nil {
-							log.Fatal("Failed to create profile:", err)
-						}
-					}
-				}
-
-				// Install components to the profile
-				infoPrintf("Installing components to profile: %s\n", profileName)
-				bulkDownloader = downloader.NewBulkDownloaderForProfile(profileName)
-
-				if err := bulkDownloader.AddAll(repoURL); err != nil {
-					log.Fatal("Failed to bulk download components:", err)
-				}
-
-				// Auto-activate profile if no profile is currently active
-				activeProfile, err := pm.GetActiveProfile()
-				if err != nil {
-					log.Fatal("Failed to get active profile:", err)
-				}
-				if activeProfile == "" {
-					debugPrintf("[DEBUG] No active profile detected, auto-activating profile: %s\n", profileName)
-					if err := pm.ActivateProfile(profileName); err != nil {
-						log.Fatal("Failed to auto-activate profile:", err)
-					}
-					infoPrintf("Profile '%s' has been automatically activated as your first profile.\n", profileName)
-					infoPrintln("Components from this profile are now ready to be linked.")
-				} else if activeProfile != profileName {
-					// Only show activation message if this is not the active profile
-					appFormatter.EmptyLine()
-					appFormatter.Info("Profile updated successfully!")
-					appFormatter.Info("To activate this profile and use these components, run:")
-					appFormatter.Info("  agent-smith profile activate %s", profileName)
-					appFormatter.Info("  agent-smith link all")
-				} else {
-					// Profile is already active, components are ready
-					infoPrintln("\nProfile updated successfully! Components are ready to be linked.")
-				}
+			if err := installService.InstallBulk(repoURL, opts); err != nil {
+				log.Fatal("Failed to bulk install:", err)
 			}
 		},
 		func(componentType, componentName, profile string) {
-			detector := NewUpdateDetectorWithProfile(profile)
-
-			// Load metadata to get source URL
-			metadata, err := detector.LoadMetadata(componentType, componentName)
-			if err != nil {
-				log.Fatal("Failed to load component metadata:", err)
+			opts := services.UpdateOptions{
+				Profile: profile,
 			}
-
-			if err := detector.UpdateComponent(componentType, componentName, metadata.Source); err != nil {
+			if err := updateService.UpdateComponent(componentType, componentName, opts); err != nil {
 				log.Fatal("Failed to update component:", err)
 			}
 		},
 		func(profile string) {
-			detector := NewUpdateDetectorWithProfile(profile)
-			if err := detector.UpdateAll(); err != nil {
-				log.Fatal("Failed to update components:", err)
+			opts := services.UpdateOptions{
+				Profile: profile,
+			}
+			if err := updateService.UpdateAll(opts); err != nil {
+				log.Fatal("Failed to update all components:", err)
 			}
 		},
 		func(componentType, componentName, targetFilter, profile string) {
@@ -1207,58 +908,18 @@ func main() {
 			}
 		},
 		func(componentType, componentName, profile string) {
-			// Determine base directory
-			baseDir, err := paths.GetAgentsDir()
-			if err != nil {
-				log.Fatal("Failed to get agents directory:", err)
+			opts := services.UninstallOptions{
+				Profile: profile,
 			}
-
-			if profile != "" {
-				// Use profile directory
-				profilesDir, err := paths.GetProfilesDir()
-				if err != nil {
-					log.Fatal("Failed to get profiles directory:", err)
-				}
-				baseDir = filepath.Join(profilesDir, profile)
-
-				// Validate profile exists
-				if _, err := os.Stat(baseDir); os.IsNotExist(err) {
-					log.Fatalf("Profile '%s' does not exist", profile)
-				}
-			}
-
-			// Create linker for unlinking
-			linker, err := NewComponentLinker()
-			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
-			}
-
-			// Create uninstaller
-			uninstaller := uninstaller.NewUninstaller(baseDir, linker)
-
-			// Uninstall component
-			if err := uninstaller.UninstallComponent(componentType, componentName); err != nil {
+			if err := uninstallService.UninstallComponent(componentType, componentName, opts); err != nil {
 				log.Fatal("Failed to uninstall component:", err)
 			}
 		},
 		func(repoURL string, force bool) {
-			// Get base directory (always ~/.agent-smith/ for bulk uninstall)
-			baseDir, err := paths.GetAgentsDir()
-			if err != nil {
-				log.Fatal("Failed to get base directory:", err)
+			opts := services.UninstallOptions{
+				Force: force,
 			}
-
-			// Create linker for unlinking
-			linker, err := NewComponentLinker()
-			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
-			}
-
-			// Create uninstaller
-			uninstaller := uninstaller.NewUninstaller(baseDir, linker)
-
-			// Uninstall all components from source
-			if err := uninstaller.UninstallAllFromSource(repoURL, force); err != nil {
+			if err := uninstallService.UninstallAllFromSource(repoURL, opts); err != nil {
 				log.Fatal("Failed to uninstall components:", err)
 			}
 		},
@@ -1824,346 +1485,24 @@ func main() {
 			appFormatter.Info("  agent-smith link all")
 		},
 		func() {
-			// Status handler - shows current system status
-			debugPrintln("[DEBUG] handleStatus called")
-			pm, err := profiles.NewProfileManager(nil)
-			if err != nil {
-				log.Fatal("Failed to create profile manager:", err)
+			if err := statusService.ShowSystemStatus(); err != nil {
+				log.Fatal("Failed to show system status:", err)
 			}
-
-			// Get active profile
-			activeProfile, err := pm.GetActiveProfile()
-			if err != nil {
-				log.Fatal("Failed to get active profile:", err)
-			}
-			debugPrintf("[DEBUG] Active profile: %s\n", activeProfile)
-
-			// Detect all available targets
-			debugPrintln("[DEBUG] Detecting targets")
-			targets, err := config.DetectAllTargets()
-			if err != nil {
-				log.Fatal("Failed to detect targets:", err)
-			}
-			debugPrintf("[DEBUG] Detected %d target(s)\n", len(targets))
-
-			// Get agents directory
-			agentsDir, err := paths.GetAgentsDir()
-			if err != nil {
-				log.Fatal("Failed to get agents directory:", err)
-			}
-			debugPrintf("[DEBUG] Agents directory: %s\n", agentsDir)
-
-			// Count components in ~/.agent-smith/
-			agentsPath := filepath.Join(agentsDir, "agents")
-			skillsPath := filepath.Join(agentsDir, "skills")
-			commandsPath := filepath.Join(agentsDir, "commands")
-
-			agentsCount := 0
-			skillsCount := 0
-			commandsCount := 0
-
-			if entries, err := os.ReadDir(agentsPath); err == nil {
-				for _, entry := range entries {
-					if entry.IsDir() {
-						agentsCount++
-					}
-				}
-			}
-
-			if entries, err := os.ReadDir(skillsPath); err == nil {
-				for _, entry := range entries {
-					if entry.IsDir() {
-						skillsCount++
-					}
-				}
-			}
-
-			if entries, err := os.ReadDir(commandsPath); err == nil {
-				for _, entry := range entries {
-					if entry.IsDir() {
-						commandsCount++
-					}
-				}
-			}
-
-			// Display status with modern formatting
-			f := formatter.New()
-			f.SectionHeader("Agent Smith Status")
-
-			// Show active profile
-			if activeProfile != "" {
-				green := color.New(color.FgGreen).SprintFunc()
-				appFormatter.Info("  Active Profile:     %s %s", green(activeProfile), formatter.ColoredSuccess())
-			} else {
-				gray := color.New(color.FgHiBlack).SprintFunc()
-				appFormatter.Info("  Active Profile:     %s", gray("None"))
-			}
-
-			// Show detected targets
-			if len(targets) > 0 {
-				var targetNames []string
-				for _, target := range targets {
-					targetNames = append(targetNames, target.GetName())
-				}
-				cyan := color.New(color.FgCyan).SprintFunc()
-				appFormatter.Info("  Detected Targets:   %s", cyan(joinStrings(targetNames, ", ")))
-			} else {
-				gray := color.New(color.FgHiBlack).SprintFunc()
-				appFormatter.Info("  Detected Targets:   %s", gray("None"))
-			}
-
-			// Show base components count
-			appFormatter.EmptyLine()
-			bold := color.New(color.Bold).SprintFunc()
-			appFormatter.Info("%s", bold("Base Components (~/.agent-smith/)"))
-			appFormatter.Info("  • Agents:           %d", agentsCount)
-			appFormatter.Info("  • Skills:           %d", skillsCount)
-			appFormatter.Info("  • Commands:         %d", commandsCount)
-
-			// If there's an active profile, show its components
-			if activeProfile != "" {
-				profilesList, err := pm.ScanProfiles()
-				if err == nil {
-					for _, profile := range profilesList {
-						if profile.Name == activeProfile {
-							agents, skills, commands := pm.CountComponents(profile)
-							appFormatter.EmptyLine()
-							green := color.New(color.FgGreen, color.Bold).SprintFunc()
-							appFormatter.Info("%s", green("Active Profile Components"))
-							appFormatter.Info("  • Agents:           %d", agents)
-							appFormatter.Info("  • Skills:           %d", skills)
-							appFormatter.Info("  • Commands:         %d", commands)
-							break
-						}
-					}
-				}
-			}
-
-			// Show helpful commands
-			appFormatter.EmptyLine()
-			dim := color.New(color.Faint).SprintFunc()
-			appFormatter.Info("%s", dim("Quick Actions:"))
-			appFormatter.Info("  %s agent-smith link status     %s", dim("•"), dim("View component link status"))
-			appFormatter.Info("  %s agent-smith profile list    %s", dim("•"), dim("List all profiles"))
-			appFormatter.EmptyLine()
 		},
 		func(name, path string) {
-			// Load existing config
-			cfg, err := config.LoadConfig()
-			if err != nil {
-				log.Fatal("Failed to load config:", err)
+			if err := targetService.AddCustomTarget(name, path); err != nil {
+				log.Fatal("Failed to add custom target:", err)
 			}
-
-			// Validate that target name doesn't already exist
-			for _, target := range cfg.CustomTargets {
-				if target.Name == name {
-					log.Fatalf("Target '%s' already exists in config", name)
-				}
-			}
-
-			// Create new custom target config
-			newTarget := config.CustomTargetConfig{
-				Name:        name,
-				BaseDir:     path,
-				SkillsDir:   "skills",
-				AgentsDir:   "agents",
-				CommandsDir: "commands",
-			}
-
-			// Add to config
-			cfg.CustomTargets = append(cfg.CustomTargets, newTarget)
-
-			// Save config
-			if err := config.SaveConfig(cfg); err != nil {
-				log.Fatal("Failed to save config:", err)
-			}
-
-			infoPrintf("%s Successfully added custom target '%s'\n", formatter.SymbolSuccess, name)
-			infoPrintf("  Base directory: %s\n", path)
-			infoPrintln("\nSubdirectories:")
-			infoPrintf("  Skills:   %s/skills\n", path)
-			infoPrintf("  Agents:   %s/agents\n", path)
-			infoPrintf("  Commands: %s/commands\n", path)
-			infoPrintln("\nYou can now link components to this target:")
-			infoPrintf("  agent-smith link all --target %s\n", name)
 		},
 		func(name string) {
-			// Load existing config
-			cfg, err := config.LoadConfig()
-			if err != nil {
-				log.Fatal("Failed to load config:", err)
+			if err := targetService.RemoveCustomTarget(name); err != nil {
+				log.Fatal("Failed to remove custom target:", err)
 			}
-
-			// Check if target exists and is a custom target
-			found := false
-			targetIndex := -1
-			for i, target := range cfg.CustomTargets {
-				if target.Name == name {
-					found = true
-					targetIndex = i
-					break
-				}
-			}
-
-			if !found {
-				log.Fatalf("Target '%s' not found in custom targets", name)
-			}
-
-			// Remove the target from the slice
-			cfg.CustomTargets = append(cfg.CustomTargets[:targetIndex], cfg.CustomTargets[targetIndex+1:]...)
-
-			// Save config
-			if err := config.SaveConfig(cfg); err != nil {
-				log.Fatal("Failed to save config:", err)
-			}
-
-			infoPrintf("%s Successfully removed custom target '%s'\n", formatter.SymbolSuccess, name)
-			infoPrintln("\nNote: This only removes the target from configuration.")
-			infoPrintln("Components linked to this target are not automatically unlinked.")
 		},
 		func() {
-			// Load config to distinguish between built-in and custom targets
-			cfg, err := config.LoadConfig()
-			if err != nil {
-				log.Fatal("Failed to load config:", err)
+			if err := targetService.ListTargets(); err != nil {
+				log.Fatal("Failed to list targets:", err)
 			}
-
-			// Get all built-in targets (even if not detected)
-			builtInNames := []string{"opencode", "claudecode"}
-
-			// Create formatter instance
-			f := formatter.New()
-			green := color.New(color.FgGreen).SprintFunc()
-			red := color.New(color.FgRed).SprintFunc()
-			yellow := color.New(color.FgYellow).SprintFunc()
-
-			// Section header
-			f.SectionHeader("Available Targets")
-
-			// Collect all target data
-			type targetInfo struct {
-				name     string
-				baseDir  string
-				exists   bool
-				isCustom bool
-				hasError bool
-			}
-			var allTargets []targetInfo
-
-			// Collect built-in targets
-			for _, name := range builtInNames {
-				var target config.Target
-				var err error
-
-				if name == "opencode" {
-					target, err = config.NewOpencodeTarget()
-				} else if name == "claudecode" {
-					target, err = config.NewClaudeCodeTarget()
-				}
-
-				if err != nil {
-					allTargets = append(allTargets, targetInfo{
-						name:     name,
-						baseDir:  "error loading target",
-						exists:   false,
-						isCustom: false,
-						hasError: true,
-					})
-					continue
-				}
-
-				baseDir, _ := target.GetBaseDir()
-				exists := false
-				if _, err := os.Stat(baseDir); err == nil {
-					exists = true
-				}
-
-				allTargets = append(allTargets, targetInfo{
-					name:     name,
-					baseDir:  baseDir,
-					exists:   exists,
-					isCustom: false,
-					hasError: false,
-				})
-			}
-
-			// Collect custom targets
-			for _, customTargetConfig := range cfg.CustomTargets {
-				customTarget, err := config.NewCustomTarget(customTargetConfig)
-				if err != nil {
-					allTargets = append(allTargets, targetInfo{
-						name:     customTargetConfig.Name,
-						baseDir:  "error loading target",
-						exists:   false,
-						isCustom: true,
-						hasError: true,
-					})
-					continue
-				}
-
-				baseDir, _ := customTarget.GetBaseDir()
-				exists := false
-				if _, err := os.Stat(baseDir); err == nil {
-					exists = true
-				}
-
-				allTargets = append(allTargets, targetInfo{
-					name:     customTargetConfig.Name,
-					baseDir:  baseDir,
-					exists:   exists,
-					isCustom: true,
-					hasError: false,
-				})
-			}
-
-			// Create table with box-drawing characters
-			table := formatter.NewBoxTable(os.Stdout, []string{"Status", "Target", "Type", "Location"})
-
-			// Add rows to table
-			availableCount := 0
-			for _, target := range allTargets {
-				var statusSymbol string
-				var targetType string
-
-				if target.hasError {
-					statusSymbol = red(formatter.SymbolError)
-				} else if target.exists {
-					statusSymbol = green(formatter.SymbolSuccess)
-					availableCount++
-				} else {
-					statusSymbol = yellow(formatter.SymbolNotLinked)
-				}
-
-				if target.isCustom {
-					targetType = "Custom"
-				} else {
-					targetType = "Built-in"
-				}
-
-				table.AddRow([]string{statusSymbol, target.name, targetType, target.baseDir})
-			}
-
-			// Render the table
-			table.Render()
-
-			// Display summary
-			appFormatter.EmptyLine()
-			totalCount := len(allTargets)
-			if availableCount == totalCount {
-				appFormatter.Info("%s All %d target(s) detected and available", green(formatter.SymbolSuccess), totalCount)
-			} else if availableCount > 0 {
-				appFormatter.Info("%s %d of %d target(s) available", yellow(formatter.SymbolWarning), availableCount, totalCount)
-			} else {
-				appFormatter.Info("%s No targets currently available", red(formatter.SymbolError))
-			}
-
-			// Display legend
-			appFormatter.EmptyLine()
-			appFormatter.Info("Legend:")
-			appFormatter.Info("  %s Available  %s Not found  %s Error",
-				green(formatter.SymbolSuccess),
-				yellow(formatter.SymbolNotLinked),
-				red(formatter.SymbolError))
 		},
 		func(componentType, componentName, target, projectDir string, force, dryRun bool, profile string) {
 			// Import necessary packages at the top of main.go
