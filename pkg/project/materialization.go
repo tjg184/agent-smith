@@ -173,6 +173,12 @@ const (
 	SyncStatusSourceMissing SyncStatus = "source_missing"
 )
 
+// SyncCheckResult holds the result of a sync status check
+type SyncCheckResult struct {
+	Status SyncStatus
+	Error  error
+}
+
 // CheckComponentSyncStatus checks if a materialized component is in sync with its GitHub source
 // Returns the sync status and any error encountered
 func CheckComponentSyncStatus(componentType, componentName string, metadata MaterializedComponentMetadata) (SyncStatus, error) {
@@ -226,6 +232,115 @@ func CheckComponentSyncStatus(componentType, componentName string, metadata Mate
 	}
 
 	return SyncStatusOutOfSync, nil
+}
+
+// CheckMultipleComponentsSyncStatusBatched checks sync status for multiple components
+// by batching components from the same repository to reduce git clone operations.
+// Returns a map of component key (type/name) -> sync check result
+func CheckMultipleComponentsSyncStatusBatched(baseDir string, components []ComponentInfo) (map[string]SyncCheckResult, error) {
+	results := make(map[string]SyncCheckResult)
+
+	// Group components by source repository
+	componentsByRepo := make(map[string][]ComponentInfo)
+	for _, comp := range components {
+		if comp.Metadata.Source == "" {
+			// Handle components with missing source URL
+			key := fmt.Sprintf("%s/%s", comp.Type, comp.Name)
+			results[key] = SyncCheckResult{
+				Status: "",
+				Error:  fmt.Errorf("component metadata missing source URL"),
+			}
+			continue
+		}
+
+		if comp.Metadata.CommitHash == "" {
+			// Old metadata format without commit hash - treat as out of sync
+			key := fmt.Sprintf("%s/%s", comp.Type, comp.Name)
+			results[key] = SyncCheckResult{
+				Status: SyncStatusOutOfSync,
+				Error:  nil,
+			}
+			continue
+		}
+
+		componentsByRepo[comp.Metadata.Source] = append(componentsByRepo[comp.Metadata.Source], comp)
+	}
+
+	// Create updater for checking repositories
+	ud := updater.NewUpdateDetectorWithBaseDir(baseDir)
+
+	// Process each repository batch
+	for repoURL, repoComponents := range componentsByRepo {
+		// Fetch the current commit hash from GitHub once for this repository
+		currentCommit, err := ud.GetCurrentRepoSHA(repoURL)
+
+		if err != nil {
+			// Check for specific error types
+			errMsg := err.Error()
+
+			// Repository not found or deleted
+			if strings.Contains(errMsg, "repository not found") ||
+				strings.Contains(errMsg, "not found") ||
+				strings.Contains(errMsg, "404") {
+				// Mark all components from this repo as source missing
+				for _, comp := range repoComponents {
+					key := fmt.Sprintf("%s/%s", comp.Type, comp.Name)
+					results[key] = SyncCheckResult{
+						Status: SyncStatusSourceMissing,
+						Error:  nil,
+					}
+				}
+				continue
+			}
+
+			// Authentication required
+			if strings.Contains(errMsg, "authentication required") ||
+				strings.Contains(errMsg, "authentication failed") ||
+				strings.Contains(errMsg, "401") ||
+				strings.Contains(errMsg, "403") {
+				// Mark all components from this repo with auth error
+				authErr := fmt.Errorf("authentication required: set GITHUB_TOKEN environment variable for private repositories")
+				for _, comp := range repoComponents {
+					key := fmt.Sprintf("%s/%s", comp.Type, comp.Name)
+					results[key] = SyncCheckResult{
+						Status: "",
+						Error:  authErr,
+					}
+				}
+				continue
+			}
+
+			// Network or other errors
+			networkErr := fmt.Errorf("failed to check GitHub repository: %w", err)
+			for _, comp := range repoComponents {
+				key := fmt.Sprintf("%s/%s", comp.Type, comp.Name)
+				results[key] = SyncCheckResult{
+					Status: "",
+					Error:  networkErr,
+				}
+			}
+			continue
+		}
+
+		// Compare each component's stored commit hash with current GitHub commit
+		for _, comp := range repoComponents {
+			key := fmt.Sprintf("%s/%s", comp.Type, comp.Name)
+
+			if currentCommit == comp.Metadata.CommitHash {
+				results[key] = SyncCheckResult{
+					Status: SyncStatusInSync,
+					Error:  nil,
+				}
+			} else {
+				results[key] = SyncCheckResult{
+					Status: SyncStatusOutOfSync,
+					Error:  nil,
+				}
+			}
+		}
+	}
+
+	return results, nil
 }
 
 // UpdateMaterializationEntry updates an existing materialization entry with new hashes and timestamp

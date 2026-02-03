@@ -3235,6 +3235,13 @@ func main() {
 				}
 				fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
 
+				// Use batched sync check for better performance (one clone per repo instead of per component)
+				baseDir, _ := paths.GetAgentsDir()
+				syncResults, err := project.CheckMultipleComponentsSyncStatusBatched(baseDir, components)
+				if err != nil {
+					log.Fatalf("Failed to check sync status: %v", err)
+				}
+
 				// Group by component type
 				componentsByType := make(map[string][]project.ComponentInfo)
 				for _, comp := range components {
@@ -3252,11 +3259,17 @@ func main() {
 					typeLabel := strings.Title(componentType)
 					fmt.Printf("%s:\n", typeLabel)
 
-					// Check sync status for each component
+					// Display sync status for each component
 					for _, comp := range comps {
-						status, err := project.CheckComponentSyncStatus(comp.Type, comp.Name, comp.Metadata)
-						if err != nil {
-							fmt.Printf("  %s %s (error: %v)\n", red("✗"), comp.Name, err)
+						key := fmt.Sprintf("%s/%s", comp.Type, comp.Name)
+						result, ok := syncResults[key]
+						if !ok {
+							fmt.Printf("  %s %s (error: status not available)\n", red("✗"), comp.Name)
+							continue
+						}
+
+						if result.Error != nil {
+							fmt.Printf("  %s %s (error: %v)\n", red("✗"), comp.Name, result.Error)
 							continue
 						}
 
@@ -3266,13 +3279,14 @@ func main() {
 							shortHash = shortHash[:7]
 						}
 
-						switch status {
+						switch result.Status {
 						case project.SyncStatusInSync:
 							fmt.Printf("  %s %s (in sync - %s)\n", green("✓"), comp.Name, shortHash)
 							totalInSync++
 						case project.SyncStatusOutOfSync:
 							// Get current remote commit hash to show the change
-							baseDir, _ := paths.GetAgentsDir()
+							// We need to fetch this separately since CheckMultipleComponentsSyncStatusBatched
+							// doesn't return the current SHA (only the status)
 							ud := updater.NewUpdateDetectorWithBaseDir(baseDir)
 							currentCommit, err := ud.GetCurrentRepoSHA(comp.Metadata.Source)
 							shortCurrent := currentCommit
@@ -3398,24 +3412,38 @@ func main() {
 				}
 				fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
 
+				// Use batched sync check for better performance (one clone per repo instead of per component)
+				baseDir, _ := paths.GetAgentsDir()
+				syncResults, err := project.CheckMultipleComponentsSyncStatusBatched(baseDir, components)
+				if err != nil {
+					log.Fatalf("Failed to check sync status: %v", err)
+				}
+
 				// Process each component
 				for _, comp := range components {
+					key := fmt.Sprintf("%s/%s", comp.Type, comp.Name)
+					result, ok := syncResults[key]
+
 					// Check sync status
-					status, err := project.CheckComponentSyncStatus(comp.Type, comp.Name, comp.Metadata)
-					if err != nil {
-						fmt.Printf("  %s %s (error checking status: %v)\n", red("✗"), comp.Name, err)
+					if !ok {
+						fmt.Printf("  %s %s (error: status not available)\n", red("✗"), comp.Name)
+						continue
+					}
+
+					if result.Error != nil {
+						fmt.Printf("  %s %s (error checking status: %v)\n", red("✗"), comp.Name, result.Error)
 						continue
 					}
 
 					// Handle source missing
-					if status == project.SyncStatusSourceMissing {
+					if result.Status == project.SyncStatusSourceMissing {
 						fmt.Printf("  %s Skipped %s (source no longer installed)\n", yellow("⚠"), comp.Name)
 						totalSkippedMissing++
 						continue
 					}
 
 					// Skip if in sync and not force mode
-					if status == project.SyncStatusInSync && !force {
+					if result.Status == project.SyncStatusInSync && !force {
 						fmt.Printf("  %s Skipped %s (already in sync)\n", green("⊘"), comp.Name)
 						totalSkippedInSync++
 						continue

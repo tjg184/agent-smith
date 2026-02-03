@@ -284,7 +284,15 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 	return nil
 }
 
+// componentUpdateInfo holds information about a component that needs checking/updating
+type componentUpdateInfo struct {
+	Type     string
+	Name     string
+	Metadata *models.ComponentMetadata
+}
+
 // UpdateAll iterates through all installed components and updates them
+// Optimized to batch components by repository to reduce git clone operations
 func (ud *UpdateDetector) UpdateAll() error {
 	// Show location header
 	if ud.profileName != "" {
@@ -293,35 +301,177 @@ func (ud *UpdateDetector) UpdateAll() error {
 		fmt.Printf("%s\n\n", styles.InfoArrowFormat("Checking all components for updates..."))
 	}
 
-	componentTypes := paths.GetComponentTypes()
-
-	// Track update statistics
-	var totalChecked, upToDate, updated, failed int
-
-	// First, count total components to check
-	var totalComponents int
-	for _, componentType := range componentTypes {
-		typeDir := filepath.Join(ud.baseDir, componentType)
-		if _, err := os.Stat(typeDir); os.IsNotExist(err) {
-			continue
-		}
-
-		entries, err := os.ReadDir(typeDir)
-		if err != nil {
-			continue
-		}
-
-		for _, entry := range entries {
-			if entry.IsDir() {
-				totalComponents++
-			}
-		}
+	// Step 1: Scan all components and group by repository
+	componentsByRepo, totalComponents, err := ud.groupComponentsByRepository()
+	if err != nil {
+		return err
 	}
 
 	if totalComponents == 0 {
 		fmt.Println("No components found to update.")
 		return nil
 	}
+
+	// Track update statistics
+	var totalChecked, upToDate, updated, failed int
+
+	// Step 2: Process each repository batch
+	for repoURL, components := range componentsByRepo {
+		// Create temporary directory for this repository
+		tempDir, err := os.MkdirTemp("", "agent-smith-update-batch-*")
+		if err != nil {
+			// If we can't create temp dir, mark all components as failed
+			for _, comp := range components {
+				totalChecked++
+				fmt.Print(styles.ComponentProgressFormat(totalChecked, totalComponents, comp.Type, comp.Name))
+				fmt.Printf("%s\n", styles.StatusFailedFormat())
+				fmt.Printf("%s\n", styles.IndentedErrorFormat(fmt.Sprintf("Failed to create temp directory: %v", err)))
+				failed++
+			}
+			continue
+		}
+
+		// Clone repository once for this batch
+		fullURL, normalizeErr := ud.detector.NormalizeURL(repoURL)
+		if normalizeErr != nil {
+			os.RemoveAll(tempDir)
+			// Mark all components from this repo as failed
+			for _, comp := range components {
+				totalChecked++
+				fmt.Print(styles.ComponentProgressFormat(totalChecked, totalComponents, comp.Type, comp.Name))
+				fmt.Printf("%s\n", styles.StatusFailedFormat())
+				fmt.Printf("%s\n", styles.IndentedErrorFormat(fmt.Sprintf("Failed to normalize URL: %v", normalizeErr)))
+				failed++
+			}
+			continue
+		}
+
+		// Clone repository (shallow clone)
+		cloneOpts := &git.CloneOptions{
+			URL:           fullURL,
+			Depth:         1,
+			ReferenceName: plumbing.HEAD,
+			SingleBranch:  true,
+		}
+
+		// Add authentication if needed
+		if auth, _ := gitpkg.GetAuthMethod(fullURL); auth != nil {
+			cloneOpts.Auth = auth
+		}
+
+		repo, cloneErr := git.PlainClone(tempDir, false, cloneOpts)
+		if cloneErr != nil {
+			os.RemoveAll(tempDir)
+			// Mark all components from this repo as failed
+			for _, comp := range components {
+				totalChecked++
+				fmt.Print(styles.ComponentProgressFormat(totalChecked, totalComponents, comp.Type, comp.Name))
+				fmt.Printf("%s\n", styles.StatusFailedFormat())
+				fmt.Printf("%s\n", styles.IndentedErrorFormat(fmt.Sprintf("Failed to clone repository: %v", cloneErr)))
+				failed++
+			}
+			continue
+		}
+
+		// Get current HEAD commit hash once for this repository
+		ref, err := repo.Head()
+		var currentSHA string
+		if err != nil {
+			os.RemoveAll(tempDir)
+			// Mark all components from this repo as failed
+			for _, comp := range components {
+				totalChecked++
+				fmt.Print(styles.ComponentProgressFormat(totalChecked, totalComponents, comp.Type, comp.Name))
+				fmt.Printf("%s\n", styles.StatusFailedFormat())
+				fmt.Printf("%s\n", styles.IndentedErrorFormat(fmt.Sprintf("Failed to get HEAD reference: %v", err)))
+				failed++
+			}
+			continue
+		}
+		currentSHA = ref.Hash().String()
+
+		// Detect all components in this repository for *WithRepo methods
+		allDetectedComponents, detectErr := ud.detector.DetectComponentsInRepo(tempDir)
+		if detectErr != nil {
+			// If detection fails, we can still update components individually
+			// but we won't have the full component list for *WithRepo methods
+			allDetectedComponents = []models.DetectedComponent{}
+		}
+
+		// Step 3: Check and update each component from this repository
+		for _, comp := range components {
+			totalChecked++
+			fmt.Print(styles.ComponentProgressFormat(totalChecked, totalComponents, comp.Type, comp.Name))
+
+			// Check if update is needed by comparing commit hashes
+			if comp.Metadata.Commit == "" {
+				// No commit hash stored, assume update needed
+				fmt.Printf("%s\n", styles.StatusUpdatingFormat())
+			} else if comp.Metadata.Commit == currentSHA {
+				// Already up to date
+				fmt.Printf("%s\n", styles.StatusUpToDateFormat())
+				upToDate++
+				continue
+			} else {
+				// Update needed
+				fmt.Printf("%s\n", styles.StatusUpdatingFormat())
+			}
+
+			// Remove old component directory
+			componentDir := filepath.Join(ud.baseDir, comp.Type, comp.Name)
+			if _, err := os.Stat(componentDir); err == nil {
+				if err := os.RemoveAll(componentDir); err != nil {
+					fmt.Printf("%s\n", styles.IndentedErrorFormat(fmt.Sprintf("Failed to remove old version: %v", err)))
+					failed++
+					continue
+				}
+			}
+
+			// Download using *WithRepo methods to reuse the cloned repository
+			var downloadErr error
+			if ud.profileName != "" {
+				// Use profile-aware downloaders
+				downloadErr = ud.downloadComponentWithRepoForProfile(comp.Type, comp.Name, fullURL, repoURL, tempDir, allDetectedComponents)
+			} else {
+				// Use standard downloaders
+				downloadErr = ud.downloadComponentWithRepo(comp.Type, comp.Name, fullURL, repoURL, tempDir, allDetectedComponents)
+			}
+
+			if downloadErr != nil {
+				fmt.Printf("%s\n", styles.IndentedErrorFormat(downloadErr.Error()))
+				failed++
+			} else {
+				fmt.Printf("  %s\n", styles.StatusUpdatedSuccessfullyFormat())
+				updated++
+			}
+		}
+
+		// Clean up temporary directory for this repository
+		os.RemoveAll(tempDir)
+	}
+
+	// Print summary with box drawing using styles package
+	fmt.Println()
+	table := styles.SummaryTableFormat("Update Summary", 80)
+	table.AddRow("Total components checked:", totalChecked)
+	table.AddRowWithSymbol(colors.Success(formatter.SymbolSuccess), "Already up to date:", upToDate)
+	table.AddRowWithSymbol(colors.Success(formatter.SymbolSuccess), "Successfully updated:", updated)
+	if failed > 0 {
+		table.AddRowWithSymbol(colors.Error(formatter.SymbolError), "Failed:", failed)
+	}
+	fmt.Println(table.Build())
+	fmt.Println()
+
+	return nil
+}
+
+// groupComponentsByRepository scans all installed components and groups them by source repository
+// Returns a map of repository URL -> components, total component count, and any error
+func (ud *UpdateDetector) groupComponentsByRepository() (map[string][]componentUpdateInfo, int, error) {
+	componentsByRepo := make(map[string][]componentUpdateInfo)
+	totalComponents := 0
+
+	componentTypes := paths.GetComponentTypes()
 
 	for _, componentType := range componentTypes {
 		typeDir := filepath.Join(ud.baseDir, componentType)
@@ -338,103 +488,59 @@ func (ud *UpdateDetector) UpdateAll() error {
 		for _, entry := range entries {
 			if entry.IsDir() {
 				componentName := entry.Name()
-				totalChecked++
-
-				fmt.Print(styles.ComponentProgressFormat(totalChecked, totalComponents, componentType, componentName))
+				totalComponents++
 
 				// Load metadata to get source URL
 				metadata, err := ud.loadMetadata(componentType, componentName)
 				if err != nil {
-					fmt.Printf("%s\n", styles.StatusFailedFormat())
-					fmt.Printf("%s\n", styles.IndentedErrorFormat(err.Error()))
-					failed++
+					// Skip components with missing metadata, they'll be handled as errors during update
 					continue
 				}
 
-				// Check if updates are available
-				hasUpdates, err := ud.HasUpdates(componentType, componentName, metadata.Source)
-				if err != nil {
-					fmt.Printf("%s\n", styles.StatusFailedFormat())
-					fmt.Printf("%s\n", styles.IndentedErrorFormat(err.Error()))
-					failed++
-					continue
-				}
-
-				if !hasUpdates {
-					fmt.Printf("%s\n", styles.StatusUpToDateFormat())
-					upToDate++
-					continue
-				}
-
-				// Apply the update
-				fmt.Printf("%s\n", styles.StatusUpdatingFormat())
-
-				// Remove old component directory to ensure clean re-clone
-				componentDir := filepath.Join(ud.baseDir, componentType, componentName)
-				if _, err := os.Stat(componentDir); err == nil {
-					if err := os.RemoveAll(componentDir); err != nil {
-						fmt.Printf("%s\n", styles.IndentedErrorFormat(err.Error()))
-						failed++
-						continue
-					}
-				}
-
-				// Re-download the component with the latest changes
-				var downloadErr error
-				if ud.profileName != "" {
-					// Use profile-aware downloaders
-					switch componentType {
-					case "skills":
-						dl := downloader.NewSkillDownloaderForProfile(ud.profileName)
-						downloadErr = dl.DownloadSkill(metadata.Source, componentName)
-					case "agents":
-						dl := downloader.NewAgentDownloaderForProfile(ud.profileName)
-						downloadErr = dl.DownloadAgent(metadata.Source, componentName)
-					case "commands":
-						dl := downloader.NewCommandDownloaderForProfile(ud.profileName)
-						downloadErr = dl.DownloadCommand(metadata.Source, componentName)
-					default:
-						downloadErr = fmt.Errorf("unknown component type: %s", componentType)
-					}
-				} else {
-					// Use standard downloaders
-					switch componentType {
-					case "skills":
-						dl := downloader.NewSkillDownloader()
-						downloadErr = dl.DownloadSkill(metadata.Source, componentName)
-					case "agents":
-						dl := downloader.NewAgentDownloader()
-						downloadErr = dl.DownloadAgent(metadata.Source, componentName)
-					case "commands":
-						dl := downloader.NewCommandDownloader()
-						downloadErr = dl.DownloadCommand(metadata.Source, componentName)
-					default:
-						downloadErr = fmt.Errorf("unknown component type: %s", componentType)
-					}
-				}
-
-				if downloadErr != nil {
-					fmt.Printf("%s\n", styles.IndentedErrorFormat(downloadErr.Error()))
-					failed++
-				} else {
-					fmt.Printf("  %s\n", styles.StatusUpdatedSuccessfullyFormat())
-					updated++
-				}
+				// Group by source repository URL
+				repoURL := metadata.Source
+				componentsByRepo[repoURL] = append(componentsByRepo[repoURL], componentUpdateInfo{
+					Type:     componentType,
+					Name:     componentName,
+					Metadata: metadata,
+				})
 			}
 		}
 	}
 
-	// Print summary with box drawing using styles package
-	fmt.Println()
-	table := styles.SummaryTableFormat("Update Summary", 80)
-	table.AddRow("Total components checked:", totalChecked)
-	table.AddRowWithSymbol(colors.Success(formatter.SymbolSuccess), "Already up to date:", upToDate)
-	table.AddRowWithSymbol(colors.Success(formatter.SymbolSuccess), "Successfully updated:", updated)
-	if failed > 0 {
-		table.AddRowWithSymbol(colors.Error(formatter.SymbolError), "Failed:", failed)
-	}
-	fmt.Println(table.Build())
-	fmt.Println()
+	return componentsByRepo, totalComponents, nil
+}
 
-	return nil
+// downloadComponentWithRepo downloads a component using the *WithRepo methods to reuse a cloned repository
+func (ud *UpdateDetector) downloadComponentWithRepo(componentType, componentName, fullURL, repoURL, tempDir string, detectedComponents []models.DetectedComponent) error {
+	switch componentType {
+	case "skills":
+		dl := downloader.NewSkillDownloader()
+		return dl.DownloadSkillWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
+	case "agents":
+		dl := downloader.NewAgentDownloader()
+		return dl.DownloadAgentWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
+	case "commands":
+		dl := downloader.NewCommandDownloader()
+		return dl.DownloadCommandWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
+	default:
+		return fmt.Errorf("unknown component type: %s", componentType)
+	}
+}
+
+// downloadComponentWithRepoForProfile downloads a component using profile-aware downloaders with *WithRepo methods
+func (ud *UpdateDetector) downloadComponentWithRepoForProfile(componentType, componentName, fullURL, repoURL, tempDir string, detectedComponents []models.DetectedComponent) error {
+	switch componentType {
+	case "skills":
+		dl := downloader.NewSkillDownloaderForProfile(ud.profileName)
+		return dl.DownloadSkillWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
+	case "agents":
+		dl := downloader.NewAgentDownloaderForProfile(ud.profileName)
+		return dl.DownloadAgentWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
+	case "commands":
+		dl := downloader.NewCommandDownloaderForProfile(ud.profileName)
+		return dl.DownloadCommandWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
+	default:
+		return fmt.Errorf("unknown component type: %s", componentType)
+	}
 }
