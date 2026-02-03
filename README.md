@@ -663,6 +663,34 @@ git push
 # They're automatically available in .opencode/ directory
 ```
 
+### Keep materialized components in sync
+
+```bash
+# After installing/updating components in your library
+agent-smith update all
+
+# Check which materialized components need updating
+cd ~/my-project
+agent-smith materialize status
+# Shows:
+#   ✓ api-design (in sync)
+#   ⚠ python-testing (out of sync - source updated)
+#   ✗ old-skill (source missing)
+
+# Update only the out-of-sync components
+agent-smith materialize update
+
+# Or force re-materialize everything
+agent-smith materialize update --force
+
+# Preview changes first
+agent-smith materialize update --dry-run
+
+# Work with specific targets
+agent-smith materialize status --target opencode
+agent-smith materialize update --target claudecode
+```
+
 ### Build specialized profiles with cherry-pick
 
 ```bash

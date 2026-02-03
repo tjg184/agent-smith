@@ -1845,6 +1845,86 @@ EXAMPLES:
 	materializeInfoCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeCmd.AddCommand(materializeInfoCmd)
 
+	materializeStatusCmd := &cobra.Command{
+		Use:   "status",
+		Short: "Show sync status of materialized components",
+		Long: `Show which materialized components are in sync or out of sync with their sources.
+
+This command checks all materialized components in the current project and compares
+them with their source components in ~/.agent-smith/ or profiles. Components are
+marked as:
+  ✓ in sync - materialized copy matches source
+  ⚠ out of sync - source has been updated
+  ✗ source missing - source component no longer installed
+
+The command auto-detects the project root by walking up from the current directory
+looking for .opencode/ or .claude/ directories.
+
+EXAMPLES:
+  # Check sync status of all materialized components
+  agent-smith materialize status
+
+  # Check status for specific target only
+  agent-smith materialize status --target opencode
+
+  # Check status in a specific project directory
+  agent-smith materialize status --project-dir ~/my-project`,
+		Args: noArgsWithHelp,
+		Run: func(cmd *cobra.Command, args []string) {
+			target, _ := cmd.Flags().GetString("target")
+			projectDir, _ := cmd.Flags().GetString("project-dir")
+			handleMaterializeStatus(target, projectDir)
+		},
+	}
+	materializeStatusCmd.Flags().StringP("target", "t", "", "Check specific target only (opencode or claudecode)")
+	materializeStatusCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeCmd.AddCommand(materializeStatusCmd)
+
+	materializeUpdateCmd := &cobra.Command{
+		Use:   "update",
+		Short: "Update out-of-sync materialized components",
+		Long: `Re-materialize components where the source has been updated.
+
+This command intelligently updates only those materialized components where the
+source component has changed (smart mode by default). It:
+  - Compares source hash with stored metadata
+  - Re-materializes only components that are out of sync
+  - Skips components that are already in sync
+  - Warns and skips components with missing sources
+
+The command auto-detects the project root and processes all target directories
+(.opencode/ and .claude/) unless --target is specified.
+
+EXAMPLES:
+  # Update only out-of-sync components (smart mode)
+  agent-smith materialize update
+
+  # Force re-materialize all components
+  agent-smith materialize update --force
+
+  # Preview what would be updated
+  agent-smith materialize update --dry-run
+
+  # Update specific target only
+  agent-smith materialize update --target opencode
+
+  # Update in a specific project directory
+  agent-smith materialize update --project-dir ~/my-project`,
+		Args: noArgsWithHelp,
+		Run: func(cmd *cobra.Command, args []string) {
+			target, _ := cmd.Flags().GetString("target")
+			projectDir, _ := cmd.Flags().GetString("project-dir")
+			force, _ := cmd.Flags().GetBool("force")
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			handleMaterializeUpdate(target, projectDir, force, dryRun)
+		},
+	}
+	materializeUpdateCmd.Flags().StringP("target", "t", "", "Update specific target only (opencode or claudecode)")
+	materializeUpdateCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeUpdateCmd.Flags().BoolP("force", "f", false, "Re-materialize all components (ignore sync status)")
+	materializeUpdateCmd.Flags().Bool("dry-run", false, "Preview what would be updated without making changes")
+	materializeCmd.AddCommand(materializeUpdateCmd)
+
 	rootCmd.AddCommand(materializeCmd)
 
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
@@ -1892,6 +1972,8 @@ var (
 	handleMaterializeAll        func(target, projectDir string, force, dryRun bool, fromProfile string)
 	handleMaterializeList       func(projectDir string)
 	handleMaterializeInfo       func(componentType, componentName, target, projectDir string)
+	handleMaterializeStatus     func(target, projectDir string)
+	handleMaterializeUpdate     func(target, projectDir string, force, dryRun bool)
 )
 
 func SetHandlers(
@@ -1933,6 +2015,8 @@ func SetHandlers(
 	materializeAll func(target, projectDir string, force, dryRun bool, fromProfile string),
 	materializeList func(projectDir string),
 	materializeInfo func(componentType, componentName, target, projectDir string),
+	materializeStatus func(target, projectDir string),
+	materializeUpdate func(target, projectDir string, force, dryRun bool),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent
@@ -1972,4 +2056,6 @@ func SetHandlers(
 	handleMaterializeAll = materializeAll
 	handleMaterializeList = materializeList
 	handleMaterializeInfo = materializeInfo
+	handleMaterializeStatus = materializeStatus
+	handleMaterializeUpdate = materializeUpdate
 }

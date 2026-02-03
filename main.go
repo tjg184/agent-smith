@@ -3158,6 +3158,346 @@ func main() {
 				os.Exit(1)
 			}
 		},
+		func(target, projectDir string) {
+			// Handle materialize status command
+			green := color.New(color.FgGreen).SprintFunc()
+			yellow := color.New(color.FgYellow).SprintFunc()
+			red := color.New(color.FgRed).SprintFunc()
+			bold := color.New(color.Bold).SprintFunc()
+
+			var projectRoot string
+			var err error
+			if projectDir != "" {
+				// Use specified project directory
+				projectRoot, err = filepath.Abs(projectDir)
+				if err != nil {
+					log.Fatalf("Failed to resolve project directory: %v", err)
+				}
+			} else {
+				// Auto-detect project root
+				projectRoot, err = project.FindProjectRoot()
+				if err != nil {
+					log.Fatalf("Failed to find project root: %v", err)
+				}
+			}
+
+			fmt.Printf("\n%s %s\n\n", bold("Project:"), projectRoot)
+
+			// Determine which targets to check
+			var targetsToCheck []string
+			if target != "" {
+				targetsToCheck = []string{target}
+			} else {
+				targetsToCheck = []string{"opencode", "claudecode"}
+			}
+
+			// Track overall statistics
+			totalInSync := 0
+			totalOutOfSync := 0
+			totalMissing := 0
+			foundAny := false
+
+			// Check each target
+			for _, targetName := range targetsToCheck {
+				targetDir := project.GetTargetDirectory(projectRoot, targetName)
+
+				// Check if target directory exists
+				if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+					if target != "" {
+						// User specified a target that doesn't exist
+						fmt.Println(errors.NewTargetDirectoryNotFoundError(targetName).Format())
+						os.Exit(1)
+					}
+					continue
+				}
+
+				// Load materialization metadata
+				metadata, err := project.LoadMaterializationMetadata(targetDir)
+				if err != nil {
+					log.Fatalf("Failed to load materialization metadata: %v", err)
+				}
+
+				// Get all components
+				components := metadata.GetAllMaterializedComponents()
+				if len(components) == 0 {
+					continue
+				}
+
+				foundAny = true
+
+				// Display target header
+				var targetLabel string
+				if targetName == "opencode" {
+					targetLabel = "OpenCode (.opencode/)"
+				} else {
+					targetLabel = "Claude Code (.claude/)"
+				}
+				fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
+
+				// Group by component type
+				componentsByType := make(map[string][]project.ComponentInfo)
+				for _, comp := range components {
+					componentsByType[comp.Type] = append(componentsByType[comp.Type], comp)
+				}
+
+				// Display each type
+				for _, componentType := range []string{"skills", "agents", "commands"} {
+					comps := componentsByType[componentType]
+					if len(comps) == 0 {
+						continue
+					}
+
+					// Display type header
+					typeLabel := strings.Title(componentType)
+					fmt.Printf("%s:\n", typeLabel)
+
+					// Check sync status for each component
+					for _, comp := range comps {
+						status, err := project.CheckComponentSyncStatus(comp.Type, comp.Name, comp.Metadata)
+						if err != nil {
+							fmt.Printf("  %s %s (error: %v)\n", red("✗"), comp.Name, err)
+							continue
+						}
+
+						switch status {
+						case project.SyncStatusInSync:
+							fmt.Printf("  %s %s (in sync)\n", green("✓"), comp.Name)
+							totalInSync++
+						case project.SyncStatusOutOfSync:
+							fmt.Printf("  %s %s (out of sync - source updated)\n", yellow("⚠"), comp.Name)
+							totalOutOfSync++
+						case project.SyncStatusSourceMissing:
+							fmt.Printf("  %s %s (source missing)\n", red("✗"), comp.Name)
+							totalMissing++
+						}
+					}
+					fmt.Println()
+				}
+			}
+
+			if !foundAny {
+				appFormatter.Info("%s No components materialized yet", yellow(formatter.SymbolWarning))
+				appFormatter.EmptyLine()
+				appFormatter.Info("To materialize components:")
+				appFormatter.Info("  agent-smith materialize skill <name> --target opencode")
+				appFormatter.Info("  agent-smith materialize all --target opencode")
+				return
+			}
+
+			// Display summary
+			fmt.Printf("%s: ", bold("Summary"))
+			var parts []string
+			if totalInSync > 0 {
+				parts = append(parts, fmt.Sprintf("%s %d in sync", green("✓"), totalInSync))
+			}
+			if totalOutOfSync > 0 {
+				parts = append(parts, fmt.Sprintf("%s %d out of sync", yellow("⚠"), totalOutOfSync))
+			}
+			if totalMissing > 0 {
+				parts = append(parts, fmt.Sprintf("%s %d source missing", red("✗"), totalMissing))
+			}
+			fmt.Printf("%s\n\n", strings.Join(parts, ", "))
+		},
+		func(target, projectDir string, force, dryRun bool) {
+			// Handle materialize update command
+			green := color.New(color.FgGreen).SprintFunc()
+			yellow := color.New(color.FgYellow).SprintFunc()
+			red := color.New(color.FgRed).SprintFunc()
+			bold := color.New(color.Bold).SprintFunc()
+
+			var projectRoot string
+			var err error
+			if projectDir != "" {
+				// Use specified project directory
+				projectRoot, err = filepath.Abs(projectDir)
+				if err != nil {
+					log.Fatalf("Failed to resolve project directory: %v", err)
+				}
+			} else {
+				// Auto-detect project root
+				projectRoot, err = project.FindProjectRoot()
+				if err != nil {
+					log.Fatalf("Failed to find project root: %v", err)
+				}
+			}
+
+			if dryRun {
+				fmt.Printf("\n%s Previewing updates in: %s\n\n", bold("[DRY RUN]"), projectRoot)
+			} else {
+				fmt.Printf("\nUpdating materialized components in: %s\n\n", projectRoot)
+			}
+
+			// Determine which targets to update
+			var targetsToUpdate []string
+			if target != "" {
+				targetsToUpdate = []string{target}
+			} else {
+				targetsToUpdate = []string{"opencode", "claudecode"}
+			}
+
+			// Track overall statistics
+			totalUpdated := 0
+			totalSkippedInSync := 0
+			totalSkippedMissing := 0
+			foundAny := false
+
+			// Process each target
+			for _, targetName := range targetsToUpdate {
+				targetDir := project.GetTargetDirectory(projectRoot, targetName)
+
+				// Check if target directory exists
+				if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+					if target != "" {
+						// User specified a target that doesn't exist
+						fmt.Println(errors.NewTargetDirectoryNotFoundError(targetName).Format())
+						os.Exit(1)
+					}
+					continue
+				}
+
+				// Load materialization metadata
+				metadata, err := project.LoadMaterializationMetadata(targetDir)
+				if err != nil {
+					log.Fatalf("Failed to load materialization metadata: %v", err)
+				}
+
+				// Get all components
+				components := metadata.GetAllMaterializedComponents()
+				if len(components) == 0 {
+					continue
+				}
+
+				foundAny = true
+
+				// Display target header
+				var targetLabel string
+				if targetName == "opencode" {
+					targetLabel = "OpenCode (.opencode/)"
+				} else {
+					targetLabel = "Claude Code (.claude/)"
+				}
+				fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
+
+				// Process each component
+				for _, comp := range components {
+					// Check sync status
+					status, err := project.CheckComponentSyncStatus(comp.Type, comp.Name, comp.Metadata)
+					if err != nil {
+						fmt.Printf("  %s %s (error checking status: %v)\n", red("✗"), comp.Name, err)
+						continue
+					}
+
+					// Handle source missing
+					if status == project.SyncStatusSourceMissing {
+						fmt.Printf("  %s Skipped %s (source no longer installed)\n", yellow("⚠"), comp.Name)
+						totalSkippedMissing++
+						continue
+					}
+
+					// Skip if in sync and not force mode
+					if status == project.SyncStatusInSync && !force {
+						fmt.Printf("  %s Skipped %s (already in sync)\n", green("⊘"), comp.Name)
+						totalSkippedInSync++
+						continue
+					}
+
+					// Component needs updating
+					if dryRun {
+						fmt.Printf("  %s Would update %s\n", green("→"), comp.Name)
+						totalUpdated++
+						continue
+					}
+
+					// Resolve source path
+					var baseDir string
+					if comp.Metadata.SourceProfile != "" {
+						profilesDir, err := paths.GetProfilesDir()
+						if err != nil {
+							log.Fatalf("Failed to get profiles directory: %v", err)
+						}
+						baseDir = filepath.Join(profilesDir, comp.Metadata.SourceProfile)
+					} else {
+						baseDir, err = paths.GetAgentsDir()
+						if err != nil {
+							log.Fatalf("Failed to get agents directory: %v", err)
+						}
+					}
+
+					sourceDir := filepath.Join(baseDir, comp.Type, comp.Name)
+					destDir := filepath.Join(targetDir, comp.Type, comp.Name)
+
+					// Remove existing materialized component
+					if err := os.RemoveAll(destDir); err != nil {
+						fmt.Printf("  %s Failed to remove existing %s: %v\n", red("✗"), comp.Name, err)
+						continue
+					}
+
+					// Copy from source
+					if err := materializer.CopyDirectory(sourceDir, destDir); err != nil {
+						fmt.Printf("  %s Failed to copy %s: %v\n", red("✗"), comp.Name, err)
+						continue
+					}
+
+					// Calculate new hashes
+					newSourceHash, err := materializer.CalculateDirectoryHash(sourceDir)
+					if err != nil {
+						fmt.Printf("  %s Failed to calculate source hash for %s: %v\n", red("✗"), comp.Name, err)
+						continue
+					}
+
+					newCurrentHash, err := materializer.CalculateDirectoryHash(destDir)
+					if err != nil {
+						fmt.Printf("  %s Failed to calculate current hash for %s: %v\n", red("✗"), comp.Name, err)
+						continue
+					}
+
+					// Update metadata
+					if err := project.UpdateMaterializationEntry(metadata, baseDir, comp.Type, comp.Name, newSourceHash, newCurrentHash); err != nil {
+						fmt.Printf("  %s Failed to update metadata for %s: %v\n", red("✗"), comp.Name, err)
+						continue
+					}
+
+					fmt.Printf("  %s Updated %s\n", green("✓"), comp.Name)
+					totalUpdated++
+				}
+
+				// Save metadata
+				if !dryRun && totalUpdated > 0 {
+					if err := project.SaveMaterializationMetadata(targetDir, metadata); err != nil {
+						log.Fatalf("Failed to save materialization metadata: %v", err)
+					}
+				}
+
+				fmt.Println()
+			}
+
+			if !foundAny {
+				appFormatter.Info("%s No components materialized yet", yellow(formatter.SymbolWarning))
+				appFormatter.EmptyLine()
+				appFormatter.Info("To materialize components:")
+				appFormatter.Info("  agent-smith materialize skill <name> --target opencode")
+				appFormatter.Info("  agent-smith materialize all --target opencode")
+				return
+			}
+
+			// Display summary
+			fmt.Printf("%s: ", bold("Summary"))
+			var parts []string
+			if totalUpdated > 0 {
+				if dryRun {
+					parts = append(parts, fmt.Sprintf("%d would be updated", totalUpdated))
+				} else {
+					parts = append(parts, fmt.Sprintf("%s %d updated", green("✓"), totalUpdated))
+				}
+			}
+			if totalSkippedInSync > 0 {
+				parts = append(parts, fmt.Sprintf("%d already in sync", totalSkippedInSync))
+			}
+			if totalSkippedMissing > 0 {
+				parts = append(parts, fmt.Sprintf("%s %d skipped (source missing)", yellow("⚠"), totalSkippedMissing))
+			}
+			fmt.Printf("%s\n\n", strings.Join(parts, ", "))
+		},
 	)
 
 	// Execute Cobra command

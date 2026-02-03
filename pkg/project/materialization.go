@@ -6,6 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/tgaines/agent-smith/internal/materializer"
+	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
+	"github.com/tgaines/agent-smith/pkg/paths"
 )
 
 // MaterializationMetadata represents the metadata file structure
@@ -119,4 +123,141 @@ func (m *MaterializationMetadata) GetComponentMap(componentType string) map[stri
 	default:
 		return nil
 	}
+}
+
+// ComponentInfo represents a single materialized component with its type and metadata
+type ComponentInfo struct {
+	Type     string
+	Name     string
+	Metadata MaterializedComponentMetadata
+}
+
+// GetAllMaterializedComponents returns a flat list of all materialized components
+func (m *MaterializationMetadata) GetAllMaterializedComponents() []ComponentInfo {
+	var components []ComponentInfo
+
+	for name, metadata := range m.Skills {
+		components = append(components, ComponentInfo{
+			Type:     "skills",
+			Name:     name,
+			Metadata: metadata,
+		})
+	}
+
+	for name, metadata := range m.Agents {
+		components = append(components, ComponentInfo{
+			Type:     "agents",
+			Name:     name,
+			Metadata: metadata,
+		})
+	}
+
+	for name, metadata := range m.Commands {
+		components = append(components, ComponentInfo{
+			Type:     "commands",
+			Name:     name,
+			Metadata: metadata,
+		})
+	}
+
+	return components
+}
+
+// SyncStatus represents the sync status of a materialized component
+type SyncStatus string
+
+const (
+	SyncStatusInSync        SyncStatus = "in_sync"
+	SyncStatusOutOfSync     SyncStatus = "out_of_sync"
+	SyncStatusSourceMissing SyncStatus = "source_missing"
+)
+
+// CheckComponentSyncStatus checks if a materialized component is in sync with its source
+// Returns the sync status and any error encountered
+func CheckComponentSyncStatus(componentType, componentName string, metadata MaterializedComponentMetadata) (SyncStatus, error) {
+	// Resolve source path from metadata
+	var baseDir string
+	var err error
+
+	if metadata.SourceProfile != "" {
+		// Component sourced from a profile
+		profilesDir, err := paths.GetProfilesDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get profiles directory: %w", err)
+		}
+		baseDir = filepath.Join(profilesDir, metadata.SourceProfile)
+	} else {
+		// Component sourced from base ~/.agent-smith/
+		baseDir, err = paths.GetAgentsDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get agents directory: %w", err)
+		}
+	}
+
+	// Construct source component directory path
+	sourceDir := filepath.Join(baseDir, componentType, componentName)
+
+	// Check if source directory exists
+	if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
+		return SyncStatusSourceMissing, nil
+	} else if err != nil {
+		return "", fmt.Errorf("failed to check source directory: %w", err)
+	}
+
+	// Calculate current source hash
+	currentSourceHash, err := materializer.CalculateDirectoryHash(sourceDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to calculate source hash: %w", err)
+	}
+
+	// Compare with stored source hash
+	if currentSourceHash == metadata.SourceHash {
+		return SyncStatusInSync, nil
+	}
+
+	return SyncStatusOutOfSync, nil
+}
+
+// UpdateMaterializationEntry updates an existing materialization entry with new hashes and timestamp
+func UpdateMaterializationEntry(metadata *MaterializationMetadata, baseDir, componentType, componentName, newSourceHash, newCurrentHash string) error {
+	// Get the existing entry
+	componentMap := metadata.GetComponentMap(componentType)
+	if componentMap == nil {
+		return fmt.Errorf("invalid component type: %s", componentType)
+	}
+
+	entry, exists := componentMap[componentName]
+	if !exists {
+		return fmt.Errorf("component not found in metadata: %s/%s", componentType, componentName)
+	}
+
+	// Re-read lock file to get latest commit hash
+	lockEntry, err := metadataPkg.LoadLockFileEntry(baseDir, componentType, componentName)
+	if err != nil {
+		// If lock file can't be read, preserve existing commit hash
+		// This can happen if the component was uninstalled
+		lockEntry = nil
+	}
+
+	// Update fields
+	entry.SourceHash = newSourceHash
+	entry.CurrentHash = newCurrentHash
+	entry.MaterializedAt = time.Now().Format(time.RFC3339)
+
+	// Update commit hash if we successfully read the lock file
+	if lockEntry != nil {
+		entry.CommitHash = lockEntry.CommitHash
+	}
+
+	// Save updated entry back to metadata
+	switch componentType {
+	case "skills":
+		metadata.Skills[componentName] = entry
+	case "agents":
+		metadata.Agents[componentName] = entry
+	case "commands":
+		metadata.Commands[componentName] = entry
+	}
+
+	return nil
 }
