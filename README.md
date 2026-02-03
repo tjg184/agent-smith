@@ -666,21 +666,18 @@ git push
 ### Keep materialized components in sync
 
 ```bash
-# After installing/updating components in your library
-agent-smith update all
-
-# Check which materialized components need updating
+# Check if materialized components are up-to-date with GitHub
 cd ~/my-project
 agent-smith materialize status
 # Shows:
-#   ✓ api-design (in sync)
-#   ⚠ python-testing (out of sync - source updated)
-#   ✗ old-skill (source missing)
+#   ✓ api-design (in sync - abc1234)
+#   ⚠ python-testing (out of sync - abc1234 → def5678)
+#   ✗ old-skill (repository not found)
 
-# Update only the out-of-sync components
+# Update out-of-sync components directly from GitHub
 agent-smith materialize update
 
-# Or force re-materialize everything
+# Or force re-download everything from GitHub
 agent-smith materialize update --force
 
 # Preview changes first
@@ -689,7 +686,18 @@ agent-smith materialize update --dry-run
 # Work with specific targets
 agent-smith materialize status --target opencode
 agent-smith materialize update --target claudecode
+
+# For private repositories, set GitHub token
+export GITHUB_TOKEN=ghp_your_token_here
+agent-smith materialize status
 ```
+
+**Note:** The `materialize status` and `materialize update` commands check components directly against their GitHub source repositories, not your local `~/.agent-smith/` library. This means:
+- You don't need to run `agent-smith update all` first
+- Components show their sync status with the upstream GitHub repository
+- Updates download fresh from GitHub, bypassing the local library
+- Works standalone in any project, even without agent-smith installed locally
+
 
 ### Build specialized profiles with cherry-pick
 

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/tgaines/agent-smith/cmd"
@@ -3259,15 +3260,34 @@ func main() {
 							continue
 						}
 
+						// Truncate commit hash to first 7 characters for display
+						shortHash := comp.Metadata.CommitHash
+						if len(shortHash) > 7 {
+							shortHash = shortHash[:7]
+						}
+
 						switch status {
 						case project.SyncStatusInSync:
-							fmt.Printf("  %s %s (in sync)\n", green("✓"), comp.Name)
+							fmt.Printf("  %s %s (in sync - %s)\n", green("✓"), comp.Name, shortHash)
 							totalInSync++
 						case project.SyncStatusOutOfSync:
-							fmt.Printf("  %s %s (out of sync - source updated)\n", yellow("⚠"), comp.Name)
+							// Get current remote commit hash to show the change
+							baseDir, _ := paths.GetAgentsDir()
+							ud := updater.NewUpdateDetectorWithBaseDir(baseDir)
+							currentCommit, err := ud.GetCurrentRepoSHA(comp.Metadata.Source)
+							shortCurrent := currentCommit
+							if err == nil && len(shortCurrent) > 7 {
+								shortCurrent = shortCurrent[:7]
+							}
+
+							if err == nil && currentCommit != comp.Metadata.CommitHash {
+								fmt.Printf("  %s %s (out of sync - %s → %s)\n", yellow("⚠"), comp.Name, shortHash, shortCurrent)
+							} else {
+								fmt.Printf("  %s %s (out of sync)\n", yellow("⚠"), comp.Name)
+							}
 							totalOutOfSync++
 						case project.SyncStatusSourceMissing:
-							fmt.Printf("  %s %s (source missing)\n", red("✗"), comp.Name)
+							fmt.Printf("  %s %s (repository not found)\n", red("✗"), comp.Name)
 							totalMissing++
 						}
 					}
@@ -3408,22 +3428,37 @@ func main() {
 						continue
 					}
 
-					// Resolve source path
-					var baseDir string
-					if comp.Metadata.SourceProfile != "" {
-						profilesDir, err := paths.GetProfilesDir()
-						if err != nil {
-							log.Fatalf("Failed to get profiles directory: %v", err)
-						}
-						baseDir = filepath.Join(profilesDir, comp.Metadata.SourceProfile)
-					} else {
-						baseDir, err = paths.GetAgentsDir()
-						if err != nil {
-							log.Fatalf("Failed to get agents directory: %v", err)
-						}
+					// Download from GitHub to temp directory
+					tempDir, err := os.MkdirTemp("", "materialize-update-*")
+					if err != nil {
+						fmt.Printf("  %s Failed to create temp directory for %s: %v\n", red("✗"), comp.Name, err)
+						continue
+					}
+					defer os.RemoveAll(tempDir)
+
+					// Download component from GitHub using downloader
+					var downloadErr error
+					switch comp.Type {
+					case "skills":
+						dl := downloader.NewSkillDownloaderWithTargetDir(tempDir)
+						downloadErr = dl.DownloadSkill(comp.Metadata.Source, comp.Name)
+					case "agents":
+						dl := downloader.NewAgentDownloaderWithTargetDir(tempDir)
+						downloadErr = dl.DownloadAgent(comp.Metadata.Source, comp.Name)
+					case "commands":
+						dl := downloader.NewCommandDownloaderWithTargetDir(tempDir)
+						downloadErr = dl.DownloadCommand(comp.Metadata.Source, comp.Name)
+					default:
+						downloadErr = fmt.Errorf("unknown component type: %s", comp.Type)
 					}
 
-					sourceDir := filepath.Join(baseDir, comp.Type, comp.Name)
+					if downloadErr != nil {
+						fmt.Printf("  %s Failed to download %s from GitHub: %v\n", red("✗"), comp.Name, downloadErr)
+						continue
+					}
+
+					// Source is in temp directory
+					sourceDir := filepath.Join(tempDir, comp.Type, comp.Name)
 					destDir := filepath.Join(targetDir, comp.Type, comp.Name)
 
 					// Remove existing materialized component
@@ -3432,7 +3467,7 @@ func main() {
 						continue
 					}
 
-					// Copy from source
+					// Copy from temp to target
 					if err := materializer.CopyDirectory(sourceDir, destDir); err != nil {
 						fmt.Printf("  %s Failed to copy %s: %v\n", red("✗"), comp.Name, err)
 						continue
@@ -3451,10 +3486,33 @@ func main() {
 						continue
 					}
 
-					// Update metadata
-					if err := project.UpdateMaterializationEntry(metadata, baseDir, comp.Type, comp.Name, newSourceHash, newCurrentHash); err != nil {
-						fmt.Printf("  %s Failed to update metadata for %s: %v\n", red("✗"), comp.Name, err)
-						continue
+					// Get the latest commit hash from what we just downloaded
+					// Read the lock file entry from temp directory to get the updated commit hash
+					lockEntry, err := metadataPkg.LoadLockFileEntry(tempDir, comp.Type, comp.Name)
+					var newCommitHash string
+					if err == nil && lockEntry != nil {
+						newCommitHash = lockEntry.CommitHash
+					} else {
+						// Fallback: fetch current commit from GitHub
+						baseDir, _ := paths.GetAgentsDir()
+						ud := updater.NewUpdateDetectorWithBaseDir(baseDir)
+						newCommitHash, _ = ud.GetCurrentRepoSHA(comp.Metadata.Source)
+					}
+
+					// Update metadata entry with new commit hash
+					comp.Metadata.CommitHash = newCommitHash
+					comp.Metadata.SourceHash = newSourceHash
+					comp.Metadata.CurrentHash = newCurrentHash
+					comp.Metadata.MaterializedAt = time.Now().Format(time.RFC3339)
+
+					// Save updated metadata back to the metadata struct
+					switch comp.Type {
+					case "skills":
+						metadata.Skills[comp.Name] = comp.Metadata
+					case "agents":
+						metadata.Agents[comp.Name] = comp.Metadata
+					case "commands":
+						metadata.Commands[comp.Name] = comp.Metadata
 					}
 
 					fmt.Printf("  %s Updated %s\n", green("✓"), comp.Name)

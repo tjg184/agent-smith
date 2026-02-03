@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
-	"github.com/tgaines/agent-smith/internal/materializer"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
+	"github.com/tgaines/agent-smith/internal/updater"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
 
@@ -172,46 +173,55 @@ const (
 	SyncStatusSourceMissing SyncStatus = "source_missing"
 )
 
-// CheckComponentSyncStatus checks if a materialized component is in sync with its source
+// CheckComponentSyncStatus checks if a materialized component is in sync with its GitHub source
 // Returns the sync status and any error encountered
 func CheckComponentSyncStatus(componentType, componentName string, metadata MaterializedComponentMetadata) (SyncStatus, error) {
-	// Resolve source path from metadata
-	var baseDir string
-	var err error
-
-	if metadata.SourceProfile != "" {
-		// Component sourced from a profile
-		profilesDir, err := paths.GetProfilesDir()
-		if err != nil {
-			return "", fmt.Errorf("failed to get profiles directory: %w", err)
-		}
-		baseDir = filepath.Join(profilesDir, metadata.SourceProfile)
-	} else {
-		// Component sourced from base ~/.agent-smith/
-		baseDir, err = paths.GetAgentsDir()
-		if err != nil {
-			return "", fmt.Errorf("failed to get agents directory: %w", err)
-		}
+	// Check if we have a valid source URL and commit hash
+	if metadata.Source == "" {
+		return "", fmt.Errorf("component metadata missing source URL")
 	}
 
-	// Construct source component directory path
-	sourceDir := filepath.Join(baseDir, componentType, componentName)
-
-	// Check if source directory exists
-	if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
-		return SyncStatusSourceMissing, nil
-	} else if err != nil {
-		return "", fmt.Errorf("failed to check source directory: %w", err)
+	if metadata.CommitHash == "" {
+		// Old metadata format without commit hash - treat as out of sync
+		return SyncStatusOutOfSync, nil
 	}
 
-	// Calculate current source hash
-	currentSourceHash, err := materializer.CalculateDirectoryHash(sourceDir)
+	// Create an updater to check GitHub
+	// We use a minimal updater instance just for accessing GetCurrentRepoSHA
+	baseDir, err := paths.GetAgentsDir()
 	if err != nil {
-		return "", fmt.Errorf("failed to calculate source hash: %w", err)
+		return "", fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
-	// Compare with stored source hash
-	if currentSourceHash == metadata.SourceHash {
+	ud := updater.NewUpdateDetectorWithBaseDir(baseDir)
+
+	// Fetch the current commit hash from GitHub
+	currentCommit, err := ud.GetCurrentRepoSHA(metadata.Source)
+	if err != nil {
+		// Check for specific error types
+		errMsg := err.Error()
+
+		// Repository not found or deleted
+		if strings.Contains(errMsg, "repository not found") ||
+			strings.Contains(errMsg, "not found") ||
+			strings.Contains(errMsg, "404") {
+			return SyncStatusSourceMissing, nil
+		}
+
+		// Authentication required
+		if strings.Contains(errMsg, "authentication required") ||
+			strings.Contains(errMsg, "authentication failed") ||
+			strings.Contains(errMsg, "401") ||
+			strings.Contains(errMsg, "403") {
+			return "", fmt.Errorf("authentication required: set GITHUB_TOKEN environment variable for private repositories")
+		}
+
+		// Network or other errors
+		return "", fmt.Errorf("failed to check GitHub repository: %w", err)
+	}
+
+	// Compare stored commit hash with current GitHub commit
+	if currentCommit == metadata.CommitHash {
 		return SyncStatusInSync, nil
 	}
 

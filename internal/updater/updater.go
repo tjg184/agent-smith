@@ -139,8 +139,9 @@ func (ud *UpdateDetector) loadFromLockFile(componentType, componentName string) 
 	return metadataPkg.LoadLockFileEntry(ud.baseDir, componentType, componentName)
 }
 
-// getCurrentRepoSHA fetches the current HEAD commit SHA from a repository
-func (ud *UpdateDetector) getCurrentRepoSHA(repoURL string) (string, error) {
+// GetCurrentRepoSHA fetches the current HEAD commit SHA from a repository
+// This method is public to allow other packages (like materialization) to check for updates
+func (ud *UpdateDetector) GetCurrentRepoSHA(repoURL string) (string, error) {
 	fullURL, err := ud.detector.NormalizeURL(repoURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to normalize URL: %w", err)
@@ -195,7 +196,7 @@ func (ud *UpdateDetector) HasUpdates(componentType, componentName, repoURL strin
 	}
 
 	// Get current repository SHA
-	currentSHA, err := ud.getCurrentRepoSHA(repoURL)
+	currentSHA, err := ud.GetCurrentRepoSHA(repoURL)
 	if err != nil {
 		return false, fmt.Errorf("failed to get current repository SHA: %w", err)
 	}
