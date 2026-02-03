@@ -523,3 +523,51 @@ func TestCommandHint(t *testing.T) {
 		})
 	}
 }
+
+func TestSummaryTableBuilderANSIAlignment(t *testing.T) {
+	// Enable colors to test with actual ANSI codes
+	colors.Enable()
+	defer colors.Disable()
+
+	table := SummaryTableFormat("Update Summary", 80)
+	table.AddRow("Total components checked:", 236)
+	table.AddRowWithSymbol(colors.Success(formatter.SymbolSuccess), "Already up to date:", 236)
+	table.AddRowWithSymbol(colors.Success(formatter.SymbolSuccess), "Successfully updated:", 0)
+
+	result := table.Build()
+	lines := strings.Split(result, "\n")
+
+	// Extract content rows (rows starting with │ that aren't title)
+	var contentRows []string
+	inContent := false
+	for _, line := range lines {
+		if strings.Contains(line, "├") {
+			inContent = true
+			continue
+		}
+		if strings.Contains(line, "└") {
+			break
+		}
+		if inContent && strings.HasPrefix(line, "│") {
+			contentRows = append(contentRows, line)
+		}
+	}
+
+	// Verify all rows have same visible width
+	expectedWidth := 80
+	for i, row := range contentRows {
+		visLen := formatter.VisibleLength(row)
+		if visLen != expectedWidth {
+			t.Errorf("Row %d visible length = %d, want %d\nRow: %q", i, visLen, expectedWidth, row)
+		}
+	}
+
+	// Verify rows end with " │" pattern
+	for i, row := range contentRows {
+		// Strip ANSI codes for suffix check
+		stripped := strings.TrimRight(row, " \t\n")
+		if !strings.HasSuffix(stripped, "│") {
+			t.Errorf("Row %d doesn't end with '│': %q", i, row)
+		}
+	}
+}

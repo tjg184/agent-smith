@@ -115,23 +115,34 @@ type SummaryTableBuilder struct {
 
 // AddRow adds a row to the summary table
 func (b *SummaryTableBuilder) AddRow(label string, value interface{}) *SummaryTableBuilder {
-	// Calculate padding to align values (keeping space for borders and padding)
-	labelWidth := 30
-	valueWidth := b.width - labelWidth - 6 // 6 = borders (2) + padding (4)
+	// Format the complete content
+	content := fmt.Sprintf("%s %v", label, value)
 
-	row := fmt.Sprintf("│ %-*s %-*v│", labelWidth, label, valueWidth, value)
+	// Calculate visible length and padding (following box_table.go pattern)
+	innerWidth := b.width - 2      // Subtract borders
+	contentWidth := innerWidth - 2 // Subtract space padding on each side
+	visLen := formatter.VisibleLength(content)
+	padding := contentWidth - visLen
+
+	// Build row with proper ANSI-aware padding (following boxes.go line 135 pattern)
+	row := fmt.Sprintf("│ %s%s │", content, strings.Repeat(" ", padding))
 	b.rows = append(b.rows, row)
 	return b
 }
 
 // AddRowWithSymbol adds a row with a colored symbol
 func (b *SummaryTableBuilder) AddRowWithSymbol(symbol, label string, value interface{}) *SummaryTableBuilder {
-	// Calculate padding to align values
-	labelWidth := 30
-	valueWidth := b.width - labelWidth - 6 // 6 = borders (2) + padding (4)
+	// Format the complete content
+	content := fmt.Sprintf("%s %s %v", symbol, label, value)
 
-	labelWithSymbol := fmt.Sprintf("%s %s", symbol, label)
-	row := fmt.Sprintf("│ %-*s %-*v│", labelWidth, labelWithSymbol, valueWidth, value)
+	// Calculate visible length and padding (following box_table.go pattern)
+	innerWidth := b.width - 2      // Subtract borders
+	contentWidth := innerWidth - 2 // Subtract space padding on each side
+	visLen := formatter.VisibleLength(content)
+	padding := contentWidth - visLen
+
+	// Build row with proper ANSI-aware padding (following boxes.go line 135 pattern)
+	row := fmt.Sprintf("│ %s%s │", content, strings.Repeat(" ", padding))
 	b.rows = append(b.rows, row)
 	return b
 }
