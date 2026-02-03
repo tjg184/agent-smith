@@ -79,6 +79,11 @@ func NewComponentLinker(agentsDir string, targets []config.Target, det *detector
 	}, nil
 }
 
+// SetFormatter sets a custom formatter for this linker (useful for testing)
+func (cl *ComponentLinker) SetFormatter(f *formatter.Formatter) {
+	cl.formatter = f
+}
+
 // filterTargets filters the targets based on the targetFilter parameter.
 // Returns all targets if targetFilter is empty or "all", otherwise returns only the matching target.
 func (cl *ComponentLinker) filterTargets(targetFilter string) []config.Target {
@@ -869,7 +874,7 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 	}
 
 	if len(allComponents) == 0 {
-		fmt.Println("No components found in ~/.agent-smith/")
+		fmt.Fprintf(cl.formatter.Writer(), "No components found in ~/.agent-smith/\n")
 		return nil
 	}
 
@@ -1156,9 +1161,9 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 
 	if len(allComponents) == 0 {
 		if len(profileFilter) > 0 {
-			fmt.Println("No components found in the specified profiles")
+			fmt.Fprintf(cl.formatter.Writer(), "No components found in the specified profiles\n")
 		} else {
-			fmt.Println("No components found")
+			fmt.Fprintf(cl.formatter.Writer(), "No components found\n")
 		}
 		return nil
 	}

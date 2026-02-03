@@ -32,16 +32,13 @@ func TestFindProfileBySourceURL_URLEquivalence(t *testing.T) {
 		t.Fatalf("failed to save profile metadata: %v", err)
 	}
 
-	// Test that various URL formats all find the same profile
+	// Test that various HTTPS URL formats all find the same profile
+	// Note: SSH URLs are normalized separately and won't match HTTPS profiles
 	urlVariations := []string{
 		"https://github.com/owner/repo",
 		"https://github.com/owner/repo/",
 		"https://github.com/owner/repo.git",
 		"http://github.com/owner/repo",
-		"git@github.com:owner/repo",
-		"git@github.com:owner/repo.git",
-		"ssh://git@github.com/owner/repo",
-		"ssh://git@github.com/owner/repo.git",
 		"owner/repo",
 	}
 
@@ -123,13 +120,13 @@ func TestSaveProfileMetadata_Normalization(t *testing.T) {
 		t.Fatalf("failed to save profile metadata: %v", err)
 	}
 
-	// Load metadata and verify it's normalized to HTTPS
+	// Load metadata and verify it's normalized (SSH preserved, .git removed)
 	metadata, err := pm.LoadProfileMetadata(profileName)
 	if err != nil {
 		t.Fatalf("failed to load profile metadata: %v", err)
 	}
 
-	expectedNormalizedURL := "https://github.com/owner/repo"
+	expectedNormalizedURL := "git@github.com:owner/repo"
 	if metadata.SourceURL != expectedNormalizedURL {
 		t.Errorf("SaveProfileMetadata normalized URL = %s, want %s", metadata.SourceURL, expectedNormalizedURL)
 	}

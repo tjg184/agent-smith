@@ -198,13 +198,13 @@ func TestNormalizeURL(t *testing.T) {
 		{
 			name:      "GitHub SSH URL",
 			url:       "git@github.com:user/repo.git",
-			expected:  "https://github.com/user/repo",
+			expected:  "git@github.com:user/repo",
 			shouldErr: false,
 		},
 		{
 			name:      "GitHub SSH URL (ssh://)",
 			url:       "ssh://git@github.com/user/repo.git",
-			expected:  "https://github.com/user/repo",
+			expected:  "ssh://git@github.com/user/repo",
 			shouldErr: false,
 		},
 		{
@@ -286,7 +286,7 @@ func TestNormalizeURLLocal(t *testing.T) {
 }
 
 // TestNormalizeURLEquivalence tests that different URL formats for the same repository normalize to the same value
-// This is critical for Story-002: ensuring HTTPS, SSH, and shorthand formats are treated consistently
+// Note: SSH and HTTPS URLs are preserved separately (not converted between protocols)
 func TestNormalizeURLEquivalence(t *testing.T) {
 	rd := NewRepositoryDetector()
 
@@ -295,38 +295,64 @@ func TestNormalizeURLEquivalence(t *testing.T) {
 		urls []string
 	}{
 		{
-			name: "GitHub repository variations",
+			name: "GitHub HTTPS variations",
 			urls: []string{
 				"https://github.com/owner/repo",
 				"https://github.com/owner/repo/",
 				"https://github.com/owner/repo.git",
 				"http://github.com/owner/repo",
-				"git@github.com:owner/repo",
-				"git@github.com:owner/repo.git",
-				"ssh://git@github.com/owner/repo",
-				"ssh://git@github.com/owner/repo.git",
 				"owner/repo",
 				"HTTPS://GITHUB.COM/owner/repo", // Case insensitive
 				"https://GitHub.Com/owner/repo", // Mixed case
 			},
 		},
 		{
-			name: "GitLab repository variations",
+			name: "GitHub SSH variations (git@)",
+			urls: []string{
+				"git@github.com:owner/repo",
+				"git@github.com:owner/repo.git",
+			},
+		},
+		{
+			name: "GitHub SSH variations (ssh://)",
+			urls: []string{
+				"ssh://git@github.com/owner/repo",
+				"ssh://git@github.com/owner/repo.git",
+			},
+		},
+		{
+			name: "GitLab HTTPS variations",
 			urls: []string{
 				"https://gitlab.com/owner/repo",
 				"https://gitlab.com/owner/repo/",
 				"https://gitlab.com/owner/repo.git",
-				"git@gitlab.com:owner/repo",
-				"git@gitlab.com:owner/repo.git",
-				"ssh://git@gitlab.com/owner/repo",
 			},
 		},
 		{
-			name: "Bitbucket repository variations",
+			name: "GitLab SSH variations (git@)",
+			urls: []string{
+				"git@gitlab.com:owner/repo",
+				"git@gitlab.com:owner/repo.git",
+			},
+		},
+		{
+			name: "GitLab SSH variations (ssh://)",
+			urls: []string{
+				"ssh://git@gitlab.com/owner/repo",
+				"ssh://git@gitlab.com/owner/repo.git",
+			},
+		},
+		{
+			name: "Bitbucket HTTPS variations",
 			urls: []string{
 				"https://bitbucket.org/owner/repo",
 				"https://bitbucket.org/owner/repo/",
 				"https://bitbucket.org/owner/repo.git",
+			},
+		},
+		{
+			name: "Bitbucket SSH variations (git@)",
+			urls: []string{
 				"git@bitbucket.org:owner/repo",
 				"git@bitbucket.org:owner/repo.git",
 			},

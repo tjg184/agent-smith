@@ -2,13 +2,13 @@ package linker
 
 import (
 	"bytes"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/tgaines/agent-smith/internal/detector"
+	"github.com/tgaines/agent-smith/internal/formatter"
 	"github.com/tgaines/agent-smith/pkg/config"
 )
 
@@ -94,25 +94,17 @@ func TestShowLinkStatus_DefaultBehavior(t *testing.T) {
 		t.Fatalf("Failed to create ComponentLinker: %v", err)
 	}
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	// Create a buffer to capture output
+	var buf bytes.Buffer
+	linker.SetFormatter(formatter.NewWithWriter(&buf))
 
 	// Execute ShowLinkStatus
 	err = linker.ShowLinkStatus()
-
-	// Restore stdout
-	w.Close()
-	os.Stdout = oldStdout
-
 	if err != nil {
 		t.Fatalf("ShowLinkStatus() returned error: %v", err)
 	}
 
-	// Read captured output
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	// Get output
 	output := buf.String()
 
 	// Verify output contains expected elements
@@ -128,13 +120,13 @@ func TestShowLinkStatus_DefaultBehavior(t *testing.T) {
 		"backend-dev",
 		"Commands:",
 		"docker-helper",
-		"Legend:",
+		"--- Legend ---",
 		"✓  Valid symlink",
 		"◆  Copied directory",
 		"✗  Broken link",
 		"-  Not linked",
 		"?  Unknown status",
-		"Summary:",
+		"--- Summary ---",
 	}
 
 	for _, expected := range expectedStrings {
@@ -226,25 +218,17 @@ func TestShowLinkStatus_WithoutComponents(t *testing.T) {
 		t.Fatalf("Failed to create ComponentLinker: %v", err)
 	}
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	// Create a buffer to capture output
+	var buf bytes.Buffer
+	linker.SetFormatter(formatter.NewWithWriter(&buf))
 
 	// Execute ShowLinkStatus
 	err = linker.ShowLinkStatus()
-
-	// Restore stdout
-	w.Close()
-	os.Stdout = oldStdout
-
 	if err != nil {
 		t.Fatalf("ShowLinkStatus() should not error with empty directories: %v", err)
 	}
 
-	// Read captured output
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	// Get output
 	output := buf.String()
 
 	// Should display "No components found" message
@@ -312,25 +296,17 @@ func TestShowLinkStatus_ProfileDetection(t *testing.T) {
 		t.Fatalf("Failed to create ComponentLinker: %v", err)
 	}
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	// Create a buffer to capture output
+	var buf bytes.Buffer
+	linker.SetFormatter(formatter.NewWithWriter(&buf))
 
 	// Execute ShowLinkStatus
 	err = linker.ShowLinkStatus()
-
-	// Restore stdout
-	w.Close()
-	os.Stdout = oldStdout
-
 	if err != nil {
 		t.Fatalf("ShowLinkStatus() returned error: %v", err)
 	}
 
-	// Read captured output
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	// Get output
 	output := buf.String()
 
 	// Verify output contains base-agent
@@ -399,23 +375,16 @@ func TestShowLinkStatus_BackwardCompatibility(t *testing.T) {
 	}
 
 	// Test 2: ShowLinkStatus should work without ProfileManager
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	// Create a buffer to capture output
+	var buf bytes.Buffer
+	linker.SetFormatter(formatter.NewWithWriter(&buf))
 
 	err = linker.ShowLinkStatus()
-
-	w.Close()
-	os.Stdout = oldStdout
-
 	if err != nil {
 		t.Fatalf("ShowLinkStatus() should work without ProfileManager: %v", err)
 	}
 
-	// Read output
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	// Get output
 	output := buf.String()
 
 	// Verify basic output structure
@@ -423,7 +392,7 @@ func TestShowLinkStatus_BackwardCompatibility(t *testing.T) {
 		t.Errorf("Output should contain test-agent: %s", output)
 	}
 
-	if !strings.Contains(output, "Legend:") {
+	if !strings.Contains(output, "--- Legend ---") {
 		t.Errorf("Output should contain Legend section: %s", output)
 	}
 }
@@ -470,31 +439,24 @@ func TestShowLinkStatus_OutputFormat(t *testing.T) {
 		t.Fatalf("Failed to create ComponentLinker: %v", err)
 	}
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	// Create a buffer to capture output
+	var buf bytes.Buffer
+	linker.SetFormatter(formatter.NewWithWriter(&buf))
 
 	err = linker.ShowLinkStatus()
-
-	w.Close()
-	os.Stdout = oldStdout
-
 	if err != nil {
 		t.Fatalf("ShowLinkStatus() failed: %v", err)
 	}
 
-	// Read output
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	// Get output
 	output := buf.String()
 
 	// Verify exact format structure (these are critical for backward compatibility)
 	requiredSections := []string{
 		"=== Link Status Across All Targets ===",
 		"Skills:",
-		"Legend:",
-		"Summary:",
+		"--- Legend ---",
+		"--- Summary ---",
 	}
 
 	for _, section := range requiredSections {

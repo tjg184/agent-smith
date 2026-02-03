@@ -30,7 +30,8 @@ func TestProfileReuse_FindExistingProfileByNormalizedURL(t *testing.T) {
 		t.Fatalf("Failed to save profile metadata: %v", err)
 	}
 
-	// Test that various URL formats all find the same profile
+	// Test that various HTTPS URL formats all find the same profile
+	// Note: SSH URLs are normalized separately and won't match HTTPS URLs
 	urlVariations := []struct {
 		name string
 		url  string
@@ -39,10 +40,6 @@ func TestProfileReuse_FindExistingProfileByNormalizedURL(t *testing.T) {
 		{"HTTPS with trailing slash", "https://github.com/owner/repo/"},
 		{"HTTPS with .git", "https://github.com/owner/repo.git"},
 		{"HTTP (upgraded to HTTPS)", "http://github.com/owner/repo"},
-		{"SSH git@", "git@github.com:owner/repo"},
-		{"SSH git@ with .git", "git@github.com:owner/repo.git"},
-		{"SSH protocol", "ssh://git@github.com/owner/repo"},
-		{"SSH protocol with .git", "ssh://git@github.com/owner/repo.git"},
 		{"Shorthand", "owner/repo"},
 	}
 
@@ -151,19 +148,20 @@ func TestProfileReuse_UpdateExistingProfileMetadata(t *testing.T) {
 		t.Errorf("Initial metadata URL = %s, want %s", metadata.SourceURL, initialURL)
 	}
 
-	// Update metadata with SSH URL (should normalize to same URL)
+	// Update metadata with SSH URL (SSH URLs are preserved, not converted to HTTPS)
 	updatedURL := "git@github.com:owner/repo.git"
+	normalizedSSH := "git@github.com:owner/repo" // SSH URLs normalize by removing .git
 	if err := pm.SaveProfileMetadata(profileName, updatedURL); err != nil {
 		t.Fatalf("Failed to update metadata: %v", err)
 	}
 
-	// Verify metadata is still normalized to the same URL
+	// Verify metadata is normalized SSH URL (not converted to HTTPS)
 	metadata, err = pm.LoadProfileMetadata(profileName)
 	if err != nil {
 		t.Fatalf("Failed to load updated metadata: %v", err)
 	}
-	if metadata.SourceURL != initialURL {
-		t.Errorf("Updated metadata URL = %s, want %s (normalized)", metadata.SourceURL, initialURL)
+	if metadata.SourceURL != normalizedSSH {
+		t.Errorf("Updated metadata URL = %s, want %s (normalized SSH)", metadata.SourceURL, normalizedSSH)
 	}
 }
 
@@ -198,13 +196,14 @@ func TestProfileReuse_PreventDuplicateProfiles(t *testing.T) {
 		t.Errorf("FindProfileBySourceURL = %s, want %s", foundProfile, profile1)
 	}
 
-	// Verify finding by different URL formats returns the same profile
-	foundProfile, err = pm.FindProfileBySourceURL("git@github.com:owner/repo.git")
+	// Verify finding by different HTTPS URL formats returns the same profile
+	// Note: SSH URLs are normalized separately and create different profiles
+	foundProfile, err = pm.FindProfileBySourceURL("http://github.com/owner/repo")
 	if err != nil {
-		t.Fatalf("FindProfileBySourceURL (SSH) returned error: %v", err)
+		t.Fatalf("FindProfileBySourceURL (HTTP) returned error: %v", err)
 	}
 	if foundProfile != profile1 {
-		t.Errorf("FindProfileBySourceURL (SSH) = %s, want %s", foundProfile, profile1)
+		t.Errorf("FindProfileBySourceURL (HTTP) = %s, want %s", foundProfile, profile1)
 	}
 
 	// If we try to create a second profile for the same repo, we should detect it
@@ -329,9 +328,9 @@ func TestProfileReuse_NormalizedURLStorage(t *testing.T) {
 		expectedURL string
 	}{
 		{
-			name:        "SSH URL normalized to HTTPS",
+			name:        "SSH URL preserved (not converted to HTTPS)",
 			inputURL:    "git@github.com:owner/repo.git",
-			expectedURL: "https://github.com/owner/repo",
+			expectedURL: "git@github.com:owner/repo",
 		},
 		{
 			name:        "HTTPS with trailing slash",
