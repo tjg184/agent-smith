@@ -7,7 +7,7 @@ import (
 )
 
 // ProjectMarkers are the directory names that indicate a project root
-var ProjectMarkers = []string{".opencode", ".claude"}
+var ProjectMarkers = []string{".opencode", ".claude", ".github"}
 
 // ProjectBoundaryMarkers are files/directories that indicate a project boundary
 // These are checked as fallbacks if no ProjectMarkers are found
@@ -37,7 +37,7 @@ func FindProjectRoot() (string, error) {
 }
 
 // FindProjectRootFromDir walks up the directory tree from the specified directory
-// looking for project markers (.opencode or .claude directories) or project boundary markers.
+// looking for project markers (.opencode, .claude, or .github directories) or project boundary markers.
 // Returns the project root path or an error if no project boundary is found.
 // Stops at any project boundary marker, home directory, or filesystem root.
 func FindProjectRootFromDir(startDir string) (string, error) {
@@ -50,7 +50,7 @@ func FindProjectRootFromDir(startDir string) (string, error) {
 
 	// Walk up the directory tree
 	for {
-		// Check for project markers (.opencode or .claude) - these are preferred
+		// Check for project markers (.opencode, .claude, or .github) - these are preferred
 		for _, marker := range ProjectMarkers {
 			markerPath := filepath.Join(currentDir, marker)
 			if info, err := os.Stat(markerPath); err == nil && info.IsDir() {
@@ -88,6 +88,7 @@ func FindProjectRootFromDir(startDir string) (string, error) {
 		"Supported project markers:\n" +
 		"  • .opencode/    (preferred - agent-smith project)\n" +
 		"  • .claude/      (preferred - Claude project)\n" +
+		"  • .github/      (preferred - GitHub Copilot project)\n" +
 		"  • .git/         (version control)\n" +
 		"  • go.mod        (Go projects)\n" +
 		"  • package.json  (Node.js projects)\n" +
@@ -105,13 +106,15 @@ func FindProjectRootFromDir(startDir string) (string, error) {
 }
 
 // GetTargetDirectory returns the target directory path for a given target name
-// (opencode or claudecode) within the project root.
+// (opencode, claudecode, or copilot) within the project root.
 func GetTargetDirectory(projectRoot, targetName string) string {
 	switch targetName {
 	case "opencode":
 		return filepath.Join(projectRoot, ".opencode")
 	case "claudecode":
 		return filepath.Join(projectRoot, ".claude")
+	case "copilot":
+		return filepath.Join(projectRoot, ".github")
 	default:
 		return ""
 	}

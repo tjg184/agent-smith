@@ -11,6 +11,7 @@ const (
 	AgentsDir     = "~/.agent-smith"
 	OpencodeDir   = "~/.config/opencode"
 	ClaudeCodeDir = "~/.claude"
+	CopilotDir    = "~/.copilot"
 )
 
 // Component subdirectory names
@@ -83,6 +84,11 @@ func GetOpencodeDir() (string, error) {
 // GetClaudeCodeDir returns the expanded claudecode config directory path
 func GetClaudeCodeDir() (string, error) {
 	return expandHome(ClaudeCodeDir)
+}
+
+// GetCopilotDir returns the expanded copilot config directory path
+func GetCopilotDir() (string, error) {
+	return expandHome(CopilotDir)
 }
 
 // GetSkillsDir returns the full path to the skills directory

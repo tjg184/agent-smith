@@ -384,7 +384,7 @@ Use 'agent-smith profile activate <name>' to activate a profile, then run
 'link' commands to apply it.
 
 FLAGS (apply to all subcommands):
-  --target, -t <target>  - Specify target to link to (opencode, claudecode, or all)
+  --target, -t <target>  - Specify target to link to (opencode, claudecode, copilot, or all)
   --all-targets          - Explicitly link to all detected targets (default behavior)`,
 	}
 
@@ -422,7 +422,7 @@ EXAMPLES:
 			handleLink("skills", args[0], targetFilter, profile)
 		},
 	}
-	linkSkillCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkSkillCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, copilot, or all)")
 	linkSkillCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
 	linkSkillCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkSkillCmd)
@@ -460,7 +460,7 @@ EXAMPLES:
 			handleLinkType("skills", targetFilter, profile)
 		},
 	}
-	linkSkillsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkSkillsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, copilot, or all)")
 	linkSkillsCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
 	linkSkillsCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkSkillsCmd)
@@ -497,7 +497,7 @@ EXAMPLES:
 			handleLink("agents", args[0], targetFilter, profile)
 		},
 	}
-	linkAgentCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkAgentCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, copilot, or all)")
 	linkAgentCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
 	linkAgentCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkAgentCmd)
@@ -535,7 +535,7 @@ EXAMPLES:
 			handleLinkType("agents", targetFilter, profile)
 		},
 	}
-	linkAgentsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkAgentsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, copilot, or all)")
 	linkAgentsCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
 	linkAgentsCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkAgentsCmd)
@@ -572,7 +572,7 @@ EXAMPLES:
 			handleLink("commands", args[0], targetFilter, profile)
 		},
 	}
-	linkCommandCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkCommandCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, copilot, or all)")
 	linkCommandCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
 	linkCommandCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkCommandCmd)
@@ -610,7 +610,7 @@ EXAMPLES:
 			handleLinkType("commands", targetFilter, profile)
 		},
 	}
-	linkCommandsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkCommandsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, copilot, or all)")
 	linkCommandsCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
 	linkCommandsCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkCommandsCmd)
@@ -665,7 +665,7 @@ EXAMPLES:
 			handleLinkAll(targetFilter, profile, allProfiles)
 		},
 	}
-	linkAllCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, or all)")
+	linkAllCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, copilot, or all)")
 	linkAllCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
 	linkAllCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
 	linkAllCmd.Flags().Bool("all-profiles", false, "Link components from all profiles simultaneously")
@@ -801,7 +801,7 @@ EXAMPLES:
 			handleUnlinkWithProfile("skills", args[0], targetFilter, profile)
 		},
 	}
-	unlinkSkillCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
+	unlinkSkillCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, copilot, or all). Default: unlink from all detected targets")
 	unlinkSkillCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
 	unlinkCmd.AddCommand(unlinkSkillCmd)
 
@@ -829,7 +829,7 @@ EXAMPLES:
 			handleUnlinkWithProfile("agents", args[0], targetFilter, profile)
 		},
 	}
-	unlinkAgentCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
+	unlinkAgentCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, copilot, or all). Default: unlink from all detected targets")
 	unlinkAgentCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
 	unlinkCmd.AddCommand(unlinkAgentCmd)
 
@@ -857,7 +857,7 @@ EXAMPLES:
 			handleUnlinkWithProfile("commands", args[0], targetFilter, profile)
 		},
 	}
-	unlinkCommandCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
+	unlinkCommandCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, copilot, or all). Default: unlink from all detected targets")
 	unlinkCommandCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
 	unlinkCmd.AddCommand(unlinkCommandCmd)
 
@@ -902,7 +902,7 @@ EXAMPLES:
 		},
 	}
 	unlinkSkillsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
-	unlinkSkillsCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
+	unlinkSkillsCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, copilot, or all). Default: unlink from all detected targets")
 	unlinkSkillsCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
 	unlinkCmd.AddCommand(unlinkSkillsCmd)
 
@@ -946,7 +946,7 @@ EXAMPLES:
 		},
 	}
 	unlinkAgentsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
-	unlinkAgentsCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
+	unlinkAgentsCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, copilot, or all). Default: unlink from all detected targets")
 	unlinkAgentsCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
 	unlinkCmd.AddCommand(unlinkAgentsCmd)
 
@@ -990,7 +990,7 @@ EXAMPLES:
 		},
 	}
 	unlinkCommandsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
-	unlinkCommandsCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
+	unlinkCommandsCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, copilot, or all). Default: unlink from all detected targets")
 	unlinkCommandsCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
 	unlinkCmd.AddCommand(unlinkCommandsCmd)
 
@@ -1031,7 +1031,7 @@ EXAMPLES:
 		},
 	}
 	unlinkAllCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
-	unlinkAllCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, or all). Default: unlink from all detected targets")
+	unlinkAllCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, copilot, or all). Default: unlink from all detected targets")
 	unlinkAllCmd.Flags().Bool("all-profiles", false, "Unlink components from all profiles (default: current profile only)")
 	unlinkAllCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
 	unlinkCmd.AddCommand(unlinkAllCmd)
@@ -1589,12 +1589,12 @@ This command copies components from ~/.agent-smith/ to project-local directories
 with your team.
 
 USAGE:
-  agent-smith materialize skill <name> --target <opencode|claudecode|all>
-  agent-smith materialize agent <name> --target <opencode|claudecode|all>
-  agent-smith materialize command <name> --target <opencode|claudecode|all>
+  agent-smith materialize skill <name> --target <opencode|claudecode|copilot|all>
+  agent-smith materialize agent <name> --target <opencode|claudecode|copilot|all>
+  agent-smith materialize command <name> --target <opencode|claudecode|copilot|all>
 
 FLAGS:
-  --target, -t <target>  - Target to materialize to (opencode, claudecode, or all)
+  --target, -t <target>  - Target to materialize to (opencode, claudecode, copilot, or all)
                            Can also be set via AGENT_SMITH_TARGET environment variable
   --project-dir <path>   - Optional, override project directory detection
   --force, -f            - Overwrite existing component if it differs
@@ -1654,7 +1654,7 @@ EXAMPLES:
 			handleMaterializeComponent("skills", args[0], target, projectDir, force, dryRun, profile)
 		},
 	}
-	materializeSkillCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
+	materializeSkillCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeSkillCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeSkillCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeSkillCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
@@ -1694,7 +1694,7 @@ EXAMPLES:
 			handleMaterializeComponent("agents", args[0], target, projectDir, force, dryRun, profile)
 		},
 	}
-	materializeAgentCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
+	materializeAgentCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeAgentCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeAgentCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeAgentCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
@@ -1734,7 +1734,7 @@ EXAMPLES:
 			handleMaterializeComponent("commands", args[0], target, projectDir, force, dryRun, profile)
 		},
 	}
-	materializeCommandCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
+	materializeCommandCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeCommandCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeCommandCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeCommandCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
@@ -1777,7 +1777,7 @@ EXAMPLES:
 			handleMaterializeAll(target, projectDir, force, dryRun, profile)
 		},
 	}
-	materializeAllCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, or all). Can also use AGENT_SMITH_TARGET environment variable")
+	materializeAllCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeAllCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeAllCmd.Flags().BoolP("force", "f", false, "Overwrite existing components if they differ")
 	materializeAllCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")

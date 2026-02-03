@@ -13,6 +13,8 @@ const (
 	TargetOpenCode TargetType = "opencode"
 	// TargetClaudeCode represents the Claude Code environment
 	TargetClaudeCode TargetType = "claudecode"
+	// TargetCopilot represents the GitHub Copilot environment
+	TargetCopilot TargetType = "copilot"
 )
 
 // GetTargetFromEnv returns the target specified by the AGENT_SMITH_TARGET environment variable
@@ -36,6 +38,8 @@ func NewTarget(targetType string) (Target, error) {
 		return NewOpencodeTarget()
 	case TargetClaudeCode:
 		return NewClaudeCodeTarget()
+	case TargetCopilot:
+		return NewCopilotTarget()
 	}
 
 	// Check custom targets from config
@@ -50,7 +54,7 @@ func NewTarget(targetType string) (Target, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("unknown target type: %s (valid options: opencode, claudecode, or custom targets from config)", targetType)
+	return nil, fmt.Errorf("unknown target type: %s (valid options: opencode, claudecode, copilot, or custom targets from config)", targetType)
 }
 
 // DetectTarget attempts to detect which target environment is available
@@ -63,7 +67,7 @@ func DetectTarget() (Target, error) {
 	}
 
 	// Auto-detect by checking which directories exist
-	// Priority: OpenCode > Claude Code (since OpenCode is the primary target)
+	// Priority: OpenCode > Claude Code > Copilot (since OpenCode is the primary target)
 	opencodeTarget, err := NewOpencodeTarget()
 	if err == nil {
 		baseDir, _ := opencodeTarget.GetBaseDir()
@@ -80,6 +84,14 @@ func DetectTarget() (Target, error) {
 		}
 	}
 
+	copilotTarget, err := NewCopilotTarget()
+	if err == nil {
+		baseDir, _ := copilotTarget.GetBaseDir()
+		if _, err := os.Stat(baseDir); err == nil {
+			return copilotTarget, nil
+		}
+	}
+
 	// Default to OpenCode if neither directory exists
 	return NewOpencodeTarget()
 }
@@ -89,6 +101,7 @@ func GetAvailableTargets() []string {
 	return []string{
 		string(TargetOpenCode),
 		string(TargetClaudeCode),
+		string(TargetCopilot),
 	}
 }
 
@@ -113,6 +126,15 @@ func DetectAllTargets() ([]Target, error) {
 		baseDir, _ := claudeCodeTarget.GetBaseDir()
 		if _, err := os.Stat(baseDir); err == nil {
 			targets = append(targets, claudeCodeTarget)
+		}
+	}
+
+	// Check Copilot
+	copilotTarget, err := NewCopilotTarget()
+	if err == nil {
+		baseDir, _ := copilotTarget.GetBaseDir()
+		if _, err := os.Stat(baseDir); err == nil {
+			targets = append(targets, copilotTarget)
 		}
 	}
 
@@ -144,4 +166,25 @@ func DetectAllTargets() ([]Target, error) {
 	}
 
 	return targets, nil
+}
+
+// GetAllTargets returns all built-in targets (regardless of whether they exist on the system)
+// This is useful for operations like "materialize --target all" or "link --target all"
+func GetAllTargets() ([]Target, error) {
+	opencodeTarget, err := NewOpencodeTarget()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create opencode target: %w", err)
+	}
+
+	claudeCodeTarget, err := NewClaudeCodeTarget()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create claudecode target: %w", err)
+	}
+
+	copilotTarget, err := NewCopilotTarget()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create copilot target: %w", err)
+	}
+
+	return []Target{opencodeTarget, claudeCodeTarget, copilotTarget}, nil
 }

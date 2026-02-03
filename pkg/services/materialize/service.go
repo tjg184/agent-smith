@@ -151,7 +151,7 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 	// Determine targets
 	var targets []string
 	if targetName == "all" {
-		targets = []string{"opencode", "claudecode"}
+		targets = []string{"opencode", "claudecode", "copilot"}
 	} else {
 		targets = []string{targetName}
 	}
@@ -345,7 +345,7 @@ func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error 
 	foundAny := false
 
 	// Check each target
-	for _, targetName := range []string{"opencode", "claudecode"} {
+	for _, targetName := range []string{"opencode", "claudecode", "copilot"} {
 		targetDir := project.GetTargetDirectory(projectRoot, targetName)
 
 		// Check if target directory exists
@@ -373,8 +373,10 @@ func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error 
 		var targetLabel string
 		if targetName == "opencode" {
 			targetLabel = "OpenCode (.opencode/)"
-		} else {
+		} else if targetName == "claudecode" {
 			targetLabel = "Claude Code (.claude/)"
+		} else {
+			targetLabel = "GitHub Copilot (.github/)"
 		}
 		green := color.New(color.FgGreen).SprintFunc()
 		s.formatter.Info("%s %s", green(formatter.SymbolSuccess), targetLabel)
@@ -424,7 +426,8 @@ func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error 
 		s.formatter.EmptyLine()
 		s.formatter.Info("To materialize components:")
 		s.formatter.Info("  agent-smith materialize skill <name> --target opencode")
-		s.formatter.Info("  agent-smith materialize all --target opencode")
+		s.formatter.Info("  agent-smith materialize all --target claudecode")
+		s.formatter.Info("  agent-smith materialize agent <name> --target copilot")
 	}
 
 	return nil
@@ -451,7 +454,7 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 	if opts.Target != "" {
 		targetsToCheck = []string{opts.Target}
 	} else {
-		targetsToCheck = []string{"opencode", "claudecode"}
+		targetsToCheck = []string{"opencode", "claudecode", "copilot"}
 	}
 
 	// Check each target
@@ -497,8 +500,10 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 		var targetLabel string
 		if targetName == "opencode" {
 			targetLabel = "OpenCode (.opencode/)"
-		} else {
+		} else if targetName == "claudecode" {
 			targetLabel = "Claude Code (.claude/)"
+		} else {
+			targetLabel = "GitHub Copilot (.github/)"
 		}
 
 		s.formatter.EmptyLine()
@@ -560,7 +565,7 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 			// No target specified and component not found in any target
 			// Collect available components from all targets
 			var availableComponents []string
-			for _, targetName := range []string{"opencode", "claudecode"} {
+			for _, targetName := range []string{"opencode", "claudecode", "copilot"} {
 				targetDir := project.GetTargetDirectory(projectRoot, targetName)
 				if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 					continue
@@ -603,7 +608,7 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 	if opts.Target != "" {
 		targetsToCheck = []string{opts.Target}
 	} else {
-		targetsToCheck = []string{"opencode", "claudecode"}
+		targetsToCheck = []string{"opencode", "claudecode", "copilot"}
 	}
 
 	// Track overall statistics
@@ -644,8 +649,10 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 		var targetLabel string
 		if targetName == "opencode" {
 			targetLabel = "OpenCode (.opencode/)"
-		} else {
+		} else if targetName == "claudecode" {
 			targetLabel = "Claude Code (.claude/)"
+		} else {
+			targetLabel = "GitHub Copilot (.github/)"
 		}
 		fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
 
@@ -726,7 +733,8 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 		s.formatter.EmptyLine()
 		s.formatter.Info("To materialize components:")
 		s.formatter.Info("  agent-smith materialize skill <name> --target opencode")
-		s.formatter.Info("  agent-smith materialize all --target opencode")
+		s.formatter.Info("  agent-smith materialize all --target claudecode")
+		s.formatter.Info("  agent-smith materialize agent <name> --target copilot")
 		return nil
 	}
 
@@ -770,7 +778,7 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 	if opts.Target != "" {
 		targetsToUpdate = []string{opts.Target}
 	} else {
-		targetsToUpdate = []string{"opencode", "claudecode"}
+		targetsToUpdate = []string{"opencode", "claudecode", "copilot"}
 	}
 
 	// Track overall statistics
@@ -811,8 +819,10 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 		var targetLabel string
 		if targetName == "opencode" {
 			targetLabel = "OpenCode (.opencode/)"
-		} else {
+		} else if targetName == "claudecode" {
 			targetLabel = "Claude Code (.claude/)"
+		} else {
+			targetLabel = "GitHub Copilot (.github/)"
 		}
 		fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
 
@@ -965,7 +975,8 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 		s.formatter.EmptyLine()
 		s.formatter.Info("To materialize components:")
 		s.formatter.Info("  agent-smith materialize skill <name> --target opencode")
-		s.formatter.Info("  agent-smith materialize all --target opencode")
+		s.formatter.Info("  agent-smith materialize all --target claudecode")
+		s.formatter.Info("  agent-smith materialize agent <name> --target copilot")
 		return nil
 	}
 
