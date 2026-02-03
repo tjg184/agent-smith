@@ -2909,7 +2909,8 @@ func main() {
 			}
 
 			// Display project information
-			infoPrintf("Materialized Components in %s:\n\n", projectRoot)
+			appFormatter.Info("Materialized Components in %s:", projectRoot)
+			appFormatter.EmptyLine()
 
 			// Track if any components were found
 			foundAny := false
@@ -2946,52 +2947,53 @@ func main() {
 				} else {
 					targetLabel = "Claude Code (.claude/)"
 				}
-				infoPrintf("%s %s\n", green(formatter.SymbolSuccess), targetLabel)
+				appFormatter.Info("%s %s", green(formatter.SymbolSuccess), targetLabel)
 
 				// Display skills
 				if len(metadata.Skills) > 0 {
-					infoPrintf("  Skills (%d):\n", len(metadata.Skills))
+					appFormatter.Info("  Skills (%d):", len(metadata.Skills))
 					for name, meta := range metadata.Skills {
 						sourceInfo := meta.Source
 						if meta.SourceProfile != "" {
 							sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
 						}
-						infoPrintf("    • %-30s (from %s)\n", name, sourceInfo)
+						appFormatter.Info("    • %-30s (from %s)", name, sourceInfo)
 					}
 				}
 
 				// Display agents
 				if len(metadata.Agents) > 0 {
-					infoPrintf("  Agents (%d):\n", len(metadata.Agents))
+					appFormatter.Info("  Agents (%d):", len(metadata.Agents))
 					for name, meta := range metadata.Agents {
 						sourceInfo := meta.Source
 						if meta.SourceProfile != "" {
 							sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
 						}
-						infoPrintf("    • %-30s (from %s)\n", name, sourceInfo)
+						appFormatter.Info("    • %-30s (from %s)", name, sourceInfo)
 					}
 				}
 
 				// Display commands
 				if len(metadata.Commands) > 0 {
-					infoPrintf("  Commands (%d):\n", len(metadata.Commands))
+					appFormatter.Info("  Commands (%d):", len(metadata.Commands))
 					for name, meta := range metadata.Commands {
 						sourceInfo := meta.Source
 						if meta.SourceProfile != "" {
 							sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
 						}
-						infoPrintf("    • %-30s (from %s)\n", name, sourceInfo)
+						appFormatter.Info("    • %-30s (from %s)", name, sourceInfo)
 					}
 				}
 
-				infoPrintln("")
+				appFormatter.EmptyLine()
 			}
 
 			if !foundAny {
-				infoPrintf("%s No components materialized yet\n\n", yellow(formatter.SymbolWarning))
-				infoPrintln("To materialize components:")
-				infoPrintln("  agent-smith materialize skill <name> --target opencode")
-				infoPrintln("  agent-smith materialize all --target opencode")
+				appFormatter.Info("%s No components materialized yet", yellow(formatter.SymbolWarning))
+				appFormatter.EmptyLine()
+				appFormatter.Info("To materialize components:")
+				appFormatter.Info("  agent-smith materialize skill <name> --target opencode")
+				appFormatter.Info("  agent-smith materialize all --target opencode")
 			}
 		},
 		func(componentType, componentName, target, projectDir string) {
@@ -3061,7 +3063,7 @@ func main() {
 				if !exists {
 					if target != "" {
 						// User specified a target but component not found
-						infoPrintf("%s Component '%s' not found in %s target\n", red(formatter.SymbolError), componentName, targetName)
+						appFormatter.Info("%s Component '%s' not found in %s target", red(formatter.SymbolError), componentName, targetName)
 					}
 					continue
 				}
@@ -3076,33 +3078,35 @@ func main() {
 					targetLabel = "Claude Code (.claude/)"
 				}
 
-				infoPrintf("\n%s Provenance Information - %s\n\n", green(formatter.SymbolSuccess), bold(targetLabel))
+				appFormatter.EmptyLine()
+				appFormatter.Info("%s Provenance Information - %s", green(formatter.SymbolSuccess), bold(targetLabel))
+				appFormatter.EmptyLine()
 
 				// Display component information
-				infoPrintf("  %s: %s\n", cyan("Component"), componentName)
-				infoPrintf("  %s: %s\n", cyan("Type"), componentType)
-				infoPrintln("")
+				appFormatter.Info("  %s: %s", cyan("Component"), componentName)
+				appFormatter.Info("  %s: %s", cyan("Type"), componentType)
+				appFormatter.EmptyLine()
 
 				// Display source information
-				infoPrintf("  %s\n", bold("Source Information:"))
-				infoPrintf("    %s: %s\n", cyan("Repository"), meta.Source)
-				infoPrintf("    %s: %s\n", cyan("Source Type"), meta.SourceType)
+				appFormatter.Info("  %s", bold("Source Information:"))
+				appFormatter.Info("    %s: %s", cyan("Repository"), meta.Source)
+				appFormatter.Info("    %s: %s", cyan("Source Type"), meta.SourceType)
 				if meta.SourceProfile != "" {
-					infoPrintf("    %s: %s\n", cyan("Profile"), meta.SourceProfile)
+					appFormatter.Info("    %s: %s", cyan("Profile"), meta.SourceProfile)
 				}
-				infoPrintf("    %s: %s\n", cyan("Commit Hash"), meta.CommitHash)
-				infoPrintf("    %s: %s\n", cyan("Original Path"), meta.OriginalPath)
-				infoPrintln("")
+				appFormatter.Info("    %s: %s", cyan("Commit Hash"), meta.CommitHash)
+				appFormatter.Info("    %s: %s", cyan("Original Path"), meta.OriginalPath)
+				appFormatter.EmptyLine()
 
 				// Display materialization information
-				infoPrintf("  %s\n", bold("Materialization:"))
-				infoPrintf("    %s: %s\n", cyan("Materialized At"), meta.MaterializedAt)
-				infoPrintf("    %s: %s\n", cyan("Target Directory"), targetDir)
-				infoPrintln("")
+				appFormatter.Info("  %s", bold("Materialization:"))
+				appFormatter.Info("    %s: %s", cyan("Materialized At"), meta.MaterializedAt)
+				appFormatter.Info("    %s: %s", cyan("Target Directory"), targetDir)
+				appFormatter.EmptyLine()
 
 				// Display hash information for sync status
-				infoPrintf("  %s\n", bold("Sync Status:"))
-				infoPrintf("    %s: %s\n", cyan("Source Hash"), meta.SourceHash)
+				appFormatter.Info("  %s", bold("Sync Status:"))
+				appFormatter.Info("    %s: %s", cyan("Source Hash"), meta.SourceHash)
 
 				// Recalculate current hash from the actual directory
 				componentPath := filepath.Join(targetDir, componentType, componentName)
@@ -3113,16 +3117,16 @@ func main() {
 					actualCurrentHash = meta.CurrentHash
 				}
 
-				infoPrintf("    %s: %s\n", cyan("Current Hash"), actualCurrentHash)
+				appFormatter.Info("    %s: %s", cyan("Current Hash"), actualCurrentHash)
 
 				// Check if hashes match
 				if meta.SourceHash == actualCurrentHash {
-					infoPrintf("    %s: %s (component is unchanged)\n", cyan("Status"), green("In Sync"))
+					appFormatter.Info("    %s: %s (component is unchanged)", cyan("Status"), green("In Sync"))
 				} else {
-					infoPrintf("    %s: %s (component has been modified)\n", cyan("Status"), yellow("Modified"))
+					appFormatter.Info("    %s: %s (component has been modified)", cyan("Status"), yellow("Modified"))
 				}
 
-				infoPrintln("")
+				appFormatter.EmptyLine()
 			}
 
 			if !foundInAnyTarget {
