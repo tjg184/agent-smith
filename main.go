@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -29,6 +27,8 @@ import (
 	"github.com/tgaines/agent-smith/pkg/project"
 	"github.com/tgaines/agent-smith/pkg/services"
 	installsvc "github.com/tgaines/agent-smith/pkg/services/install"
+	linksvc "github.com/tgaines/agent-smith/pkg/services/link"
+	profilesvc "github.com/tgaines/agent-smith/pkg/services/profile"
 	statussvc "github.com/tgaines/agent-smith/pkg/services/status"
 	targetsvc "github.com/tgaines/agent-smith/pkg/services/target"
 	uninstallsvc "github.com/tgaines/agent-smith/pkg/services/uninstall"
@@ -592,6 +592,8 @@ func main() {
 	uninstallService := uninstallsvc.NewService(componentLinker, appLogger, appFormatter)
 	targetService := targetsvc.NewService(appLogger, appFormatter)
 	statusService := statussvc.NewService(profileManager, appLogger, appFormatter)
+	linkService := linksvc.NewService(profileManager, appLogger, appFormatter)
+	profileService := profilesvc.NewService(profileManager, appLogger, appFormatter)
 
 	// Set up handlers for Cobra commands
 	cmd.SetHandlers(
@@ -648,262 +650,106 @@ func main() {
 			}
 		},
 		func(componentType, componentName, targetFilter, profile string) {
-			debugPrintf("[DEBUG] handleLink called with componentType=%s, componentName=%s, targetFilter=%s, profile=%s\n", componentType, componentName, targetFilter, profile)
-			linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Failed to create component linker\n\n%v\n", err)
-				os.Exit(1)
+			opts := services.LinkOptions{
+				TargetFilter: targetFilter,
+				Profile:      profile,
 			}
-			debugPrintln("[DEBUG] Component linker created successfully")
-			if err := linker.LinkComponent(componentType, componentName); err != nil {
+			if err := linkService.LinkComponent(componentType, componentName, opts); err != nil {
 				log.Fatal("Failed to link component:", err)
 			}
-			debugPrintln("[DEBUG] Component linked successfully")
 		},
 		func(targetFilter, profile string, allProfiles bool) {
-			debugPrintf("[DEBUG] handleLinkAll called with targetFilter=%s, profile=%s, allProfiles=%v\n", targetFilter, profile, allProfiles)
-
-			// Validate flag combination
-			if allProfiles && profile != "" {
-				log.Fatal("Cannot use both --all-profiles and --profile flags together")
+			opts := services.LinkOptions{
+				TargetFilter: targetFilter,
+				Profile:      profile,
+				AllProfiles:  allProfiles,
 			}
-
-			if allProfiles {
-				// Link from all profiles
-				debugPrintln("[DEBUG] Linking from all profiles")
-
-				// Create profile manager
-				pm, err := profiles.NewProfileManager(nil)
-				if err != nil {
-					appFormatter.EmptyLine()
-					appFormatter.ErrorMsg("Failed to initialize profile manager")
-					appFormatter.DetailItem("Error", err.Error())
-					appFormatter.EmptyLine()
-					appFormatter.InfoMsg("The --all-profiles flag requires a working profile system.")
-					appFormatter.InfoMsg("Please check your ~/.agent-smith/ directory permissions.")
-					os.Exit(1)
-				}
-
-				// Get all profiles
-				allProfilesList, err := pm.ScanProfiles()
-				if err != nil {
-					appFormatter.EmptyLine()
-					appFormatter.ErrorMsg("Failed to scan profiles")
-					appFormatter.DetailItem("Error", err.Error())
-					appFormatter.EmptyLine()
-					appFormatter.InfoMsg("The --all-profiles flag requires at least one profile.")
-					appFormatter.InfoMsg("Try running without --all-profiles, or create a profile first:")
-					appFormatter.InfoMsg("  agent-smith profile create <name>")
-					os.Exit(1)
-				}
-
-				if len(allProfilesList) == 0 {
-					appFormatter.EmptyLine()
-					appFormatter.InfoMsg("No profiles found")
-					appFormatter.EmptyLine()
-					appFormatter.InfoMsg("The --all-profiles flag requires at least one profile.")
-					appFormatter.InfoMsg("Options:")
-					appFormatter.InfoMsg("  1. Run without --all-profiles to link components from base installation")
-					appFormatter.InfoMsg("  2. Create a profile first: agent-smith profile create <name>")
-					os.Exit(1)
-				}
-
-				// Color helpers
-				bold := color.New(color.Bold).SprintFunc()
-				green := color.New(color.FgGreen, color.Bold).SprintFunc()
-				cyan := color.New(color.FgCyan).SprintFunc()
-				gray := color.New(color.FgHiBlack).SprintFunc()
-
-				// Link from each profile
-				fmt.Printf("\n%s\n", bold("Linking components from all profiles..."))
-				fmt.Println()
-
-				for _, profileItem := range allProfilesList {
-					fmt.Printf("%s\n", cyan(fmt.Sprintf("Profile: %s", profileItem.Name)))
-
-					linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profileItem.Name)
-					if err != nil {
-						log.Fatalf("Failed to create component linker for profile '%s': %v", profileItem.Name, err)
-					}
-
-					// Count components before linking to check if profile has any
-					agents, skills, commands := pm.CountComponents(profileItem)
-					totalComponents := agents + skills + commands
-
-					if totalComponents == 0 {
-						fmt.Printf("  %s\n\n", gray("(no components)"))
-						continue
-					}
-
-					if err := linker.LinkAllComponents(); err != nil {
-						log.Fatalf("Failed to link components from profile '%s': %v", profileItem.Name, err)
-					}
-				}
-
-				fmt.Printf("\n%s\n", green("✓ Successfully linked components from all profiles"))
-			} else {
-				// Link from single profile (existing behavior)
-				linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error: Failed to create component linker\n\n%v\n", err)
-					os.Exit(1)
-				}
-				debugPrintln("[DEBUG] Component linker created successfully")
-				if err := linker.LinkAllComponents(); err != nil {
-					log.Fatal("Failed to link all components:", err)
-				}
-				debugPrintln("[DEBUG] All components linked successfully")
+			if err := linkService.LinkAll(opts); err != nil {
+				log.Fatal("Failed to link all components:", err)
 			}
 		},
 		func(componentType, targetFilter, profile string) {
-			debugPrintf("[DEBUG] handleLinkType called with componentType=%s, targetFilter=%s, profile=%s\n", componentType, targetFilter, profile)
-			linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Failed to create component linker\n\n%v\n", err)
-				os.Exit(1)
+			opts := services.LinkOptions{
+				TargetFilter: targetFilter,
+				Profile:      profile,
 			}
-			debugPrintln("[DEBUG] Component linker created successfully")
-			if err := linker.LinkComponentsByType(componentType); err != nil {
+			if err := linkService.LinkByType(componentType, opts); err != nil {
 				log.Fatal("Failed to link components:", err)
 			}
-			debugPrintf("[DEBUG] Components of type %s linked successfully\n", componentType)
 		},
 		func() {
-			linker, err := NewComponentLinker()
-			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
-			}
-			if err := linker.DetectAndLinkLocalRepositories(); err != nil {
+			if err := linkService.AutoLinkRepositories(); err != nil {
 				log.Fatal("Failed to auto-link repositories:", err)
 			}
 		},
 		func() {
-			linker, err := NewComponentLinker()
-			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
-			}
-			if err := linker.ListLinkedComponents(); err != nil {
+			if err := linkService.ListLinked(); err != nil {
 				log.Fatal("Failed to list linked components:", err)
 			}
 		},
 		func(allProfiles bool, profileFilter []string) {
-			// Validate flags
-			if len(profileFilter) > 0 && !allProfiles {
-				log.Fatal("--profile flag requires --all-profiles")
+			opts := services.LinkStatusOptions{
+				AllProfiles:   allProfiles,
+				ProfileFilter: profileFilter,
 			}
-
-			if allProfiles {
-				// Create linker with ProfileManager for multi-profile view
-				pm, err := profiles.NewProfileManager(nil)
-				if err != nil {
-					appFormatter.EmptyLine()
-					appFormatter.ErrorMsg("Failed to initialize profile manager")
-					appFormatter.DetailItem("Error", err.Error())
-					appFormatter.EmptyLine()
-					appFormatter.InfoMsg("The --all-profiles flag requires a working profile system.")
-					appFormatter.InfoMsg("Please check your ~/.agent-smith/ directory permissions.")
-					os.Exit(1)
-				}
-
-				// Check if any profiles exist
-				profilesList, err := pm.ScanProfiles()
-				if err != nil {
-					appFormatter.EmptyLine()
-					appFormatter.ErrorMsg("Failed to scan profiles")
-					appFormatter.DetailItem("Error", err.Error())
-					appFormatter.EmptyLine()
-					appFormatter.InfoMsg("The --all-profiles flag requires at least one profile.")
-					appFormatter.InfoMsg("Try running without --all-profiles, or create a profile first:")
-					appFormatter.InfoMsg("  agent-smith profile create <name>")
-					os.Exit(1)
-				}
-
-				if len(profilesList) == 0 {
-					appFormatter.EmptyLine()
-					appFormatter.InfoMsg("No profiles found")
-					appFormatter.EmptyLine()
-					appFormatter.InfoMsg("The --all-profiles flag requires at least one profile.")
-					appFormatter.InfoMsg("Options:")
-					appFormatter.InfoMsg("  1. Run without --all-profiles to show components from base installation")
-					appFormatter.InfoMsg("  2. Create a profile first: agent-smith profile create <name>")
-					os.Exit(1)
-				}
-
-				linker, err := NewComponentLinkerWithProfileManager(pm)
-				if err != nil {
-					log.Fatal("Failed to create component linker:", err)
-				}
-
-				if err := linker.ShowAllProfilesLinkStatus(profileFilter); err != nil {
-					log.Fatal("Failed to show link status:", err)
-				}
-			} else {
-				// Standard single-profile view (backward compatibility)
-				linker, err := NewComponentLinker()
-				if err != nil {
-					log.Fatal("Failed to create component linker:", err)
-				}
-				if err := linker.ShowLinkStatus(); err != nil {
-					log.Fatal("Failed to show link status:", err)
-				}
+			if err := linkService.ShowStatus(opts); err != nil {
+				log.Fatal("Failed to show link status:", err)
 			}
 		},
 		func(componentType, componentName, targetFilter string) {
-			linker, err := NewComponentLinkerWithFilter(targetFilter)
-			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
+			opts := services.UnlinkOptions{
+				TargetFilter: targetFilter,
 			}
-			if err := linker.UnlinkComponent(componentType, componentName, targetFilter); err != nil {
+			if err := linkService.UnlinkComponent(componentType, componentName, opts); err != nil {
 				log.Fatal("Failed to unlink component:", err)
 			}
 		},
 		func(componentType, componentName, targetFilter, profile string) {
-			linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
-			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
+			opts := services.UnlinkOptions{
+				TargetFilter: targetFilter,
+				Profile:      profile,
 			}
-			if err := linker.UnlinkComponent(componentType, componentName, targetFilter); err != nil {
+			if err := linkService.UnlinkComponent(componentType, componentName, opts); err != nil {
 				log.Fatal("Failed to unlink component:", err)
 			}
 		},
 		func(targetFilter string, force bool, allProfiles bool) {
-			linker, err := NewComponentLinkerWithFilter(targetFilter)
-			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
+			opts := services.UnlinkOptions{
+				TargetFilter: targetFilter,
+				Force:        force,
+				AllProfiles:  allProfiles,
 			}
-			if err := linker.UnlinkAllComponents(targetFilter, force, allProfiles); err != nil {
+			if err := linkService.UnlinkAll(opts); err != nil {
 				log.Fatal("Failed to unlink all components:", err)
 			}
 		},
 		func(targetFilter string, force bool, allProfiles bool, profile string) {
-			// Validate flag combination
-			if allProfiles && profile != "" {
-				log.Fatal("Cannot use both --all-profiles and --profile flags together")
+			opts := services.UnlinkOptions{
+				TargetFilter: targetFilter,
+				Force:        force,
+				AllProfiles:  allProfiles,
+				Profile:      profile,
 			}
-
-			linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
-			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
-			}
-			if err := linker.UnlinkAllComponents(targetFilter, force, allProfiles); err != nil {
+			if err := linkService.UnlinkAll(opts); err != nil {
 				log.Fatal("Failed to unlink all components:", err)
 			}
 		},
 		func(componentType, targetFilter string, force bool) {
-			linker, err := NewComponentLinkerWithFilter(targetFilter)
-			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
+			opts := services.UnlinkOptions{
+				TargetFilter: targetFilter,
+				Force:        force,
 			}
-			if err := linker.UnlinkComponentsByType(componentType, targetFilter, force); err != nil {
+			if err := linkService.UnlinkByType(componentType, opts); err != nil {
 				log.Fatal("Failed to unlink components:", err)
 			}
 		},
 		func(componentType, targetFilter string, force bool, profile string) {
-			linker, err := NewComponentLinkerWithFilterAndProfile(targetFilter, profile)
-			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
+			opts := services.UnlinkOptions{
+				TargetFilter: targetFilter,
+				Force:        force,
+				Profile:      profile,
 			}
-			if err := linker.UnlinkComponentsByType(componentType, targetFilter, force); err != nil {
+			if err := linkService.UnlinkByType(componentType, opts); err != nil {
 				log.Fatal("Failed to unlink components:", err)
 			}
 		},
@@ -924,565 +770,59 @@ func main() {
 			}
 		},
 		func(profileFilter []string, activeOnly bool, typeFilter string) {
-			pm, err := profiles.NewProfileManager(nil)
-			if err != nil {
-				log.Fatal("Failed to create profile manager:", err)
+			opts := services.ListProfileOptions{
+				ProfileFilter: profileFilter,
+				ActiveOnly:    activeOnly,
+				TypeFilter:    typeFilter,
 			}
-
-			// Validate typeFilter if provided
-			if typeFilter != "" && typeFilter != "repo" && typeFilter != "user" {
-				log.Fatalf("Invalid type filter '%s'. Valid values are: repo, user", typeFilter)
-			}
-
-			profilesList, err := pm.ScanProfiles()
-			if err != nil {
-				log.Fatal("Failed to scan profiles:", err)
-			}
-
-			// Get active profile
-			activeProfile, err := pm.GetActiveProfile()
-			if err != nil {
-				log.Fatal("Failed to get active profile:", err)
-			}
-
-			// Apply filters
-			var filteredProfiles []*profiles.Profile
-
-			// Filter by active-only if specified
-			if activeOnly {
-				for _, profile := range profilesList {
-					if profile.Name == activeProfile {
-						filteredProfiles = append(filteredProfiles, profile)
-						break
-					}
-				}
-			} else if len(profileFilter) > 0 {
-				// Filter by specific profile names
-				filterMap := make(map[string]bool)
-				for _, name := range profileFilter {
-					filterMap[name] = true
-				}
-
-				// Validate that all filter names exist
-				profileMap := make(map[string]bool)
-				for _, p := range profilesList {
-					profileMap[p.Name] = true
-				}
-
-				for _, filterName := range profileFilter {
-					if !profileMap[filterName] {
-						log.Fatalf("Profile '%s' does not exist", filterName)
-					}
-				}
-
-				// Apply filter
-				for _, p := range profilesList {
-					if filterMap[p.Name] {
-						filteredProfiles = append(filteredProfiles, p)
-					}
-				}
-			} else {
-				// No filters, show all profiles
-				filteredProfiles = profilesList
-			}
-
-			// Apply type filter if specified
-			if typeFilter != "" {
-				var typeFilteredProfiles []*profiles.Profile
-				for _, profile := range filteredProfiles {
-					profileType, err := pm.GetProfileType(profile.Name)
-					if err != nil {
-						// Log warning but continue
-						continue
-					}
-					if profileType == typeFilter {
-						typeFilteredProfiles = append(typeFilteredProfiles, profile)
-					}
-				}
-				filteredProfiles = typeFilteredProfiles
-			}
-
-			// Display results
-			if len(filteredProfiles) == 0 {
-				if activeOnly {
-					appFormatter.Info("No active profile set")
-				} else if len(profileFilter) > 0 {
-					appFormatter.Info("No matching profiles found")
-				} else {
-					appFormatter.Info("No profiles found in ~/.agent-smith/profiles/")
-					appFormatter.EmptyLine()
-					appFormatter.Info("To create a profile, run:")
-					appFormatter.Info("  agent-smith profile create <profile-name>")
-				}
-				return
-			}
-
-			// Create table with box-drawing characters
-			table := formatter.NewBoxTable(os.Stdout, []string{"Profile", "Components"})
-
-			// Add rows to table
-			for _, profile := range filteredProfiles {
-				// Get profile type and metadata
-				profileType, err := pm.GetProfileType(profile.Name)
-				if err != nil {
-					profileType = "unknown"
-				}
-
-				// Get metadata for repo profiles
-				var sourceURL string
-				if profileType == "repo" {
-					metadata, err := pm.LoadProfileMetadata(profile.Name)
-					if err == nil && metadata != nil {
-						sourceURL = metadata.SourceURL
-					}
-				}
-
-				// Count components
-				agents, skills, commands := pm.CountComponents(profile)
-
-				// Build component counts string with proper singular/plural handling
-				var components []string
-				if agents > 0 {
-					if agents == 1 {
-						components = append(components, "1 agent")
-					} else {
-						components = append(components, fmt.Sprintf("%d agents", agents))
-					}
-				}
-				if skills > 0 {
-					if skills == 1 {
-						components = append(components, "1 skill")
-					} else {
-						components = append(components, fmt.Sprintf("%d skills", skills))
-					}
-				}
-				if commands > 0 {
-					if commands == 1 {
-						components = append(components, "1 command")
-					} else {
-						components = append(components, fmt.Sprintf("%d commands", commands))
-					}
-				}
-
-				componentStr := ""
-				if len(components) > 0 {
-					componentStr = fmt.Sprintf("(%s)", joinStrings(components, ", "))
-				} else {
-					componentStr = "(empty)"
-				}
-
-				// Build profile cell with active indicator and type emoji
-				activeIndicator := " "
-				if profile.Name == activeProfile {
-					activeIndicator = formatter.ColoredSuccess()
-				}
-
-				// Add type emoji
-				var typeEmoji string
-				switch profileType {
-				case "repo":
-					typeEmoji = "📦"
-				case "user":
-					typeEmoji = "👤"
-				default:
-					typeEmoji = "❓"
-				}
-
-				// Build profile name with source URL for repo types
-				profileName := profile.Name
-				if profileType == "repo" && sourceURL != "" {
-					profileName = fmt.Sprintf("%s (%s)", profile.Name, sourceURL)
-				}
-
-				profileCell := fmt.Sprintf("%s %s %s", activeIndicator, typeEmoji, profileName)
-
-				// Add row to table
-				table.AddRow([]string{profileCell, componentStr})
-			}
-
-			// Render the table
-			table.Render()
-
-			// Display legend
-			appFormatter.EmptyLine()
-			appFormatter.Info("Legend:")
-			appFormatter.Info("  %s - Currently active profile", formatter.ColoredSuccess())
-			appFormatter.Info("  📦 - Repository-sourced profile")
-			appFormatter.Info("  👤 - User-created profile")
-
-			// Display total count
-			if len(profileFilter) > 0 || activeOnly || typeFilter != "" {
-				appFormatter.Info("\nShowing: %d profile(s) (filtered from %d total)", len(filteredProfiles), len(profilesList))
-			} else {
-				appFormatter.Info("\nTotal: %d profile(s)", len(filteredProfiles))
+			if err := profileService.ListProfiles(opts); err != nil {
+				log.Fatal("Failed to list profiles:", err)
 			}
 		},
 		func(profileName string) {
-			pm, err := profiles.NewProfileManager(nil)
-			if err != nil {
-				log.Fatal("Failed to create profile manager:", err)
-			}
-
-			// Load the profile
-			profilesList, err := pm.ScanProfiles()
-			if err != nil {
-				log.Fatal("Failed to scan profiles:", err)
-			}
-
-			var targetProfile *profiles.Profile
-			for _, p := range profilesList {
-				if p.Name == profileName {
-					targetProfile = p
-					break
-				}
-			}
-
-			if targetProfile == nil {
-				log.Fatalf("Profile '%s' not found", profileName)
-			}
-
-			// Get active profile to show status
-			activeProfile, err := pm.GetActiveProfile()
-			if err != nil {
-				log.Fatal("Failed to get active profile:", err)
-			}
-
-			// Display profile information
-			appFormatter.Info("Profile: %s", targetProfile.Name)
-			if targetProfile.Name == activeProfile {
-				appFormatter.Info(" %s [active]", formatter.SymbolSuccess)
-			}
-			appFormatter.EmptyLine()
-			appFormatter.Info("Location: %s", targetProfile.BasePath)
-			appFormatter.EmptyLine()
-
-			// Get component names
-			agents, skills, commands := pm.GetComponentNames(targetProfile)
-
-			// Display agents
-			if len(agents) > 0 {
-				appFormatter.Info("Agents (%d):", len(agents))
-				for _, agent := range agents {
-					sourceURL := pm.GetComponentSource(targetProfile, "agents", agent)
-					if sourceURL != "" {
-						appFormatter.Info("  - %s (%s)", agent, sourceURL)
-					} else {
-						appFormatter.Info("  - %s", agent)
-					}
-				}
-				appFormatter.EmptyLine()
-			}
-
-			// Display skills
-			if len(skills) > 0 {
-				appFormatter.Info("Skills (%d):", len(skills))
-				for _, skill := range skills {
-					sourceURL := pm.GetComponentSource(targetProfile, "skills", skill)
-					if sourceURL != "" {
-						appFormatter.Info("  - %s (%s)", skill, sourceURL)
-					} else {
-						appFormatter.Info("  - %s", skill)
-					}
-				}
-				appFormatter.EmptyLine()
-			}
-
-			// Display commands
-			if len(commands) > 0 {
-				appFormatter.Info("Commands (%d):", len(commands))
-				for _, command := range commands {
-					sourceURL := pm.GetComponentSource(targetProfile, "commands", command)
-					if sourceURL != "" {
-						appFormatter.Info("  - %s (%s)", command, sourceURL)
-					} else {
-						appFormatter.Info("  - %s", command)
-					}
-				}
-				appFormatter.EmptyLine()
-			}
-
-			// Show empty state if no components
-			if len(agents) == 0 && len(skills) == 0 && len(commands) == 0 {
-				appFormatter.Info("This profile is empty.")
-				appFormatter.EmptyLine()
-				appFormatter.Info("Add components with:")
-				appFormatter.Info("  agent-smith profiles add <type> %s <component-name>", profileName)
-			} else if targetProfile.Name != activeProfile {
-				// Show activation hint if not active
-				appFormatter.Info("To activate this profile:")
-				appFormatter.Info("  agent-smith profiles activate %s", profileName)
+			if err := profileService.ShowProfile(profileName); err != nil {
+				log.Fatal("Failed to show profile:", err)
 			}
 		},
 		func(profileName string) {
-			pm, err := profiles.NewProfileManager(nil)
-			if err != nil {
-				log.Fatal("Failed to create profile manager:", err)
-			}
-
-			// Check if there's an active profile before creating
-			activeProfile, err := pm.GetActiveProfile()
-			if err != nil {
-				log.Fatal("Failed to get active profile:", err)
-			}
-
-			if err := pm.CreateProfile(profileName); err != nil {
+			if err := profileService.CreateProfile(profileName); err != nil {
 				log.Fatal("Failed to create profile:", err)
 			}
-
-			// Auto-activate profile if no profile was previously active
-			if activeProfile == "" {
-				debugPrintf("[DEBUG] No active profile detected, auto-activating profile: %s\n", profileName)
-				if err := pm.ActivateProfile(profileName); err != nil {
-					log.Fatal("Failed to auto-activate profile:", err)
-				}
-				fmt.Println()
-				infoPrintf("✓ Profile '%s' has been automatically activated as your first profile.\n", profileName)
-				infoPrintln("  You can now add components and link them with: agent-smith link all")
-			}
 		},
 		func(profileName string) {
-			// Create component linker for defensive unlinking
-			componentLinker, err := NewComponentLinker()
-			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
-			}
-
-			pm, err := profiles.NewProfileManager(componentLinker)
-			if err != nil {
-				log.Fatal("Failed to create profile manager:", err)
-			}
-
-			if err := pm.DeleteProfile(profileName); err != nil {
+			if err := profileService.DeleteProfile(profileName); err != nil {
 				log.Fatal("Failed to delete profile:", err)
 			}
 		},
 		func(profileName string) {
-			pm, err := profiles.NewProfileManager(nil)
-			if err != nil {
-				log.Fatal("Failed to create profile manager:", err)
-			}
-
-			if err := pm.ActivateProfile(profileName); err != nil {
+			if err := profileService.ActivateProfile(profileName); err != nil {
 				log.Fatal("Failed to activate profile:", err)
 			}
 		},
 		func() {
-			pm, err := profiles.NewProfileManager(nil)
-			if err != nil {
-				log.Fatal("Failed to create profile manager:", err)
-			}
-
-			if err := pm.DeactivateProfile(); err != nil {
+			if err := profileService.DeactivateProfile(); err != nil {
 				log.Fatal("Failed to deactivate profile:", err)
 			}
 		},
-
 		func(componentType, profileName, componentName string) {
-			pm, err := profiles.NewProfileManager(nil)
-			if err != nil {
-				log.Fatal("Failed to create profile manager:", err)
-			}
-
-			if err := pm.AddComponentToProfile(profileName, componentType, componentName); err != nil {
-				log.Fatal("Failed to add component to profile:", err)
+			if err := profileService.AddComponent(componentType, profileName, componentName); err != nil {
+				log.Fatal("Failed to add component:", err)
 			}
 		},
 		func(componentType, sourceProfile, targetProfile, componentName string) {
-			pm, err := profiles.NewProfileManager(nil)
-			if err != nil {
-				log.Fatal("Failed to create profile manager:", err)
-			}
-
-			if err := pm.CopyComponentBetweenProfiles(sourceProfile, targetProfile, componentType, componentName); err != nil {
-				log.Fatal("Failed to copy component between profiles:", err)
+			if err := profileService.CopyComponent(sourceProfile, targetProfile, componentType, componentName); err != nil {
+				log.Fatal("Failed to copy component:", err)
 			}
 		},
 		func(componentType, profileName, componentName string) {
-			// Create component linker to handle auto-unlinking
-			componentLinker, err := NewComponentLinker()
-			if err != nil {
-				log.Fatal("Failed to create component linker:", err)
-			}
-
-			pm, err := profiles.NewProfileManager(componentLinker)
-			if err != nil {
-				log.Fatal("Failed to create profile manager:", err)
-			}
-
-			if err := pm.RemoveComponentFromProfile(profileName, componentType, componentName); err != nil {
-				log.Fatal("Failed to remove component from profile:", err)
+			if err := profileService.RemoveComponent(profileName, componentType, componentName); err != nil {
+				log.Fatal("Failed to remove component:", err)
 			}
 		},
 		func(targetProfile string, sourceProfiles []string) {
-			// Cherry-pick handler - interactively select components from profiles
-			pm, err := profiles.NewProfileManager(nil)
-			if err != nil {
-				log.Fatal("Failed to create profile manager:", err)
+			if err := profileService.CherryPickComponents(targetProfile, sourceProfiles); err != nil {
+				log.Fatal("Failed to cherry-pick components:", err)
 			}
-
-			// Check if target profile exists, if not create it
-			allProfiles, err := pm.ScanProfiles()
-			if err != nil {
-				log.Fatal("Failed to scan profiles:", err)
-			}
-
-			profileExists := false
-			for _, p := range allProfiles {
-				if p.Name == targetProfile {
-					profileExists = true
-					break
-				}
-			}
-
-			if !profileExists {
-				appFormatter.Info("Target profile '%s' does not exist. Creating it...", targetProfile)
-				appFormatter.EmptyLine()
-				if err := pm.CreateProfile(targetProfile); err != nil {
-					log.Fatal("Failed to create target profile:", err)
-				}
-				appFormatter.EmptyLine()
-			}
-
-			// Get all available components
-			appFormatter.Info("Scanning for available components...")
-			if len(sourceProfiles) > 0 {
-				appFormatter.Info("Source profiles: %s", joinStrings(sourceProfiles, ", "))
-				appFormatter.EmptyLine()
-			} else {
-				appFormatter.Info("Source profiles: All profiles")
-				appFormatter.EmptyLine()
-			}
-
-			components, err := pm.GetAllAvailableComponents(sourceProfiles)
-			if err != nil {
-				log.Fatal("Failed to get available components:", err)
-			}
-
-			if len(components) == 0 {
-				appFormatter.Info("No components found in source profiles.")
-				if len(sourceProfiles) > 0 {
-					appFormatter.EmptyLine()
-					appFormatter.Info("The specified source profiles may be empty or not exist.")
-				} else {
-					appFormatter.EmptyLine()
-					appFormatter.Info("Try installing some components first with:")
-					appFormatter.Info("  agent-smith install skill <repo-url> <skill-name> --profile <profile-name>")
-				}
-				return
-			}
-
-			// Display available components grouped by type
-			appFormatter.Info("Found %d component(s) available for cherry-picking:", len(components))
-			appFormatter.EmptyLine()
-
-			// Group by type
-			agentItems := []profiles.ComponentItem{}
-			skillItems := []profiles.ComponentItem{}
-			commandItems := []profiles.ComponentItem{}
-
-			for _, comp := range components {
-				switch comp.Type {
-				case "agents":
-					agentItems = append(agentItems, comp)
-				case "skills":
-					skillItems = append(skillItems, comp)
-				case "commands":
-					commandItems = append(commandItems, comp)
-				}
-			}
-
-			// Display agents
-			if len(agentItems) > 0 {
-				appFormatter.Info("Agents (%d):", len(agentItems))
-				for i, comp := range agentItems {
-					appFormatter.Info("  [%d] %s (from %s)", i+1, comp.Name, comp.SourceProfile)
-				}
-				appFormatter.EmptyLine()
-			}
-
-			// Display skills
-			if len(skillItems) > 0 {
-				appFormatter.Info("Skills (%d):", len(skillItems))
-				for i, comp := range skillItems {
-					appFormatter.Info("  [%d] %s (from %s)", i+len(agentItems)+1, comp.Name, comp.SourceProfile)
-				}
-				appFormatter.EmptyLine()
-			}
-
-			// Display commands
-			if len(commandItems) > 0 {
-				appFormatter.Info("Commands (%d):", len(commandItems))
-				for i, comp := range commandItems {
-					appFormatter.Info("  [%d] %s (from %s)", i+len(agentItems)+len(skillItems)+1, comp.Name, comp.SourceProfile)
-				}
-				appFormatter.EmptyLine()
-			}
-
-			// Interactive selection
-			appFormatter.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-			appFormatter.EmptyLine()
-			appFormatter.Info("Select components to copy to the target profile.")
-			appFormatter.Info("Enter component numbers separated by spaces (e.g., '1 3 5')")
-			appFormatter.Info("Or enter 'all' to select all components, or 'quit' to cancel.")
-			fmt.Print("\nSelection: ")
-
-			// Read user input
-			var input string
-			scanner := bufio.NewScanner(os.Stdin)
-			if scanner.Scan() {
-				input = strings.TrimSpace(scanner.Text())
-			}
-
-			if input == "" || strings.ToLower(input) == "quit" {
-				appFormatter.EmptyLine()
-				appFormatter.Info("Cancelled.")
-				return
-			}
-
-			// Parse selection
-			var selectedComponents []profiles.ComponentItem
-
-			if strings.ToLower(input) == "all" {
-				selectedComponents = components
-				appFormatter.Info("\nSelected all %d components.", len(components))
-				appFormatter.EmptyLine()
-			} else {
-				// Parse individual numbers
-				parts := strings.Fields(input)
-				selectedIndices := make(map[int]bool)
-
-				for _, part := range parts {
-					idx, err := strconv.Atoi(part)
-					if err != nil || idx < 1 || idx > len(components) {
-						appFormatter.PlainWarning("Invalid selection '%s' (valid range: 1-%d)", part, len(components))
-						continue
-					}
-					selectedIndices[idx-1] = true
-				}
-
-				if len(selectedIndices) == 0 {
-					appFormatter.EmptyLine()
-					appFormatter.Info("No valid selections made. Cancelled.")
-					return
-				}
-
-				for idx := range selectedIndices {
-					selectedComponents = append(selectedComponents, components[idx])
-				}
-
-				appFormatter.Info("\nSelected %d component(s).", len(selectedComponents))
-				appFormatter.EmptyLine()
-			}
-
-			// Execute cherry-pick
-			if err := pm.CherryPickComponents(targetProfile, selectedComponents); err != nil {
-				log.Fatal("Cherry-pick failed:", err)
-			}
-
-			appFormatter.EmptyLine()
-			appFormatter.Info("To activate this profile and use these components:")
-			appFormatter.Info("  agent-smith profile activate %s", targetProfile)
-			appFormatter.Info("  agent-smith link all")
 		},
 		func() {
 			if err := statusService.ShowSystemStatus(); err != nil {
