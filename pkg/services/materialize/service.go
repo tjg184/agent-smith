@@ -1,0 +1,1008 @@
+package materialize
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/fatih/color"
+	"github.com/tgaines/agent-smith/internal/downloader"
+	"github.com/tgaines/agent-smith/internal/formatter"
+	"github.com/tgaines/agent-smith/internal/materializer"
+	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
+	"github.com/tgaines/agent-smith/internal/updater"
+	"github.com/tgaines/agent-smith/pkg/config"
+	"github.com/tgaines/agent-smith/pkg/errors"
+	"github.com/tgaines/agent-smith/pkg/logger"
+	"github.com/tgaines/agent-smith/pkg/paths"
+	"github.com/tgaines/agent-smith/pkg/profiles"
+	"github.com/tgaines/agent-smith/pkg/project"
+	"github.com/tgaines/agent-smith/pkg/services"
+)
+
+// Service implements the MaterializeService interface
+type Service struct {
+	profileManager *profiles.ProfileManager
+	logger         *logger.Logger
+	formatter      *formatter.Formatter
+}
+
+// NewService creates a new MaterializeService with the given dependencies
+func NewService(pm *profiles.ProfileManager, logger *logger.Logger, formatter *formatter.Formatter) services.MaterializeService {
+	return &Service{
+		profileManager: pm,
+		logger:         logger,
+		formatter:      formatter,
+	}
+}
+
+// getSourceDir determines the source directory based on profile settings
+func (s *Service) getSourceDir(profile string) (string, string, error) {
+	baseDir, err := paths.GetAgentsDir()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get agent-smith directory: %w", err)
+	}
+
+	if profile != "" {
+		if profile == "base" {
+			return baseDir, "", nil
+		}
+
+		// Validate profile exists
+		profilesList, err := s.profileManager.ScanProfiles()
+		if err != nil {
+			return "", "", fmt.Errorf("failed to scan profiles: %w", err)
+		}
+
+		profileExists := false
+		for _, p := range profilesList {
+			if p.Name == profile {
+				profileExists = true
+				break
+			}
+		}
+
+		if !profileExists {
+			return "", "", fmt.Errorf("profile '%s' not found", profile)
+		}
+
+		profilesDir, err := paths.GetProfilesDir()
+		if err != nil {
+			return "", "", fmt.Errorf("failed to get profiles directory: %w", err)
+		}
+		return filepath.Join(profilesDir, profile), profile, nil
+	}
+
+	// Check active profile
+	activeProfile, err := s.profileManager.GetActiveProfile()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to check active profile: %w", err)
+	}
+
+	if activeProfile != "" {
+		profilesDir, err := paths.GetProfilesDir()
+		if err != nil {
+			return "", "", fmt.Errorf("failed to get profiles directory: %w", err)
+		}
+		return filepath.Join(profilesDir, activeProfile), activeProfile, nil
+	}
+
+	return baseDir, "", nil
+}
+
+// MaterializeComponent materializes a single component to a target
+func (s *Service) MaterializeComponent(componentType, componentName string, opts services.MaterializeOptions) error {
+	// Validate target
+	targetName := opts.Target
+	if targetName == "" {
+		targetName = config.GetTargetFromEnv()
+	}
+	if targetName == "" {
+		fmt.Println(errors.NewMissingTargetFlagError("materialize " + componentType + " <name>").Format())
+		return fmt.Errorf("target not specified")
+	}
+
+	// Show dry-run header if enabled
+	if opts.DryRun {
+		s.formatter.Info("=== DRY RUN MODE ===")
+		s.formatter.Info("No changes will be made to the filesystem")
+		s.formatter.EmptyLine()
+	}
+
+	// Determine project root
+	projectRoot, err := s.getProjectRoot(opts.ProjectDir)
+	if err != nil {
+		return err
+	}
+
+	// Get source directory
+	baseDir, sourceProfile, err := s.getSourceDir(opts.Profile)
+	if err != nil {
+		return err
+	}
+
+	// Get component source path
+	componentSourceDir := filepath.Join(baseDir, componentType, componentName)
+	if _, err := os.Stat(componentSourceDir); os.IsNotExist(err) {
+		var sourcePath string
+		if sourceProfile != "" {
+			sourcePath = fmt.Sprintf("profile '%s' (%s/%s/)", sourceProfile, sourceProfile, componentType)
+		} else {
+			sourcePath = fmt.Sprintf("~/.agent-smith/%s/", componentType)
+		}
+		fmt.Println(errors.NewComponentNotInstalledError(componentType, componentName, sourcePath).Format())
+		return fmt.Errorf("component not found")
+	}
+
+	// Get lock file entry for provenance
+	lockEntry, err := metadataPkg.LoadLockFileEntry(baseDir, componentType, componentName)
+	if err != nil {
+		return fmt.Errorf("failed to load component metadata: %w", err)
+	}
+
+	// Calculate source hash
+	sourceHash, err := materializer.CalculateDirectoryHash(componentSourceDir)
+	if err != nil {
+		return fmt.Errorf("failed to calculate source hash: %w", err)
+	}
+
+	// Determine targets
+	var targets []string
+	if targetName == "all" {
+		targets = []string{"opencode", "claudecode"}
+	} else {
+		targets = []string{targetName}
+	}
+
+	// Materialize to each target
+	successCount := 0
+	skipCount := 0
+
+	for _, tgt := range targets {
+		targetDir := project.GetTargetDirectory(projectRoot, tgt)
+		if targetDir == "" {
+			fmt.Println(errors.NewInvalidTargetError(tgt).Format())
+			return fmt.Errorf("invalid target: %s", tgt)
+		}
+
+		destPath := filepath.Join(targetDir, componentType, componentName)
+
+		// Check if exists
+		if _, err := os.Stat(destPath); err == nil {
+			match, err := materializer.DirectoriesMatch(componentSourceDir, destPath)
+			if err != nil {
+				return fmt.Errorf("failed to compare directories: %w", err)
+			}
+			if match {
+				if opts.DryRun {
+					s.formatter.Info("⊘ Would skip %s '%s' to %s (already exists and identical)", componentType, componentName, tgt)
+				} else {
+					s.formatter.Info("⊘ Skipped %s '%s' to %s (already exists and identical)", componentType, componentName, tgt)
+				}
+				skipCount++
+				continue
+			}
+
+			if !opts.Force {
+				if opts.DryRun {
+					s.formatter.Info("⚠ Would fail: Component '%s' already exists in %s (use --force)", componentName, tgt)
+					continue
+				}
+				return fmt.Errorf("component '%s' already exists in %s (use --force to overwrite)", componentName, tgt)
+			}
+
+			if opts.DryRun {
+				s.formatter.Info("⚠ Would overwrite %s '%s' in %s (--force)", componentType, componentName, tgt)
+			} else {
+				s.formatter.Info("⚠ Overwriting %s '%s' in %s (--force)", componentType, componentName, tgt)
+				if err := os.RemoveAll(destPath); err != nil {
+					return fmt.Errorf("failed to remove existing component: %w", err)
+				}
+			}
+		}
+
+		if opts.DryRun {
+			s.formatter.Info("%s Would materialize %s '%s' to %s", formatter.SymbolSuccess, componentType, componentName, tgt)
+			s.formatter.Info("  Source:      %s", componentSourceDir)
+			if sourceProfile != "" {
+				s.formatter.Info("  From Profile: %s", sourceProfile)
+			}
+			s.formatter.Info("  Destination: %s", destPath)
+			s.formatter.Info("  Provenance:  %s @ %s", lockEntry.SourceUrl, lockEntry.CommitHash[:8])
+			successCount++
+		} else {
+			// Ensure structure exists
+			structureCreated, err := project.EnsureTargetStructure(targetDir)
+			if err != nil {
+				return fmt.Errorf("failed to create target structure: %w", err)
+			}
+			if structureCreated {
+				s.formatter.Info("%s Created project structure: %s/ (skills/, agents/, commands/)", formatter.SymbolSuccess, targetDir)
+			}
+
+			// Copy component
+			if err := materializer.CopyDirectory(componentSourceDir, destPath); err != nil {
+				return fmt.Errorf("failed to copy component: %w", err)
+			}
+
+			// Load/update metadata
+			matMetadata, err := project.LoadMaterializationMetadata(targetDir)
+			if err != nil {
+				return fmt.Errorf("failed to load materialization metadata: %w", err)
+			}
+
+			project.AddMaterializationEntry(
+				matMetadata,
+				componentType,
+				componentName,
+				lockEntry.SourceUrl,
+				lockEntry.SourceType,
+				sourceProfile,
+				lockEntry.CommitHash,
+				lockEntry.OriginalPath,
+				sourceHash,
+				sourceHash,
+			)
+
+			if err := project.SaveMaterializationMetadata(targetDir, matMetadata); err != nil {
+				return fmt.Errorf("failed to save materialization metadata: %w", err)
+			}
+
+			s.formatter.Info("%s Materialized %s '%s' to %s", formatter.SymbolSuccess, componentType, componentName, tgt)
+			s.formatter.Info("  Source:      %s", componentSourceDir)
+			if sourceProfile != "" {
+				s.formatter.Info("  From Profile: %s", sourceProfile)
+			}
+			s.formatter.Info("  Destination: %s", destPath)
+			successCount++
+		}
+	}
+
+	// Print summary
+	if len(targets) > 0 {
+		green := color.New(color.FgGreen).SprintFunc()
+		fmt.Println()
+		if successCount > 0 {
+			fmt.Printf("%s %d component(s) materialized", green("✓"), successCount)
+			if skipCount > 0 {
+				fmt.Printf(", %d skipped", skipCount)
+			}
+			fmt.Println()
+		}
+	}
+
+	return nil
+}
+
+// MaterializeAll materializes all components to a target
+func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
+	// Get source directory
+	baseDir, sourceProfile, err := s.getSourceDir(opts.Profile)
+	if err != nil {
+		return err
+	}
+
+	// Get all components
+	var components []struct {
+		Type string
+		Name string
+	}
+
+	for _, componentType := range []string{"skills", "agents", "commands"} {
+		dir := filepath.Join(baseDir, componentType)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("failed to read %s directory: %w", componentType, err)
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() {
+				components = append(components, struct {
+					Type string
+					Name string
+				}{componentType, entry.Name()})
+			}
+		}
+	}
+
+	if len(components) == 0 {
+		s.formatter.Info("No components found to materialize")
+		if sourceProfile != "" {
+			s.formatter.Info("  Source: profile '%s'", sourceProfile)
+		} else {
+			s.formatter.Info("  Source: ~/.agent-smith/")
+		}
+		return nil
+	}
+
+	// Materialize each component
+	for _, comp := range components {
+		if err := s.MaterializeComponent(comp.Type, comp.Name, opts); err != nil {
+			s.formatter.WarningMsg("Failed to materialize %s '%s': %v", comp.Type, comp.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// ListMaterialized lists all materialized components in a project
+func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error {
+	projectRoot, err := s.getProjectRoot(opts.ProjectDir)
+	if err != nil {
+		return err
+	}
+
+	// Display project information
+	s.formatter.Info("Materialized Components in %s:", projectRoot)
+	s.formatter.EmptyLine()
+
+	// Track if any components were found
+	foundAny := false
+
+	// Check each target
+	for _, targetName := range []string{"opencode", "claudecode"} {
+		targetDir := project.GetTargetDirectory(projectRoot, targetName)
+
+		// Check if target directory exists
+		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+			continue
+		}
+
+		// Load materialization metadata
+		metadata, err := project.LoadMaterializationMetadata(targetDir)
+		if err != nil {
+			s.logger.Debug("Failed to load metadata for %s: %v", targetName, err)
+			continue
+		}
+
+		// Count total components
+		totalComponents := len(metadata.Skills) + len(metadata.Agents) + len(metadata.Commands)
+
+		if totalComponents == 0 {
+			continue
+		}
+
+		foundAny = true
+
+		// Display target header
+		var targetLabel string
+		if targetName == "opencode" {
+			targetLabel = "OpenCode (.opencode/)"
+		} else {
+			targetLabel = "Claude Code (.claude/)"
+		}
+		green := color.New(color.FgGreen).SprintFunc()
+		s.formatter.Info("%s %s", green(formatter.SymbolSuccess), targetLabel)
+
+		// Display skills
+		if len(metadata.Skills) > 0 {
+			s.formatter.Info("  Skills (%d):", len(metadata.Skills))
+			for name, meta := range metadata.Skills {
+				sourceInfo := meta.Source
+				if meta.SourceProfile != "" {
+					sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
+				}
+				s.formatter.Info("    • %-30s (from %s)", name, sourceInfo)
+			}
+		}
+
+		// Display agents
+		if len(metadata.Agents) > 0 {
+			s.formatter.Info("  Agents (%d):", len(metadata.Agents))
+			for name, meta := range metadata.Agents {
+				sourceInfo := meta.Source
+				if meta.SourceProfile != "" {
+					sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
+				}
+				s.formatter.Info("    • %-30s (from %s)", name, sourceInfo)
+			}
+		}
+
+		// Display commands
+		if len(metadata.Commands) > 0 {
+			s.formatter.Info("  Commands (%d):", len(metadata.Commands))
+			for name, meta := range metadata.Commands {
+				sourceInfo := meta.Source
+				if meta.SourceProfile != "" {
+					sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
+				}
+				s.formatter.Info("    • %-30s (from %s)", name, sourceInfo)
+			}
+		}
+
+		s.formatter.EmptyLine()
+	}
+
+	if !foundAny {
+		yellow := color.New(color.FgYellow).SprintFunc()
+		s.formatter.Info("%s No components materialized yet", yellow(formatter.SymbolWarning))
+		s.formatter.EmptyLine()
+		s.formatter.Info("To materialize components:")
+		s.formatter.Info("  agent-smith materialize skill <name> --target opencode")
+		s.formatter.Info("  agent-smith materialize all --target opencode")
+	}
+
+	return nil
+}
+
+// ShowComponentInfo shows information about a materialized component
+func (s *Service) ShowComponentInfo(componentType, componentName string, opts services.MaterializeInfoOptions) error {
+	projectRoot, err := s.getProjectRoot(opts.ProjectDir)
+	if err != nil {
+		return err
+	}
+
+	green := color.New(color.FgGreen).SprintFunc()
+	yellow := color.New(color.FgYellow).SprintFunc()
+	red := color.New(color.FgRed).SprintFunc()
+	cyan := color.New(color.FgCyan).SprintFunc()
+	bold := color.New(color.Bold).SprintFunc()
+
+	// Track if we found the component in any target
+	foundInAnyTarget := false
+
+	// Determine which targets to check
+	var targetsToCheck []string
+	if opts.Target != "" {
+		targetsToCheck = []string{opts.Target}
+	} else {
+		targetsToCheck = []string{"opencode", "claudecode"}
+	}
+
+	// Check each target
+	for _, targetName := range targetsToCheck {
+		targetDir := project.GetTargetDirectory(projectRoot, targetName)
+
+		// Check if target directory exists
+		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+			if opts.Target != "" {
+				// User specified a target that doesn't exist
+				fmt.Println(errors.NewTargetDirectoryNotFoundError(targetName).Format())
+				return fmt.Errorf("target directory not found")
+			}
+			continue
+		}
+
+		// Load materialization metadata
+		metadata, err := project.LoadMaterializationMetadata(targetDir)
+		if err != nil {
+			s.logger.Debug("Failed to load metadata for %s: %v", targetName, err)
+			continue
+		}
+
+		// Get the component map for the given type
+		componentMap := metadata.GetComponentMap(componentType)
+		if componentMap == nil {
+			return fmt.Errorf("invalid component type: %s (must be skills, agents, or commands)", componentType)
+		}
+
+		// Look up the component
+		meta, exists := componentMap[componentName]
+		if !exists {
+			if opts.Target != "" {
+				// User specified a target but component not found
+				s.formatter.Info("%s Component '%s' not found in %s target", red(formatter.SymbolError), componentName, targetName)
+			}
+			continue
+		}
+
+		foundInAnyTarget = true
+
+		// Display target header
+		var targetLabel string
+		if targetName == "opencode" {
+			targetLabel = "OpenCode (.opencode/)"
+		} else {
+			targetLabel = "Claude Code (.claude/)"
+		}
+
+		s.formatter.EmptyLine()
+		s.formatter.Info("%s Provenance Information - %s", green(formatter.SymbolSuccess), bold(targetLabel))
+		s.formatter.EmptyLine()
+
+		// Display component information
+		s.formatter.Info("  %s: %s", cyan("Component"), componentName)
+		s.formatter.Info("  %s: %s", cyan("Type"), componentType)
+		s.formatter.EmptyLine()
+
+		// Display source information
+		s.formatter.Info("  %s", bold("Source Information:"))
+		s.formatter.Info("    %s: %s", cyan("Repository"), meta.Source)
+		s.formatter.Info("    %s: %s", cyan("Source Type"), meta.SourceType)
+		if meta.SourceProfile != "" {
+			s.formatter.Info("    %s: %s", cyan("Profile"), meta.SourceProfile)
+		}
+		s.formatter.Info("    %s: %s", cyan("Commit Hash"), meta.CommitHash)
+		s.formatter.Info("    %s: %s", cyan("Original Path"), meta.OriginalPath)
+		s.formatter.EmptyLine()
+
+		// Display materialization information
+		s.formatter.Info("  %s", bold("Materialization:"))
+		s.formatter.Info("    %s: %s", cyan("Materialized At"), meta.MaterializedAt)
+		s.formatter.Info("    %s: %s", cyan("Target Directory"), targetDir)
+		s.formatter.EmptyLine()
+
+		// Display hash information for sync status
+		s.formatter.Info("  %s", bold("Sync Status:"))
+		s.formatter.Info("    %s: %s", cyan("Source Hash"), meta.SourceHash)
+
+		// Recalculate current hash from the actual directory
+		componentPath := filepath.Join(targetDir, componentType, componentName)
+		actualCurrentHash, err := materializer.CalculateDirectoryHash(componentPath)
+		if err != nil {
+			s.logger.Debug("Failed to calculate current hash: %v", err)
+			// Fall back to stored hash
+			actualCurrentHash = meta.CurrentHash
+		}
+
+		s.formatter.Info("    %s: %s", cyan("Current Hash"), actualCurrentHash)
+
+		// Check if hashes match
+		if meta.SourceHash == actualCurrentHash {
+			s.formatter.Info("    %s: %s (component is unchanged)", cyan("Status"), green("In Sync"))
+		} else {
+			s.formatter.Info("    %s: %s (component has been modified)", cyan("Status"), yellow("Modified"))
+		}
+
+		s.formatter.EmptyLine()
+	}
+
+	if !foundInAnyTarget {
+		if opts.Target != "" {
+			// Specific target was requested but component not found
+			fmt.Println(errors.NewTargetDirectoryNotFoundError(opts.Target).Format())
+		} else {
+			// No target specified and component not found in any target
+			// Collect available components from all targets
+			var availableComponents []string
+			for _, targetName := range []string{"opencode", "claudecode"} {
+				targetDir := project.GetTargetDirectory(projectRoot, targetName)
+				if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+					continue
+				}
+				metadata, err := project.LoadMaterializationMetadata(targetDir)
+				if err != nil {
+					continue
+				}
+				componentMap := metadata.GetComponentMap(componentType)
+				if componentMap != nil {
+					for compName := range componentMap {
+						availableComponents = append(availableComponents, compName)
+					}
+				}
+			}
+			fmt.Println(errors.NewComponentNotFoundInProjectError(componentType, componentName, availableComponents).Format())
+		}
+		return fmt.Errorf("component not found")
+	}
+
+	return nil
+}
+
+// ShowStatus shows the materialization status of a project
+func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
+	projectRoot, err := s.getProjectRoot(opts.ProjectDir)
+	if err != nil {
+		return err
+	}
+
+	green := color.New(color.FgGreen).SprintFunc()
+	yellow := color.New(color.FgYellow).SprintFunc()
+	red := color.New(color.FgRed).SprintFunc()
+	bold := color.New(color.Bold).SprintFunc()
+
+	fmt.Printf("\n%s %s\n\n", bold("Project:"), projectRoot)
+
+	// Determine which targets to check
+	var targetsToCheck []string
+	if opts.Target != "" {
+		targetsToCheck = []string{opts.Target}
+	} else {
+		targetsToCheck = []string{"opencode", "claudecode"}
+	}
+
+	// Track overall statistics
+	totalInSync := 0
+	totalOutOfSync := 0
+	totalMissing := 0
+	foundAny := false
+
+	// Check each target
+	for _, targetName := range targetsToCheck {
+		targetDir := project.GetTargetDirectory(projectRoot, targetName)
+
+		// Check if target directory exists
+		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+			if opts.Target != "" {
+				// User specified a target that doesn't exist
+				fmt.Println(errors.NewTargetDirectoryNotFoundError(targetName).Format())
+				return fmt.Errorf("target directory not found")
+			}
+			continue
+		}
+
+		// Load materialization metadata
+		metadata, err := project.LoadMaterializationMetadata(targetDir)
+		if err != nil {
+			return fmt.Errorf("failed to load materialization metadata: %w", err)
+		}
+
+		// Get all components
+		components := metadata.GetAllMaterializedComponents()
+		if len(components) == 0 {
+			continue
+		}
+
+		foundAny = true
+
+		// Display target header
+		var targetLabel string
+		if targetName == "opencode" {
+			targetLabel = "OpenCode (.opencode/)"
+		} else {
+			targetLabel = "Claude Code (.claude/)"
+		}
+		fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
+
+		// Use batched sync check for better performance (one clone per repo instead of per component)
+		baseDir, _ := paths.GetAgentsDir()
+		syncResults, err := project.CheckMultipleComponentsSyncStatusBatched(baseDir, components)
+		if err != nil {
+			return fmt.Errorf("failed to check sync status: %w", err)
+		}
+
+		// Group by component type
+		componentsByType := make(map[string][]project.ComponentInfo)
+		for _, comp := range components {
+			componentsByType[comp.Type] = append(componentsByType[comp.Type], comp)
+		}
+
+		// Display each type
+		for _, componentType := range []string{"skills", "agents", "commands"} {
+			comps := componentsByType[componentType]
+			if len(comps) == 0 {
+				continue
+			}
+
+			// Display type header
+			typeLabel := strings.Title(componentType)
+			fmt.Printf("%s:\n", typeLabel)
+
+			// Display sync status for each component
+			for _, comp := range comps {
+				key := fmt.Sprintf("%s/%s", comp.Type, comp.Name)
+				result, ok := syncResults[key]
+				if !ok {
+					fmt.Printf("  %s %s (error: status not available)\n", red("✗"), comp.Name)
+					continue
+				}
+
+				if result.Error != nil {
+					fmt.Printf("  %s %s (error: %v)\n", red("✗"), comp.Name, result.Error)
+					continue
+				}
+
+				// Truncate commit hash to first 7 characters for display
+				shortHash := comp.Metadata.CommitHash
+				if len(shortHash) > 7 {
+					shortHash = shortHash[:7]
+				}
+
+				switch result.Status {
+				case project.SyncStatusInSync:
+					fmt.Printf("  %s %s (in sync - %s)\n", green("✓"), comp.Name, shortHash)
+					totalInSync++
+				case project.SyncStatusOutOfSync:
+					// Get current remote commit hash to show the change
+					ud := updater.NewUpdateDetectorWithBaseDir(baseDir)
+					currentCommit, err := ud.GetCurrentRepoSHA(comp.Metadata.Source)
+					shortCurrent := currentCommit
+					if err == nil && len(shortCurrent) > 7 {
+						shortCurrent = shortCurrent[:7]
+					}
+
+					if err == nil && currentCommit != comp.Metadata.CommitHash {
+						fmt.Printf("  %s %s (out of sync - %s → %s)\n", yellow("⚠"), comp.Name, shortHash, shortCurrent)
+					} else {
+						fmt.Printf("  %s %s (out of sync)\n", yellow("⚠"), comp.Name)
+					}
+					totalOutOfSync++
+				case project.SyncStatusSourceMissing:
+					fmt.Printf("  %s %s (repository not found)\n", red("✗"), comp.Name)
+					totalMissing++
+				}
+			}
+			fmt.Println()
+		}
+	}
+
+	if !foundAny {
+		s.formatter.Info("%s No components materialized yet", yellow(formatter.SymbolWarning))
+		s.formatter.EmptyLine()
+		s.formatter.Info("To materialize components:")
+		s.formatter.Info("  agent-smith materialize skill <name> --target opencode")
+		s.formatter.Info("  agent-smith materialize all --target opencode")
+		return nil
+	}
+
+	// Display summary
+	fmt.Printf("%s: ", bold("Summary"))
+	var parts []string
+	if totalInSync > 0 {
+		parts = append(parts, fmt.Sprintf("%s %d in sync", green("✓"), totalInSync))
+	}
+	if totalOutOfSync > 0 {
+		parts = append(parts, fmt.Sprintf("%s %d out of sync", yellow("⚠"), totalOutOfSync))
+	}
+	if totalMissing > 0 {
+		parts = append(parts, fmt.Sprintf("%s %d source missing", red("✗"), totalMissing))
+	}
+	fmt.Printf("%s\n\n", strings.Join(parts, ", "))
+
+	return nil
+}
+
+// UpdateMaterialized updates materialized components
+func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) error {
+	projectRoot, err := s.getProjectRoot(opts.ProjectDir)
+	if err != nil {
+		return err
+	}
+
+	green := color.New(color.FgGreen).SprintFunc()
+	yellow := color.New(color.FgYellow).SprintFunc()
+	red := color.New(color.FgRed).SprintFunc()
+	bold := color.New(color.Bold).SprintFunc()
+
+	if opts.DryRun {
+		fmt.Printf("\n%s Previewing updates in: %s\n\n", bold("[DRY RUN]"), projectRoot)
+	} else {
+		fmt.Printf("\nUpdating materialized components in: %s\n\n", projectRoot)
+	}
+
+	// Determine which targets to update
+	var targetsToUpdate []string
+	if opts.Target != "" {
+		targetsToUpdate = []string{opts.Target}
+	} else {
+		targetsToUpdate = []string{"opencode", "claudecode"}
+	}
+
+	// Track overall statistics
+	totalUpdated := 0
+	totalSkippedInSync := 0
+	totalSkippedMissing := 0
+	foundAny := false
+
+	// Process each target
+	for _, targetName := range targetsToUpdate {
+		targetDir := project.GetTargetDirectory(projectRoot, targetName)
+
+		// Check if target directory exists
+		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+			if opts.Target != "" {
+				// User specified a target that doesn't exist
+				fmt.Println(errors.NewTargetDirectoryNotFoundError(targetName).Format())
+				return fmt.Errorf("target directory not found")
+			}
+			continue
+		}
+
+		// Load materialization metadata
+		metadata, err := project.LoadMaterializationMetadata(targetDir)
+		if err != nil {
+			return fmt.Errorf("failed to load materialization metadata: %w", err)
+		}
+
+		// Get all components
+		components := metadata.GetAllMaterializedComponents()
+		if len(components) == 0 {
+			continue
+		}
+
+		foundAny = true
+
+		// Display target header
+		var targetLabel string
+		if targetName == "opencode" {
+			targetLabel = "OpenCode (.opencode/)"
+		} else {
+			targetLabel = "Claude Code (.claude/)"
+		}
+		fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
+
+		// Use batched sync check for better performance (one clone per repo instead of per component)
+		baseDir, _ := paths.GetAgentsDir()
+		syncResults, err := project.CheckMultipleComponentsSyncStatusBatched(baseDir, components)
+		if err != nil {
+			return fmt.Errorf("failed to check sync status: %w", err)
+		}
+
+		// Process each component
+		for _, comp := range components {
+			key := fmt.Sprintf("%s/%s", comp.Type, comp.Name)
+			result, ok := syncResults[key]
+
+			// Check sync status
+			if !ok {
+				fmt.Printf("  %s %s (error: status not available)\n", red("✗"), comp.Name)
+				continue
+			}
+
+			if result.Error != nil {
+				fmt.Printf("  %s %s (error checking status: %v)\n", red("✗"), comp.Name, result.Error)
+				continue
+			}
+
+			// Handle source missing
+			if result.Status == project.SyncStatusSourceMissing {
+				fmt.Printf("  %s Skipped %s (source no longer installed)\n", yellow("⚠"), comp.Name)
+				totalSkippedMissing++
+				continue
+			}
+
+			// Skip if in sync and not force mode
+			if result.Status == project.SyncStatusInSync && !opts.Force {
+				fmt.Printf("  %s Skipped %s (already in sync)\n", green("⊘"), comp.Name)
+				totalSkippedInSync++
+				continue
+			}
+
+			// Component needs updating
+			if opts.DryRun {
+				fmt.Printf("  %s Would update %s\n", green("→"), comp.Name)
+				totalUpdated++
+				continue
+			}
+
+			// Download from GitHub to temp directory
+			tempDir, err := os.MkdirTemp("", "materialize-update-*")
+			if err != nil {
+				fmt.Printf("  %s Failed to create temp directory for %s: %v\n", red("✗"), comp.Name, err)
+				continue
+			}
+			defer os.RemoveAll(tempDir)
+
+			// Download component from GitHub using downloader
+			var downloadErr error
+			switch comp.Type {
+			case "skills":
+				dl := downloader.NewSkillDownloaderWithTargetDir(tempDir)
+				downloadErr = dl.DownloadSkill(comp.Metadata.Source, comp.Name)
+			case "agents":
+				dl := downloader.NewAgentDownloaderWithTargetDir(tempDir)
+				downloadErr = dl.DownloadAgent(comp.Metadata.Source, comp.Name)
+			case "commands":
+				dl := downloader.NewCommandDownloaderWithTargetDir(tempDir)
+				downloadErr = dl.DownloadCommand(comp.Metadata.Source, comp.Name)
+			default:
+				downloadErr = fmt.Errorf("unknown component type: %s", comp.Type)
+			}
+
+			if downloadErr != nil {
+				fmt.Printf("  %s Failed to download %s from GitHub: %v\n", red("✗"), comp.Name, downloadErr)
+				continue
+			}
+
+			// Source is in temp directory
+			sourceDir := filepath.Join(tempDir, comp.Type, comp.Name)
+			destDir := filepath.Join(targetDir, comp.Type, comp.Name)
+
+			// Remove existing materialized component
+			if err := os.RemoveAll(destDir); err != nil {
+				fmt.Printf("  %s Failed to remove existing %s: %v\n", red("✗"), comp.Name, err)
+				continue
+			}
+
+			// Copy from temp to target
+			if err := materializer.CopyDirectory(sourceDir, destDir); err != nil {
+				fmt.Printf("  %s Failed to copy %s: %v\n", red("✗"), comp.Name, err)
+				continue
+			}
+
+			// Calculate new hashes
+			newSourceHash, err := materializer.CalculateDirectoryHash(sourceDir)
+			if err != nil {
+				fmt.Printf("  %s Failed to calculate source hash for %s: %v\n", red("✗"), comp.Name, err)
+				continue
+			}
+
+			newCurrentHash, err := materializer.CalculateDirectoryHash(destDir)
+			if err != nil {
+				fmt.Printf("  %s Failed to calculate current hash for %s: %v\n", red("✗"), comp.Name, err)
+				continue
+			}
+
+			// Get the latest commit hash from what we just downloaded
+			// Read the lock file entry from temp directory to get the updated commit hash
+			lockEntry, err := metadataPkg.LoadLockFileEntry(tempDir, comp.Type, comp.Name)
+			var newCommitHash string
+			if err == nil && lockEntry != nil {
+				newCommitHash = lockEntry.CommitHash
+			} else {
+				// Fallback: fetch current commit from GitHub
+				ud := updater.NewUpdateDetectorWithBaseDir(baseDir)
+				newCommitHash, _ = ud.GetCurrentRepoSHA(comp.Metadata.Source)
+			}
+
+			// Update metadata entry with new commit hash
+			comp.Metadata.CommitHash = newCommitHash
+			comp.Metadata.SourceHash = newSourceHash
+			comp.Metadata.CurrentHash = newCurrentHash
+			comp.Metadata.MaterializedAt = time.Now().Format(time.RFC3339)
+
+			// Save updated metadata back to the metadata struct
+			switch comp.Type {
+			case "skills":
+				metadata.Skills[comp.Name] = comp.Metadata
+			case "agents":
+				metadata.Agents[comp.Name] = comp.Metadata
+			case "commands":
+				metadata.Commands[comp.Name] = comp.Metadata
+			}
+
+			fmt.Printf("  %s Updated %s\n", green("✓"), comp.Name)
+			totalUpdated++
+		}
+
+		// Save metadata
+		if !opts.DryRun && totalUpdated > 0 {
+			if err := project.SaveMaterializationMetadata(targetDir, metadata); err != nil {
+				return fmt.Errorf("failed to save materialization metadata: %w", err)
+			}
+		}
+
+		fmt.Println()
+	}
+
+	if !foundAny {
+		s.formatter.Info("%s No components materialized yet", yellow(formatter.SymbolWarning))
+		s.formatter.EmptyLine()
+		s.formatter.Info("To materialize components:")
+		s.formatter.Info("  agent-smith materialize skill <name> --target opencode")
+		s.formatter.Info("  agent-smith materialize all --target opencode")
+		return nil
+	}
+
+	// Display summary
+	fmt.Printf("%s: ", bold("Summary"))
+	var parts []string
+	if totalUpdated > 0 {
+		if opts.DryRun {
+			parts = append(parts, fmt.Sprintf("%d would be updated", totalUpdated))
+		} else {
+			parts = append(parts, fmt.Sprintf("%s %d updated", green("✓"), totalUpdated))
+		}
+	}
+	if totalSkippedInSync > 0 {
+		parts = append(parts, fmt.Sprintf("%d already in sync", totalSkippedInSync))
+	}
+	if totalSkippedMissing > 0 {
+		parts = append(parts, fmt.Sprintf("%s %d skipped (source missing)", yellow("⚠"), totalSkippedMissing))
+	}
+	fmt.Printf("%s\n\n", strings.Join(parts, ", "))
+
+	return nil
+}
+
+// getProjectRoot determines the project root directory
+func (s *Service) getProjectRoot(projectDir string) (string, error) {
+	if projectDir != "" {
+		abs, err := filepath.Abs(projectDir)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve project directory: %w", err)
+		}
+		return abs, nil
+	}
+
+	root, err := project.FindProjectRoot()
+	if err != nil {
+		return "", fmt.Errorf("failed to find project root: %w", err)
+	}
+	return root, nil
+}

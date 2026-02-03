@@ -101,13 +101,16 @@ type MaterializeInfoOptions struct {
 
 // MaterializeStatusOptions configures materialization status display
 type MaterializeStatusOptions struct {
+	Target     string // Target to check (empty = all targets)
 	ProjectDir string // Project directory (empty = auto-detect)
 	DryRun     bool   // Simulate status check
 }
 
 // MaterializeUpdateOptions configures materialization updates
 type MaterializeUpdateOptions struct {
+	Target     string // Target to update (empty = all targets)
 	ProjectDir string // Project directory (empty = auto-detect)
+	Force      bool   // Force re-materialization even if in sync
 	DryRun     bool   // Simulate updates
 }
 
