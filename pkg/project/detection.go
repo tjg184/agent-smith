@@ -89,6 +89,7 @@ func FindProjectRootFromDir(startDir string) (string, error) {
 		"  • .opencode/    (preferred - agent-smith project)\n" +
 		"  • .claude/      (preferred - Claude project)\n" +
 		"  • .github/      (preferred - GitHub Copilot project)\n" +
+		"  • .agents/      (universal - target-agnostic storage)\n" +
 		"  • .git/         (version control)\n" +
 		"  • go.mod        (Go projects)\n" +
 		"  • package.json  (Node.js projects)\n" +
@@ -106,7 +107,7 @@ func FindProjectRootFromDir(startDir string) (string, error) {
 }
 
 // GetTargetDirectory returns the target directory path for a given target name
-// (opencode, claudecode, or copilot) within the project root.
+// (opencode, claudecode, copilot, or universal) within the project root.
 func GetTargetDirectory(projectRoot, targetName string) string {
 	switch targetName {
 	case "opencode":
@@ -115,6 +116,8 @@ func GetTargetDirectory(projectRoot, targetName string) string {
 		return filepath.Join(projectRoot, ".claude")
 	case "copilot":
 		return filepath.Join(projectRoot, ".github")
+	case "universal":
+		return filepath.Join(projectRoot, ".agents")
 	default:
 		return ""
 	}

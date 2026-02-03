@@ -1,0 +1,17 @@
+created: "2026-02-03T13:34:00Z"
+tasks:
+  - title: "Story-001: As a developer, I want to materialize components to a universal `.agents/` directory so that multiple AI coding assistants can access them without duplication - Universal target creates `.agents/` directory in project root, Directory structure matches other targets: `.agents/skills/`, `.agents/agents/`, `.agents/commands/`, User can specify `--target universal` on materialize commands, Components materialize successfully to `.agents/` subdirectories"
+    completed: false
+    parallel_group: 0
+  - title: "Story-002: As a developer, I want the universal target to be opt-in only so that it doesn't interfere with my existing multi-target workflows - `--target all` does NOT include universal target, Universal target only used when explicitly specified with `--target universal`, `.agents` directory not added to project detection markers, Existing workflows with opencode/claudecode/copilot unchanged"
+    completed: false
+    parallel_group: 1
+  - title: "Story-003: As a developer, I want to see the universal target in help text and error messages so that I know it's available - Help text for materialize commands includes universal in target options, Example commands show usage of `--target universal`, Error messages for invalid targets mention universal as a valid option, Help text includes a note explaining universal is for target-agnostic storage"
+    completed: false
+    parallel_group: 1
+  - title: "Story-004: As a developer, I want to see universal target components in status and list commands so that I can track what's materialized - `agent-smith materialize status` shows universal target components with Universal (.agents/) label, `agent-smith materialize list` includes universal target in output, `agent-smith materialize info` displays universal target information, Status output uses consistent formatting with other targets"
+    completed: false
+    parallel_group: 2
+  - title: "Story-005: As a developer, I want `.agents/` mentioned in project detection error messages so that I'm aware of it as an option - Project detection error message includes `.agents/` in list of project markers, Error message describes universal as target-agnostic option, Documentation note explains when to use universal vs specific targets"
+    completed: false
+    parallel_group: 1

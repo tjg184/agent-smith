@@ -329,7 +329,7 @@ func NewComponentNotInstalledError(componentType, componentName, source string) 
 // NewMissingTargetFlagError creates an error for when the --target flag is missing.
 func NewMissingTargetFlagError(command string) *ErrorMessage {
 	return New("Target must be specified with --target flag or AGENT_SMITH_TARGET environment variable").
-		WithContext("Valid targets: opencode, claudecode, copilot, all").
+		WithContext("Valid targets: opencode, claudecode, copilot, universal, all").
 		WithSuggestion("Specify a target using the --target flag or set AGENT_SMITH_TARGET").
 		WithExample(fmt.Sprintf("agent-smith %s --target opencode", command)).
 		WithDetails("export AGENT_SMITH_TARGET=opencode  # Set default target")
@@ -338,7 +338,7 @@ func NewMissingTargetFlagError(command string) *ErrorMessage {
 // NewInvalidTargetError creates an error for when an invalid target is specified.
 func NewInvalidTargetError(targetName string) *ErrorMessage {
 	return New(fmt.Sprintf("Invalid target: %s", targetName)).
-		WithContext("Valid targets are: opencode, claudecode, copilot, all").
+		WithContext("Valid targets are: opencode, claudecode, copilot, universal, all").
 		WithSuggestion("Use one of the valid target names").
 		WithExample("agent-smith materialize skill my-skill --target opencode")
 }
@@ -351,6 +351,10 @@ func NewTargetDirectoryNotFoundError(targetName string) *ErrorMessage {
 		dirName = ".opencode/"
 	case "claudecode":
 		dirName = ".claude/"
+	case "copilot":
+		dirName = ".github/"
+	case "universal":
+		dirName = ".agents/"
 	default:
 		dirName = targetName
 	}

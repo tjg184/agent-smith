@@ -15,6 +15,8 @@ const (
 	TargetClaudeCode TargetType = "claudecode"
 	// TargetCopilot represents the GitHub Copilot environment
 	TargetCopilot TargetType = "copilot"
+	// TargetUniversal represents the universal (.agents) environment
+	TargetUniversal TargetType = "universal"
 )
 
 // GetTargetFromEnv returns the target specified by the AGENT_SMITH_TARGET environment variable
@@ -40,6 +42,8 @@ func NewTarget(targetType string) (Target, error) {
 		return NewClaudeCodeTarget()
 	case TargetCopilot:
 		return NewCopilotTarget()
+	case TargetUniversal:
+		return NewUniversalTarget()
 	}
 
 	// Check custom targets from config
@@ -54,7 +58,7 @@ func NewTarget(targetType string) (Target, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("unknown target type: %s (valid options: opencode, claudecode, copilot, or custom targets from config)", targetType)
+	return nil, fmt.Errorf("unknown target type: %s (valid options: opencode, claudecode, copilot, universal, or custom targets from config)", targetType)
 }
 
 // DetectTarget attempts to detect which target environment is available

@@ -375,8 +375,10 @@ func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error 
 			targetLabel = "OpenCode (.opencode/)"
 		} else if targetName == "claudecode" {
 			targetLabel = "Claude Code (.claude/)"
-		} else {
+		} else if targetName == "copilot" {
 			targetLabel = "GitHub Copilot (.github/)"
+		} else {
+			targetLabel = "Universal (.agents/)"
 		}
 		green := color.New(color.FgGreen).SprintFunc()
 		s.formatter.Info("%s %s", green(formatter.SymbolSuccess), targetLabel)
@@ -428,6 +430,7 @@ func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error 
 		s.formatter.Info("  agent-smith materialize skill <name> --target opencode")
 		s.formatter.Info("  agent-smith materialize all --target claudecode")
 		s.formatter.Info("  agent-smith materialize agent <name> --target copilot")
+		s.formatter.Info("  agent-smith materialize skill <name> --target universal  # Target-agnostic storage")
 	}
 
 	return nil
@@ -502,8 +505,10 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 			targetLabel = "OpenCode (.opencode/)"
 		} else if targetName == "claudecode" {
 			targetLabel = "Claude Code (.claude/)"
-		} else {
+		} else if targetName == "copilot" {
 			targetLabel = "GitHub Copilot (.github/)"
+		} else {
+			targetLabel = "Universal (.agents/)"
 		}
 
 		s.formatter.EmptyLine()
@@ -651,8 +656,10 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 			targetLabel = "OpenCode (.opencode/)"
 		} else if targetName == "claudecode" {
 			targetLabel = "Claude Code (.claude/)"
-		} else {
+		} else if targetName == "copilot" {
 			targetLabel = "GitHub Copilot (.github/)"
+		} else {
+			targetLabel = "Universal (.agents/)"
 		}
 		fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
 
@@ -735,6 +742,7 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 		s.formatter.Info("  agent-smith materialize skill <name> --target opencode")
 		s.formatter.Info("  agent-smith materialize all --target claudecode")
 		s.formatter.Info("  agent-smith materialize agent <name> --target copilot")
+		s.formatter.Info("  agent-smith materialize skill <name> --target universal  # Target-agnostic storage")
 		return nil
 	}
 
@@ -787,7 +795,7 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 	totalSkippedMissing := 0
 	foundAny := false
 
-	// Process each target
+	// Update each target
 	for _, targetName := range targetsToUpdate {
 		targetDir := project.GetTargetDirectory(projectRoot, targetName)
 
@@ -821,8 +829,10 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 			targetLabel = "OpenCode (.opencode/)"
 		} else if targetName == "claudecode" {
 			targetLabel = "Claude Code (.claude/)"
-		} else {
+		} else if targetName == "copilot" {
 			targetLabel = "GitHub Copilot (.github/)"
+		} else {
+			targetLabel = "Universal (.agents/)"
 		}
 		fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
 
@@ -977,6 +987,7 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 		s.formatter.Info("  agent-smith materialize skill <name> --target opencode")
 		s.formatter.Info("  agent-smith materialize all --target claudecode")
 		s.formatter.Info("  agent-smith materialize agent <name> --target copilot")
+		s.formatter.Info("  agent-smith materialize skill <name> --target universal  # Target-agnostic storage")
 		return nil
 	}
 

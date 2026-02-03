@@ -1589,12 +1589,13 @@ This command copies components from ~/.agent-smith/ to project-local directories
 with your team.
 
 USAGE:
-  agent-smith materialize skill <name> --target <opencode|claudecode|copilot|all>
-  agent-smith materialize agent <name> --target <opencode|claudecode|copilot|all>
-  agent-smith materialize command <name> --target <opencode|claudecode|copilot|all>
+  agent-smith materialize skill <name> --target <opencode|claudecode|copilot|universal|all>
+  agent-smith materialize agent <name> --target <opencode|claudecode|copilot|universal|all>
+  agent-smith materialize command <name> --target <opencode|claudecode|copilot|universal|all>
 
 FLAGS:
-  --target, -t <target>  - Target to materialize to (opencode, claudecode, copilot, or all)
+  --target, -t <target>  - Target to materialize to (opencode, claudecode, copilot, universal, or all)
+                           universal = target-agnostic storage in .agents/ directory
                            Can also be set via AGENT_SMITH_TARGET environment variable
   --project-dir <path>   - Optional, override project directory detection
   --force, -f            - Overwrite existing component if it differs
@@ -1654,7 +1655,7 @@ EXAMPLES:
 			handleMaterializeComponent("skills", args[0], target, projectDir, force, dryRun, profile)
 		},
 	}
-	materializeSkillCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, or all). Can also use AGENT_SMITH_TARGET environment variable")
+	materializeSkillCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, universal, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeSkillCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeSkillCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeSkillCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
@@ -1694,7 +1695,7 @@ EXAMPLES:
 			handleMaterializeComponent("agents", args[0], target, projectDir, force, dryRun, profile)
 		},
 	}
-	materializeAgentCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, or all). Can also use AGENT_SMITH_TARGET environment variable")
+	materializeAgentCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, universal, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeAgentCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeAgentCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeAgentCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
@@ -1734,7 +1735,7 @@ EXAMPLES:
 			handleMaterializeComponent("commands", args[0], target, projectDir, force, dryRun, profile)
 		},
 	}
-	materializeCommandCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, or all). Can also use AGENT_SMITH_TARGET environment variable")
+	materializeCommandCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, universal, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeCommandCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeCommandCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeCommandCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
@@ -1777,7 +1778,7 @@ EXAMPLES:
 			handleMaterializeAll(target, projectDir, force, dryRun, profile)
 		},
 	}
-	materializeAllCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, or all). Can also use AGENT_SMITH_TARGET environment variable")
+	materializeAllCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, universal, or all). Can also use AGENT_SMITH_TARGET environment variable")
 	materializeAllCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeAllCmd.Flags().BoolP("force", "f", false, "Overwrite existing components if they differ")
 	materializeAllCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
