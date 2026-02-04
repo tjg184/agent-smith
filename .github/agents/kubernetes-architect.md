@@ -1,1 +1,0 @@
-cicd-automation/kubernetes-architect.md

@@ -1,1 +1,0 @@
-code-review-ai/architect-review.md

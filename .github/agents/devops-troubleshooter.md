@@ -1,1 +1,0 @@
-cicd-automation/devops-troubleshooter.md

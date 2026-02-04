@@ -1,1 +1,0 @@
-business-analytics/business-analyst.md

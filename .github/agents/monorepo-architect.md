@@ -1,1 +1,0 @@
-developer-essentials/monorepo-architect.md

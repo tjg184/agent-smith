@@ -1,1 +1,0 @@
-application-performance/observability-engineer.md

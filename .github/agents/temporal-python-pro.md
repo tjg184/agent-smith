@@ -1,1 +1,0 @@
-backend-development/temporal-python-pro.md

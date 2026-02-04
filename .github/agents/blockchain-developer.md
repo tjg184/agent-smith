@@ -1,1 +1,0 @@
-blockchain-web3/blockchain-developer.md

@@ -1,1 +1,0 @@
-incident-response/incident-responder.md

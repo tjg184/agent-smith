@@ -1,1 +1,0 @@
-customer-sales-automation/sales-automator.md

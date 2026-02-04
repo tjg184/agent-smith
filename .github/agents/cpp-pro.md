@@ -1,1 +1,0 @@
-systems-programming/cpp-pro.md

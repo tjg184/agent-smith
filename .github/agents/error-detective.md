@@ -1,1 +1,0 @@
-distributed-debugging/error-detective.md

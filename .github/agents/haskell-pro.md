@@ -1,1 +1,0 @@
-functional-programming/haskell-pro.md

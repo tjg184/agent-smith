@@ -1,1 +1,0 @@
-seo-technical-optimization/seo-snippet-hunter.md

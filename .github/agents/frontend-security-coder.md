@@ -1,1 +1,0 @@
-frontend-mobile-security/frontend-security-coder.md

@@ -1,1 +1,0 @@
-seo-analysis-monitoring/seo-cannibalization-detector.md

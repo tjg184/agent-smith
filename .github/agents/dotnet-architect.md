@@ -1,1 +1,0 @@
-dotnet-contribution/dotnet-architect.md

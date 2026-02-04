@@ -1,1 +1,0 @@
-ui-design/accessibility-expert.md

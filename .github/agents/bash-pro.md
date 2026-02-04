@@ -1,1 +1,0 @@
-shell-scripting/bash-pro.md

@@ -1,1 +1,0 @@
-reverse-engineering/firmware-analyst.md

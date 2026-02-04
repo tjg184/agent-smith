@@ -1,1 +1,0 @@
-accessibility-compliance/ui-visual-validator.md

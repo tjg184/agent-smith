@@ -1,1 +1,0 @@
-multi-platform-apps/ui-ux-designer.md

@@ -1,1 +1,0 @@
-quantitative-trading/risk-manager.md

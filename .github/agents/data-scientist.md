@@ -1,1 +1,0 @@
-machine-learning-ops/data-scientist.md

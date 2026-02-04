@@ -1,1 +1,0 @@
-cicd-automation/cloud-architect.md

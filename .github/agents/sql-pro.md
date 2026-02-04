@@ -1,1 +1,0 @@
-database-design/sql-pro.md

@@ -1,1 +1,0 @@
-shell-scripting/posix-shell-pro.md

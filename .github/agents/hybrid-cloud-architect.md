@@ -1,1 +1,0 @@
-cloud-infrastructure/hybrid-cloud-architect.md
