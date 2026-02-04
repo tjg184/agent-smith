@@ -299,16 +299,18 @@ func TestLoadMetadata_Success(t *testing.T) {
 	// Create a sample lock file in the base directory (not in subdirectory)
 	lockFilePath := filepath.Join(tempDir, ".skill-lock.json")
 	lockFileContent := `{
-  "version": 3,
+  "version": 4,
   "skills": {
-    "test-skill": {
-      "source": "github.com/user/repo",
-      "sourceType": "git",
-      "sourceUrl": "https://github.com/user/repo",
-      "commitHash": "abc123",
-      "installedAt": "2024-01-01T00:00:00Z",
-      "updatedAt": "2024-01-01T00:00:00Z",
-      "version": 3
+    "https://github.com/user/repo": {
+      "test-skill": {
+        "source": "github.com/user/repo",
+        "sourceType": "git",
+        "sourceUrl": "https://github.com/user/repo",
+        "commitHash": "abc123",
+        "installedAt": "2024-01-01T00:00:00Z",
+        "updatedAt": "2024-01-01T00:00:00Z",
+        "version": 3
+      }
     }
   }
 }`
@@ -349,7 +351,7 @@ func TestLoadMetadata_NotFound(t *testing.T) {
 	// Create an empty lock file in the base directory
 	lockFilePath := filepath.Join(tempDir, ".skill-lock.json")
 	lockFileContent := `{
-  "version": 3,
+  "version": 4,
   "skills": {}
 }`
 	if err := os.WriteFile(lockFilePath, []byte(lockFileContent), 0644); err != nil {
@@ -408,16 +410,18 @@ func TestLoadMetadata_AllComponentTypes(t *testing.T) {
 			// Create a sample lock file in the base directory
 			lockFilePath := filepath.Join(tempDir, tc.lockFileName)
 			lockFileContent := fmt.Sprintf(`{
-  "version": 3,
+  "version": 4,
   "%s": {
-    "test-component": {
-      "source": "github.com/user/repo",
-      "sourceType": "git",
-      "sourceUrl": "https://github.com/user/repo",
-      "commitHash": "def456",
-      "installedAt": "2024-01-01T00:00:00Z",
-      "updatedAt": "2024-01-01T00:00:00Z",
-      "version": 3
+    "https://github.com/user/repo": {
+      "test-component": {
+        "source": "github.com/user/repo",
+        "sourceType": "git",
+        "sourceUrl": "https://github.com/user/repo",
+        "commitHash": "def456",
+        "installedAt": "2024-01-01T00:00:00Z",
+        "updatedAt": "2024-01-01T00:00:00Z",
+        "version": 3
+      }
     }
   }
 }`, tc.componentType)
@@ -457,15 +461,17 @@ func TestLoadMetadata_NoCommitHash(t *testing.T) {
 	// Create a lock file without commit hash (old format) in the base directory
 	lockFilePath := filepath.Join(tempDir, ".skill-lock.json")
 	lockFileContent := `{
-  "version": 3,
+  "version": 4,
   "skills": {
-    "test-skill": {
-      "source": "github.com/user/repo",
-      "sourceType": "git",
-      "sourceUrl": "https://github.com/user/repo",
-      "installedAt": "2024-01-01T00:00:00Z",
-      "updatedAt": "2024-01-01T00:00:00Z",
-      "version": 3
+    "https://github.com/user/repo": {
+      "test-skill": {
+        "source": "github.com/user/repo",
+        "sourceType": "git",
+        "sourceUrl": "https://github.com/user/repo",
+        "installedAt": "2024-01-01T00:00:00Z",
+        "updatedAt": "2024-01-01T00:00:00Z",
+        "version": 3
+      }
     }
   }
 }`
@@ -500,15 +506,17 @@ func TestHasUpdates_NoCommitHash(t *testing.T) {
 	// Create a lock file without commit hash (old format)
 	lockFilePath := filepath.Join(tempDir, ".skill-lock.json")
 	lockFileContent := `{
-  "version": 3,
+  "version": 4,
   "skills": {
-    "test-skill": {
-      "source": "github.com/user/repo",
-      "sourceType": "git",
-      "sourceUrl": "https://github.com/user/repo",
-      "installedAt": "2024-01-01T00:00:00Z",
-      "updatedAt": "2024-01-01T00:00:00Z",
-      "version": 3
+    "https://github.com/user/repo": {
+      "test-skill": {
+        "source": "github.com/user/repo",
+        "sourceType": "git",
+        "sourceUrl": "https://github.com/user/repo",
+        "installedAt": "2024-01-01T00:00:00Z",
+        "updatedAt": "2024-01-01T00:00:00Z",
+        "version": 3
+      }
     }
   }
 }`

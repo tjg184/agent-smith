@@ -1,0 +1,1 @@
+content-marketing/search-specialist.md

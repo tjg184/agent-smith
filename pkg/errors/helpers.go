@@ -365,6 +365,24 @@ func NewTargetDirectoryNotFoundError(targetName string) *ErrorMessage {
 		WithExample(fmt.Sprintf("mkdir -p %s", dirName))
 }
 
+// NewAmbiguousComponentError creates an error for when a component name exists in multiple sources.
+func NewAmbiguousComponentError(componentType, componentName string, sourceURLs []string) *ErrorMessage {
+	msg := New(fmt.Sprintf("Component '%s' found in multiple sources", componentName)).
+		WithContext("The same component name exists in multiple repositories")
+
+	if len(sourceURLs) > 0 {
+		msg.WithDetails("Available sources:")
+		for _, url := range sourceURLs {
+			msg.WithDetails(fmt.Sprintf("  - %s", url))
+		}
+	}
+
+	msg.WithSuggestion("Specify the source explicitly using the --source flag").
+		WithExample(fmt.Sprintf("agent-smith materialize %s %s --source <source-url>", componentType, componentName))
+
+	return msg
+}
+
 // Helper function to check if a string contains a substring (case-insensitive)
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr ||

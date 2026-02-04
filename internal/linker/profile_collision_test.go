@@ -51,16 +51,18 @@ func TestProfileCollisionHandling_Integration(t *testing.T) {
 
 	// Create lock file for profile1 with source URL
 	lockFile1Content := `{
-  "version": 3,
+  "version": 4,
   "skills": {
-    "collision-test-skill": {
-      "source": "test-source-1",
-      "sourceType": "git",
-      "sourceUrl": "https://github.com/test/repo1",
-      "commitHash": "abc123",
-      "installedAt": "2024-01-01T00:00:00Z",
-      "updatedAt": "2024-01-01T00:00:00Z",
-      "version": 3
+    "https://github.com/test/repo1": {
+      "collision-test-skill": {
+        "source": "test-source-1",
+        "sourceType": "git",
+        "sourceUrl": "https://github.com/test/repo1",
+        "commitHash": "abc123",
+        "installedAt": "2024-01-01T00:00:00Z",
+        "updatedAt": "2024-01-01T00:00:00Z",
+        "version": 3
+      }
     }
   }
 }`
@@ -80,16 +82,18 @@ func TestProfileCollisionHandling_Integration(t *testing.T) {
 
 	// Create lock file for profile2 with source URL
 	lockFile2Content := `{
-  "version": 3,
+  "version": 4,
   "skills": {
-    "collision-test-skill": {
-      "source": "test-source-2",
-      "sourceType": "git",
-      "sourceUrl": "https://github.com/test/repo2",
-      "commitHash": "def456",
-      "installedAt": "2024-01-01T00:00:00Z",
-      "updatedAt": "2024-01-01T00:00:00Z",
-      "version": 3
+    "https://github.com/test/repo2": {
+      "collision-test-skill": {
+        "source": "test-source-2",
+        "sourceType": "git",
+        "sourceUrl": "https://github.com/test/repo2",
+        "commitHash": "def456",
+        "installedAt": "2024-01-01T00:00:00Z",
+        "updatedAt": "2024-01-01T00:00:00Z",
+        "version": 3
+      }
     }
   }
 }`

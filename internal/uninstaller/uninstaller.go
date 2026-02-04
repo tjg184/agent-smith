@@ -281,24 +281,28 @@ func (u *Uninstaller) findComponentsBySource(normalizedURL string) (map[string][
 			return nil, fmt.Errorf("failed to parse lock file for %s: %w", componentType, err)
 		}
 
-		// Get the appropriate map for this component type
-		var entries map[string]metadata.ComponentLockEntry
+		// Get the appropriate nested map for this component type
+		var nestedEntries map[string]map[string]metadata.ComponentLockEntry
 		switch componentType {
 		case "skills":
-			entries = lockFile.Skills
+			nestedEntries = lockFile.Skills
 		case "agents":
-			entries = lockFile.Agents
+			nestedEntries = lockFile.Agents
 		case "commands":
-			entries = lockFile.Commands
+			nestedEntries = lockFile.Commands
 		default:
 			continue
 		}
 
-		// Find components matching the source URL
+		// Find components matching the source URL (iterate through nested structure)
 		var matchingNames []string
-		for name, entry := range entries {
-			if u.matchesSourceURL(entry.SourceUrl, normalizedURL) || u.matchesSourceURL(entry.Source, normalizedURL) {
-				matchingNames = append(matchingNames, name)
+		for sourceURL, entries := range nestedEntries {
+			for name, entry := range entries {
+				if u.matchesSourceURL(sourceURL, normalizedURL) ||
+					u.matchesSourceURL(entry.SourceUrl, normalizedURL) ||
+					u.matchesSourceURL(entry.Source, normalizedURL) {
+					matchingNames = append(matchingNames, name)
+				}
 			}
 		}
 

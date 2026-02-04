@@ -93,14 +93,21 @@ func (p *AgentFlattenPostprocessor) Process(ctx PostprocessContext) error {
 	for _, mdFile := range mdFiles {
 		filename := filepath.Base(mdFile)
 		symlinkPath := filepath.Join(agentsDir, filename)
-		relativeTarget := filepath.Join(ctx.ComponentName, filename)
+
+		// Use FilesystemName (actual disk name) for the symlink target, not ComponentName
+		// This handles cases where auto-suffixing occurred (e.g., accessibility-compliance-2)
+		targetDir := ctx.FilesystemName
+		if targetDir == "" {
+			targetDir = ctx.ComponentName // Fallback for safety
+		}
+		relativeTarget := filepath.Join(targetDir, filename)
 
 		// Check for name conflicts across components
 		if ctx.SymlinkRegistry != nil {
 			if existingComponent, exists := ctx.SymlinkRegistry[filename]; exists && existingComponent != ctx.ComponentName {
 				ctx.Formatter.WarningMsg("⚠️  Name conflict: %s (from %s) conflicts with existing %s (from %s)",
 					filename, ctx.ComponentName, filename, existingComponent)
-				ctx.Formatter.WarningMsg("   Skipping symlink for %s/%s", ctx.ComponentName, filename)
+				ctx.Formatter.WarningMsg("   Skipping symlink for %s → %s", filename, relativeTarget)
 				skippedCount++
 				continue
 			}
@@ -134,8 +141,8 @@ func (p *AgentFlattenPostprocessor) Process(ctx PostprocessContext) error {
 
 		// Create the symlink
 		if ctx.DryRun {
-			ctx.Formatter.Info("  Would create flat symlink: %s → %s/%s",
-				filename, ctx.ComponentName, filename)
+			ctx.Formatter.Info("  Would create flat symlink: %s → %s",
+				filename, relativeTarget)
 			createdCount++
 		} else {
 			if err := os.Symlink(relativeTarget, symlinkPath); err != nil {
@@ -144,8 +151,8 @@ func (p *AgentFlattenPostprocessor) Process(ctx PostprocessContext) error {
 				skippedCount++
 				continue
 			}
-			ctx.Formatter.Info("  Created flat symlink: %s → %s/%s",
-				filename, ctx.ComponentName, filename)
+			ctx.Formatter.Info("  Created flat symlink: %s → %s",
+				filename, relativeTarget)
 			createdCount++
 		}
 
@@ -198,8 +205,12 @@ func (p *AgentFlattenPostprocessor) Cleanup(ctx PostprocessContext) error {
 		}
 
 		// Check if symlink points to a file in our component folder
-		// Target format: "componentName/filename.md"
-		if strings.HasPrefix(target, ctx.ComponentName+"/") {
+		// Target format: "filesystemName/filename.md" (use FilesystemName to handle auto-suffixing)
+		targetDir := ctx.FilesystemName
+		if targetDir == "" {
+			targetDir = ctx.ComponentName // Fallback for safety
+		}
+		if strings.HasPrefix(target, targetDir+"/") {
 			if !ctx.DryRun {
 				if err := os.Remove(symlinkPath); err != nil {
 					ctx.Formatter.WarningMsg("Could not remove symlink %s during cleanup: %v", entry.Name(), err)

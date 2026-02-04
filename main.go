@@ -841,11 +841,12 @@ func main() {
 				log.Fatal("Failed to list targets:", err)
 			}
 		},
-		func(componentType, componentName, target, projectDir string, force, dryRun bool, profile string) {
+		func(componentType, componentName, target, projectDir string, force, dryRun bool, profile, source string) {
 			opts := services.MaterializeOptions{
 				Target:     target,
 				ProjectDir: projectDir,
 				Profile:    profile,
+				Source:     source,
 				Force:      force,
 				DryRun:     dryRun,
 			}
@@ -875,10 +876,11 @@ func main() {
 				log.Fatal("Failed to list materialized components:", err)
 			}
 		},
-		func(componentType, componentName, target, projectDir string) {
+		func(componentType, componentName, target, projectDir, source string) {
 			opts := services.MaterializeInfoOptions{
 				Target:     target,
 				ProjectDir: projectDir,
+				Source:     source,
 			}
 			if err := materializeService.ShowComponentInfo(componentType, componentName, opts); err != nil {
 				// Error already logged/displayed by service
@@ -895,10 +897,11 @@ func main() {
 				os.Exit(1)
 			}
 		},
-		func(target, projectDir string, force, dryRun bool) {
+		func(target, projectDir, source string, force, dryRun bool) {
 			opts := services.MaterializeUpdateOptions{
 				Target:     target,
 				ProjectDir: projectDir,
+				Source:     source,
 				Force:      force,
 				DryRun:     dryRun,
 			}

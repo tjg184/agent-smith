@@ -12,6 +12,7 @@ import (
 	"github.com/tgaines/agent-smith/internal/formatter"
 	"github.com/tgaines/agent-smith/internal/materializer"
 	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
+	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/internal/updater"
 	"github.com/tgaines/agent-smith/pkg/config"
 	"github.com/tgaines/agent-smith/pkg/errors"
@@ -139,9 +140,31 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 	}
 
 	// Get lock file entry for provenance
-	lockEntry, err := metadataPkg.LoadLockFileEntry(baseDir, componentType, componentName)
-	if err != nil {
-		return fmt.Errorf("failed to load component metadata: %w", err)
+	var lockEntry *models.ComponentLockEntry
+
+	if opts.Source != "" {
+		// Use specific source if provided
+		var loadErr error
+		lockEntry, loadErr = metadataPkg.LoadLockFileEntryBySource(baseDir, componentType, componentName, opts.Source)
+		if loadErr != nil {
+			return fmt.Errorf("failed to load component metadata from source %s: %w", opts.Source, loadErr)
+		}
+	} else {
+		// Try to load from any source
+		var loadErr error
+		lockEntry, loadErr = metadataPkg.LoadLockFileEntry(baseDir, componentType, componentName)
+		if loadErr != nil {
+			// Check if it's an ambiguous component error
+			if strings.Contains(loadErr.Error(), "found in multiple sources") {
+				// Extract source URLs from error and show nice disambiguation message
+				sources, findErr := metadataPkg.FindComponentSources(baseDir, componentType, componentName)
+				if findErr == nil && len(sources) > 0 {
+					fmt.Println(errors.NewAmbiguousComponentError(componentType, componentName, sources).Format())
+				}
+				return fmt.Errorf("ambiguous component name")
+			}
+			return fmt.Errorf("failed to load component metadata: %w", loadErr)
+		}
 	}
 
 	// Calculate source hash
@@ -172,7 +195,22 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			return fmt.Errorf("invalid target: %s", tgt)
 		}
 
-		destPath := filepath.Join(targetDir, componentType, componentName)
+		// Load materialization metadata to check for filesystem name conflicts
+		matMetadata, err := project.LoadMaterializationMetadata(targetDir)
+		if err != nil {
+			return fmt.Errorf("failed to load materialization metadata: %w", err)
+		}
+
+		// Get source URL for idempotency check
+		sourceUrl := ""
+		if lockEntry != nil {
+			sourceUrl = lockEntry.SourceUrl
+		}
+
+		// Resolve the actual filesystem name (handles conflicts with auto-suffixing)
+		// Will reuse existing filesystem name if this exact component is already materialized
+		filesystemName := project.ResolveFilesystemName(filepath.Join(targetDir, componentType), componentType, componentName, sourceUrl, matMetadata)
+		destPath := filepath.Join(targetDir, componentType, filesystemName)
 
 		// Check if exists
 		if _, err := os.Stat(destPath); err == nil {
@@ -205,13 +243,14 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 
 				// Run cleanup postprocessors before removing
 				cleanupCtx := PostprocessContext{
-					ComponentType: componentType,
-					ComponentName: componentName,
-					Target:        tgt,
-					TargetDir:     targetDir,
-					DestPath:      destPath,
-					DryRun:        false,
-					Formatter:     s.formatter,
+					ComponentType:  componentType,
+					ComponentName:  componentName,
+					FilesystemName: filesystemName,
+					Target:         tgt,
+					TargetDir:      targetDir,
+					DestPath:       destPath,
+					DryRun:         false,
+					Formatter:      s.formatter,
 				}
 				s.postprocessorRegistry.RunCleanup(cleanupCtx)
 
@@ -238,6 +277,7 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			postprocessCtx := PostprocessContext{
 				ComponentType:   componentType,
 				ComponentName:   componentName,
+				FilesystemName:  filesystemName,
 				Target:          tgt,
 				TargetDir:       targetDir,
 				DestPath:        destPath,
@@ -269,6 +309,7 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			postprocessCtx := PostprocessContext{
 				ComponentType:   componentType,
 				ComponentName:   componentName,
+				FilesystemName:  filesystemName,
 				Target:          tgt,
 				TargetDir:       targetDir,
 				DestPath:        destPath,
@@ -280,12 +321,7 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 				return fmt.Errorf("postprocessing failed: %w", err)
 			}
 
-			// Load/update metadata
-			matMetadata, err := project.LoadMaterializationMetadata(targetDir)
-			if err != nil {
-				return fmt.Errorf("failed to load materialization metadata: %w", err)
-			}
-
+			// Load/update metadata (already loaded earlier, reuse it)
 			project.AddMaterializationEntry(
 				matMetadata,
 				componentType,
@@ -297,13 +333,19 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 				lockEntry.OriginalPath,
 				sourceHash,
 				sourceHash,
+				filesystemName,
 			)
 
 			if err := project.SaveMaterializationMetadata(targetDir, matMetadata); err != nil {
 				return fmt.Errorf("failed to save materialization metadata: %w", err)
 			}
 
-			s.formatter.Info("%s Materialized %s '%s' to %s", formatter.SymbolSuccess, componentType, componentName, tgt)
+			// Display success message
+			if filesystemName != componentName {
+				s.formatter.Info("%s Materialized %s '%s' as '%s' to %s", formatter.SymbolSuccess, componentType, componentName, filesystemName, tgt)
+			} else {
+				s.formatter.Info("%s Materialized %s '%s' to %s", formatter.SymbolSuccess, componentType, componentName, tgt)
+			}
 			s.formatter.Info("  Source:      %s", componentSourceDir)
 			if sourceProfile != "" {
 				s.formatter.Info("  From Profile: %s", sourceProfile)
@@ -437,38 +479,68 @@ func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error 
 		s.formatter.Info("%s %s", green(formatter.SymbolSuccess), targetLabel)
 
 		// Display skills
-		if len(metadata.Skills) > 0 {
-			s.formatter.Info("  Skills (%d):", len(metadata.Skills))
-			for name, meta := range metadata.Skills {
-				sourceInfo := meta.Source
-				if meta.SourceProfile != "" {
-					sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
+		totalSkills := 0
+		for _, components := range metadata.Skills {
+			totalSkills += len(components)
+		}
+		if totalSkills > 0 {
+			s.formatter.Info("  Skills (%d):", totalSkills)
+			for _, components := range metadata.Skills {
+				for name, meta := range components {
+					sourceInfo := meta.Source
+					if meta.SourceProfile != "" {
+						sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
+					}
+					displayName := name
+					if meta.FilesystemName != name {
+						displayName = fmt.Sprintf("%s (as %s)", name, meta.FilesystemName)
+					}
+					s.formatter.Info("    • %-30s (from %s)", displayName, sourceInfo)
 				}
-				s.formatter.Info("    • %-30s (from %s)", name, sourceInfo)
 			}
 		}
 
 		// Display agents
-		if len(metadata.Agents) > 0 {
-			s.formatter.Info("  Agents (%d):", len(metadata.Agents))
-			for name, meta := range metadata.Agents {
-				sourceInfo := meta.Source
-				if meta.SourceProfile != "" {
-					sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
+		totalAgents := 0
+		for _, components := range metadata.Agents {
+			totalAgents += len(components)
+		}
+		if totalAgents > 0 {
+			s.formatter.Info("  Agents (%d):", totalAgents)
+			for _, components := range metadata.Agents {
+				for name, meta := range components {
+					sourceInfo := meta.Source
+					if meta.SourceProfile != "" {
+						sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
+					}
+					displayName := name
+					if meta.FilesystemName != name {
+						displayName = fmt.Sprintf("%s (as %s)", name, meta.FilesystemName)
+					}
+					s.formatter.Info("    • %-30s (from %s)", displayName, sourceInfo)
 				}
-				s.formatter.Info("    • %-30s (from %s)", name, sourceInfo)
 			}
 		}
 
 		// Display commands
-		if len(metadata.Commands) > 0 {
-			s.formatter.Info("  Commands (%d):", len(metadata.Commands))
-			for name, meta := range metadata.Commands {
-				sourceInfo := meta.Source
-				if meta.SourceProfile != "" {
-					sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
+		totalCommands := 0
+		for _, components := range metadata.Commands {
+			totalCommands += len(components)
+		}
+		if totalCommands > 0 {
+			s.formatter.Info("  Commands (%d):", totalCommands)
+			for _, components := range metadata.Commands {
+				for name, meta := range components {
+					sourceInfo := meta.Source
+					if meta.SourceProfile != "" {
+						sourceInfo = fmt.Sprintf("%s (profile: %s)", meta.Source, meta.SourceProfile)
+					}
+					displayName := name
+					if meta.FilesystemName != name {
+						displayName = fmt.Sprintf("%s (as %s)", name, meta.FilesystemName)
+					}
+					s.formatter.Info("    • %-30s (from %s)", displayName, sourceInfo)
 				}
-				s.formatter.Info("    • %-30s (from %s)", name, sourceInfo)
 			}
 		}
 
@@ -540,9 +612,16 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 			return fmt.Errorf("invalid component type: %s (must be skills, agents, or commands)", componentType)
 		}
 
-		// Look up the component
-		meta, exists := componentMap[componentName]
-		if !exists {
+		// Look up the component across all sources
+		var foundMeta *project.MaterializedComponentMetadata
+		for _, components := range componentMap {
+			if meta, exists := components[componentName]; exists {
+				foundMeta = &meta
+				break
+			}
+		}
+
+		if foundMeta == nil {
 			if opts.Target != "" {
 				// User specified a target but component not found
 				s.formatter.Info("%s Component '%s' not found in %s target", red(formatter.SymbolError), componentName, targetName)
@@ -551,6 +630,7 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 		}
 
 		foundInAnyTarget = true
+		meta := *foundMeta
 
 		// Display target header
 		var targetLabel string
@@ -634,8 +714,10 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 				}
 				componentMap := metadata.GetComponentMap(componentType)
 				if componentMap != nil {
-					for compName := range componentMap {
-						availableComponents = append(availableComponents, compName)
+					for _, components := range componentMap {
+						for compName := range components {
+							availableComponents = append(availableComponents, compName)
+						}
 					}
 				}
 			}
@@ -967,7 +1049,13 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 
 			// Source is in temp directory
 			sourceDir := filepath.Join(tempDir, comp.Type, comp.Name)
-			destDir := filepath.Join(targetDir, comp.Type, comp.Name)
+
+			// Use FilesystemName from metadata if available (handles auto-suffixing)
+			filesystemName := comp.Name
+			if comp.Metadata.FilesystemName != "" {
+				filesystemName = comp.Metadata.FilesystemName
+			}
+			destDir := filepath.Join(targetDir, comp.Type, filesystemName)
 
 			// Remove existing materialized component
 			if err := os.RemoveAll(destDir); err != nil {
@@ -985,6 +1073,7 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 			postprocessCtx := PostprocessContext{
 				ComponentType:   comp.Type,
 				ComponentName:   comp.Name,
+				FilesystemName:  filesystemName,
 				Target:          targetName,
 				TargetDir:       targetDir,
 				DestPath:        destDir,
@@ -1028,14 +1117,25 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 			comp.Metadata.CurrentHash = newCurrentHash
 			comp.Metadata.MaterializedAt = time.Now().Format(time.RFC3339)
 
-			// Save updated metadata back to the metadata struct
+			// Save updated metadata back to the nested metadata struct
+			// Use the source URL from the metadata to determine the correct nested location
+			sourceURL := comp.Metadata.Source
 			switch comp.Type {
 			case "skills":
-				metadata.Skills[comp.Name] = comp.Metadata
+				if metadata.Skills[sourceURL] == nil {
+					metadata.Skills[sourceURL] = make(map[string]project.MaterializedComponentMetadata)
+				}
+				metadata.Skills[sourceURL][comp.Name] = comp.Metadata
 			case "agents":
-				metadata.Agents[comp.Name] = comp.Metadata
+				if metadata.Agents[sourceURL] == nil {
+					metadata.Agents[sourceURL] = make(map[string]project.MaterializedComponentMetadata)
+				}
+				metadata.Agents[sourceURL][comp.Name] = comp.Metadata
 			case "commands":
-				metadata.Commands[comp.Name] = comp.Metadata
+				if metadata.Commands[sourceURL] == nil {
+					metadata.Commands[sourceURL] = make(map[string]project.MaterializedComponentMetadata)
+				}
+				metadata.Commands[sourceURL][comp.Name] = comp.Metadata
 			}
 
 			fmt.Printf("  %s Updated %s\n", green("✓"), comp.Name)

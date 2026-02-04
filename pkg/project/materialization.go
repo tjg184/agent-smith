@@ -15,11 +15,12 @@ import (
 
 // MaterializationMetadata represents the metadata file structure
 // stored in .opencode/.materializations.json or .claude/.materializations.json
+// Version 2+ uses nested structure: map[sourceURL]map[componentName]MaterializedComponentMetadata
 type MaterializationMetadata struct {
-	Version  int                                      `json:"version"`
-	Skills   map[string]MaterializedComponentMetadata `json:"skills"`
-	Agents   map[string]MaterializedComponentMetadata `json:"agents"`
-	Commands map[string]MaterializedComponentMetadata `json:"commands"`
+	Version  int                                                 `json:"version"`
+	Skills   map[string]map[string]MaterializedComponentMetadata `json:"skills"`
+	Agents   map[string]map[string]MaterializedComponentMetadata `json:"agents"`
+	Commands map[string]map[string]MaterializedComponentMetadata `json:"commands"`
 }
 
 // MaterializedComponentMetadata represents metadata for a single materialized component
@@ -32,6 +33,7 @@ type MaterializedComponentMetadata struct {
 	MaterializedAt string `json:"materializedAt"`
 	SourceHash     string `json:"sourceHash"`
 	CurrentHash    string `json:"currentHash"`
+	FilesystemName string `json:"filesystemName"` // Actual directory name on disk (may differ from component name)
 }
 
 // LoadMaterializationMetadata loads metadata from the target directory's .materializations.json
@@ -41,12 +43,12 @@ func LoadMaterializationMetadata(targetDir string) (*MaterializationMetadata, er
 	data, err := os.ReadFile(metadataPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// File doesn't exist, return empty metadata
+			// File doesn't exist, return empty metadata with v2 structure
 			return &MaterializationMetadata{
-				Version:  1,
-				Skills:   make(map[string]MaterializedComponentMetadata),
-				Agents:   make(map[string]MaterializedComponentMetadata),
-				Commands: make(map[string]MaterializedComponentMetadata),
+				Version:  2,
+				Skills:   make(map[string]map[string]MaterializedComponentMetadata),
+				Agents:   make(map[string]map[string]MaterializedComponentMetadata),
+				Commands: make(map[string]map[string]MaterializedComponentMetadata),
 			}, nil
 		}
 		return nil, fmt.Errorf("failed to read metadata file: %w", err)
@@ -57,15 +59,16 @@ func LoadMaterializationMetadata(targetDir string) (*MaterializationMetadata, er
 		return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 	}
 
-	// Ensure maps are initialized
+	// Ensure maps are initialized and update version
+	metadata.Version = 2
 	if metadata.Skills == nil {
-		metadata.Skills = make(map[string]MaterializedComponentMetadata)
+		metadata.Skills = make(map[string]map[string]MaterializedComponentMetadata)
 	}
 	if metadata.Agents == nil {
-		metadata.Agents = make(map[string]MaterializedComponentMetadata)
+		metadata.Agents = make(map[string]map[string]MaterializedComponentMetadata)
 	}
 	if metadata.Commands == nil {
-		metadata.Commands = make(map[string]MaterializedComponentMetadata)
+		metadata.Commands = make(map[string]map[string]MaterializedComponentMetadata)
 	}
 
 	return &metadata, nil
@@ -88,7 +91,8 @@ func SaveMaterializationMetadata(targetDir string, metadata *MaterializationMeta
 }
 
 // AddMaterializationEntry adds or updates a materialization entry in the metadata
-func AddMaterializationEntry(metadata *MaterializationMetadata, componentType, componentName, source, sourceType, sourceProfile, commitHash, originalPath, sourceHash, currentHash string) {
+// Uses nested structure by source URL
+func AddMaterializationEntry(metadata *MaterializationMetadata, componentType, componentName, source, sourceType, sourceProfile, commitHash, originalPath, sourceHash, currentHash, filesystemName string) {
 	now := time.Now().Format(time.RFC3339)
 
 	entry := MaterializedComponentMetadata{
@@ -100,20 +104,33 @@ func AddMaterializationEntry(metadata *MaterializationMetadata, componentType, c
 		MaterializedAt: now,
 		SourceHash:     sourceHash,
 		CurrentHash:    currentHash,
+		FilesystemName: filesystemName,
 	}
 
+	// Get or create the nested map for this component type
+	var targetMap map[string]map[string]MaterializedComponentMetadata
 	switch componentType {
 	case "skills":
-		metadata.Skills[componentName] = entry
+		targetMap = metadata.Skills
 	case "agents":
-		metadata.Agents[componentName] = entry
+		targetMap = metadata.Agents
 	case "commands":
-		metadata.Commands[componentName] = entry
+		targetMap = metadata.Commands
+	default:
+		return
 	}
+
+	// Initialize source map if it doesn't exist
+	if targetMap[source] == nil {
+		targetMap[source] = make(map[string]MaterializedComponentMetadata)
+	}
+
+	// Add or update the entry
+	targetMap[source][componentName] = entry
 }
 
-// GetComponentMap returns the appropriate component map for the given component type
-func (m *MaterializationMetadata) GetComponentMap(componentType string) map[string]MaterializedComponentMetadata {
+// GetComponentMap returns the appropriate nested component map for the given component type
+func (m *MaterializationMetadata) GetComponentMap(componentType string) map[string]map[string]MaterializedComponentMetadata {
 	switch componentType {
 	case "skills":
 		return m.Skills
@@ -126,6 +143,110 @@ func (m *MaterializationMetadata) GetComponentMap(componentType string) map[stri
 	}
 }
 
+// ResolveFilesystemName determines the actual filesystem name to use for a component
+// If the exact component (sourceUrl + componentName) is already materialized, returns its existing filesystem name
+// Otherwise, if componentName already exists, returns componentName-2, componentName-3, etc.
+func ResolveFilesystemName(targetDir, componentType, componentName, sourceUrl string, metadata *MaterializationMetadata) string {
+	// First, check if this exact component (sourceUrl + componentName) is already materialized
+	// If so, reuse its existing filesystem name for idempotency
+	if sourceUrl != "" {
+		existingFilesystemName := findExistingFilesystemName(componentType, componentName, sourceUrl, metadata)
+		if existingFilesystemName != "" {
+			return existingFilesystemName
+		}
+	}
+
+	// Check both filesystem and metadata for conflicts
+	baseComponentDir := filepath.Join(targetDir, componentName)
+
+	// If the base name doesn't exist on disk or in metadata, use it
+	if !filesystemNameExists(baseComponentDir) && !metadataFilesystemNameExists(componentName, componentType, metadata) {
+		return componentName
+	}
+
+	// Find the next available suffix
+	suffix := 2
+	for {
+		candidateName := fmt.Sprintf("%s-%d", componentName, suffix)
+		candidatePath := filepath.Join(targetDir, candidateName)
+
+		if !filesystemNameExists(candidatePath) && !metadataFilesystemNameExists(candidateName, componentType, metadata) {
+			return candidateName
+		}
+
+		suffix++
+
+		// Safety check to prevent infinite loops
+		if suffix > 1000 {
+			return fmt.Sprintf("%s-%d", componentName, suffix)
+		}
+	}
+}
+
+// filesystemNameExists checks if a path exists on disk
+func filesystemNameExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// metadataFilesystemNameExists checks if a filesystem name is already used in metadata
+// Only checks within the specified component type since each type has its own directory
+func metadataFilesystemNameExists(filesystemName string, componentType string, metadata *MaterializationMetadata) bool {
+	var componentMap map[string]map[string]MaterializedComponentMetadata
+
+	switch componentType {
+	case "skills":
+		componentMap = metadata.Skills
+	case "agents":
+		componentMap = metadata.Agents
+	case "commands":
+		componentMap = metadata.Commands
+	default:
+		return false
+	}
+
+	// Check only the specified component type
+	for _, sourceComponents := range componentMap {
+		for _, entry := range sourceComponents {
+			if entry.FilesystemName == filesystemName {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// findExistingFilesystemName checks if a component with the given sourceUrl and componentName
+// is already materialized, and returns its filesystem name if found
+func findExistingFilesystemName(componentType, componentName, sourceUrl string, metadata *MaterializationMetadata) string {
+	var componentMap map[string]map[string]MaterializedComponentMetadata
+
+	switch componentType {
+	case "skills":
+		componentMap = metadata.Skills
+	case "agents":
+		componentMap = metadata.Agents
+	case "commands":
+		componentMap = metadata.Commands
+	default:
+		return ""
+	}
+
+	// Check if this source has components
+	sourceComponents, exists := componentMap[sourceUrl]
+	if !exists {
+		return ""
+	}
+
+	// Check if this specific component is materialized from this source
+	if entry, exists := sourceComponents[componentName]; exists {
+		return entry.FilesystemName
+	}
+
+	return ""
+}
+
 // ComponentInfo represents a single materialized component with its type and metadata
 type ComponentInfo struct {
 	Type     string
@@ -134,31 +255,38 @@ type ComponentInfo struct {
 }
 
 // GetAllMaterializedComponents returns a flat list of all materialized components
+// Iterates through nested structure and flattens
 func (m *MaterializationMetadata) GetAllMaterializedComponents() []ComponentInfo {
 	var components []ComponentInfo
 
-	for name, metadata := range m.Skills {
-		components = append(components, ComponentInfo{
-			Type:     "skills",
-			Name:     name,
-			Metadata: metadata,
-		})
+	for _, sourceComponents := range m.Skills {
+		for name, metadata := range sourceComponents {
+			components = append(components, ComponentInfo{
+				Type:     "skills",
+				Name:     name,
+				Metadata: metadata,
+			})
+		}
 	}
 
-	for name, metadata := range m.Agents {
-		components = append(components, ComponentInfo{
-			Type:     "agents",
-			Name:     name,
-			Metadata: metadata,
-		})
+	for _, sourceComponents := range m.Agents {
+		for name, metadata := range sourceComponents {
+			components = append(components, ComponentInfo{
+				Type:     "agents",
+				Name:     name,
+				Metadata: metadata,
+			})
+		}
 	}
 
-	for name, metadata := range m.Commands {
-		components = append(components, ComponentInfo{
-			Type:     "commands",
-			Name:     name,
-			Metadata: metadata,
-		})
+	for _, sourceComponents := range m.Commands {
+		for name, metadata := range sourceComponents {
+			components = append(components, ComponentInfo{
+				Type:     "commands",
+				Name:     name,
+				Metadata: metadata,
+			})
+		}
 	}
 
 	return components
@@ -344,44 +472,47 @@ func CheckMultipleComponentsSyncStatusBatched(baseDir string, components []Compo
 }
 
 // UpdateMaterializationEntry updates an existing materialization entry with new hashes and timestamp
+// Searches across all sources and updates all matches
 func UpdateMaterializationEntry(metadata *MaterializationMetadata, baseDir, componentType, componentName, newSourceHash, newCurrentHash string) error {
-	// Get the existing entry
+	// Get the nested component map
 	componentMap := metadata.GetComponentMap(componentType)
 	if componentMap == nil {
 		return fmt.Errorf("invalid component type: %s", componentType)
 	}
 
-	entry, exists := componentMap[componentName]
-	if !exists {
+	// Find all instances of this component across sources
+	found := false
+	for sourceUrl, components := range componentMap {
+		entry, exists := components[componentName]
+		if !exists {
+			continue
+		}
+		found = true
+
+		// Re-read lock file to get latest commit hash for this source
+		lockEntry, err := metadataPkg.LoadLockFileEntryBySource(baseDir, componentType, componentName, sourceUrl)
+		if err != nil {
+			// If lock file can't be read, preserve existing commit hash
+			// This can happen if the component was uninstalled
+			lockEntry = nil
+		}
+
+		// Update fields
+		entry.SourceHash = newSourceHash
+		entry.CurrentHash = newCurrentHash
+		entry.MaterializedAt = time.Now().Format(time.RFC3339)
+
+		// Update commit hash if we successfully read the lock file
+		if lockEntry != nil {
+			entry.CommitHash = lockEntry.CommitHash
+		}
+
+		// Save updated entry back to metadata
+		components[componentName] = entry
+	}
+
+	if !found {
 		return fmt.Errorf("component not found in metadata: %s/%s", componentType, componentName)
-	}
-
-	// Re-read lock file to get latest commit hash
-	lockEntry, err := metadataPkg.LoadLockFileEntry(baseDir, componentType, componentName)
-	if err != nil {
-		// If lock file can't be read, preserve existing commit hash
-		// This can happen if the component was uninstalled
-		lockEntry = nil
-	}
-
-	// Update fields
-	entry.SourceHash = newSourceHash
-	entry.CurrentHash = newCurrentHash
-	entry.MaterializedAt = time.Now().Format(time.RFC3339)
-
-	// Update commit hash if we successfully read the lock file
-	if lockEntry != nil {
-		entry.CommitHash = lockEntry.CommitHash
-	}
-
-	// Save updated entry back to metadata
-	switch componentType {
-	case "skills":
-		metadata.Skills[componentName] = entry
-	case "agents":
-		metadata.Agents[componentName] = entry
-	case "commands":
-		metadata.Commands[componentName] = entry
 	}
 
 	return nil

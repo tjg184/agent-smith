@@ -33,6 +33,10 @@ type PostprocessContext struct {
 	// ComponentName is the name of the component (e.g., "my-agent")
 	ComponentName string
 
+	// FilesystemName is the actual name used on disk (may differ from ComponentName due to auto-suffixing)
+	// For example: "my-agent" (ComponentName) → "my-agent-2" (FilesystemName)
+	FilesystemName string
+
 	// Target is the materialization target (e.g., "copilot", "opencode", "claudecode")
 	Target string
 

@@ -1,0 +1,1 @@
+seo-content-creation/seo-content-planner.md

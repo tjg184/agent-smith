@@ -56,11 +56,12 @@ type ComponentLockEntry struct {
 }
 
 // ComponentLockFile tracks all installed components
+// Version 4+ uses nested structure: map[sourceURL]map[componentName]ComponentLockEntry
 type ComponentLockFile struct {
-	Version  int                           `json:"version"`
-	Skills   map[string]ComponentLockEntry `json:"skills"`
-	Agents   map[string]ComponentLockEntry `json:"agents,omitempty"`
-	Commands map[string]ComponentLockEntry `json:"commands,omitempty"`
+	Version  int                                      `json:"version"`
+	Skills   map[string]map[string]ComponentLockEntry `json:"skills"`
+	Agents   map[string]map[string]ComponentLockEntry `json:"agents,omitempty"`
+	Commands map[string]map[string]ComponentLockEntry `json:"commands,omitempty"`
 }
 
 // ComponentMetadata is a legacy metadata structure for backward compatibility

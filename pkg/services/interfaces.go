@@ -84,6 +84,7 @@ type MaterializeOptions struct {
 	Target     string // Target to materialize to (e.g., "opencode", "claudecode", "all")
 	ProjectDir string // Project directory (empty = auto-detect)
 	Profile    string // Profile to materialize from (empty = active profile or base)
+	Source     string // Source URL to materialize from (for disambiguation when component exists in multiple sources)
 	Force      bool   // Force overwrite existing components
 	DryRun     bool   // Simulate without making changes
 }
@@ -97,6 +98,7 @@ type ListMaterializedOptions struct {
 type MaterializeInfoOptions struct {
 	Target     string // Target to show info for
 	ProjectDir string // Project directory (empty = auto-detect)
+	Source     string // Source URL filter (for disambiguation)
 }
 
 // MaterializeStatusOptions configures materialization status display
@@ -110,6 +112,7 @@ type MaterializeStatusOptions struct {
 type MaterializeUpdateOptions struct {
 	Target     string // Target to update (empty = all targets)
 	ProjectDir string // Project directory (empty = auto-detect)
+	Source     string // Source URL filter (for disambiguation)
 	Force      bool   // Force re-materialization even if in sync
 	DryRun     bool   // Simulate updates
 }
@@ -143,6 +146,7 @@ type UninstallService interface {
 // UninstallOptions configures component uninstallation
 type UninstallOptions struct {
 	Profile string // Profile to uninstall from (empty = base directory)
+	Source  string // Source URL filter (for disambiguation when component exists in multiple sources)
 	Force   bool   // Force uninstall without confirmation
 }
 

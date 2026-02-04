@@ -1652,7 +1652,8 @@ EXAMPLES:
 			force, _ := cmd.Flags().GetBool("force")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			profile, _ := cmd.Flags().GetString("profile")
-			handleMaterializeComponent("skills", args[0], target, projectDir, force, dryRun, profile)
+			source, _ := cmd.Flags().GetString("source")
+			handleMaterializeComponent("skills", args[0], target, projectDir, force, dryRun, profile, source)
 		},
 	}
 	materializeSkillCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, universal, or all). Can also use AGENT_SMITH_TARGET environment variable")
@@ -1660,6 +1661,7 @@ EXAMPLES:
 	materializeSkillCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeSkillCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
 	materializeSkillCmd.Flags().StringP("profile", "p", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
+	materializeSkillCmd.Flags().StringP("source", "s", "", "Source URL to disambiguate when component exists in multiple sources")
 	materializeCmd.AddCommand(materializeSkillCmd)
 
 	materializeAgentCmd := &cobra.Command{
@@ -1692,7 +1694,8 @@ EXAMPLES:
 			force, _ := cmd.Flags().GetBool("force")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			profile, _ := cmd.Flags().GetString("profile")
-			handleMaterializeComponent("agents", args[0], target, projectDir, force, dryRun, profile)
+			source, _ := cmd.Flags().GetString("source")
+			handleMaterializeComponent("agents", args[0], target, projectDir, force, dryRun, profile, source)
 		},
 	}
 	materializeAgentCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, universal, or all). Can also use AGENT_SMITH_TARGET environment variable")
@@ -1700,6 +1703,7 @@ EXAMPLES:
 	materializeAgentCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeAgentCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
 	materializeAgentCmd.Flags().StringP("profile", "p", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
+	materializeAgentCmd.Flags().StringP("source", "s", "", "Source URL to disambiguate when component exists in multiple sources")
 	materializeCmd.AddCommand(materializeAgentCmd)
 
 	materializeCommandCmd := &cobra.Command{
@@ -1732,7 +1736,8 @@ EXAMPLES:
 			force, _ := cmd.Flags().GetBool("force")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			profile, _ := cmd.Flags().GetString("profile")
-			handleMaterializeComponent("commands", args[0], target, projectDir, force, dryRun, profile)
+			source, _ := cmd.Flags().GetString("source")
+			handleMaterializeComponent("commands", args[0], target, projectDir, force, dryRun, profile, source)
 		},
 	}
 	materializeCommandCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, universal, or all). Can also use AGENT_SMITH_TARGET environment variable")
@@ -1740,6 +1745,7 @@ EXAMPLES:
 	materializeCommandCmd.Flags().BoolP("force", "f", false, "Overwrite existing component if it differs")
 	materializeCommandCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
 	materializeCommandCmd.Flags().StringP("profile", "p", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
+	materializeCommandCmd.Flags().StringP("source", "s", "", "Source URL to disambiguate when component exists in multiple sources")
 	materializeCmd.AddCommand(materializeCommandCmd)
 
 	materializeAllCmd := &cobra.Command{
@@ -1839,11 +1845,13 @@ EXAMPLES:
 		Run: func(cmd *cobra.Command, args []string) {
 			target, _ := cmd.Flags().GetString("target")
 			projectDir, _ := cmd.Flags().GetString("project-dir")
-			handleMaterializeInfo(args[0], args[1], target, projectDir)
+			source, _ := cmd.Flags().GetString("source")
+			handleMaterializeInfo(args[0], args[1], target, projectDir, source)
 		},
 	}
 	materializeInfoCmd.Flags().StringP("target", "t", "", "Optional target to check (opencode or claudecode). If not specified, shows info for all targets")
 	materializeInfoCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeInfoCmd.Flags().StringP("source", "s", "", "Source URL to disambiguate when component exists in multiple sources")
 	materializeCmd.AddCommand(materializeInfoCmd)
 
 	materializeStatusCmd := &cobra.Command{
@@ -1917,13 +1925,15 @@ EXAMPLES:
 			projectDir, _ := cmd.Flags().GetString("project-dir")
 			force, _ := cmd.Flags().GetBool("force")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			handleMaterializeUpdate(target, projectDir, force, dryRun)
+			source, _ := cmd.Flags().GetString("source")
+			handleMaterializeUpdate(target, projectDir, source, force, dryRun)
 		},
 	}
 	materializeUpdateCmd.Flags().StringP("target", "t", "", "Update specific target only (opencode or claudecode)")
 	materializeUpdateCmd.Flags().String("project-dir", "", "Override project directory detection")
 	materializeUpdateCmd.Flags().BoolP("force", "f", false, "Re-materialize all components (ignore sync status)")
 	materializeUpdateCmd.Flags().Bool("dry-run", false, "Preview what would be updated without making changes")
+	materializeUpdateCmd.Flags().StringP("source", "s", "", "Source URL to disambiguate when component exists in multiple sources")
 	materializeCmd.AddCommand(materializeUpdateCmd)
 
 	rootCmd.AddCommand(materializeCmd)
@@ -1969,12 +1979,12 @@ var (
 	handleTargetAdd             func(name, path string)
 	handleTargetRemove          func(name string)
 	handleTargetList            func()
-	handleMaterializeComponent  func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile string)
+	handleMaterializeComponent  func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile, source string)
 	handleMaterializeAll        func(target, projectDir string, force, dryRun bool, fromProfile string)
 	handleMaterializeList       func(projectDir string)
-	handleMaterializeInfo       func(componentType, componentName, target, projectDir string)
+	handleMaterializeInfo       func(componentType, componentName, target, projectDir, source string)
 	handleMaterializeStatus     func(target, projectDir string)
-	handleMaterializeUpdate     func(target, projectDir string, force, dryRun bool)
+	handleMaterializeUpdate     func(target, projectDir, source string, force, dryRun bool)
 )
 
 func SetHandlers(
@@ -2012,12 +2022,12 @@ func SetHandlers(
 	targetAdd func(name, path string),
 	targetRemove func(name string),
 	targetList func(),
-	materializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile string),
+	materializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile, source string),
 	materializeAll func(target, projectDir string, force, dryRun bool, fromProfile string),
 	materializeList func(projectDir string),
-	materializeInfo func(componentType, componentName, target, projectDir string),
+	materializeInfo func(componentType, componentName, target, projectDir, source string),
 	materializeStatus func(target, projectDir string),
-	materializeUpdate func(target, projectDir string, force, dryRun bool),
+	materializeUpdate func(target, projectDir, source string, force, dryRun bool),
 ) {
 	handleAddSkill = addSkill
 	handleAddAgent = addAgent

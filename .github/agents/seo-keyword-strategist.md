@@ -1,0 +1,1 @@
+seo-technical-optimization/seo-keyword-strategist.md
