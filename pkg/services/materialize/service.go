@@ -24,17 +24,19 @@ import (
 
 // Service implements the MaterializeService interface
 type Service struct {
-	profileManager *profiles.ProfileManager
-	logger         *logger.Logger
-	formatter      *formatter.Formatter
+	profileManager        *profiles.ProfileManager
+	logger                *logger.Logger
+	formatter             *formatter.Formatter
+	postprocessorRegistry *PostprocessorRegistry
 }
 
 // NewService creates a new MaterializeService with the given dependencies
 func NewService(pm *profiles.ProfileManager, logger *logger.Logger, formatter *formatter.Formatter) services.MaterializeService {
 	return &Service{
-		profileManager: pm,
-		logger:         logger,
-		formatter:      formatter,
+		profileManager:        pm,
+		logger:                logger,
+		formatter:             formatter,
+		postprocessorRegistry: NewPostprocessorRegistry(),
 	}
 }
 
@@ -197,6 +199,19 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 				s.formatter.Info("⚠ Would overwrite %s '%s' in %s (--force)", componentType, componentName, tgt)
 			} else {
 				s.formatter.Info("⚠ Overwriting %s '%s' in %s (--force)", componentType, componentName, tgt)
+
+				// Run cleanup postprocessors before removing
+				cleanupCtx := PostprocessContext{
+					ComponentType: componentType,
+					ComponentName: componentName,
+					Target:        tgt,
+					TargetDir:     targetDir,
+					DestPath:      destPath,
+					DryRun:        false,
+					Formatter:     s.formatter,
+				}
+				s.postprocessorRegistry.RunCleanup(cleanupCtx)
+
 				if err := os.RemoveAll(destPath); err != nil {
 					return fmt.Errorf("failed to remove existing component: %w", err)
 				}
@@ -210,7 +225,26 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 				s.formatter.Info("  From Profile: %s", sourceProfile)
 			}
 			s.formatter.Info("  Destination: %s", destPath)
-			s.formatter.Info("  Provenance:  %s @ %s", lockEntry.SourceUrl, lockEntry.CommitHash[:8])
+			if lockEntry.CommitHash != "" && len(lockEntry.CommitHash) >= 8 {
+				s.formatter.Info("  Provenance:  %s @ %s", lockEntry.SourceUrl, lockEntry.CommitHash[:8])
+			} else if lockEntry.SourceUrl != "" {
+				s.formatter.Info("  Provenance:  %s", lockEntry.SourceUrl)
+			}
+
+			// Run postprocessors in dry-run mode
+			postprocessCtx := PostprocessContext{
+				ComponentType: componentType,
+				ComponentName: componentName,
+				Target:        tgt,
+				TargetDir:     targetDir,
+				DestPath:      destPath,
+				DryRun:        true,
+				Formatter:     s.formatter,
+			}
+			if err := s.postprocessorRegistry.RunPostprocessors(postprocessCtx); err != nil {
+				s.formatter.WarningMsg("Postprocessor dry-run warning: %v", err)
+			}
+
 			successCount++
 		} else {
 			// Ensure structure exists
@@ -225,6 +259,20 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			// Copy component
 			if err := materializer.CopyDirectory(componentSourceDir, destPath); err != nil {
 				return fmt.Errorf("failed to copy component: %w", err)
+			}
+
+			// Run postprocessors after copying
+			postprocessCtx := PostprocessContext{
+				ComponentType: componentType,
+				ComponentName: componentName,
+				Target:        tgt,
+				TargetDir:     targetDir,
+				DestPath:      destPath,
+				DryRun:        false,
+				Formatter:     s.formatter,
+			}
+			if err := s.postprocessorRegistry.RunPostprocessors(postprocessCtx); err != nil {
+				return fmt.Errorf("postprocessing failed: %w", err)
 			}
 
 			// Load/update metadata
@@ -922,6 +970,21 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 			// Copy from temp to target
 			if err := materializer.CopyDirectory(sourceDir, destDir); err != nil {
 				fmt.Printf("  %s Failed to copy %s: %v\n", red("✗"), comp.Name, err)
+				continue
+			}
+
+			// Run postprocessors after updating component
+			postprocessCtx := PostprocessContext{
+				ComponentType: comp.Type,
+				ComponentName: comp.Name,
+				Target:        targetName,
+				TargetDir:     targetDir,
+				DestPath:      destDir,
+				DryRun:        false,
+				Formatter:     s.formatter,
+			}
+			if err := s.postprocessorRegistry.RunPostprocessors(postprocessCtx); err != nil {
+				fmt.Printf("  %s Postprocessing failed for %s: %v\n", red("✗"), comp.Name, err)
 				continue
 			}
 
