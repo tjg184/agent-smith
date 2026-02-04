@@ -162,6 +162,9 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 	successCount := 0
 	skipCount := 0
 
+	// Initialize symlink registry for tracking conflicts across all targets
+	symlinkRegistry := make(map[string]string)
+
 	for _, tgt := range targets {
 		targetDir := project.GetTargetDirectory(projectRoot, tgt)
 		if targetDir == "" {
@@ -233,13 +236,14 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 
 			// Run postprocessors in dry-run mode
 			postprocessCtx := PostprocessContext{
-				ComponentType: componentType,
-				ComponentName: componentName,
-				Target:        tgt,
-				TargetDir:     targetDir,
-				DestPath:      destPath,
-				DryRun:        true,
-				Formatter:     s.formatter,
+				ComponentType:   componentType,
+				ComponentName:   componentName,
+				Target:          tgt,
+				TargetDir:       targetDir,
+				DestPath:        destPath,
+				DryRun:          true,
+				Formatter:       s.formatter,
+				SymlinkRegistry: symlinkRegistry,
 			}
 			if err := s.postprocessorRegistry.RunPostprocessors(postprocessCtx); err != nil {
 				s.formatter.WarningMsg("Postprocessor dry-run warning: %v", err)
@@ -263,13 +267,14 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 
 			// Run postprocessors after copying
 			postprocessCtx := PostprocessContext{
-				ComponentType: componentType,
-				ComponentName: componentName,
-				Target:        tgt,
-				TargetDir:     targetDir,
-				DestPath:      destPath,
-				DryRun:        false,
-				Formatter:     s.formatter,
+				ComponentType:   componentType,
+				ComponentName:   componentName,
+				Target:          tgt,
+				TargetDir:       targetDir,
+				DestPath:        destPath,
+				DryRun:          false,
+				Formatter:       s.formatter,
+				SymlinkRegistry: symlinkRegistry,
 			}
 			if err := s.postprocessorRegistry.RunPostprocessors(postprocessCtx); err != nil {
 				return fmt.Errorf("postprocessing failed: %w", err)
@@ -843,6 +848,9 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 	totalSkippedMissing := 0
 	foundAny := false
 
+	// Initialize symlink registry for tracking conflicts across all targets
+	symlinkRegistry := make(map[string]string)
+
 	// Update each target
 	for _, targetName := range targetsToUpdate {
 		targetDir := project.GetTargetDirectory(projectRoot, targetName)
@@ -975,13 +983,14 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 
 			// Run postprocessors after updating component
 			postprocessCtx := PostprocessContext{
-				ComponentType: comp.Type,
-				ComponentName: comp.Name,
-				Target:        targetName,
-				TargetDir:     targetDir,
-				DestPath:      destDir,
-				DryRun:        false,
-				Formatter:     s.formatter,
+				ComponentType:   comp.Type,
+				ComponentName:   comp.Name,
+				Target:          targetName,
+				TargetDir:       targetDir,
+				DestPath:        destDir,
+				DryRun:          false,
+				Formatter:       s.formatter,
+				SymlinkRegistry: symlinkRegistry,
 			}
 			if err := s.postprocessorRegistry.RunPostprocessors(postprocessCtx); err != nil {
 				fmt.Printf("  %s Postprocessing failed for %s: %v\n", red("✗"), comp.Name, err)

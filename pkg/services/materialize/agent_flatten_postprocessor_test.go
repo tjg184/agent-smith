@@ -358,3 +358,391 @@ func TestAgentFlattenPostprocessor_Cleanup_SymlinkMissing(t *testing.T) {
 		t.Errorf("Cleanup() should handle missing symlink gracefully, got: %v", err)
 	}
 }
+
+func TestAgentFlattenPostprocessor_Process_MultipleFiles(t *testing.T) {
+	// Create temp directory structure
+	tempDir := t.TempDir()
+	targetDir := filepath.Join(tempDir, ".github")
+	agentsDir := filepath.Join(targetDir, "agents")
+	agentFolder := filepath.Join(agentsDir, "backend-development")
+
+	// Create directory structure
+	if err := os.MkdirAll(agentFolder, 0755); err != nil {
+		t.Fatalf("Failed to create agent folder: %v", err)
+	}
+
+	// Create multiple agent files
+	agentFiles := []string{
+		"tdd-orchestrator.md",
+		"temporal-python-pro.md",
+		"event-sourcing-architect.md",
+	}
+
+	for _, filename := range agentFiles {
+		content := "# Agent: " + filename
+		if err := os.WriteFile(filepath.Join(agentFolder, filename), []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to create agent file %s: %v", filename, err)
+		}
+	}
+
+	// Create postprocessor and context
+	p := NewAgentFlattenPostprocessor()
+	registry := make(map[string]string)
+	ctx := PostprocessContext{
+		ComponentType:   "agents",
+		ComponentName:   "backend-development",
+		Target:          "copilot",
+		TargetDir:       targetDir,
+		DestPath:        agentFolder,
+		DryRun:          false,
+		Formatter:       formatter.New(),
+		SymlinkRegistry: registry,
+	}
+
+	// Run process
+	if err := p.Process(ctx); err != nil {
+		t.Fatalf("Process() error = %v", err)
+	}
+
+	// Verify all 3 symlinks created
+	for _, filename := range agentFiles {
+		symlinkPath := filepath.Join(agentsDir, filename)
+
+		// Check symlink exists
+		info, err := os.Lstat(symlinkPath)
+		if err != nil {
+			t.Errorf("Symlink %s not created: %v", filename, err)
+			continue
+		}
+
+		// Verify it's a symlink
+		if info.Mode()&os.ModeSymlink == 0 {
+			t.Errorf("%s is not a symlink", filename)
+		}
+
+		// Verify target
+		target, err := os.Readlink(symlinkPath)
+		expectedTarget := filepath.Join("backend-development", filename)
+		if err != nil {
+			t.Errorf("Cannot read symlink %s: %v", filename, err)
+		} else if target != expectedTarget {
+			t.Errorf("Symlink %s target = %s, want %s", filename, target, expectedTarget)
+		}
+
+		// Verify symlink is readable
+		content, err := os.ReadFile(symlinkPath)
+		if err != nil {
+			t.Errorf("Cannot read through symlink %s: %v", filename, err)
+		} else if len(content) == 0 {
+			t.Errorf("Symlink %s points to empty file", filename)
+		}
+	}
+
+	// Verify all files registered
+	if len(registry) != 3 {
+		t.Errorf("Registry should have 3 entries, got %d", len(registry))
+	}
+}
+
+func TestAgentFlattenPostprocessor_Process_MixedFiles(t *testing.T) {
+	// Create temp directory structure
+	tempDir := t.TempDir()
+	targetDir := filepath.Join(tempDir, ".github")
+	agentsDir := filepath.Join(targetDir, "agents")
+	agentFolder := filepath.Join(agentsDir, "my-agent")
+
+	if err := os.MkdirAll(agentFolder, 0755); err != nil {
+		t.Fatalf("Failed to create agent folder: %v", err)
+	}
+
+	// Create agent file and non-agent files
+	if err := os.WriteFile(filepath.Join(agentFolder, "agent.md"), []byte("# Agent"), 0644); err != nil {
+		t.Fatalf("Failed to create agent.md: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentFolder, "README.md"), []byte("# README"), 0644); err != nil {
+		t.Fatalf("Failed to create README.md: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentFolder, "notes.txt"), []byte("notes"), 0644); err != nil {
+		t.Fatalf("Failed to create notes.txt: %v", err)
+	}
+
+	p := NewAgentFlattenPostprocessor()
+	ctx := PostprocessContext{
+		ComponentType:   "agents",
+		ComponentName:   "my-agent",
+		Target:          "copilot",
+		TargetDir:       targetDir,
+		DestPath:        agentFolder,
+		DryRun:          false,
+		Formatter:       formatter.New(),
+		SymlinkRegistry: make(map[string]string),
+	}
+
+	if err := p.Process(ctx); err != nil {
+		t.Fatalf("Process() error = %v", err)
+	}
+
+	// Verify only agent.md symlink created
+	agentSymlink := filepath.Join(agentsDir, "agent.md")
+	if _, err := os.Lstat(agentSymlink); err != nil {
+		t.Error("agent.md symlink should be created")
+	}
+
+	// Verify README.md symlink NOT created
+	readmeSymlink := filepath.Join(agentsDir, "README.md")
+	if _, err := os.Lstat(readmeSymlink); err == nil {
+		t.Error("README.md symlink should not be created")
+	}
+
+	// Verify notes.txt symlink NOT created
+	notesSymlink := filepath.Join(agentsDir, "notes.txt")
+	if _, err := os.Lstat(notesSymlink); err == nil {
+		t.Error("notes.txt symlink should not be created")
+	}
+}
+
+func TestAgentFlattenPostprocessor_Process_IgnoredFiles(t *testing.T) {
+	// Create temp directory structure
+	tempDir := t.TempDir()
+	targetDir := filepath.Join(tempDir, ".github")
+	agentsDir := filepath.Join(targetDir, "agents")
+	agentFolder := filepath.Join(agentsDir, "my-agent")
+
+	if err := os.MkdirAll(agentFolder, 0755); err != nil {
+		t.Fatalf("Failed to create agent folder: %v", err)
+	}
+
+	// Create ignored files (various cases)
+	ignoredFiles := []string{
+		"README.md",
+		"readme.md", // lowercase
+		"ReadMe.MD", // mixed case
+		"LICENSE.md",
+		"DOCS.md",
+		"CHANGELOG.md",
+	}
+
+	for _, filename := range ignoredFiles {
+		if err := os.WriteFile(filepath.Join(agentFolder, filename), []byte("content"), 0644); err != nil {
+			t.Fatalf("Failed to create %s: %v", filename, err)
+		}
+	}
+
+	p := NewAgentFlattenPostprocessor()
+	ctx := PostprocessContext{
+		ComponentType:   "agents",
+		ComponentName:   "my-agent",
+		Target:          "copilot",
+		TargetDir:       targetDir,
+		DestPath:        agentFolder,
+		DryRun:          false,
+		Formatter:       formatter.New(),
+		SymlinkRegistry: make(map[string]string),
+	}
+
+	if err := p.Process(ctx); err != nil {
+		t.Fatalf("Process() error = %v", err)
+	}
+
+	// Verify no symlinks created for any ignored files
+	for _, filename := range ignoredFiles {
+		symlinkPath := filepath.Join(agentsDir, filename)
+		if _, err := os.Lstat(symlinkPath); err == nil {
+			t.Errorf("Symlink for %s should not be created (ignored file)", filename)
+		}
+	}
+}
+
+func TestAgentFlattenPostprocessor_Process_NameConflict(t *testing.T) {
+	// Create temp directory structure
+	tempDir := t.TempDir()
+	targetDir := filepath.Join(tempDir, ".github")
+	agentsDir := filepath.Join(targetDir, "agents")
+
+	// Create two agent folders with same filename
+	agent1Folder := filepath.Join(agentsDir, "backend-dev")
+	agent2Folder := filepath.Join(agentsDir, "api-scaffold")
+
+	if err := os.MkdirAll(agent1Folder, 0755); err != nil {
+		t.Fatalf("Failed to create agent1 folder: %v", err)
+	}
+	if err := os.MkdirAll(agent2Folder, 0755); err != nil {
+		t.Fatalf("Failed to create agent2 folder: %v", err)
+	}
+
+	// Both have an "api.md" file
+	if err := os.WriteFile(filepath.Join(agent1Folder, "api.md"), []byte("# Backend API"), 0644); err != nil {
+		t.Fatalf("Failed to create api.md in agent1: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agent2Folder, "api.md"), []byte("# API Scaffold"), 0644); err != nil {
+		t.Fatalf("Failed to create api.md in agent2: %v", err)
+	}
+
+	p := NewAgentFlattenPostprocessor()
+	registry := make(map[string]string)
+
+	// Process first agent
+	ctx1 := PostprocessContext{
+		ComponentType:   "agents",
+		ComponentName:   "backend-dev",
+		Target:          "copilot",
+		TargetDir:       targetDir,
+		DestPath:        agent1Folder,
+		DryRun:          false,
+		Formatter:       formatter.New(),
+		SymlinkRegistry: registry,
+	}
+
+	if err := p.Process(ctx1); err != nil {
+		t.Fatalf("Process() for agent1 error = %v", err)
+	}
+
+	// Verify first symlink created
+	symlinkPath := filepath.Join(agentsDir, "api.md")
+	if _, err := os.Lstat(symlinkPath); err != nil {
+		t.Error("First api.md symlink should be created")
+	}
+
+	// Verify registry has entry
+	if comp, exists := registry["api.md"]; !exists || comp != "backend-dev" {
+		t.Errorf("Registry should have api.md -> backend-dev, got: %v", comp)
+	}
+
+	// Process second agent (should skip due to conflict)
+	ctx2 := PostprocessContext{
+		ComponentType:   "agents",
+		ComponentName:   "api-scaffold",
+		Target:          "copilot",
+		TargetDir:       targetDir,
+		DestPath:        agent2Folder,
+		DryRun:          false,
+		Formatter:       formatter.New(),
+		SymlinkRegistry: registry,
+	}
+
+	if err := p.Process(ctx2); err != nil {
+		t.Fatalf("Process() for agent2 should not return error (non-fatal conflict), got: %v", err)
+	}
+
+	// Verify symlink still points to first agent
+	target, err := os.Readlink(symlinkPath)
+	if err != nil {
+		t.Fatalf("Cannot read symlink: %v", err)
+	}
+	expectedTarget := filepath.Join("backend-dev", "api.md")
+	if target != expectedTarget {
+		t.Errorf("Symlink should still point to backend-dev/api.md, got: %s", target)
+	}
+
+	// Registry should still have backend-dev
+	if comp := registry["api.md"]; comp != "backend-dev" {
+		t.Errorf("Registry should still have api.md -> backend-dev, got: %v", comp)
+	}
+}
+
+func TestAgentFlattenPostprocessor_Process_NoMarkdownFiles(t *testing.T) {
+	// Create temp directory structure with no .md files
+	tempDir := t.TempDir()
+	targetDir := filepath.Join(tempDir, ".github")
+	agentsDir := filepath.Join(targetDir, "agents")
+	agentFolder := filepath.Join(agentsDir, "my-agent")
+
+	if err := os.MkdirAll(agentFolder, 0755); err != nil {
+		t.Fatalf("Failed to create agent folder: %v", err)
+	}
+
+	// Create non-markdown file
+	if err := os.WriteFile(filepath.Join(agentFolder, "notes.txt"), []byte("notes"), 0644); err != nil {
+		t.Fatalf("Failed to create notes.txt: %v", err)
+	}
+
+	p := NewAgentFlattenPostprocessor()
+	ctx := PostprocessContext{
+		ComponentType:   "agents",
+		ComponentName:   "my-agent",
+		Target:          "copilot",
+		TargetDir:       targetDir,
+		DestPath:        agentFolder,
+		DryRun:          false,
+		Formatter:       formatter.New(),
+		SymlinkRegistry: make(map[string]string),
+	}
+
+	// Should not error
+	if err := p.Process(ctx); err != nil {
+		t.Errorf("Process() should handle no markdown files gracefully, got: %v", err)
+	}
+
+	// Verify no symlinks created
+	entries, err := os.ReadDir(agentsDir)
+	if err != nil {
+		t.Fatalf("Cannot read agents dir: %v", err)
+	}
+
+	for _, entry := range entries {
+		if entry.Type()&os.ModeSymlink != 0 {
+			t.Errorf("No symlinks should be created, found: %s", entry.Name())
+		}
+	}
+}
+
+func TestAgentFlattenPostprocessor_Cleanup_MultipleSymlinks(t *testing.T) {
+	// Create temp directory structure
+	tempDir := t.TempDir()
+	targetDir := filepath.Join(tempDir, ".github")
+	agentsDir := filepath.Join(targetDir, "agents")
+	agentFolder := filepath.Join(agentsDir, "backend-dev")
+
+	if err := os.MkdirAll(agentFolder, 0755); err != nil {
+		t.Fatalf("Failed to create agent folder: %v", err)
+	}
+
+	// Create agent files
+	agentFiles := []string{"api.md", "tdd.md", "temporal.md"}
+	for _, filename := range agentFiles {
+		if err := os.WriteFile(filepath.Join(agentFolder, filename), []byte("content"), 0644); err != nil {
+			t.Fatalf("Failed to create %s: %v", filename, err)
+		}
+	}
+
+	// Create symlinks manually
+	for _, filename := range agentFiles {
+		symlinkPath := filepath.Join(agentsDir, filename)
+		relativeTarget := filepath.Join("backend-dev", filename)
+		if err := os.Symlink(relativeTarget, symlinkPath); err != nil {
+			t.Fatalf("Failed to create symlink %s: %v", filename, err)
+		}
+	}
+
+	// Verify symlinks exist
+	for _, filename := range agentFiles {
+		symlinkPath := filepath.Join(agentsDir, filename)
+		if _, err := os.Lstat(symlinkPath); err != nil {
+			t.Fatalf("Symlink %s should exist before cleanup", filename)
+		}
+	}
+
+	// Run cleanup
+	p := NewAgentFlattenPostprocessor()
+	ctx := PostprocessContext{
+		ComponentType: "agents",
+		ComponentName: "backend-dev",
+		Target:        "copilot",
+		TargetDir:     targetDir,
+		DestPath:      agentFolder,
+		DryRun:        false,
+		Formatter:     formatter.New(),
+	}
+
+	if err := p.Cleanup(ctx); err != nil {
+		t.Errorf("Cleanup() error = %v", err)
+	}
+
+	// Verify all symlinks removed
+	for _, filename := range agentFiles {
+		symlinkPath := filepath.Join(agentsDir, filename)
+		if _, err := os.Lstat(symlinkPath); err == nil {
+			t.Errorf("Symlink %s should be removed by cleanup", filename)
+		}
+	}
+}

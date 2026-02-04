@@ -49,4 +49,9 @@ type PostprocessContext struct {
 
 	// Formatter is used for outputting messages and warnings
 	Formatter *formatter.Formatter
+
+	// SymlinkRegistry tracks symlinks created during this materialization run
+	// to detect and warn about name conflicts. Key: filename, Value: componentName
+	// This is shared across all postprocessors in a single materialization operation
+	SymlinkRegistry map[string]string
 }
