@@ -66,7 +66,7 @@ func TestProfileCollisionHandling_Integration(t *testing.T) {
     }
   }
 }`
-	lockFile1Path := filepath.Join(testProfile1, ".skill-lock.json")
+	lockFile1Path := filepath.Join(testProfile1, ".component-lock.json")
 	if err := os.WriteFile(lockFile1Path, []byte(lockFile1Content), 0644); err != nil {
 		t.Fatalf("Failed to create profile1 lock file: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestProfileCollisionHandling_Integration(t *testing.T) {
     }
   }
 }`
-	lockFile2Path := filepath.Join(testProfile2, ".skill-lock.json")
+	lockFile2Path := filepath.Join(testProfile2, ".component-lock.json")
 	if err := os.WriteFile(lockFile2Path, []byte(lockFile2Content), 0644); err != nil {
 		t.Fatalf("Failed to create profile2 lock file: %v", err)
 	}

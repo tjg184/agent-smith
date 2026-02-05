@@ -112,19 +112,19 @@ func TestGetComponentLockPath(t *testing.T) {
 			name:          "skill lock",
 			baseDir:       "/test/base",
 			componentType: "skills",
-			want:          filepath.Join("/test/base", ".skill-lock.json"),
+			want:          filepath.Join("/test/base", ".component-lock.json"),
 		},
 		{
 			name:          "agent lock",
 			baseDir:       "/test/base",
 			componentType: "agents",
-			want:          filepath.Join("/test/base", ".agent-lock.json"),
+			want:          filepath.Join("/test/base", ".component-lock.json"),
 		},
 		{
 			name:          "command lock",
 			baseDir:       "/test/base",
 			componentType: "commands",
-			want:          filepath.Join("/test/base", ".command-lock.json"),
+			want:          filepath.Join("/test/base", ".component-lock.json"),
 		},
 	}
 

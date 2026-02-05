@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/internal/testutil"
 	"github.com/tgaines/agent-smith/pkg/project"
 )
@@ -67,7 +68,7 @@ A test skill for provenance tracking.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create lock file with provenance metadata
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -162,7 +163,7 @@ A skill from a profile.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create profile lock file
-		lockFilePath := filepath.Join(profilesDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(profilesDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -238,7 +239,7 @@ A skill from a profile.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -311,7 +312,7 @@ A skill from a profile.
 		os.WriteFile(filepath.Join(skillsDir, "SKILL.md"), []byte(skillContent), 0644)
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -370,15 +371,15 @@ A skill from a profile.
 		os.MkdirAll(opencodeDir, 0755)
 		os.Chdir(projectDir)
 
-		// Initialize empty metadata
+		// Initialize empty metadata (version 5 with nested structure)
 		metadata := &project.MaterializationMetadata{
-			Version:  1,
-			Skills:   make(map[string]project.MaterializedComponentMetadata),
-			Agents:   make(map[string]project.MaterializedComponentMetadata),
-			Commands: make(map[string]project.MaterializedComponentMetadata),
+			Version:  5,
+			Skills:   make(map[string]map[string]models.ComponentEntry),
+			Agents:   make(map[string]map[string]models.ComponentEntry),
+			Commands: make(map[string]map[string]models.ComponentEntry),
 		}
 		metadataJSON, _ := json.MarshalIndent(metadata, "", "  ")
-		os.WriteFile(filepath.Join(opencodeDir, ".materializations.json"), metadataJSON, 0644)
+		os.WriteFile(filepath.Join(opencodeDir, ".component-lock.json"), metadataJSON, 0644)
 
 		// Try to get info for non-existent component
 		cmd := exec.Command(binaryPath, "materialize", "info", "skills", "nonexistent-skill", "--verbose")
@@ -405,7 +406,7 @@ A skill from a profile.
 		os.MkdirAll(agentsDir, 0755)
 		os.WriteFile(filepath.Join(agentsDir, "AGENT.md"), []byte("# Test Agent\n"), 0644)
 
-		agentLockPath := filepath.Join(baseDir, ".agent-lock.json")
+		agentLockPath := filepath.Join(baseDir, ".component-lock.json")
 		agentLockData := map[string]interface{}{
 			"version": 3,
 			"agents": map[string]interface{}{
@@ -453,7 +454,7 @@ A skill from a profile.
 		os.MkdirAll(skillsDir, 0755)
 		os.WriteFile(filepath.Join(skillsDir, "SKILL.md"), []byte("# Nested Test\n"), 0644)
 
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{

@@ -297,7 +297,7 @@ func TestLoadMetadata_Success(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create a sample lock file in the base directory (not in subdirectory)
-	lockFilePath := filepath.Join(tempDir, ".skill-lock.json")
+	lockFilePath := filepath.Join(tempDir, ".component-lock.json")
 	lockFileContent := `{
   "version": 4,
   "skills": {
@@ -349,7 +349,7 @@ func TestLoadMetadata_NotFound(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create an empty lock file in the base directory
-	lockFilePath := filepath.Join(tempDir, ".skill-lock.json")
+	lockFilePath := filepath.Join(tempDir, ".component-lock.json")
 	lockFileContent := `{
   "version": 4,
   "skills": {}
@@ -393,9 +393,9 @@ func TestLoadMetadata_AllComponentTypes(t *testing.T) {
 		componentType string
 		lockFileName  string
 	}{
-		{"skills", ".skill-lock.json"},
-		{"agents", ".agent-lock.json"},
-		{"commands", ".command-lock.json"},
+		{"skills", ".component-lock.json"},
+		{"agents", ".component-lock.json"},
+		{"commands", ".component-lock.json"},
 	}
 
 	for _, tc := range testCases {
@@ -459,7 +459,7 @@ func TestLoadMetadata_NoCommitHash(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create a lock file without commit hash (old format) in the base directory
-	lockFilePath := filepath.Join(tempDir, ".skill-lock.json")
+	lockFilePath := filepath.Join(tempDir, ".component-lock.json")
 	lockFileContent := `{
   "version": 4,
   "skills": {
@@ -504,7 +504,7 @@ func TestHasUpdates_NoCommitHash(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create a lock file without commit hash (old format)
-	lockFilePath := filepath.Join(tempDir, ".skill-lock.json")
+	lockFilePath := filepath.Join(tempDir, ".component-lock.json")
 	lockFileContent := `{
   "version": 4,
   "skills": {
@@ -548,7 +548,7 @@ func TestHasUpdates_MissingMetadata(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create an empty lock file
-	lockFilePath := filepath.Join(tempDir, ".skill-lock.json")
+	lockFilePath := filepath.Join(tempDir, ".component-lock.json")
 	lockFileContent := `{
   "version": 3,
   "skills": {}

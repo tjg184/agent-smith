@@ -266,7 +266,7 @@ func TestGroupedComponentDownload(t *testing.T) {
 	helper.VerifyFileExists(filepath.Join(agentDir, "accessibility-expert.md"), "Agent file")
 
 	// Verify lock file contains original path
-	lockFile := filepath.Join(installDir, ".agent-lock.json")
+	lockFile := filepath.Join(installDir, ".component-lock.json")
 	helper.VerifyFileExists(lockFile, "Lock file")
 	helper.VerifyFileContent(lockFile, "plugins/ui-design/agents/accessibility-expert.md", "Original path in lock file")
 }
@@ -369,7 +369,7 @@ func TestBackwardCompatibilityFlatStructure(t *testing.T) {
 	helper.VerifyFileExists(filepath.Join(agentDir, "chatbot.md"), "Agent file in flat structure")
 
 	// Verify lock file exists
-	lockFile := filepath.Join(installDir, ".agent-lock.json")
+	lockFile := filepath.Join(installDir, ".component-lock.json")
 	helper.VerifyFileExists(lockFile, "Lock file")
 }
 
@@ -490,7 +490,7 @@ func TestCrossPlatformPathHandling(t *testing.T) {
 	helper.VerifyDirExists(agentDir, "Agent directory with platform-specific paths")
 
 	// Read lock file and verify paths use forward slashes (normalized)
-	lockFile := filepath.Join(installDir, ".agent-lock.json")
+	lockFile := filepath.Join(installDir, ".component-lock.json")
 	content, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
@@ -688,7 +688,7 @@ func TestGitOperations(t *testing.T) {
 	}
 
 	// Verify commit hash was saved in lock file
-	lockFile := filepath.Join(installDir, ".agent-lock.json")
+	lockFile := filepath.Join(installDir, ".component-lock.json")
 	content, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)

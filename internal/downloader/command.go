@@ -166,8 +166,16 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		return cd.downloadCommandDirect(fullURL, commandName)
 	}
 
-	// Create command directory
-	commandDir := filepath.Join(cd.baseDir, commandName)
+	// Resolve filesystem name before creating directory to handle conflicts
+	lockBaseDir := filepath.Dir(cd.baseDir)
+	filesystemName, err := metadataPkg.ResolveInstallFilesystemName(lockBaseDir, "commands", commandName, fullURL)
+	if err != nil {
+		cd.formatter.Warning("failed to resolve filesystem name, using command name: %v", err)
+		filesystemName = commandName
+	}
+
+	// Create command directory with resolved name
+	commandDir := filepath.Join(cd.baseDir, filesystemName)
 	if err := fileutil.CreateDirectoryWithPermissions(commandDir); err != nil {
 		return fmt.Errorf("failed to create command directory: %w", err)
 	}
@@ -215,9 +223,14 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		// Use heuristic to determine proper folder name to avoid nested monorepo directories
 		destFolderName := DetermineDestinationFolderName(matchingComponent.FilePath)
 
-		// If heuristic name differs from commandName, recreate directory with proper name
-		if destFolderName != commandName {
-			commandDir = filepath.Join(cd.baseDir, destFolderName)
+		// If heuristic name differs from resolved filesystem name, update it
+		if destFolderName != filesystemName {
+			// Remove the originally created directory
+			os.RemoveAll(commandDir)
+
+			// Recreate with heuristic name
+			filesystemName = destFolderName
+			commandDir = filepath.Join(cd.baseDir, filesystemName)
 			if err := fileutil.CreateDirectoryWithPermissions(commandDir); err != nil {
 				return fmt.Errorf("failed to create command directory: %w", err)
 			}
@@ -228,9 +241,6 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		if err != nil {
 			return fmt.Errorf("failed to copy command files: %w", err)
 		}
-
-		// Update commandName to match the actual directory name for lock file
-		commandName = destFolderName
 	} else {
 		// Multiple commands found but none match the requested command name
 		// Return error with list of available commands
@@ -266,7 +276,7 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		originalPath = matchingComponent.FilePath
 	}
 
-	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, commitHash, len(commandComponents), detectionType, originalPath); err != nil {
+	if err := cd.saveLockFile(commandName, filesystemName, fullURL, sourceType, fullURL, commitHash, len(commandComponents), detectionType, originalPath); err != nil {
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -284,8 +294,16 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 }
 
 func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) error {
-	// Create command directory
-	commandDir := filepath.Join(cd.baseDir, commandName)
+	// Resolve filesystem name before creating directory to handle conflicts
+	lockBaseDir := filepath.Dir(cd.baseDir)
+	filesystemName, err := metadataPkg.ResolveInstallFilesystemName(lockBaseDir, "commands", commandName, fullURL)
+	if err != nil {
+		cd.formatter.Warning("failed to resolve filesystem name, using command name: %v", err)
+		filesystemName = commandName
+	}
+
+	// Create command directory with resolved name
+	commandDir := filepath.Join(cd.baseDir, filesystemName)
 	if err := fileutil.CreateDirectoryWithPermissions(commandDir); err != nil {
 		return fmt.Errorf("failed to create command directory: %w", err)
 	}
@@ -311,9 +329,9 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		cloneOpts.Auth = auth
 	}
 
-	_, err := git.PlainClone(commandDir, false, cloneOpts)
-	if err != nil {
-		return fmt.Errorf("failed to clone repository: %w", err)
+	_, cloneErr := git.PlainClone(commandDir, false, cloneOpts)
+	if cloneErr != nil {
+		return fmt.Errorf("failed to clone repository: %w", cloneErr)
 	}
 
 	// Save to lock file
@@ -326,13 +344,13 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 
 	// Get commit hash from repository
 	var commitHash string
-	if hash, err := gitpkg.GetCommitHashFromPath(cd.cloner, commandDir); err == nil {
+	if hash, hashErr := gitpkg.GetCommitHashFromPath(cd.cloner, commandDir); hashErr == nil {
 		commitHash = hash
 	} else {
-		cd.formatter.Warning("failed to get commit hash: %v", err)
+		cd.formatter.Warning("failed to get commit hash: %v", hashErr)
 	}
 
-	if err := cd.saveLockFile(commandName, fullURL, sourceType, fullURL, commitHash, 1, "direct", ""); err != nil {
+	if err := cd.saveLockFile(commandName, filesystemName, fullURL, sourceType, fullURL, commitHash, 1, "direct", ""); err != nil {
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -351,7 +369,7 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 }
 
 // saveLockFile saves command lock entry in agent-smith install compatible format
-func (cd *CommandDownloader) saveLockFile(commandName string, source string, sourceType string, sourceUrl string, commitHash string, components int, detection string, originalPath string) error {
+func (cd *CommandDownloader) saveLockFile(commandName, filesystemName, source, sourceType, sourceUrl, commitHash string, components int, detection, originalPath string) error {
 	// Use the parent directory of baseDir for lock file
 	// baseDir is the commands directory (e.g., ~/.agent-smith/commands)
 	// We want the lock file in the parent (e.g., ~/.agent-smith)
@@ -361,7 +379,28 @@ func (cd *CommandDownloader) saveLockFile(commandName string, source string, sou
 		return fmt.Errorf("failed to create lock file directory: %w", err)
 	}
 
-	return metadataPkg.SaveLockFileEntry(lockBaseDir, "commands", commandName, source, sourceType, sourceUrl, commitHash, components, detection, originalPath)
+	// Calculate hashes for drift detection
+	// Both sourceHash and currentHash use local filesystem hashing
+	// They should match at install time (no modifications yet)
+	var sourceHash, currentHash string
+	commandDir := filepath.Join(cd.baseDir, filesystemName)
+
+	if hash, err := metadataPkg.ComputeLocalFolderHash(commandDir); err == nil {
+		sourceHash = hash
+		currentHash = hash
+	} else {
+		// Only warn if we can't hash at all (rare - filesystem issue)
+		cd.formatter.Warning("failed to compute hash: %v", err)
+	}
+
+	return metadataPkg.SaveComponentEntry(lockBaseDir, "commands", commandName, source, sourceType, sourceUrl, commitHash, originalPath, metadataPkg.ComponentEntryOptions{
+		UpdatedAt:      "", // Will be set by SaveComponentEntry
+		Components:     components,
+		Detection:      detection,
+		SourceHash:     sourceHash,
+		CurrentHash:    currentHash,
+		FilesystemName: filesystemName,
+	})
 }
 
 func (cd *CommandDownloader) createCommandFile(filePath, commandName, source string) error {
@@ -439,7 +478,7 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 		cd.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := cd.saveLockFile(destFolderName, fullURL, sourceType, fullURL, commitHash, 1, "single", targetComponent.FilePath); err != nil {
+	if err := cd.saveLockFile(commandName, destFolderName, fullURL, sourceType, fullURL, commitHash, 1, "single", targetComponent.FilePath); err != nil {
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 

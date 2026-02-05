@@ -1,6 +1,7 @@
 package materialize
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -95,6 +96,64 @@ func (s *Service) getSourceDir(profile string) (string, string, error) {
 	return baseDir, "", nil
 }
 
+// componentInfo holds information about a component from the lock file
+type componentInfo struct {
+	ComponentName string
+	ComponentType string
+	SourceUrl     string
+}
+
+// buildFilesystemNameMap creates a mapping from filesystem names to component info
+// This is needed because filesystemName can differ from componentName due to conflicts
+func (s *Service) buildFilesystemNameMap(baseDir string) (map[string]componentInfo, error) {
+	lockFilePath := filepath.Join(baseDir, ".component-lock.json")
+
+	// Check if lock file exists
+	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
+		// No lock file, return empty map
+		return make(map[string]componentInfo), nil
+	}
+
+	lockData, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read lock file: %w", err)
+	}
+
+	var lockFile models.ComponentLockFile
+	if err := json.Unmarshal(lockData, &lockFile); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal lock file: %w", err)
+	}
+
+	mapping := make(map[string]componentInfo)
+
+	// Helper to add entries from a component type map
+	addEntries := func(componentType string, sourceMap map[string]map[string]models.ComponentEntry) {
+		for sourceUrl, components := range sourceMap {
+			for componentName, entry := range components {
+				key := componentType + "/" + entry.FilesystemName
+				mapping[key] = componentInfo{
+					ComponentName: componentName,
+					ComponentType: componentType,
+					SourceUrl:     sourceUrl,
+				}
+			}
+		}
+	}
+
+	// Add all component types
+	if lockFile.Skills != nil {
+		addEntries("skills", lockFile.Skills)
+	}
+	if lockFile.Agents != nil {
+		addEntries("agents", lockFile.Agents)
+	}
+	if lockFile.Commands != nil {
+		addEntries("commands", lockFile.Commands)
+	}
+
+	return mapping, nil
+}
+
 // MaterializeComponent materializes a single component to a target
 func (s *Service) MaterializeComponent(componentType, componentName string, opts services.MaterializeOptions) error {
 	// Validate target
@@ -126,20 +185,7 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 		return err
 	}
 
-	// Get component source path
-	componentSourceDir := filepath.Join(baseDir, componentType, componentName)
-	if _, err := os.Stat(componentSourceDir); os.IsNotExist(err) {
-		var sourcePath string
-		if sourceProfile != "" {
-			sourcePath = fmt.Sprintf("profile '%s' (%s/%s/)", sourceProfile, sourceProfile, componentType)
-		} else {
-			sourcePath = fmt.Sprintf("~/.agent-smith/%s/", componentType)
-		}
-		fmt.Println(errors.NewComponentNotInstalledError(componentType, componentName, sourcePath).Format())
-		return fmt.Errorf("component not found")
-	}
-
-	// Get lock file entry for provenance
+	// Get lock file entry for provenance FIRST (we need the FilesystemName)
 	var lockEntry *models.ComponentLockEntry
 
 	if opts.Source != "" {
@@ -165,6 +211,26 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			}
 			return fmt.Errorf("failed to load component metadata: %w", loadErr)
 		}
+	}
+
+	// Determine the actual directory name to use
+	// Use FilesystemName from lock file if available, otherwise use componentName
+	dirName := componentName
+	if lockEntry != nil && lockEntry.FilesystemName != "" {
+		dirName = lockEntry.FilesystemName
+	}
+
+	// Get component source path using the filesystem name
+	componentSourceDir := filepath.Join(baseDir, componentType, dirName)
+	if _, err := os.Stat(componentSourceDir); os.IsNotExist(err) {
+		var sourcePath string
+		if sourceProfile != "" {
+			sourcePath = fmt.Sprintf("profile '%s' (%s/%s/)", sourceProfile, sourceProfile, componentType)
+		} else {
+			sourcePath = fmt.Sprintf("~/.agent-smith/%s/", componentType)
+		}
+		fmt.Println(errors.NewComponentNotInstalledError(componentType, componentName, sourcePath).Format())
+		return fmt.Errorf("component not found")
 	}
 
 	// Calculate source hash
@@ -291,13 +357,13 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 
 			successCount++
 		} else {
-			// Ensure structure exists
-			structureCreated, err := project.EnsureTargetStructure(targetDir)
+			// Ensure component directory exists (only create the specific component type directory)
+			structureCreated, err := project.EnsureComponentDirectory(targetDir, componentType)
 			if err != nil {
 				return fmt.Errorf("failed to create target structure: %w", err)
 			}
 			if structureCreated {
-				s.formatter.Info("%s Created project structure: %s/ (skills/, agents/, commands/)", formatter.SymbolSuccess, targetDir)
+				s.formatter.Info("%s Created directory: %s/%s/", formatter.SymbolSuccess, targetDir, componentType)
 			}
 
 			// Copy component
@@ -379,6 +445,12 @@ func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
 		return err
 	}
 
+	// Build filesystem name mapping from lock file
+	fsNameMap, err := s.buildFilesystemNameMap(baseDir)
+	if err != nil {
+		return fmt.Errorf("failed to build filesystem name mapping: %w", err)
+	}
+
 	// Get all components
 	var components []struct {
 		Type string
@@ -397,10 +469,18 @@ func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
 
 		for _, entry := range entries {
 			if entry.IsDir() {
-				components = append(components, struct {
-					Type string
-					Name string
-				}{componentType, entry.Name()})
+				// Map filesystem name to component name using lock file
+				key := componentType + "/" + entry.Name()
+				if info, exists := fsNameMap[key]; exists {
+					// Use the component name from lock file
+					components = append(components, struct {
+						Type string
+						Name string
+					}{componentType, info.ComponentName})
+				} else {
+					// Directory not in lock file - warn and skip
+					s.formatter.WarningMsg("Skipping untracked directory: %s/%s (not found in lock file)", componentType, entry.Name())
+				}
 			}
 		}
 	}
@@ -443,6 +523,12 @@ func (s *Service) MaterializeByType(componentType string, opts services.Material
 		return err
 	}
 
+	// Build filesystem name mapping from lock file
+	fsNameMap, err := s.buildFilesystemNameMap(baseDir)
+	if err != nil {
+		return fmt.Errorf("failed to build filesystem name mapping: %w", err)
+	}
+
 	// Get all components of the specified type
 	var components []struct {
 		Type string
@@ -466,10 +552,18 @@ func (s *Service) MaterializeByType(componentType string, opts services.Material
 
 	for _, entry := range entries {
 		if entry.IsDir() {
-			components = append(components, struct {
-				Type string
-				Name string
-			}{componentType, entry.Name()})
+			// Map filesystem name to component name using lock file
+			key := componentType + "/" + entry.Name()
+			if info, exists := fsNameMap[key]; exists {
+				// Use the component name from lock file
+				components = append(components, struct {
+					Type string
+					Name string
+				}{componentType, info.ComponentName})
+			} else {
+				// Directory not in lock file - warn and skip
+				s.formatter.WarningMsg("Skipping untracked directory: %s/%s (not found in lock file)", componentType, entry.Name())
+			}
 		}
 	}
 
@@ -692,7 +786,7 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 		}
 
 		// Get the component map for the given type
-		componentMap := metadata.GetComponentMap(componentType)
+		componentMap := project.GetMaterializationComponentMap(metadata, componentType)
 		if componentMap == nil {
 			return fmt.Errorf("invalid component type: %s (must be skills, agents, or commands)", componentType)
 		}
@@ -797,7 +891,7 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 				if err != nil {
 					continue
 				}
-				componentMap := metadata.GetComponentMap(componentType)
+				componentMap := project.GetMaterializationComponentMap(metadata, componentType)
 				if componentMap != nil {
 					for _, components := range componentMap {
 						for compName := range components {
@@ -863,7 +957,7 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 		}
 
 		// Get all components
-		components := metadata.GetAllMaterializedComponents()
+		components := project.GetAllMaterializedComponents(metadata)
 		if len(components) == 0 {
 			continue
 		}
@@ -1039,7 +1133,7 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 		}
 
 		// Get all components
-		components := metadata.GetAllMaterializedComponents()
+		components := project.GetAllMaterializedComponents(metadata)
 		if len(components) == 0 {
 			continue
 		}

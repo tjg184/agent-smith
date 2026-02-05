@@ -12,6 +12,7 @@ import (
 	"github.com/tgaines/agent-smith/internal/formatter"
 	"github.com/tgaines/agent-smith/internal/linker"
 	"github.com/tgaines/agent-smith/internal/metadata"
+	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
 
@@ -44,8 +45,12 @@ func (u *Uninstaller) UninstallComponent(componentType, name string) error {
 		return fmt.Errorf("component '%s' not installed", name)
 	}
 
-	// Get component directory path
-	componentDir := filepath.Join(u.baseDir, componentType, name)
+	// Get component directory path - use FilesystemName if available (for conflict resolution)
+	dirName := name
+	if entry.FilesystemName != "" {
+		dirName = entry.FilesystemName
+	}
+	componentDir := filepath.Join(u.baseDir, componentType, dirName)
 
 	// Display section header
 	u.formatter.SectionHeader(fmt.Sprintf("Uninstalling %s: %s", componentType, name))
@@ -174,7 +179,13 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 	for componentType, names := range componentsByType {
 		if len(names) > 0 {
 			for _, name := range names {
-				componentDir := filepath.Join(u.baseDir, componentType, name)
+				// Load lock entry to get filesystem name
+				entry, err := metadata.LoadLockFileEntry(u.baseDir, componentType, name)
+				dirName := name
+				if err == nil && entry.FilesystemName != "" {
+					dirName = entry.FilesystemName
+				}
+				componentDir := filepath.Join(u.baseDir, componentType, dirName)
 				u.formatter.ListItem("%s", componentDir)
 			}
 		}
@@ -223,8 +234,15 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 			// Show progress for removal
 			u.formatter.ProgressMsg(fmt.Sprintf("Removing %s", componentType), name)
 
+			// Load lock entry to get filesystem name
+			entry, err := metadata.LoadLockFileEntry(u.baseDir, componentType, name)
+			dirName := name
+			if err == nil && entry.FilesystemName != "" {
+				dirName = entry.FilesystemName
+			}
+
 			// Remove component directory from filesystem
-			componentDir := filepath.Join(u.baseDir, componentType, name)
+			componentDir := filepath.Join(u.baseDir, componentType, dirName)
 			if err := os.RemoveAll(componentDir); err != nil {
 				u.formatter.ProgressFailed()
 				u.formatter.ErrorMsg("Failed to remove %s: %s (%v)", componentType, name, err)
@@ -276,13 +294,13 @@ func (u *Uninstaller) findComponentsBySource(normalizedURL string) (map[string][
 		}
 
 		// Parse lock file
-		var lockFile metadata.ComponentLockFile
+		var lockFile models.ComponentLockFile
 		if err := json.Unmarshal(lockData, &lockFile); err != nil {
 			return nil, fmt.Errorf("failed to parse lock file for %s: %w", componentType, err)
 		}
 
 		// Get the appropriate nested map for this component type
-		var nestedEntries map[string]map[string]metadata.ComponentLockEntry
+		var nestedEntries map[string]map[string]models.ComponentEntry
 		switch componentType {
 		case "skills":
 			nestedEntries = lockFile.Skills

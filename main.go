@@ -13,7 +13,6 @@ import (
 	"github.com/tgaines/agent-smith/internal/fileutil"
 	"github.com/tgaines/agent-smith/internal/formatter"
 	"github.com/tgaines/agent-smith/internal/linker"
-	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/internal/updater"
 	"github.com/tgaines/agent-smith/pkg/config"
@@ -98,7 +97,7 @@ type BulkDownloader = downloader.BulkDownloader
 
 // Re-export types for backward compatibility
 type UpdateDetector = updater.UpdateDetector
-type ComponentLockFile = metadataPkg.ComponentLockFile
+type ComponentLockFile = models.ComponentLockFile
 
 // Cross-platform helper functions
 func getCrossPlatformPermissions() os.FileMode {

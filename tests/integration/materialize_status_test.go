@@ -64,7 +64,7 @@ A test skill for status checking.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -145,7 +145,7 @@ Original content.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -237,7 +237,7 @@ Will be removed.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -322,7 +322,7 @@ For target testing.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -402,7 +402,7 @@ From profile.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create lock file in profile
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{

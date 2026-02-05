@@ -65,7 +65,7 @@ func TestMaterializeConflictHandling(t *testing.T) {
 	t.Logf("Created test skill at: %s", testSkillDir)
 
 	// Create lock file
-	lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+	lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 	lockData := map[string]interface{}{
 		"version": 3,
 		"skills": map[string]interface{}{

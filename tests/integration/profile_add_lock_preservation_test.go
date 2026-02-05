@@ -52,7 +52,7 @@ func TestProfileAddPreservesLockFileEntries(t *testing.T) {
 
 		// Step 2: Verify the lock file entry exists in base installation
 		t.Log("Step 2: Verifying lock file entry in base installation...")
-		baseLockPath := filepath.Join(testHome, ".agent-smith", ".skill-lock.json")
+		baseLockPath := filepath.Join(testHome, ".agent-smith", ".component-lock.json")
 		baseLockData, err := os.ReadFile(baseLockPath)
 		if err != nil {
 			t.Fatalf("Failed to read base lock file: %v", err)
@@ -108,7 +108,7 @@ func TestProfileAddPreservesLockFileEntries(t *testing.T) {
 
 		// Step 5: Verify the lock file entry was copied to the profile
 		t.Log("Step 5: Verifying lock file entry was copied to profile...")
-		profileLockPath := filepath.Join(testHome, ".agent-smith", "profiles", "test-profile", ".skill-lock.json")
+		profileLockPath := filepath.Join(testHome, ".agent-smith", "profiles", "test-profile", ".component-lock.json")
 		profileLockData, err := os.ReadFile(profileLockPath)
 		if err != nil {
 			t.Fatalf("Failed to read profile lock file at %s: %v", profileLockPath, err)

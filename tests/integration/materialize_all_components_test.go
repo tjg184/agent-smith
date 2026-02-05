@@ -151,7 +151,7 @@ func TestMaterializeAllComponentTypes(t *testing.T) {
 
 	// Verify metadata file exists and contains all components
 	t.Run("VerifyMetadata", func(t *testing.T) {
-		metadataPath := filepath.Join(opencodeDir, ".materializations.json")
+		metadataPath := filepath.Join(opencodeDir, ".component-lock.json")
 		testutil.AssertFileExists(t, metadataPath)
 
 		// Load and parse metadata
@@ -162,32 +162,41 @@ func TestMaterializeAllComponentTypes(t *testing.T) {
 		err = json.Unmarshal(metadataBytes, &metadata)
 		testutil.AssertNoError(t, err, "Failed to parse metadata")
 
-		// Verify metadata structure
-		testutil.AssertEqual(t, 1, metadata.Version, "Incorrect metadata version")
+		// Verify metadata structure (version 5 with nested maps)
+		testutil.AssertEqual(t, 5, metadata.Version, "Incorrect metadata version")
 
 		// Verify each component type has entries
-		testutil.AssertEqual(t, 1, len(metadata.Skills), "Expected 1 skill in metadata")
-		testutil.AssertEqual(t, 1, len(metadata.Agents), "Expected 1 agent in metadata")
-		testutil.AssertEqual(t, 1, len(metadata.Commands), "Expected 1 command in metadata")
+		testutil.AssertEqual(t, 1, len(metadata.Skills), "Expected 1 skill source in metadata")
+		testutil.AssertEqual(t, 1, len(metadata.Agents), "Expected 1 agent source in metadata")
+		testutil.AssertEqual(t, 1, len(metadata.Commands), "Expected 1 command source in metadata")
 
-		// Verify skill metadata
-		skillMeta, exists := metadata.Skills["test-skill"]
+		// Source URL from the lock file
+		sourceURL := "https://github.com/test/repo"
+
+		// Verify skill metadata (nested structure: Skills[sourceURL][componentName])
+		skillsFromSource, exists := metadata.Skills[sourceURL]
+		testutil.AssertTrue(t, exists, "Source URL not found in skills metadata")
+		skillMeta, exists := skillsFromSource["test-skill"]
 		testutil.AssertTrue(t, exists, "test-skill not found in metadata")
-		testutil.AssertEqual(t, "https://github.com/test/repo", skillMeta.Source, "Incorrect skill source")
+		testutil.AssertEqual(t, sourceURL, skillMeta.SourceUrl, "Incorrect skill source")
 		testutil.AssertEqual(t, "github", skillMeta.SourceType, "Incorrect skill source type")
 		testutil.AssertEqual(t, "abc123", skillMeta.CommitHash, "Incorrect skill commit hash")
 
 		// Verify agent metadata
-		agentMeta, exists := metadata.Agents["test-agent"]
+		agentsFromSource, exists := metadata.Agents[sourceURL]
+		testutil.AssertTrue(t, exists, "Source URL not found in agents metadata")
+		agentMeta, exists := agentsFromSource["test-agent"]
 		testutil.AssertTrue(t, exists, "test-agent not found in metadata")
-		testutil.AssertEqual(t, "https://github.com/test/repo", agentMeta.Source, "Incorrect agent source")
+		testutil.AssertEqual(t, sourceURL, agentMeta.SourceUrl, "Incorrect agent source")
 		testutil.AssertEqual(t, "github", agentMeta.SourceType, "Incorrect agent source type")
 		testutil.AssertEqual(t, "abc123", agentMeta.CommitHash, "Incorrect agent commit hash")
 
 		// Verify command metadata
-		commandMeta, exists := metadata.Commands["test-command"]
+		commandsFromSource, exists := metadata.Commands[sourceURL]
+		testutil.AssertTrue(t, exists, "Source URL not found in commands metadata")
+		commandMeta, exists := commandsFromSource["test-command"]
 		testutil.AssertTrue(t, exists, "test-command not found in metadata")
-		testutil.AssertEqual(t, "https://github.com/test/repo", commandMeta.Source, "Incorrect command source")
+		testutil.AssertEqual(t, sourceURL, commandMeta.SourceUrl, "Incorrect command source")
 		testutil.AssertEqual(t, "github", commandMeta.SourceType, "Incorrect command source type")
 		testutil.AssertEqual(t, "abc123", commandMeta.CommitHash, "Incorrect command commit hash")
 
@@ -219,7 +228,7 @@ func TestMaterializeAllComponentTypes(t *testing.T) {
 		testutil.AssertFileExists(t, destPath)
 
 		// Verify metadata exists in claudecode target
-		claudeMetadataPath := filepath.Join(claudeDir, ".materializations.json")
+		claudeMetadataPath := filepath.Join(claudeDir, ".component-lock.json")
 		testutil.AssertFileExists(t, claudeMetadataPath)
 
 		// Load and verify Claude metadata
@@ -363,7 +372,7 @@ func TestMaterializeRecursiveDirectoryStructure(t *testing.T) {
 	}
 
 	// Create lock file
-	lockFilePath := filepath.Join(agentSmithDir, ".command-lock.json")
+	lockFilePath := filepath.Join(agentSmithDir, ".component-lock.json")
 	lockData := map[string]interface{}{
 		"version": 3,
 		"commands": map[string]interface{}{

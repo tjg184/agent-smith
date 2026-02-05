@@ -8,95 +8,76 @@ import (
 	"strings"
 	"time"
 
-	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
+	"github.com/tgaines/agent-smith/internal/metadata"
+	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/internal/updater"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
 
-// MaterializationMetadata represents the metadata file structure
-// stored in .opencode/.materializations.json or .claude/.materializations.json
-// Version 2+ uses nested structure: map[sourceURL]map[componentName]MaterializedComponentMetadata
-type MaterializationMetadata struct {
-	Version  int                                                 `json:"version"`
-	Skills   map[string]map[string]MaterializedComponentMetadata `json:"skills"`
-	Agents   map[string]map[string]MaterializedComponentMetadata `json:"agents"`
-	Commands map[string]map[string]MaterializedComponentMetadata `json:"commands"`
-}
+// MaterializationMetadata is now an alias for ComponentLockFile for backward compatibility
+type MaterializationMetadata = models.ComponentLockFile
 
-// MaterializedComponentMetadata represents metadata for a single materialized component
-type MaterializedComponentMetadata struct {
-	Source         string `json:"source"`
-	SourceType     string `json:"sourceType"`
-	SourceProfile  string `json:"sourceProfile,omitempty"`
-	CommitHash     string `json:"commitHash"`
-	OriginalPath   string `json:"originalPath"`
-	MaterializedAt string `json:"materializedAt"`
-	SourceHash     string `json:"sourceHash"`
-	CurrentHash    string `json:"currentHash"`
-	FilesystemName string `json:"filesystemName"` // Actual directory name on disk (may differ from component name)
-}
+// MaterializedComponentMetadata is now an alias for ComponentEntry for backward compatibility
+type MaterializedComponentMetadata = models.ComponentEntry
 
-// LoadMaterializationMetadata loads metadata from the target directory's .materializations.json
+// LoadMaterializationMetadata loads metadata from the target directory's .component-lock.json
 func LoadMaterializationMetadata(targetDir string) (*MaterializationMetadata, error) {
-	metadataPath := filepath.Join(targetDir, ".materializations.json")
+	lockFilePath := paths.GetComponentLockPath(targetDir, "")
 
-	data, err := os.ReadFile(metadataPath)
+	data, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// File doesn't exist, return empty metadata with v2 structure
+			// File doesn't exist, return empty metadata with v5 structure
 			return &MaterializationMetadata{
-				Version:  2,
-				Skills:   make(map[string]map[string]MaterializedComponentMetadata),
-				Agents:   make(map[string]map[string]MaterializedComponentMetadata),
-				Commands: make(map[string]map[string]MaterializedComponentMetadata),
+				Version:  5,
+				Skills:   make(map[string]map[string]models.ComponentEntry),
+				Agents:   make(map[string]map[string]models.ComponentEntry),
+				Commands: make(map[string]map[string]models.ComponentEntry),
 			}, nil
 		}
 		return nil, fmt.Errorf("failed to read metadata file: %w", err)
 	}
 
-	var metadata MaterializationMetadata
-	if err := json.Unmarshal(data, &metadata); err != nil {
+	var lockFile models.ComponentLockFile
+	if err := json.Unmarshal(data, &lockFile); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 	}
 
 	// Ensure maps are initialized and update version
-	metadata.Version = 2
-	if metadata.Skills == nil {
-		metadata.Skills = make(map[string]map[string]MaterializedComponentMetadata)
+	lockFile.Version = 5
+	if lockFile.Skills == nil {
+		lockFile.Skills = make(map[string]map[string]models.ComponentEntry)
 	}
-	if metadata.Agents == nil {
-		metadata.Agents = make(map[string]map[string]MaterializedComponentMetadata)
+	if lockFile.Agents == nil {
+		lockFile.Agents = make(map[string]map[string]models.ComponentEntry)
 	}
-	if metadata.Commands == nil {
-		metadata.Commands = make(map[string]map[string]MaterializedComponentMetadata)
+	if lockFile.Commands == nil {
+		lockFile.Commands = make(map[string]map[string]models.ComponentEntry)
 	}
 
-	return &metadata, nil
+	return &lockFile, nil
 }
 
-// SaveMaterializationMetadata saves metadata to the target directory's .materializations.json
+// SaveMaterializationMetadata saves metadata to the target directory's .component-lock.json
 func SaveMaterializationMetadata(targetDir string, metadata *MaterializationMetadata) error {
-	metadataPath := filepath.Join(targetDir, ".materializations.json")
+	lockFilePath := paths.GetComponentLockPath(targetDir, "")
 
-	data, err := json.MarshalIndent(metadata, "", "  ")
+	jsonData, err := json.MarshalIndent(metadata, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
-	if err := os.WriteFile(metadataPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write metadata file: %w", err)
-	}
-
-	return nil
+	return os.WriteFile(lockFilePath, jsonData, 0644)
 }
 
 // AddMaterializationEntry adds or updates a materialization entry in the metadata
-// Uses nested structure by source URL
+// Uses unified ComponentEntry structure
 func AddMaterializationEntry(metadata *MaterializationMetadata, componentType, componentName, source, sourceType, sourceProfile, commitHash, originalPath, sourceHash, currentHash, filesystemName string) {
 	now := time.Now().Format(time.RFC3339)
 
-	entry := MaterializedComponentMetadata{
+	entry := models.ComponentEntry{
 		Source:         source,
+		SourceUrl:      source, // Set sourceUrl to match source
 		SourceType:     sourceType,
 		SourceProfile:  sourceProfile,
 		CommitHash:     commitHash,
@@ -105,10 +86,11 @@ func AddMaterializationEntry(metadata *MaterializationMetadata, componentType, c
 		SourceHash:     sourceHash,
 		CurrentHash:    currentHash,
 		FilesystemName: filesystemName,
+		Version:        5,
 	}
 
 	// Get or create the nested map for this component type
-	var targetMap map[string]map[string]MaterializedComponentMetadata
+	var targetMap map[string]map[string]models.ComponentEntry
 	switch componentType {
 	case "skills":
 		targetMap = metadata.Skills
@@ -122,22 +104,22 @@ func AddMaterializationEntry(metadata *MaterializationMetadata, componentType, c
 
 	// Initialize source map if it doesn't exist
 	if targetMap[source] == nil {
-		targetMap[source] = make(map[string]MaterializedComponentMetadata)
+		targetMap[source] = make(map[string]models.ComponentEntry)
 	}
 
 	// Add or update the entry
 	targetMap[source][componentName] = entry
 }
 
-// GetComponentMap returns the appropriate nested component map for the given component type
-func (m *MaterializationMetadata) GetComponentMap(componentType string) map[string]map[string]MaterializedComponentMetadata {
+// GetMaterializationComponentMap returns the appropriate nested component map for the given component type
+func GetMaterializationComponentMap(metadata *MaterializationMetadata, componentType string) map[string]map[string]models.ComponentEntry {
 	switch componentType {
 	case "skills":
-		return m.Skills
+		return metadata.Skills
 	case "agents":
-		return m.Agents
+		return metadata.Agents
 	case "commands":
-		return m.Commands
+		return metadata.Commands
 	default:
 		return nil
 	}
@@ -192,7 +174,7 @@ func filesystemNameExists(path string) bool {
 // metadataFilesystemNameExists checks if a filesystem name is already used in metadata
 // Only checks within the specified component type since each type has its own directory
 func metadataFilesystemNameExists(filesystemName string, componentType string, metadata *MaterializationMetadata) bool {
-	var componentMap map[string]map[string]MaterializedComponentMetadata
+	var componentMap map[string]map[string]models.ComponentEntry
 
 	switch componentType {
 	case "skills":
@@ -220,7 +202,7 @@ func metadataFilesystemNameExists(filesystemName string, componentType string, m
 // findExistingFilesystemName checks if a component with the given sourceUrl and componentName
 // is already materialized, and returns its filesystem name if found
 func findExistingFilesystemName(componentType, componentName, sourceUrl string, metadata *MaterializationMetadata) string {
-	var componentMap map[string]map[string]MaterializedComponentMetadata
+	var componentMap map[string]map[string]models.ComponentEntry
 
 	switch componentType {
 	case "skills":
@@ -251,15 +233,15 @@ func findExistingFilesystemName(componentType, componentName, sourceUrl string, 
 type ComponentInfo struct {
 	Type     string
 	Name     string
-	Metadata MaterializedComponentMetadata
+	Metadata models.ComponentEntry
 }
 
 // GetAllMaterializedComponents returns a flat list of all materialized components
 // Iterates through nested structure and flattens
-func (m *MaterializationMetadata) GetAllMaterializedComponents() []ComponentInfo {
+func GetAllMaterializedComponents(metadata *MaterializationMetadata) []ComponentInfo {
 	var components []ComponentInfo
 
-	for _, sourceComponents := range m.Skills {
+	for _, sourceComponents := range metadata.Skills {
 		for name, metadata := range sourceComponents {
 			components = append(components, ComponentInfo{
 				Type:     "skills",
@@ -269,7 +251,7 @@ func (m *MaterializationMetadata) GetAllMaterializedComponents() []ComponentInfo
 		}
 	}
 
-	for _, sourceComponents := range m.Agents {
+	for _, sourceComponents := range metadata.Agents {
 		for name, metadata := range sourceComponents {
 			components = append(components, ComponentInfo{
 				Type:     "agents",
@@ -279,7 +261,7 @@ func (m *MaterializationMetadata) GetAllMaterializedComponents() []ComponentInfo
 		}
 	}
 
-	for _, sourceComponents := range m.Commands {
+	for _, sourceComponents := range metadata.Commands {
 		for name, metadata := range sourceComponents {
 			components = append(components, ComponentInfo{
 				Type:     "commands",
@@ -309,7 +291,7 @@ type SyncCheckResult struct {
 
 // CheckComponentSyncStatus checks if a materialized component is in sync with its GitHub source
 // Returns the sync status and any error encountered
-func CheckComponentSyncStatus(componentType, componentName string, metadata MaterializedComponentMetadata) (SyncStatus, error) {
+func CheckComponentSyncStatus(componentType, componentName string, metadata models.ComponentEntry) (SyncStatus, error) {
 	// Check if we have a valid source URL and commit hash
 	if metadata.Source == "" {
 		return "", fmt.Errorf("component metadata missing source URL")
@@ -473,9 +455,9 @@ func CheckMultipleComponentsSyncStatusBatched(baseDir string, components []Compo
 
 // UpdateMaterializationEntry updates an existing materialization entry with new hashes and timestamp
 // Searches across all sources and updates all matches
-func UpdateMaterializationEntry(metadata *MaterializationMetadata, baseDir, componentType, componentName, newSourceHash, newCurrentHash string) error {
+func UpdateMaterializationEntry(metadataFile *MaterializationMetadata, baseDir, componentType, componentName, newSourceHash, newCurrentHash string) error {
 	// Get the nested component map
-	componentMap := metadata.GetComponentMap(componentType)
+	componentMap := GetMaterializationComponentMap(metadataFile, componentType)
 	if componentMap == nil {
 		return fmt.Errorf("invalid component type: %s", componentType)
 	}
@@ -490,7 +472,7 @@ func UpdateMaterializationEntry(metadata *MaterializationMetadata, baseDir, comp
 		found = true
 
 		// Re-read lock file to get latest commit hash for this source
-		lockEntry, err := metadataPkg.LoadLockFileEntryBySource(baseDir, componentType, componentName, sourceUrl)
+		lockEntry, err := metadata.LoadLockFileEntryBySource(baseDir, componentType, componentName, sourceUrl)
 		if err != nil {
 			// If lock file can't be read, preserve existing commit hash
 			// This can happen if the component was uninstalled

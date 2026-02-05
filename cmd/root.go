@@ -1064,7 +1064,7 @@ SAFETY:
 This command removes the skill from the system by:
   1. Automatically unlinking from all detected targets
   2. Removing the skill directory from filesystem
-  3. Removing the entry from .skill-lock.json
+  3. Removing the entry from .component-lock.json
 
 EXAMPLES:
   # Remove a specific skill
@@ -1089,7 +1089,7 @@ EXAMPLES:
 This command removes the agent from the system by:
   1. Automatically unlinking from all detected targets
   2. Removing the agent directory from filesystem
-  3. Removing the entry from .agent-lock.json
+  3. Removing the entry from .component-lock.json
 
 EXAMPLES:
   # Remove a specific agent
@@ -1114,7 +1114,7 @@ EXAMPLES:
 This command removes the command from the system by:
   1. Automatically unlinking from all detected targets
   2. Removing the command directory from filesystem
-  3. Removing the entry from .command-lock.json
+  3. Removing the entry from .component-lock.json
 
 EXAMPLES:
   # Remove a specific command
@@ -1628,7 +1628,7 @@ EXAMPLES:
 		Long: `Materialize a skill from ~/.agent-smith/skills/ to project directories.
 
 This command copies the entire skill directory to .opencode/skills/ or .claude/skills/
-with full provenance tracking in .materializations.json.
+with full provenance tracking in .component-lock.json.
 
 The target can be specified with --target flag or AGENT_SMITH_TARGET environment variable.
 
@@ -1670,7 +1670,7 @@ EXAMPLES:
 		Long: `Materialize an agent from ~/.agent-smith/agents/ to project directories.
 
 This command copies the entire agent directory to .opencode/agents/ or .claude/agents/
-with full provenance tracking in .materializations.json.
+with full provenance tracking in .component-lock.json.
 
 The target can be specified with --target flag or AGENT_SMITH_TARGET environment variable.
 
@@ -1712,7 +1712,7 @@ EXAMPLES:
 		Long: `Materialize a command from ~/.agent-smith/commands/ to project directories.
 
 This command copies the entire command directory to .opencode/commands/ or .claude/commands/
-with full provenance tracking in .materializations.json.
+with full provenance tracking in .component-lock.json.
 
 The target can be specified with --target flag or AGENT_SMITH_TARGET environment variable.
 

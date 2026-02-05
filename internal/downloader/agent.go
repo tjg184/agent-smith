@@ -184,8 +184,16 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		return ad.downloadAgentDirect(fullURL, agentName)
 	}
 
-	// Create agent directory
-	agentDir := filepath.Join(ad.baseDir, agentName)
+	// Resolve filesystem name before creating directory to handle conflicts
+	lockBaseDir := filepath.Dir(ad.baseDir)
+	filesystemName, err := metadataPkg.ResolveInstallFilesystemName(lockBaseDir, "agents", agentName, fullURL)
+	if err != nil {
+		ad.formatter.Warning("failed to resolve filesystem name, using agent name: %v", err)
+		filesystemName = agentName
+	}
+
+	// Create agent directory with resolved name
+	agentDir := filepath.Join(ad.baseDir, filesystemName)
 	if err := fileutil.CreateDirectoryWithPermissions(agentDir); err != nil {
 		return fmt.Errorf("failed to create agent directory: %w", err)
 	}
@@ -233,9 +241,14 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		// Use heuristic to determine proper folder name to avoid nested monorepo directories
 		destFolderName := DetermineDestinationFolderName(matchingComponent.FilePath)
 
-		// If heuristic name differs from agentName, recreate directory with proper name
-		if destFolderName != agentName {
-			agentDir = filepath.Join(ad.baseDir, destFolderName)
+		// If heuristic name differs from resolved filesystem name, update it
+		if destFolderName != filesystemName {
+			// Remove the originally created directory
+			os.RemoveAll(agentDir)
+
+			// Recreate with heuristic name
+			filesystemName = destFolderName
+			agentDir = filepath.Join(ad.baseDir, filesystemName)
 			if err := fileutil.CreateDirectoryWithPermissions(agentDir); err != nil {
 				return fmt.Errorf("failed to create agent directory: %w", err)
 			}
@@ -246,9 +259,6 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		if err != nil {
 			return fmt.Errorf("failed to copy agent files: %w", err)
 		}
-
-		// Update agentName to match the actual directory name for lock file
-		agentName = destFolderName
 	} else {
 		// Multiple agents found but none match the requested agent name
 		// Return error with list of available agents
@@ -290,7 +300,7 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		originalPath = matchingComponent.FilePath
 	}
 
-	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, commitHash, len(agentComponents), detectionType, originalPath); err != nil {
+	if err := ad.saveLockFile(agentName, filesystemName, fullURL, sourceType, fullURL, commitHash, len(agentComponents), detectionType, originalPath); err != nil {
 		ad.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -308,8 +318,16 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 }
 
 func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error {
-	// Create agent directory
-	agentDir := filepath.Join(ad.baseDir, agentName)
+	// Resolve filesystem name before creating directory to handle conflicts
+	lockBaseDir := filepath.Dir(ad.baseDir)
+	filesystemName, err := metadataPkg.ResolveInstallFilesystemName(lockBaseDir, "agents", agentName, fullURL)
+	if err != nil {
+		ad.formatter.Warning("failed to resolve filesystem name, using agent name: %v", err)
+		filesystemName = agentName
+	}
+
+	// Create agent directory with resolved name
+	agentDir := filepath.Join(ad.baseDir, filesystemName)
 	if err := fileutil.CreateDirectoryWithPermissions(agentDir); err != nil {
 		return fmt.Errorf("failed to create agent directory: %w", err)
 	}
@@ -335,9 +353,9 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 		cloneOpts.Auth = auth
 	}
 
-	_, err := git.PlainClone(agentDir, false, cloneOpts)
-	if err != nil {
-		return fmt.Errorf("failed to clone repository: %w", err)
+	_, cloneErr := git.PlainClone(agentDir, false, cloneOpts)
+	if cloneErr != nil {
+		return fmt.Errorf("failed to clone repository: %w", cloneErr)
 	}
 
 	// Save to lock file
@@ -350,13 +368,13 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 
 	// Get commit hash from repository
 	var commitHash string
-	if hash, err := gitpkg.GetCommitHashFromPath(ad.cloner, agentDir); err == nil {
+	if hash, hashErr := gitpkg.GetCommitHashFromPath(ad.cloner, agentDir); hashErr == nil {
 		commitHash = hash
 	} else {
-		ad.formatter.Warning("failed to get commit hash: %v", err)
+		ad.formatter.Warning("failed to get commit hash: %v", hashErr)
 	}
 
-	if err := ad.saveLockFile(agentName, fullURL, sourceType, fullURL, commitHash, 1, "direct", ""); err != nil {
+	if err := ad.saveLockFile(agentName, filesystemName, fullURL, sourceType, fullURL, commitHash, 1, "direct", ""); err != nil {
 		ad.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -375,7 +393,7 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 }
 
 // saveLockFile saves agent lock entry in agent-smith install compatible format
-func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceType string, sourceUrl string, commitHash string, components int, detection string, originalPath string) error {
+func (ad *AgentDownloader) saveLockFile(agentName, filesystemName, source, sourceType, sourceUrl, commitHash string, components int, detection, originalPath string) error {
 	// Use the parent directory of baseDir for lock file
 	// baseDir is the agents directory (e.g., ~/.agent-smith/agents)
 	// We want the lock file in the parent (e.g., ~/.agent-smith)
@@ -385,7 +403,28 @@ func (ad *AgentDownloader) saveLockFile(agentName string, source string, sourceT
 		return fmt.Errorf("failed to create lock file directory: %w", err)
 	}
 
-	return metadataPkg.SaveLockFileEntry(lockBaseDir, "agents", agentName, source, sourceType, sourceUrl, commitHash, components, detection, originalPath)
+	// Calculate hashes for drift detection
+	// Both sourceHash and currentHash use local filesystem hashing
+	// They should match at install time (no modifications yet)
+	var sourceHash, currentHash string
+	agentDir := filepath.Join(ad.baseDir, filesystemName)
+
+	if hash, err := metadataPkg.ComputeLocalFolderHash(agentDir); err == nil {
+		sourceHash = hash
+		currentHash = hash
+	} else {
+		// Only warn if we can't hash at all (rare - filesystem issue)
+		ad.formatter.Warning("failed to compute hash: %v", err)
+	}
+
+	return metadataPkg.SaveComponentEntry(lockBaseDir, "agents", agentName, source, sourceType, sourceUrl, commitHash, originalPath, metadataPkg.ComponentEntryOptions{
+		UpdatedAt:      "", // Will be set by SaveComponentEntry
+		Components:     components,
+		Detection:      detection,
+		SourceHash:     sourceHash,
+		CurrentHash:    currentHash,
+		FilesystemName: filesystemName,
+	})
 }
 
 func (ad *AgentDownloader) createAgentFile(filePath, agentName, source string) error {
@@ -463,7 +502,7 @@ func (ad *AgentDownloader) DownloadAgentWithRepo(fullURL, agentName, repoURL str
 		ad.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := ad.saveLockFile(destFolderName, fullURL, sourceType, fullURL, commitHash, 1, "single", targetComponent.FilePath); err != nil {
+	if err := ad.saveLockFile(agentName, destFolderName, fullURL, sourceType, fullURL, commitHash, 1, "single", targetComponent.FilePath); err != nil {
 		ad.formatter.Warning("failed to save lock file: %v", err)
 	}
 

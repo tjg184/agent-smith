@@ -153,3 +153,31 @@ func EnsureTargetStructure(targetDir string) (bool, error) {
 
 	return created, nil
 }
+
+// EnsureComponentDirectory creates only the target directory and the specific component subdirectory.
+// This is used when materializing a specific component type to avoid creating empty directories.
+// Returns true if any directories were created, false if all existed.
+func EnsureComponentDirectory(targetDir, componentType string) (bool, error) {
+	created := false
+
+	// Check if target directory exists
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+		created = true
+	}
+
+	// Create target directory
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return false, fmt.Errorf("failed to create target directory: %w", err)
+	}
+
+	// Create only the specific component subdirectory
+	subdirPath := filepath.Join(targetDir, componentType)
+	if _, err := os.Stat(subdirPath); os.IsNotExist(err) {
+		created = true
+	}
+	if err := os.MkdirAll(subdirPath, 0755); err != nil {
+		return false, fmt.Errorf("failed to create subdirectory %s: %w", componentType, err)
+	}
+
+	return created, nil
+}

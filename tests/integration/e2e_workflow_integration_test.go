@@ -231,7 +231,7 @@ func TestE2E_SingleComponentWorkflow(t *testing.T) {
 		testutil.AssertDirectoryExists(t, skillDir)
 
 		// Verify lock file was created
-		lockFile := filepath.Join(tempDir, ".agent-smith", ".skill-lock.json")
+		lockFile := filepath.Join(tempDir, ".agent-smith", ".component-lock.json")
 		testutil.AssertFileExists(t, lockFile)
 
 		t.Logf("Successfully installed skill: %s to base directory", skillName)

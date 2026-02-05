@@ -67,7 +67,7 @@ A tool from the work profile.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create profile lock file
-		lockFilePath := filepath.Join(profilesDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(profilesDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -154,7 +154,7 @@ A tool from the base directory.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create base lock file
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -228,7 +228,7 @@ A tool from the base directory.
 		testutil.AssertNoError(t, err, "Failed to write AGENT.md")
 
 		// Create profile agent lock file
-		agentLockPath := filepath.Join(profilesDir, ".agent-lock.json")
+		agentLockPath := filepath.Join(profilesDir, ".component-lock.json")
 		agentLockData := map[string]interface{}{
 			"version": 3,
 			"agents": map[string]interface{}{
@@ -255,7 +255,7 @@ A tool from the base directory.
 		testutil.AssertNoError(t, err, "Failed to write COMMAND.md")
 
 		// Create base command lock file
-		commandLockPath := filepath.Join(baseDir, ".command-lock.json")
+		commandLockPath := filepath.Join(baseDir, ".component-lock.json")
 		commandLockData := map[string]interface{}{
 			"version": 3,
 			"commands": map[string]interface{}{
@@ -370,7 +370,7 @@ A tool from the base directory.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create profile lock file
-		lockFilePath := filepath.Join(profilesDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(profilesDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{

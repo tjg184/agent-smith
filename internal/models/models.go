@@ -40,28 +40,49 @@ type ComponentFrontmatter struct {
 	Mode        string `yaml:"mode"`
 }
 
-// ComponentLockEntry represents a single entry in the lock file
-type ComponentLockEntry struct {
+// ComponentEntry represents a single component entry in unified lock files
+// Used for both installs (~/.agent-smith/.component-lock.json) and
+// materializations (project/.component-lock.json)
+// Version 5+ unified format
+type ComponentEntry struct {
+	// Core metadata
 	Source       string `json:"source"`
 	SourceType   string `json:"sourceType"`
 	SourceUrl    string `json:"sourceUrl"`
-	SkillPath    string `json:"skillPath,omitempty"`
 	OriginalPath string `json:"originalPath,omitempty"` // Original path in repo (e.g., "plugins/ui-design/agents/expert.md")
 	CommitHash   string `json:"commitHash"`
-	InstalledAt  string `json:"installedAt"`
-	UpdatedAt    string `json:"updatedAt"`
-	Version      int    `json:"version"`
-	Components   int    `json:"components,omitempty"`
-	Detection    string `json:"detection,omitempty"`
+
+	// Timestamps (semantics vary by context)
+	InstalledAt    string `json:"installedAt,omitempty"`    // When installed to ~/.agent-smith
+	MaterializedAt string `json:"materializedAt,omitempty"` // When copied to project
+	UpdatedAt      string `json:"updatedAt,omitempty"`      // Last update time
+
+	// Drift detection
+	SourceHash  string `json:"sourceHash,omitempty"`  // Hash at install/materialize time
+	CurrentHash string `json:"currentHash,omitempty"` // Current hash (detect modifications)
+
+	// Location/tracking
+	FilesystemName string `json:"filesystemName,omitempty"` // Actual directory name on disk (handles conflicts)
+	SourceProfile  string `json:"sourceProfile,omitempty"`  // Which profile (for materialization)
+
+	// Install-specific metadata
+	Components int    `json:"components,omitempty"` // Component count
+	Detection  string `json:"detection,omitempty"`  // How detected (auto/manual)
+
+	Version int `json:"version"` // Entry version
 }
 
-// ComponentLockFile tracks all installed components
-// Version 4+ uses nested structure: map[sourceURL]map[componentName]ComponentLockEntry
+// ComponentLockEntry is deprecated - use ComponentEntry instead
+// Kept for backward compatibility
+type ComponentLockEntry = ComponentEntry
+
+// ComponentLockFile tracks all components (installs and materializations)
+// Version 5+ uses unified ComponentEntry structure
 type ComponentLockFile struct {
-	Version  int                                      `json:"version"`
-	Skills   map[string]map[string]ComponentLockEntry `json:"skills"`
-	Agents   map[string]map[string]ComponentLockEntry `json:"agents,omitempty"`
-	Commands map[string]map[string]ComponentLockEntry `json:"commands,omitempty"`
+	Version  int                                  `json:"version"`
+	Skills   map[string]map[string]ComponentEntry `json:"skills"`
+	Agents   map[string]map[string]ComponentEntry `json:"agents,omitempty"`
+	Commands map[string]map[string]ComponentEntry `json:"commands,omitempty"`
 }
 
 // ComponentMetadata is a legacy metadata structure for backward compatibility

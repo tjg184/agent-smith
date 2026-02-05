@@ -4,124 +4,108 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/tgaines/agent-smith/internal/models"
 	"github.com/tgaines/agent-smith/pkg/paths"
 )
 
-// ComponentLockFile represents the lock file structure for component metadata
-// Version 4+ uses nested structure: map[sourceURL]map[componentName]ComponentLockEntry
-type ComponentLockFile struct {
-	Version  int                                      `json:"version"`
-	Skills   map[string]map[string]ComponentLockEntry `json:"skills"`
-	Agents   map[string]map[string]ComponentLockEntry `json:"agents,omitempty"`
-	Commands map[string]map[string]ComponentLockEntry `json:"commands,omitempty"`
+// ComponentEntryOptions holds optional parameters for SaveComponentEntry
+type ComponentEntryOptions struct {
+	// For install operations
+	InstalledAt string
+	UpdatedAt   string
+	Components  int
+	Detection   string
+
+	// For materialize operations
+	MaterializedAt string
+	SourceProfile  string
+
+	// For both
+	SourceHash     string
+	CurrentHash    string
+	FilesystemName string
 }
 
-// ComponentLockEntry represents a single component entry in the lock file
-type ComponentLockEntry struct {
-	Source       string `json:"source"`
-	SourceType   string `json:"sourceType"`
-	SourceUrl    string `json:"sourceUrl"`
-	OriginalPath string `json:"originalPath,omitempty"`
-	CommitHash   string `json:"commitHash,omitempty"`
-	InstalledAt  string `json:"installedAt"`
-	UpdatedAt    string `json:"updatedAt"`
-	Version      int    `json:"version"`
-	Components   int    `json:"components,omitempty"`
-	Detection    string `json:"detection,omitempty"`
-}
-
-// SaveLockFileEntry saves a component lock entry in agent-smith install compatible format
-// Version 4 uses nested structure by source URL
-func SaveLockFileEntry(baseDir, componentType, componentName, source, sourceType, sourceUrl, commitHash string, components int, detection, originalPath string) error {
+// SaveComponentEntry saves a unified component entry for both installs and materializations
+// Version 5 unified format
+func SaveComponentEntry(baseDir, componentType, componentName, source, sourceType, sourceUrl, commitHash, originalPath string, opts ComponentEntryOptions) error {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
 	// Read existing lock file or create new one
-	var lockFile ComponentLockFile
-	lockData, err := os.ReadFile(lockFilePath)
+	lockFile, err := loadOrCreateLockFile(lockFilePath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			lockFile = ComponentLockFile{
-				Version:  4, // Version 4 uses nested structure
-				Skills:   make(map[string]map[string]ComponentLockEntry),
-				Agents:   make(map[string]map[string]ComponentLockEntry),
-				Commands: make(map[string]map[string]ComponentLockEntry),
-			}
-		} else {
-			return fmt.Errorf("failed to read lock file: %w", err)
-		}
-	} else {
-		if err := json.Unmarshal(lockData, &lockFile); err != nil {
-			// If lock file is corrupted, create new one
-			lockFile = ComponentLockFile{
-				Version:  4,
-				Skills:   make(map[string]map[string]ComponentLockEntry),
-				Agents:   make(map[string]map[string]ComponentLockEntry),
-				Commands: make(map[string]map[string]ComponentLockEntry),
-			}
-		}
-		// Ensure version is current and maps are initialized
-		lockFile.Version = 4
-		if lockFile.Skills == nil {
-			lockFile.Skills = make(map[string]map[string]ComponentLockEntry)
-		}
-		if lockFile.Agents == nil {
-			lockFile.Agents = make(map[string]map[string]ComponentLockEntry)
-		}
-		if lockFile.Commands == nil {
-			lockFile.Commands = make(map[string]map[string]ComponentLockEntry)
-		}
+		return err
 	}
 
 	now := time.Now().Format(time.RFC3339)
 
 	// Get the appropriate nested map for this component type
-	var targetMap map[string]map[string]ComponentLockEntry
-	switch componentType {
-	case "skills":
-		targetMap = lockFile.Skills
-	case "agents":
-		targetMap = lockFile.Agents
-	case "commands":
-		targetMap = lockFile.Commands
-	default:
-		return fmt.Errorf("unknown component type: %s", componentType)
+	targetMap, err := getTargetMap(&lockFile, componentType)
+	if err != nil {
+		return err
 	}
 
 	// Initialize source map if it doesn't exist
 	if targetMap[sourceUrl] == nil {
-		targetMap[sourceUrl] = make(map[string]ComponentLockEntry)
+		targetMap[sourceUrl] = make(map[string]models.ComponentEntry)
 	}
 
-	// Check if entry exists to preserve installedAt
+	// Check if entry exists to preserve certain timestamps
 	existingEntry, exists := targetMap[sourceUrl][componentName]
-	if !exists {
-		existingEntry.InstalledAt = now
+
+	// Preserve installedAt if this is an update to an existing install
+	installedAt := opts.InstalledAt
+	if installedAt == "" && exists && existingEntry.InstalledAt != "" {
+		installedAt = existingEntry.InstalledAt
+	} else if installedAt == "" && opts.UpdatedAt != "" {
+		// This is a new install operation
+		installedAt = now
 	}
 
 	// Update or add the component entry
-	targetMap[sourceUrl][componentName] = ComponentLockEntry{
+	entry := models.ComponentEntry{
 		Source:       source,
 		SourceType:   sourceType,
 		SourceUrl:    sourceUrl,
 		OriginalPath: originalPath,
 		CommitHash:   commitHash,
-		InstalledAt:  existingEntry.InstalledAt,
-		UpdatedAt:    now,
-		Version:      4,
-		Components:   components,
-		Detection:    detection,
+		Version:      5,
+
+		// Timestamps
+		InstalledAt:    installedAt,
+		MaterializedAt: opts.MaterializedAt,
+		UpdatedAt:      opts.UpdatedAt,
+
+		// Drift detection
+		SourceHash:  opts.SourceHash,
+		CurrentHash: opts.CurrentHash,
+
+		// Location/tracking
+		FilesystemName: opts.FilesystemName,
+		SourceProfile:  opts.SourceProfile,
+
+		// Install-specific
+		Components: opts.Components,
+		Detection:  opts.Detection,
 	}
+
+	targetMap[sourceUrl][componentName] = entry
 
 	// Write back to file
-	jsonData, err := json.MarshalIndent(lockFile, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal lock file: %w", err)
-	}
+	return writeLockFile(lockFilePath, lockFile)
+}
 
-	return os.WriteFile(lockFilePath, jsonData, 0644)
+// SaveLockFileEntry is the legacy function for backward compatibility
+// Calls SaveComponentEntry with install-specific parameters
+func SaveLockFileEntry(baseDir, componentType, componentName, source, sourceType, sourceUrl, commitHash string, components int, detection, originalPath string) error {
+	return SaveComponentEntry(baseDir, componentType, componentName, source, sourceType, sourceUrl, commitHash, originalPath, ComponentEntryOptions{
+		UpdatedAt:  time.Now().Format(time.RFC3339),
+		Components: components,
+		Detection:  detection,
+	})
 }
 
 // LoadFromLockFile loads metadata from lock file
@@ -145,7 +129,7 @@ func LoadFromLockFile(baseDir, componentType, componentName string) (*models.Com
 // LoadLockFileEntry loads a component lock entry from the lock file
 // Searches across all sources and returns the first match
 // Returns error if not found or multiple sources have the same component
-func LoadLockFileEntry(baseDir, componentType, componentName string) (*models.ComponentLockEntry, error) {
+func LoadLockFileEntry(baseDir, componentType, componentName string) (*models.ComponentEntry, error) {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
 	lockData, err := os.ReadFile(lockFilePath)
@@ -159,20 +143,13 @@ func LoadLockFileEntry(baseDir, componentType, componentName string) (*models.Co
 	}
 
 	// Get the appropriate nested map for this component type
-	var targetMap map[string]map[string]models.ComponentLockEntry
-	switch componentType {
-	case "skills":
-		targetMap = lockFile.Skills
-	case "agents":
-		targetMap = lockFile.Agents
-	case "commands":
-		targetMap = lockFile.Commands
-	default:
-		return nil, fmt.Errorf("unknown component type: %s", componentType)
+	targetMap, err := getTargetMapFromModel(&lockFile, componentType)
+	if err != nil {
+		return nil, err
 	}
 
 	// Search across all sources
-	var foundEntry *models.ComponentLockEntry
+	var foundEntry *models.ComponentEntry
 	var foundSources []string
 
 	for sourceUrl, components := range targetMap {
@@ -197,7 +174,7 @@ func LoadLockFileEntry(baseDir, componentType, componentName string) (*models.Co
 }
 
 // LoadLockFileEntryBySource loads a component lock entry from a specific source
-func LoadLockFileEntryBySource(baseDir, componentType, componentName, sourceUrl string) (*models.ComponentLockEntry, error) {
+func LoadLockFileEntryBySource(baseDir, componentType, componentName, sourceUrl string) (*models.ComponentEntry, error) {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
 	lockData, err := os.ReadFile(lockFilePath)
@@ -211,16 +188,9 @@ func LoadLockFileEntryBySource(baseDir, componentType, componentName, sourceUrl 
 	}
 
 	// Get the appropriate nested map for this component type
-	var targetMap map[string]map[string]models.ComponentLockEntry
-	switch componentType {
-	case "skills":
-		targetMap = lockFile.Skills
-	case "agents":
-		targetMap = lockFile.Agents
-	case "commands":
-		targetMap = lockFile.Commands
-	default:
-		return nil, fmt.Errorf("unknown component type: %s", componentType)
+	targetMap, err := getTargetMapFromModel(&lockFile, componentType)
+	if err != nil {
+		return nil, err
 	}
 
 	// Check if source exists
@@ -244,31 +214,19 @@ func RemoveLockFileEntry(baseDir, componentType, componentName string) error {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
 	// Read existing lock file
-	lockData, err := os.ReadFile(lockFilePath)
+	lockFile, err := loadOrCreateLockFile(lockFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// Lock file doesn't exist, nothing to remove
 			return nil
 		}
-		return fmt.Errorf("failed to read lock file: %w", err)
-	}
-
-	var lockFile ComponentLockFile
-	if err := json.Unmarshal(lockData, &lockFile); err != nil {
-		return fmt.Errorf("failed to unmarshal lock file: %w", err)
+		return err
 	}
 
 	// Get the appropriate nested map for this component type
-	var targetMap map[string]map[string]ComponentLockEntry
-	switch componentType {
-	case "skills":
-		targetMap = lockFile.Skills
-	case "agents":
-		targetMap = lockFile.Agents
-	case "commands":
-		targetMap = lockFile.Commands
-	default:
-		return fmt.Errorf("unknown component type: %s", componentType)
+	targetMap, err := getTargetMap(&lockFile, componentType)
+	if err != nil {
+		return err
 	}
 
 	// Remove from all sources
@@ -291,12 +249,7 @@ func RemoveLockFileEntry(baseDir, componentType, componentName string) error {
 	}
 
 	// Write back to file
-	jsonData, err := json.MarshalIndent(lockFile, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal lock file: %w", err)
-	}
-
-	return os.WriteFile(lockFilePath, jsonData, 0644)
+	return writeLockFile(lockFilePath, lockFile)
 }
 
 // RemoveLockFileEntryBySource removes a component entry from a specific source
@@ -304,31 +257,19 @@ func RemoveLockFileEntryBySource(baseDir, componentType, componentName, sourceUr
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
 	// Read existing lock file
-	lockData, err := os.ReadFile(lockFilePath)
+	lockFile, err := loadOrCreateLockFile(lockFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// Lock file doesn't exist, nothing to remove
 			return nil
 		}
-		return fmt.Errorf("failed to read lock file: %w", err)
-	}
-
-	var lockFile ComponentLockFile
-	if err := json.Unmarshal(lockData, &lockFile); err != nil {
-		return fmt.Errorf("failed to unmarshal lock file: %w", err)
+		return err
 	}
 
 	// Get the appropriate nested map for this component type
-	var targetMap map[string]map[string]ComponentLockEntry
-	switch componentType {
-	case "skills":
-		targetMap = lockFile.Skills
-	case "agents":
-		targetMap = lockFile.Agents
-	case "commands":
-		targetMap = lockFile.Commands
-	default:
-		return fmt.Errorf("unknown component type: %s", componentType)
+	targetMap, err := getTargetMap(&lockFile, componentType)
+	if err != nil {
+		return err
 	}
 
 	// Check if source exists
@@ -347,12 +288,7 @@ func RemoveLockFileEntryBySource(baseDir, componentType, componentName, sourceUr
 	}
 
 	// Write back to file
-	jsonData, err := json.MarshalIndent(lockFile, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal lock file: %w", err)
-	}
-
-	return os.WriteFile(lockFilePath, jsonData, 0644)
+	return writeLockFile(lockFilePath, lockFile)
 }
 
 // GetAllComponentNames returns all component names from the lock file for a given type
@@ -376,16 +312,9 @@ func GetAllComponentNames(baseDir, componentType string) ([]string, error) {
 	}
 
 	// Get the appropriate nested map for this component type
-	var targetMap map[string]map[string]models.ComponentLockEntry
-	switch componentType {
-	case "skills":
-		targetMap = lockFile.Skills
-	case "agents":
-		targetMap = lockFile.Agents
-	case "commands":
-		targetMap = lockFile.Commands
-	default:
-		return nil, fmt.Errorf("unknown component type: %s", componentType)
+	targetMap, err := getTargetMapFromModel(&lockFile, componentType)
+	if err != nil {
+		return nil, err
 	}
 
 	// Extract component names from all sources (may have duplicates)
@@ -425,16 +354,9 @@ func FindComponentSources(baseDir, componentType, componentName string) ([]strin
 	}
 
 	// Get the appropriate nested map for this component type
-	var targetMap map[string]map[string]models.ComponentLockEntry
-	switch componentType {
-	case "skills":
-		targetMap = lockFile.Skills
-	case "agents":
-		targetMap = lockFile.Agents
-	case "commands":
-		targetMap = lockFile.Commands
-	default:
-		return nil, fmt.Errorf("unknown component type: %s", componentType)
+	targetMap, err := getTargetMapFromModel(&lockFile, componentType)
+	if err != nil {
+		return nil, err
 	}
 
 	// Find all sources that have this component
@@ -451,7 +373,7 @@ func FindComponentSources(baseDir, componentType, componentName string) ([]strin
 // ComponentSource represents a component's source information
 type ComponentSource struct {
 	SourceUrl string
-	Entry     models.ComponentLockEntry
+	Entry     models.ComponentEntry
 }
 
 // FindAllComponentInstances returns all instances of a component across all sources
@@ -474,16 +396,9 @@ func FindAllComponentInstances(baseDir, componentType, componentName string) ([]
 	}
 
 	// Get the appropriate nested map for this component type
-	var targetMap map[string]map[string]models.ComponentLockEntry
-	switch componentType {
-	case "skills":
-		targetMap = lockFile.Skills
-	case "agents":
-		targetMap = lockFile.Agents
-	case "commands":
-		targetMap = lockFile.Commands
-	default:
-		return nil, fmt.Errorf("unknown component type: %s", componentType)
+	targetMap, err := getTargetMapFromModel(&lockFile, componentType)
+	if err != nil {
+		return nil, err
 	}
 
 	// Find all instances
@@ -498,4 +413,169 @@ func FindAllComponentInstances(baseDir, componentType, componentName string) ([]
 	}
 
 	return instances, nil
+}
+
+// Helper functions
+
+func loadOrCreateLockFile(lockFilePath string) (models.ComponentLockFile, error) {
+	lockData, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return models.ComponentLockFile{
+				Version:  5,
+				Skills:   make(map[string]map[string]models.ComponentEntry),
+				Agents:   make(map[string]map[string]models.ComponentEntry),
+				Commands: make(map[string]map[string]models.ComponentEntry),
+			}, nil
+		}
+		return models.ComponentLockFile{}, fmt.Errorf("failed to read lock file: %w", err)
+	}
+
+	var lockFile models.ComponentLockFile
+	if err := json.Unmarshal(lockData, &lockFile); err != nil {
+		// If lock file is corrupted, create new one
+		return models.ComponentLockFile{
+			Version:  5,
+			Skills:   make(map[string]map[string]models.ComponentEntry),
+			Agents:   make(map[string]map[string]models.ComponentEntry),
+			Commands: make(map[string]map[string]models.ComponentEntry),
+		}, nil
+	}
+
+	// Ensure version is current and maps are initialized
+	lockFile.Version = 5
+	if lockFile.Skills == nil {
+		lockFile.Skills = make(map[string]map[string]models.ComponentEntry)
+	}
+	if lockFile.Agents == nil {
+		lockFile.Agents = make(map[string]map[string]models.ComponentEntry)
+	}
+	if lockFile.Commands == nil {
+		lockFile.Commands = make(map[string]map[string]models.ComponentEntry)
+	}
+
+	return lockFile, nil
+}
+
+func writeLockFile(lockFilePath string, lockFile models.ComponentLockFile) error {
+	jsonData, err := json.MarshalIndent(lockFile, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal lock file: %w", err)
+	}
+
+	return os.WriteFile(lockFilePath, jsonData, 0644)
+}
+
+func getTargetMap(lockFile *models.ComponentLockFile, componentType string) (map[string]map[string]models.ComponentEntry, error) {
+	switch componentType {
+	case "skills":
+		return lockFile.Skills, nil
+	case "agents":
+		return lockFile.Agents, nil
+	case "commands":
+		return lockFile.Commands, nil
+	default:
+		return nil, fmt.Errorf("unknown component type: %s", componentType)
+	}
+}
+
+func getTargetMapFromModel(lockFile *models.ComponentLockFile, componentType string) (map[string]map[string]models.ComponentEntry, error) {
+	switch componentType {
+	case "skills":
+		return lockFile.Skills, nil
+	case "agents":
+		return lockFile.Agents, nil
+	case "commands":
+		return lockFile.Commands, nil
+	default:
+		return nil, fmt.Errorf("unknown component type: %s", componentType)
+	}
+}
+
+// ResolveInstallFilesystemName determines the actual filesystem name to use for a component during install
+// If the exact component (sourceUrl + componentName) is already installed, returns its existing filesystem name
+// Otherwise, if componentName already exists, returns componentName-2, componentName-3, etc.
+func ResolveInstallFilesystemName(baseDir, componentType, componentName, sourceUrl string) (string, error) {
+	// Load existing lock file
+	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
+	lockFile, err := loadOrCreateLockFile(lockFilePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to load lock file: %w", err)
+	}
+
+	// Get the component map for this type
+	componentMap, err := getTargetMapFromModel(&lockFile, componentType)
+	if err != nil {
+		return "", err
+	}
+
+	// First, check if this exact component (sourceUrl + componentName) is already installed
+	// If so, reuse its existing filesystem name for idempotency
+	if sourceUrl != "" {
+		if sourceComponents, exists := componentMap[sourceUrl]; exists {
+			if entry, exists := sourceComponents[componentName]; exists && entry.FilesystemName != "" {
+				return entry.FilesystemName, nil
+			}
+		}
+	}
+
+	// Get the base directory for this component type
+	var componentBaseDir string
+	switch componentType {
+	case "skills":
+		componentBaseDir, err = paths.GetSkillsDir()
+	case "agents":
+		componentBaseDir, err = paths.GetAgentsDir()
+	case "commands":
+		componentBaseDir, err = paths.GetCommandsDir()
+	default:
+		return "", fmt.Errorf("unknown component type: %s", componentType)
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to get component directory: %w", err)
+	}
+
+	// Check both filesystem and metadata for conflicts
+	baseComponentPath := filepath.Join(componentBaseDir, componentName)
+
+	// If the base name doesn't exist on disk or in metadata, use it
+	if !fileExists(baseComponentPath) && !installFilesystemNameExists(componentName, componentMap) {
+		return componentName, nil
+	}
+
+	// Find the next available suffix
+	suffix := 2
+	for {
+		candidateName := fmt.Sprintf("%s-%d", componentName, suffix)
+		candidatePath := filepath.Join(componentBaseDir, candidateName)
+
+		if !fileExists(candidatePath) && !installFilesystemNameExists(candidateName, componentMap) {
+			return candidateName, nil
+		}
+
+		suffix++
+
+		// Safety check to prevent infinite loops
+		if suffix > 1000 {
+			return fmt.Sprintf("%s-%d", componentName, suffix), nil
+		}
+	}
+}
+
+// fileExists checks if a path exists on disk
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// installFilesystemNameExists checks if a filesystem name is already used in the component map
+func installFilesystemNameExists(filesystemName string, componentMap map[string]map[string]models.ComponentEntry) bool {
+	for _, sourceComponents := range componentMap {
+		for _, entry := range sourceComponents {
+			if entry.FilesystemName == filesystemName {
+				return true
+			}
+		}
+	}
+	return false
 }

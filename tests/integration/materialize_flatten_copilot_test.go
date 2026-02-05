@@ -63,7 +63,7 @@ A test agent for copilot flattening.
 		testutil.AssertNoError(t, err, "Failed to write agent file")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".agent-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"agents": map[string]interface{}{
@@ -165,7 +165,7 @@ A test agent for copilot flattening.
 		testutil.AssertNoError(t, err, "Failed to write agent file")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".agent-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"agents": map[string]interface{}{
@@ -224,7 +224,7 @@ A test agent for copilot flattening.
 		testutil.AssertNoError(t, err, "Failed to write skill file")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -283,7 +283,7 @@ A test agent for copilot flattening.
 		testutil.AssertNoError(t, err, "Failed to write agent file")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".agent-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"agents": map[string]interface{}{
@@ -364,7 +364,7 @@ Designs event-sourced systems.`,
 		}
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".agent-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"agents": map[string]interface{}{

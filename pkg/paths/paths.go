@@ -24,6 +24,9 @@ const (
 
 // Lock file patterns
 const (
+	ComponentLockFile = ".component-lock.json"
+
+	// Deprecated - kept for reference
 	SkillLockFile   = ".skill-lock.json"
 	AgentLockFile   = ".agent-lock.json"
 	CommandLockFile = ".command-lock.json"
@@ -127,22 +130,9 @@ func GetDetectionConfigPath() (string, error) {
 	return filepath.Join(configDir, DetectionConfigFile), nil
 }
 
-// GetComponentLockPath returns the full path to a component type's lock file
+// GetComponentLockPath returns the full path to the unified component lock file
 func GetComponentLockPath(baseDir, componentType string) string {
-	var lockFile string
-
-	switch componentType {
-	case "skills":
-		lockFile = SkillLockFile
-	case "agents":
-		lockFile = AgentLockFile
-	case "commands":
-		lockFile = CommandLockFile
-	default:
-		return ""
-	}
-
-	return filepath.Join(baseDir, lockFile)
+	return filepath.Join(baseDir, ComponentLockFile)
 }
 
 // GetComponentTypes returns the list of valid component types

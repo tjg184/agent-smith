@@ -61,7 +61,7 @@ func TestMaterializeStructureCreation(t *testing.T) {
 	testutil.AssertNoError(t, err, "Failed to write skill file")
 
 	// Create lock file
-	lockFilePath := filepath.Join(agentSmithDir, ".skill-lock.json")
+	lockFilePath := filepath.Join(agentSmithDir, ".component-lock.json")
 	lockData := map[string]interface{}{
 		"version": 3,
 		"skills": map[string]interface{}{
@@ -92,9 +92,9 @@ func TestMaterializeStructureCreation(t *testing.T) {
 		t.Fatalf("First materialize failed: %v\nOutput: %s", err, outputStr)
 	}
 
-	// Story-006 Acceptance Criteria #1: Output shows structure was created
-	if !strings.Contains(outputStr, "Created project structure") {
-		t.Errorf("Expected output to indicate structure was created, got: %s", outputStr)
+	// Story-006 Acceptance Criteria #1: Output shows directory was created
+	if !strings.Contains(outputStr, "Created directory") {
+		t.Errorf("Expected output to indicate directory was created, got: %s", outputStr)
 	}
 
 	// Story-006 Acceptance Criteria #2: Verify .opencode/ directory was created
@@ -103,17 +103,25 @@ func TestMaterializeStructureCreation(t *testing.T) {
 		t.Errorf(".opencode/ directory was not created")
 	}
 
-	// Story-006 Acceptance Criteria #3: Verify subdirectories were created
-	subdirs := []string{"skills", "agents", "commands"}
-	for _, subdir := range subdirs {
-		subdirPath := filepath.Join(opencodeDir, subdir)
-		if _, err := os.Stat(subdirPath); os.IsNotExist(err) {
-			t.Errorf("Subdirectory %s/ was not created", subdir)
-		}
+	// Story-006 Acceptance Criteria #3: Verify skills subdirectory was created
+	// Note: Only the skills/ directory should exist since we only materialized a skill
+	skillsDir := filepath.Join(opencodeDir, "skills")
+	if _, err := os.Stat(skillsDir); os.IsNotExist(err) {
+		t.Errorf("Subdirectory skills/ was not created")
 	}
 
-	// Story-006 Acceptance Criteria #4: Verify .materializations.json was created
-	metadataPath := filepath.Join(opencodeDir, ".materializations.json")
+	// Verify that agents/ and commands/ were NOT created (we only materialized a skill)
+	agentsDir := filepath.Join(opencodeDir, "agents")
+	if _, err := os.Stat(agentsDir); err == nil {
+		t.Errorf("Subdirectory agents/ should not have been created (only materialized skills)")
+	}
+	commandsDir := filepath.Join(opencodeDir, "commands")
+	if _, err := os.Stat(commandsDir); err == nil {
+		t.Errorf("Subdirectory commands/ should not have been created (only materialized skills)")
+	}
+
+	// Story-006 Acceptance Criteria #4: Verify .component-lock.json was created
+	metadataPath := filepath.Join(opencodeDir, ".component-lock.json")
 	testutil.AssertFileExists(t, metadataPath)
 
 	// Verify component was materialized
@@ -154,6 +162,11 @@ func TestMaterializeStructureCreation(t *testing.T) {
 		t.Fatalf("Second materialize failed: %v\nOutput: %s", err, outputStr)
 	}
 
+	// Story-006 Acceptance Criteria #5: Second materialize doesn't show creation message
+	if strings.Contains(outputStr, "Created directory") {
+		t.Errorf("Second materialize should not show creation message (structure already exists)")
+	}
+
 	// Story-006 Acceptance Criteria #5: Subsequent materializations don't show structure creation message
 	if strings.Contains(outputStr, "Created project structure") {
 		t.Errorf("Expected output to NOT show structure creation for existing structure, got: %s", outputStr)
@@ -166,7 +179,7 @@ func TestMaterializeStructureCreation(t *testing.T) {
 	t.Logf("✓ Story-006 acceptance criteria verified:")
 	t.Logf("  - First materialize automatically creates .opencode/ directory")
 	t.Logf("  - Subdirectories created: skills/, agents/, commands/")
-	t.Logf("  - Empty .materializations.json created")
+	t.Logf("  - Empty .component-lock.json created")
 	t.Logf("  - Clear output shows structure was created")
 	t.Logf("  - Subsequent materializations don't recreate existing structure")
 }
@@ -215,7 +228,7 @@ func TestMaterializeStructureCreationBothTargets(t *testing.T) {
 	testutil.AssertNoError(t, err, "Failed to write agent file")
 
 	// Create lock file
-	lockFilePath := filepath.Join(agentSmithDir, ".agent-lock.json")
+	lockFilePath := filepath.Join(agentSmithDir, ".component-lock.json")
 	lockData := map[string]interface{}{
 		"version": 3,
 		"agents": map[string]interface{}{
@@ -246,9 +259,9 @@ func TestMaterializeStructureCreationBothTargets(t *testing.T) {
 		t.Fatalf("Materialize to both targets failed: %v\nOutput: %s", err, outputStr)
 	}
 
-	// Verify output shows both structures were created
-	if !strings.Contains(outputStr, "Created project structure") {
-		t.Errorf("Expected output to show structure creation, got: %s", outputStr)
+	// Verify output shows directories were created
+	if !strings.Contains(outputStr, "Created directory") {
+		t.Errorf("Expected output to show directory creation, got: %s", outputStr)
 	}
 
 	// Verify both target directories were created
@@ -261,16 +274,24 @@ func TestMaterializeStructureCreationBothTargets(t *testing.T) {
 			t.Errorf("Target directory %s was not created", targetDir)
 		}
 
-		// Check subdirectories
-		for _, subdir := range []string{"skills", "agents", "commands"} {
-			subdirPath := filepath.Join(targetDir, subdir)
-			if _, err := os.Stat(subdirPath); os.IsNotExist(err) {
-				t.Errorf("Subdirectory %s/%s was not created", targetDir, subdir)
-			}
+		// Check that agents subdirectory was created (we materialized an agent)
+		agentsPath := filepath.Join(targetDir, "agents")
+		if _, err := os.Stat(agentsPath); os.IsNotExist(err) {
+			t.Errorf("Subdirectory %s/agents was not created", targetDir)
+		}
+
+		// Check that skills and commands were NOT created (only materialized agents)
+		skillsPath := filepath.Join(targetDir, "skills")
+		if _, err := os.Stat(skillsPath); err == nil {
+			t.Errorf("Subdirectory %s/skills should not have been created (only materialized agents)", targetDir)
+		}
+		commandsPath := filepath.Join(targetDir, "commands")
+		if _, err := os.Stat(commandsPath); err == nil {
+			t.Errorf("Subdirectory %s/commands should not have been created (only materialized agents)", targetDir)
 		}
 
 		// Check metadata file
-		metadataPath := filepath.Join(targetDir, ".materializations.json")
+		metadataPath := filepath.Join(targetDir, ".component-lock.json")
 		testutil.AssertFileExists(t, metadataPath)
 
 		// Verify agent was materialized

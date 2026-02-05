@@ -73,7 +73,7 @@ func TestMaterializeWithEnvTarget(t *testing.T) {
 	testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 	// Create lock file
-	lockFilePath := filepath.Join(agentSmithDir, ".skill-lock.json")
+	lockFilePath := filepath.Join(agentSmithDir, ".component-lock.json")
 	lockData := map[string]interface{}{
 		"version": 3,
 		"skills": map[string]interface{}{
@@ -117,7 +117,7 @@ func TestMaterializeWithEnvTarget(t *testing.T) {
 		testutil.AssertFileExists(t, destPath)
 
 		// Verify metadata exists in opencode target
-		metadataPath := filepath.Join(opencodeDir, ".materializations.json")
+		metadataPath := filepath.Join(opencodeDir, ".component-lock.json")
 		testutil.AssertFileExists(t, metadataPath)
 
 		// Load and verify metadata
@@ -179,7 +179,7 @@ func TestMaterializeWithEnvTarget(t *testing.T) {
 		testutil.AssertFileExists(t, destPath)
 
 		// Verify metadata exists in claudecode target
-		metadataPath := filepath.Join(claudeDir, ".materializations.json")
+		metadataPath := filepath.Join(claudeDir, ".component-lock.json")
 		testutil.AssertFileExists(t, metadataPath)
 
 		t.Logf("Successfully materialized with AGENT_SMITH_TARGET=claudecode")

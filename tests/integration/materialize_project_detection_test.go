@@ -64,7 +64,7 @@ func TestMaterializeFromNestedSubdirectory(t *testing.T) {
 	testutil.AssertNoError(t, err, "Failed to write skill file")
 
 	// Create lock file
-	lockFilePath := filepath.Join(agentSmithDir, ".skill-lock.json")
+	lockFilePath := filepath.Join(agentSmithDir, ".component-lock.json")
 	lockData := map[string]interface{}{
 		"version": 3,
 		"skills": map[string]interface{}{
@@ -164,7 +164,7 @@ func TestMaterializeWithProjectDirOverride(t *testing.T) {
 	testutil.AssertNoError(t, err, "Failed to write agent file")
 
 	// Create lock file
-	lockFilePath := filepath.Join(agentSmithDir, ".agent-lock.json")
+	lockFilePath := filepath.Join(agentSmithDir, ".component-lock.json")
 	lockData := map[string]interface{}{
 		"version": 3,
 		"agents": map[string]interface{}{
@@ -263,7 +263,7 @@ func TestMaterializeNoProjectFound(t *testing.T) {
 	testutil.AssertNoError(t, err, "Failed to write command file")
 
 	// Create lock file
-	lockFilePath := filepath.Join(agentSmithDir, ".command-lock.json")
+	lockFilePath := filepath.Join(agentSmithDir, ".component-lock.json")
 	lockData := map[string]interface{}{
 		"version": 3,
 		"commands": map[string]interface{}{
@@ -380,7 +380,7 @@ func TestMaterializeStopsAtHomeDirectory(t *testing.T) {
 	testutil.AssertNoError(t, err, "Failed to write skill file")
 
 	// Create lock file
-	lockFilePath := filepath.Join(agentSmithDir, ".skill-lock.json")
+	lockFilePath := filepath.Join(agentSmithDir, ".component-lock.json")
 	lockData := map[string]interface{}{
 		"version": 3,
 		"skills": map[string]interface{}{
@@ -473,7 +473,7 @@ func TestMaterializeWithRelativeProjectDir(t *testing.T) {
 	testutil.AssertNoError(t, err, "Failed to write skill file")
 
 	// Create lock file
-	lockFilePath := filepath.Join(agentSmithDir, ".skill-lock.json")
+	lockFilePath := filepath.Join(agentSmithDir, ".component-lock.json")
 	lockData := map[string]interface{}{
 		"version": 3,
 		"skills": map[string]interface{}{

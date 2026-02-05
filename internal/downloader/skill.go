@@ -161,8 +161,16 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		return sd.downloadSkillDirect(fullURL, skillName, repoURL)
 	}
 
-	// Create skill directory
-	skillDir := filepath.Join(sd.baseDir, skillName)
+	// Resolve filesystem name before creating directory to handle conflicts
+	lockBaseDir := filepath.Dir(sd.baseDir)
+	filesystemName, err := metadataPkg.ResolveInstallFilesystemName(lockBaseDir, "skills", skillName, fullURL)
+	if err != nil {
+		sd.formatter.Warning("failed to resolve filesystem name, using skill name: %v", err)
+		filesystemName = skillName
+	}
+
+	// Create skill directory with resolved name
+	skillDir := filepath.Join(sd.baseDir, filesystemName)
 	if err := fileutil.CreateDirectoryWithPermissions(skillDir); err != nil {
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
@@ -210,9 +218,15 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		// Use heuristic to determine proper folder name to avoid nested monorepo directories
 		destFolderName := DetermineDestinationFolderName(matchingComponent.FilePath)
 
-		// If heuristic name differs from skillName, recreate directory with proper name
-		if destFolderName != skillName {
-			skillDir = filepath.Join(sd.baseDir, destFolderName)
+		// If heuristic name differs from resolved filesystem name, update it
+		// (This can happen when the heuristic produces a different name than what was requested)
+		if destFolderName != filesystemName {
+			// Remove the originally created directory
+			os.RemoveAll(skillDir)
+
+			// Recreate with heuristic name
+			filesystemName = destFolderName
+			skillDir = filepath.Join(sd.baseDir, filesystemName)
 			if err := fileutil.CreateDirectoryWithPermissions(skillDir); err != nil {
 				return fmt.Errorf("failed to create skill directory: %w", err)
 			}
@@ -223,9 +237,6 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		if err != nil {
 			return fmt.Errorf("failed to copy skill files: %w", err)
 		}
-
-		// Update skillName to match the actual directory name for lock file
-		skillName = destFolderName
 	} else {
 		// Multiple skills found but none match the requested skill name
 		// Return error with list of available skills
@@ -267,7 +278,7 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		originalPath = matchingComponent.FilePath
 	}
 
-	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, commitHash, len(skillComponents), detectionType, originalPath); err != nil {
+	if err := sd.saveLockFile(skillName, filesystemName, fullURL, sourceType, fullURL, commitHash, len(skillComponents), detectionType, originalPath); err != nil {
 		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -285,8 +296,16 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 }
 
 func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL string) error {
-	// Create skill directory
-	skillDir := filepath.Join(sd.baseDir, skillName)
+	// Resolve filesystem name before creating directory to handle conflicts
+	lockBaseDir := filepath.Dir(sd.baseDir)
+	filesystemName, err := metadataPkg.ResolveInstallFilesystemName(lockBaseDir, "skills", skillName, fullURL)
+	if err != nil {
+		sd.formatter.Warning("failed to resolve filesystem name, using skill name: %v", err)
+		filesystemName = skillName
+	}
+
+	// Create skill directory with resolved name
+	skillDir := filepath.Join(sd.baseDir, filesystemName)
 	if err := fileutil.CreateDirectoryWithPermissions(skillDir); err != nil {
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
@@ -300,20 +319,20 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 	}()
 
 	// Clone repository for local or remote
-	var err error
+	var cloneErr error
 
 	// Handle local vs remote repositories
 	if sd.detector.DetectProvider(repoURL) == "local" {
 		// For local repositories, copy directory contents directly
-		err = fileutil.CopyDirectoryContents(fullURL, skillDir)
-		if err != nil {
-			return fmt.Errorf("failed to copy local repository: %w", err)
+		cloneErr = fileutil.CopyDirectoryContents(fullURL, skillDir)
+		if cloneErr != nil {
+			return fmt.Errorf("failed to copy local repository: %w", cloneErr)
 		}
 	} else {
 		// For remote repositories, clone directly
-		_, err = gitpkg.CloneShallow(sd.cloner, skillDir, fullURL)
-		if err != nil {
-			return fmt.Errorf("failed to clone repository: %w", err)
+		_, cloneErr = gitpkg.CloneShallow(sd.cloner, skillDir, fullURL)
+		if cloneErr != nil {
+			return fmt.Errorf("failed to clone repository: %w", cloneErr)
 		}
 	}
 
@@ -327,13 +346,13 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 
 	// Get commit hash from the repository
 	var commitHash string
-	if hash, err := gitpkg.GetCommitHashFromPath(sd.cloner, skillDir); err == nil {
+	if hash, hashErr := gitpkg.GetCommitHashFromPath(sd.cloner, skillDir); hashErr == nil {
 		commitHash = hash
 	} else {
-		sd.formatter.Warning("failed to get commit hash: %v", err)
+		sd.formatter.Warning("failed to get commit hash: %v", hashErr)
 	}
 
-	if err := sd.saveLockFile(skillName, fullURL, sourceType, fullURL, commitHash, 1, "direct", ""); err != nil {
+	if err := sd.saveLockFile(skillName, filesystemName, fullURL, sourceType, fullURL, commitHash, 1, "direct", ""); err != nil {
 		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -352,7 +371,7 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 }
 
 // saveLockFile saves component lock entry in agent-smith install compatible format
-func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceType string, sourceUrl string, commitHash string, components int, detection string, originalPath string) error {
+func (sd *SkillDownloader) saveLockFile(skillName, filesystemName, source, sourceType, sourceUrl, commitHash string, components int, detection, originalPath string) error {
 	// Use the parent directory of baseDir for lock file
 	// baseDir is the skills directory (e.g., ~/.agent-smith/skills)
 	// We want the lock file in the parent (e.g., ~/.agent-smith)
@@ -362,7 +381,28 @@ func (sd *SkillDownloader) saveLockFile(skillName string, source string, sourceT
 		return fmt.Errorf("failed to create lock file directory: %w", err)
 	}
 
-	return metadataPkg.SaveLockFileEntry(lockBaseDir, "skills", skillName, source, sourceType, sourceUrl, commitHash, components, detection, originalPath)
+	// Calculate hashes for drift detection
+	// Both sourceHash and currentHash use local filesystem hashing
+	// They should match at install time (no modifications yet)
+	var sourceHash, currentHash string
+	skillDir := filepath.Join(sd.baseDir, filesystemName)
+
+	if hash, err := metadataPkg.ComputeLocalFolderHash(skillDir); err == nil {
+		sourceHash = hash
+		currentHash = hash
+	} else {
+		// Only warn if we can't hash at all (rare - filesystem issue)
+		sd.formatter.Warning("failed to compute hash: %v", err)
+	}
+
+	return metadataPkg.SaveComponentEntry(lockBaseDir, "skills", skillName, source, sourceType, sourceUrl, commitHash, originalPath, metadataPkg.ComponentEntryOptions{
+		UpdatedAt:      "", // Will be set by SaveComponentEntry
+		Components:     components,
+		Detection:      detection,
+		SourceHash:     sourceHash,
+		CurrentHash:    currentHash,
+		FilesystemName: filesystemName,
+	})
 }
 
 func (sd *SkillDownloader) createSkillFile(filePath, skillName, source string) error {
@@ -440,7 +480,7 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 		sd.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := sd.saveLockFile(destFolderName, fullURL, sourceType, fullURL, commitHash, 1, "single", targetComponent.FilePath); err != nil {
+	if err := sd.saveLockFile(skillName, destFolderName, fullURL, sourceType, fullURL, commitHash, 1, "single", targetComponent.FilePath); err != nil {
 		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 

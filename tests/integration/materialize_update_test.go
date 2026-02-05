@@ -84,7 +84,7 @@ Will not change.
 		testutil.AssertNoError(t, err, "Failed to write skill2 SKILL.md")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -195,7 +195,7 @@ Original content.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -271,7 +271,7 @@ Will be removed.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -351,7 +351,7 @@ Original content.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -444,7 +444,7 @@ Original content.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{
@@ -481,7 +481,14 @@ Original content.
 		// Load initial metadata
 		initialMetadata, err := project.LoadMaterializationMetadata(opencodeDir)
 		testutil.AssertNoError(t, err, "Failed to load initial metadata")
-		initialEntry := initialMetadata.Skills[skillName]
+
+		// Access nested structure: Skills[sourceURL][componentName]
+		sourceURL := "https://github.com/test/repo"
+		skillsFromSource, exists := initialMetadata.Skills[sourceURL]
+		testutil.AssertTrue(t, exists, "Source URL not found in initial metadata")
+		initialEntry, exists := skillsFromSource[skillName]
+		testutil.AssertTrue(t, exists, "Skill not found in initial metadata")
+
 		initialSourceHash := initialEntry.SourceHash
 		initialTimestamp := initialEntry.MaterializedAt
 
@@ -514,7 +521,12 @@ Updated content for metadata testing.
 		// Load updated metadata
 		updatedMetadata, err := project.LoadMaterializationMetadata(opencodeDir)
 		testutil.AssertNoError(t, err, "Failed to load updated metadata")
-		updatedEntry := updatedMetadata.Skills[skillName]
+
+		// Access nested structure
+		updatedSkillsFromSource, exists := updatedMetadata.Skills[sourceURL]
+		testutil.AssertTrue(t, exists, "Source URL not found in updated metadata")
+		updatedEntry, exists := updatedSkillsFromSource[skillName]
+		testutil.AssertTrue(t, exists, "Skill not found in updated metadata")
 
 		// Verify sourceHash was updated
 		if updatedEntry.SourceHash == initialSourceHash {
@@ -560,7 +572,7 @@ For target testing.
 		testutil.AssertNoError(t, err, "Failed to write SKILL.md")
 
 		// Create lock file
-		lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 		lockData := map[string]interface{}{
 			"version": 3,
 			"skills": map[string]interface{}{

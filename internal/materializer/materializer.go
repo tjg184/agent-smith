@@ -80,6 +80,7 @@ func copyFile(src, dst string) error {
 
 // CalculateDirectoryHash calculates a SHA-256 hash of all files in a directory
 // Files are sorted by path to ensure consistent hashing
+// This uses the same algorithm as metadata.ComputeLocalFolderHash for consistency
 func CalculateDirectoryHash(dirPath string) (string, error) {
 	hash := sha256.New()
 
@@ -100,8 +101,11 @@ func CalculateDirectoryHash(dirPath string) (string, error) {
 			return err
 		}
 
-		// Write relative path to hash
+		// Write relative path to hash with null separator
 		if _, err := hash.Write([]byte(relPath)); err != nil {
+			return err
+		}
+		if _, err := hash.Write([]byte("\x00")); err != nil {
 			return err
 		}
 
@@ -116,6 +120,11 @@ func CalculateDirectoryHash(dirPath string) (string, error) {
 			return err
 		}
 
+		// Add null separator between files
+		if _, err := hash.Write([]byte("\x00")); err != nil {
+			return err
+		}
+
 		return nil
 	})
 
@@ -123,7 +132,8 @@ func CalculateDirectoryHash(dirPath string) (string, error) {
 		return "", fmt.Errorf("failed to calculate directory hash: %w", err)
 	}
 
-	return fmt.Sprintf("sha256:%x", hash.Sum(nil)), nil
+	// Return plain hex format (no sha256: prefix) to match metadata.ComputeLocalFolderHash
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 // DirectoriesMatch checks if two directories have identical content by comparing their hashes

@@ -19,7 +19,7 @@ import (
 // TestMaterializeProvenance verifies that provenance tracking captures
 // all required metadata for materialized components.
 // This test covers Story-004 acceptance criteria:
-// - .materializations.json file created in .opencode/ or .claude/
+// - .component-lock.json file created in .opencode/ or .claude/
 // - Metadata includes: source repo URL, source type, commit hash, original path, materialization timestamp
 // - Metadata includes sourceHash and currentHash for sync detection
 // - Metadata loaded from lock files
@@ -75,7 +75,7 @@ func TestMaterializeProvenance(t *testing.T) {
 	t.Logf("Created test skill at: %s", testSkillDir)
 
 	// Create lock file with comprehensive metadata
-	lockFilePath := filepath.Join(baseDir, ".skill-lock.json")
+	lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 	lockData := map[string]interface{}{
 		"version": 3,
 		"skills": map[string]interface{}{
@@ -127,7 +127,7 @@ func TestMaterializeProvenance(t *testing.T) {
 	endTime := time.Now()
 
 	// Verify metadata file exists
-	metadataPath := filepath.Join(opencodeDir, ".materializations.json")
+	metadataPath := filepath.Join(opencodeDir, ".component-lock.json")
 	testutil.AssertFileExists(t, metadataPath)
 
 	// Load and parse metadata
@@ -138,17 +138,22 @@ func TestMaterializeProvenance(t *testing.T) {
 	err = json.Unmarshal(metadataBytes, &metadata)
 	testutil.AssertNoError(t, err, "Failed to parse metadata")
 
-	// Verify metadata structure
-	testutil.AssertEqual(t, 1, metadata.Version, "Incorrect metadata version")
+	// Verify metadata structure (version 5 with nested maps)
+	testutil.AssertEqual(t, 5, metadata.Version, "Incorrect metadata version")
 
-	// Verify skill entry exists
-	skillMeta, exists := metadata.Skills["provenance-test"]
+	// Source URL for the test component
+	sourceURL := "https://github.com/example/provenance-test"
+
+	// Verify skill entry exists (nested structure: Skills[sourceURL][componentName])
+	skillsFromSource, exists := metadata.Skills[sourceURL]
+	testutil.AssertTrue(t, exists, "Source URL not found in skills metadata")
+	skillMeta, exists := skillsFromSource["provenance-test"]
 	testutil.AssertTrue(t, exists, "provenance-test not found in metadata")
 
 	// Story-004 Acceptance Criteria Verification:
 
 	// 1. Source repo URL
-	testutil.AssertEqual(t, "https://github.com/example/provenance-test", skillMeta.Source,
+	testutil.AssertEqual(t, sourceURL, skillMeta.SourceUrl,
 		"Source URL not correctly captured from lock file")
 
 	// 2. Source type
@@ -178,15 +183,11 @@ func TestMaterializeProvenance(t *testing.T) {
 
 	// 6. Source hash for sync detection
 	testutil.AssertTrue(t, skillMeta.SourceHash != "", "SourceHash is empty")
-	testutil.AssertTrue(t, strings.HasPrefix(skillMeta.SourceHash, "sha256:"),
-		"SourceHash does not have sha256: prefix")
-	testutil.AssertTrue(t, len(skillMeta.SourceHash) > 10, "SourceHash is too short")
+	testutil.AssertTrue(t, len(skillMeta.SourceHash) == 64, "SourceHash should be 64 hex characters (SHA256)")
 
 	// 7. Current hash for sync detection
 	testutil.AssertTrue(t, skillMeta.CurrentHash != "", "CurrentHash is empty")
-	testutil.AssertTrue(t, strings.HasPrefix(skillMeta.CurrentHash, "sha256:"),
-		"CurrentHash does not have sha256: prefix")
-	testutil.AssertTrue(t, len(skillMeta.CurrentHash) > 10, "CurrentHash is too short")
+	testutil.AssertTrue(t, len(skillMeta.CurrentHash) == 64, "CurrentHash should be 64 hex characters (SHA256)")
 
 	// Verify that sourceHash and currentHash match (since we just materialized)
 	testutil.AssertEqual(t, skillMeta.SourceHash, skillMeta.CurrentHash,
@@ -362,7 +363,7 @@ func TestMaterializeProvenanceMultipleComponents(t *testing.T) {
 	}
 
 	// Load metadata
-	metadataPath := filepath.Join(opencodeDir, ".materializations.json")
+	metadataPath := filepath.Join(opencodeDir, ".component-lock.json")
 	metadataBytes, err := os.ReadFile(metadataPath)
 	testutil.AssertNoError(t, err, "Failed to read metadata file")
 
@@ -370,28 +371,39 @@ func TestMaterializeProvenanceMultipleComponents(t *testing.T) {
 	err = json.Unmarshal(metadataBytes, &metadata)
 	testutil.AssertNoError(t, err, "Failed to parse metadata")
 
-	// Verify all components are tracked
-	testutil.AssertEqual(t, 2, len(metadata.Skills), "Expected 2 skills in metadata")
-	testutil.AssertEqual(t, 1, len(metadata.Agents), "Expected 1 agent in metadata")
+	// Verify all components are tracked (count source URLs)
+	testutil.AssertEqual(t, 2, len(metadata.Skills), "Expected 2 skill sources in metadata")
+	testutil.AssertEqual(t, 1, len(metadata.Agents), "Expected 1 agent source in metadata")
 
-	// Verify each component has unique provenance
-	skill1, exists := metadata.Skills["skill-one"]
+	// Source URLs for test components
+	skill1URL := "https://github.com/example/skill-one"
+	skill2URL := "https://github.com/example/skill-two"
+	agent1URL := "https://github.com/example/agent-one"
+
+	// Verify each component has unique provenance (nested structure)
+	skill1Map, exists := metadata.Skills[skill1URL]
+	testutil.AssertTrue(t, exists, "skill-one source URL not found in metadata")
+	skill1, exists := skill1Map["skill-one"]
 	testutil.AssertTrue(t, exists, "skill-one not found in metadata")
-	testutil.AssertEqual(t, "https://github.com/example/skill-one", skill1.Source,
+	testutil.AssertEqual(t, skill1URL, skill1.SourceUrl,
 		"skill-one has incorrect source")
 	testutil.AssertEqual(t, "skill1hash123", skill1.CommitHash,
 		"skill-one has incorrect commit hash")
 
-	skill2, exists := metadata.Skills["skill-two"]
+	skill2Map, exists := metadata.Skills[skill2URL]
+	testutil.AssertTrue(t, exists, "skill-two source URL not found in metadata")
+	skill2, exists := skill2Map["skill-two"]
 	testutil.AssertTrue(t, exists, "skill-two not found in metadata")
-	testutil.AssertEqual(t, "https://github.com/example/skill-two", skill2.Source,
+	testutil.AssertEqual(t, skill2URL, skill2.SourceUrl,
 		"skill-two has incorrect source")
 	testutil.AssertEqual(t, "skill2hash456", skill2.CommitHash,
 		"skill-two has incorrect commit hash")
 
-	agent1, exists := metadata.Agents["agent-one"]
+	agent1Map, exists := metadata.Agents[agent1URL]
+	testutil.AssertTrue(t, exists, "agent-one source URL not found in metadata")
+	agent1, exists := agent1Map["agent-one"]
 	testutil.AssertTrue(t, exists, "agent-one not found in metadata")
-	testutil.AssertEqual(t, "https://github.com/example/agent-one", agent1.Source,
+	testutil.AssertEqual(t, agent1URL, agent1.SourceUrl,
 		"agent-one has incorrect source")
 	testutil.AssertEqual(t, "agent1hash789", agent1.CommitHash,
 		"agent-one has incorrect commit hash")
