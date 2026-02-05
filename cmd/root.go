@@ -366,331 +366,262 @@ EXAMPLES:
 	// Create 'link' parent command with subcommands
 	linkCmd := &cobra.Command{
 		Use:   "link",
-		Short: "Link components to detected targets",
-		Long: `Link components (skills, agents, commands) to detected targets.
+		Short: "Link components to AI editor targets",
+		Long: `Link installed components (skills, agents, commands) to your AI editors.
 
-This command provides a modern interface for linking downloaded AI components
-to supported targets (OpenCode, Claude Code, etc.).
+QUICK START:
+  agent-smith link all                    # Link everything to all editors
+  agent-smith link skill my-skill         # Link one skill to all editors
+  agent-smith link skills --to opencode   # Link all skills to OpenCode only
+
+COMMAND GROUPS:
+  Link specific components:
+    link skill <name>     Link one skill
+    link agent <name>     Link one agent
+    link command <name>   Link one command
+
+  Link all components by type:
+    link skills           Link all skills
+    link agents           Link all agents
+    link commands         Link all commands
+
+  Link everything:
+    link all              Link all components (skills + agents + commands)
+
+  Inspection commands:
+    link status           Show matrix view: which components → which editors
+    link list             Simple list of all linked components
+
+FLAGS:
+  --to, -t <target>     Target editor (opencode, claudecode, copilot, or all)
+                        Default: all detected editors
+  --profile <name>      Link FROM specific profile (bypasses active profile)
 
 PROFILE AWARENESS:
-When a profile is active, link commands automatically use components from the
-active profile directory instead of ~/.agent-smith/. This allows you to control which
-components are linked to your editor.
+Link commands automatically use components from your active profile.
+Activate a profile first, then run link commands to apply it to your editors.
 
-  - With active profile: Sources from ~/.agent-smith/profiles/<profile>/
-  - No active profile: Sources from ~/.agent-smith/ (base installation)
+  Active profile:    Sources from ~/.agent-smith/profiles/<active-profile>/
+  No profile:        Sources from ~/.agent-smith/ (base installation)
 
-Use 'agent-smith profile activate <name>' to activate a profile, then run
-'link' commands to apply it.
-
-FLAGS (apply to all subcommands):
-  --target, -t <target>  - Specify target to link to (opencode, claudecode, copilot, or all)
-  --all-targets          - Explicitly link to all detected targets (default behavior)`,
+See 'agent-smith profile --help' for profile management.`,
 	}
 
 	// Add subcommands to 'link' command
 	// Singular commands - operate on ONE component
 	linkSkillCmd := &cobra.Command{
 		Use:   "skill <name>",
-		Short: "Link a specific skill to detected targets",
-		Long: `Link a specific skill to detected targets.
-
-This command links a downloaded skill from ~/.agent-smith/skills/ to the appropriate
-directories for OpenCode, Claude Code, or other supported targets.
+		Short: "Link one skill to editors",
+		Long: `Link a specific skill to AI editor targets.
 
 EXAMPLES:
-  # Link a specific skill to all detected targets (default)
+  # Link a skill to all editors (default)
   agent-smith link skill mcp-builder
 
-  # Link a specific skill to OpenCode only
-  agent-smith link skill mcp-builder --target opencode
+  # Link a skill to OpenCode only
+  agent-smith link skill mcp-builder --to opencode
 
-  # Link a skill from a specific profile (bypasses active profile)
+  # Link a skill from a specific profile
   agent-smith link skill mcp-builder --profile work`,
 		Args: exactArgsWithHelp(1, "agent-smith link skill <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("target")
-			allTargets, _ := cmd.Flags().GetBool("all-targets")
+			targetFilter, _ := cmd.Flags().GetString("to")
 			profile, _ := cmd.Flags().GetString("profile")
-
-			// If --all-targets is specified, override targetFilter to "all"
-			if allTargets {
-				targetFilter = "all"
-			}
 
 			// Link specific skill
 			handleLink("skills", args[0], targetFilter, profile)
 		},
 	}
-	linkSkillCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, copilot, or all)")
-	linkSkillCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
-	linkSkillCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
+	linkSkillCmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
+	linkSkillCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkSkillCmd)
 
 	// Plural command - operate on ALL skills
 	linkSkillsCmd := &cobra.Command{
 		Use:   "skills",
-		Short: "Link all skills to detected targets",
-		Long: `Link all skills to detected targets.
-
-This command links all downloaded skills from ~/.agent-smith/skills/ to the appropriate
-directories for OpenCode, Claude Code, or other supported targets.
+		Short: "Link all skills to editors",
+		Long: `Link all skills to AI editor targets.
 
 EXAMPLES:
-  # Link all skills to all detected targets
+  # Link all skills to all editors
   agent-smith link skills
 
   # Link all skills to Claude Code only
-  agent-smith link skills --target claudecode
+  agent-smith link skills --to claudecode
 
-  # Link all skills from a specific profile (bypasses active profile)
+  # Link all skills from a specific profile
   agent-smith link skills --profile work`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("target")
-			allTargets, _ := cmd.Flags().GetBool("all-targets")
+			targetFilter, _ := cmd.Flags().GetString("to")
 			profile, _ := cmd.Flags().GetString("profile")
-
-			// If --all-targets is specified, override targetFilter to "all"
-			if allTargets {
-				targetFilter = "all"
-			}
 
 			// Link all skills
 			handleLinkType("skills", targetFilter, profile)
 		},
 	}
-	linkSkillsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, copilot, or all)")
-	linkSkillsCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
-	linkSkillsCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
+	linkSkillsCmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
+	linkSkillsCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkSkillsCmd)
 
 	linkAgentCmd := &cobra.Command{
 		Use:   "agent <name>",
-		Short: "Link a specific agent to detected targets",
-		Long: `Link a specific agent to detected targets.
-
-This command links a downloaded agent from ~/.agent-smith/agents/ to the appropriate
-directories for OpenCode, Claude Code, or other supported targets.
+		Short: "Link one agent to editors",
+		Long: `Link a specific agent to AI editor targets.
 
 EXAMPLES:
-  # Link a specific agent to all detected targets (default)
+  # Link an agent to all editors (default)
   agent-smith link agent coding-assistant
 
-  # Link a specific agent to OpenCode only
-  agent-smith link agent coding-assistant --target opencode
+  # Link an agent to OpenCode only
+  agent-smith link agent coding-assistant --to opencode
 
-  # Link an agent from a specific profile (bypasses active profile)
+  # Link an agent from a specific profile
   agent-smith link agent coding-assistant --profile work`,
 		Args: exactArgsWithHelp(1, "agent-smith link agent <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("target")
-			allTargets, _ := cmd.Flags().GetBool("all-targets")
+			targetFilter, _ := cmd.Flags().GetString("to")
 			profile, _ := cmd.Flags().GetString("profile")
-
-			// If --all-targets is specified, override targetFilter to "all"
-			if allTargets {
-				targetFilter = "all"
-			}
 
 			// Link specific agent
 			handleLink("agents", args[0], targetFilter, profile)
 		},
 	}
-	linkAgentCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, copilot, or all)")
-	linkAgentCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
-	linkAgentCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
+	linkAgentCmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
+	linkAgentCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkAgentCmd)
 
 	// Plural command - operate on ALL agents
 	linkAgentsCmd := &cobra.Command{
 		Use:   "agents",
-		Short: "Link all agents to detected targets",
-		Long: `Link all agents to detected targets.
-
-This command links all downloaded agents from ~/.agent-smith/agents/ to the appropriate
-directories for OpenCode, Claude Code, or other supported targets.
+		Short: "Link all agents to editors",
+		Long: `Link all agents to AI editor targets.
 
 EXAMPLES:
-  # Link all agents to all detected targets
+  # Link all agents to all editors
   agent-smith link agents
 
   # Link all agents to Claude Code only
-  agent-smith link agents --target claudecode
+  agent-smith link agents --to claudecode
 
-  # Link all agents from a specific profile (bypasses active profile)
+  # Link all agents from a specific profile
   agent-smith link agents --profile work`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("target")
-			allTargets, _ := cmd.Flags().GetBool("all-targets")
+			targetFilter, _ := cmd.Flags().GetString("to")
 			profile, _ := cmd.Flags().GetString("profile")
-
-			// If --all-targets is specified, override targetFilter to "all"
-			if allTargets {
-				targetFilter = "all"
-			}
 
 			// Link all agents
 			handleLinkType("agents", targetFilter, profile)
 		},
 	}
-	linkAgentsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, copilot, or all)")
-	linkAgentsCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
-	linkAgentsCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
+	linkAgentsCmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
+	linkAgentsCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkAgentsCmd)
 
 	linkCommandCmd := &cobra.Command{
 		Use:   "command <name>",
-		Short: "Link a specific command to detected targets",
-		Long: `Link a specific command to detected targets.
-
-This command links a downloaded command from ~/.agent-smith/commands/ to the appropriate
-directories for OpenCode, Claude Code, or other supported targets.
+		Short: "Link one command to editors",
+		Long: `Link a specific command to AI editor targets.
 
 EXAMPLES:
-  # Link a specific command to all detected targets (default)
+  # Link a command to all editors (default)
   agent-smith link command json-formatter
 
-  # Link a specific command to OpenCode only
-  agent-smith link command json-formatter --target opencode
+  # Link a command to OpenCode only
+  agent-smith link command json-formatter --to opencode
 
-  # Link a command from a specific profile (bypasses active profile)
+  # Link a command from a specific profile
   agent-smith link command json-formatter --profile work`,
 		Args: exactArgsWithHelp(1, "agent-smith link command <name>"),
 		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("target")
-			allTargets, _ := cmd.Flags().GetBool("all-targets")
+			targetFilter, _ := cmd.Flags().GetString("to")
 			profile, _ := cmd.Flags().GetString("profile")
-
-			// If --all-targets is specified, override targetFilter to "all"
-			if allTargets {
-				targetFilter = "all"
-			}
 
 			// Link specific command
 			handleLink("commands", args[0], targetFilter, profile)
 		},
 	}
-	linkCommandCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, copilot, or all)")
-	linkCommandCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
-	linkCommandCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
+	linkCommandCmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
+	linkCommandCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkCommandCmd)
 
 	// Plural command - operate on ALL commands
 	linkCommandsCmd := &cobra.Command{
 		Use:   "commands",
-		Short: "Link all commands to detected targets",
-		Long: `Link all commands to detected targets.
-
-This command links all downloaded commands from ~/.agent-smith/commands/ to the appropriate
-directories for OpenCode, Claude Code, or other supported targets.
+		Short: "Link all commands to editors",
+		Long: `Link all commands to AI editor targets.
 
 EXAMPLES:
-  # Link all commands to all detected targets
+  # Link all commands to all editors
   agent-smith link commands
 
   # Link all commands to Claude Code only
-  agent-smith link commands --target claudecode
+  agent-smith link commands --to claudecode
 
-  # Link all commands from a specific profile (bypasses active profile)
+  # Link all commands from a specific profile
   agent-smith link commands --profile work`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("target")
-			allTargets, _ := cmd.Flags().GetBool("all-targets")
+			targetFilter, _ := cmd.Flags().GetString("to")
 			profile, _ := cmd.Flags().GetString("profile")
-
-			// If --all-targets is specified, override targetFilter to "all"
-			if allTargets {
-				targetFilter = "all"
-			}
 
 			// Link all commands
 			handleLinkType("commands", targetFilter, profile)
 		},
 	}
-	linkCommandsCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, copilot, or all)")
-	linkCommandsCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
-	linkCommandsCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
+	linkCommandsCmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
+	linkCommandsCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkCommandsCmd)
 
 	linkAllCmd := &cobra.Command{
 		Use:   "all",
-		Short: "Link all components to detected targets",
-		Long: `Link all downloaded components (skills, agents, and commands) to detected targets.
+		Short: "Link all components to editors",
+		Long: `Link all components (skills, agents, commands) to AI editor targets.
 
-This command links all components to the appropriate directories for OpenCode,
-Claude Code, or other supported targets.
-
-PROFILE AWARENESS:
-  - With active profile: Links components from the active profile
-  - No active profile: Links all components from ~/.agent-smith/ (base installation)
-  - With --profile flag: Links components from the specified profile (bypasses active profile)
-  - With --all-profiles flag: Links components from all profiles simultaneously
-
-TWO-STEP WORKFLOW:
-  1. Activate a profile: agent-smith profile activate <name>
-  2. Apply to editor: agent-smith link all
-
-This gives you explicit control over when changes are applied to your editor.
+This is the most common command - it links everything you've installed to your editors.
 
 EXAMPLES:
-  # Link all components to all detected targets (default)
+  # Link all components to all editors (default)
   agent-smith link all
 
   # Link all components to OpenCode only
-  agent-smith link all --target opencode
+  agent-smith link all --to opencode
 
-  # Link all components to all targets explicitly
-  agent-smith link all --all-targets
-
-  # Link all components from a specific profile (bypasses active profile)
+  # Link all components from a specific profile
   agent-smith link all --profile work
 
-  # Link all components from all profiles simultaneously
+  # Link all components from all profiles
   agent-smith link all --all-profiles`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("target")
-			allTargets, _ := cmd.Flags().GetBool("all-targets")
+			targetFilter, _ := cmd.Flags().GetString("to")
 			profile, _ := cmd.Flags().GetString("profile")
 			allProfiles, _ := cmd.Flags().GetBool("all-profiles")
-
-			// If --all-targets is specified, override targetFilter to "all"
-			if allTargets {
-				targetFilter = "all"
-			}
 
 			handleLinkAll(targetFilter, profile, allProfiles)
 		},
 	}
-	linkAllCmd.Flags().StringP("target", "t", "", "Specify target to link to (opencode, claudecode, copilot, or all)")
-	linkAllCmd.Flags().Bool("all-targets", false, "Link to all detected targets (default behavior)")
-	linkAllCmd.Flags().StringP("profile", "p", "", "Link from specific profile (bypasses active profile)")
+	linkAllCmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
+	linkAllCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
 	linkAllCmd.Flags().Bool("all-profiles", false, "Link components from all profiles simultaneously")
 	linkCmd.AddCommand(linkAllCmd)
 
 	linkAutoCmd := &cobra.Command{
 		Use:   "auto",
-		Short: "Automatically detect and link components from current repository",
-		Long: `Automatically detect and link components from the current repository.
+		Short: "Auto-detect and link components in current directory",
+		Long: `Auto-detect and link components from the current repository.
 
-This command scans the current working directory for AI components (skills, agents,
-and commands) and automatically links them to detected targets. It uses pattern
-detection to identify component files:
+Scans the current directory for AI components and automatically links them to
+your editors. Useful when developing components locally.
+
+DETECTION PATTERNS:
   - Skills: Files named SKILL.md
-  - Agents: Files in /agents/ directories with .md extension
-  - Commands: Files in /commands/ directories with .md extension
-
-The detection also honors frontmatter metadata in markdown files, using the 'name'
-field if present.
+  - Agents: Files in /agents/ directories
+  - Commands: Files in /commands/ directories
 
 EXAMPLES:
-  # Auto-detect and link all components in current repository
-  agent-smith link auto
-
-  # Typically used from within a repository containing component definitions
+  # Auto-detect and link all components in current repo
   cd /path/to/my-components
   agent-smith link auto`,
 		Args: noArgsWithHelp,
@@ -702,20 +633,15 @@ EXAMPLES:
 
 	linkListCmd := &cobra.Command{
 		Use:   "list",
-		Short: "List all linked components across all targets",
-		Long: `List all components (skills, agents, and commands) currently linked to detected targets.
+		Short: "Simple list of linked components",
+		Long: `List all components currently linked to AI editors.
 
-This command shows the status of each linked component, including whether it's
-a symlink or copied directory, and whether the link is valid or broken.
+Use 'link list' for a quick overview of what is linked. For a detailed matrix
+view showing which components are linked to which editors, use 'link status'.
 
 EXAMPLES:
-  # List all linked components
-  agent-smith link list
-
-The output shows:
-  ✓ - Valid symlink
-  ◆ - Copied directory
-  ✗ - Broken link`,
+  # Quick list of all linked components
+  agent-smith link list`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
 			handleListLinks()
@@ -725,26 +651,26 @@ The output shows:
 
 	linkStatusCmd := &cobra.Command{
 		Use:   "status",
-		Short: "Show link status across all targets in a matrix view",
-		Long: `Show the status of all components across all detected targets in a matrix format.
+		Short: "Matrix view: components vs editors",
+		Long: `Show a detailed matrix of which components are linked to which editors.
 
-This command displays a table showing which components are linked to which targets,
-making it easy to see what is installed where at a glance.
+This is more detailed than 'link list' - it shows a table with components as rows
+and editors as columns, making it easy to see exactly what is linked where.
 
 EXAMPLES:
-  # Show link status for current profile/base only
+  # Show status for current profile/base only
   agent-smith link status
 
-  # Show link status for all profiles
+  # Show status for all profiles
   agent-smith link status --all-profiles
 
-  # Show link status for specific profiles only
+  # Show status for specific profiles only
   agent-smith link status --all-profiles --profile=work,personal
 
-The output shows:
-  ✓ - Valid symlink
-  ◆ - Copied directory
-  ✗ - Broken link
+LEGEND:
+  ✓ - Valid symlink (linked and working)
+  ◆ - Copied directory (linked but copied, not symlinked)
+  ✗ - Broken link (link exists but target is missing)
   - - Not linked
   ? - Unknown status`,
 		Args: noArgsWithHelp,

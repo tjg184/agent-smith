@@ -33,6 +33,32 @@ func NewService(pm *profiles.ProfileManager, logger *logger.Logger, formatter *f
 	}
 }
 
+// showCurrentContext displays the current profile context at the start of link operations
+func (s *Service) showCurrentContext(explicitProfile string) {
+	bold := color.New(color.Bold).SprintFunc()
+	cyan := color.New(color.FgCyan).SprintFunc()
+	gray := color.New(color.FgHiBlack).SprintFunc()
+	green := color.New(color.FgGreen).SprintFunc()
+
+	s.formatter.EmptyLine()
+	fmt.Printf("%s\n", bold("Current Context:"))
+
+	if explicitProfile != "" {
+		fmt.Printf("  Profile: %s (explicit)\n", cyan(explicitProfile))
+	} else {
+		activeProfile, err := s.profileManager.GetActiveProfile()
+		if err != nil {
+			fmt.Printf("  Profile: %s\n", gray("unknown (error checking)"))
+		} else if activeProfile != "" {
+			fmt.Printf("  Profile: %s\n", green(activeProfile))
+		} else {
+			fmt.Printf("  Profile: %s\n", gray("none (using base installation)"))
+		}
+	}
+
+	s.formatter.EmptyLine()
+}
+
 // profileManagerAdapter adapts profiles.ProfileManager to linker.ProfileManager
 type profileManagerAdapter struct {
 	pm *profiles.ProfileManager
@@ -241,6 +267,7 @@ func (s *Service) filterTargets(targets []config.Target, targetFilter string) []
 
 // LinkComponent links a single component to targets
 func (s *Service) LinkComponent(componentType, componentName string, opts services.LinkOptions) error {
+	s.showCurrentContext(opts.Profile)
 	cl, err := s.createLinkerWithFilterAndProfile(opts.TargetFilter, opts.Profile)
 	if err != nil {
 		return fmt.Errorf("failed to create component linker: %w", err)
@@ -317,6 +344,7 @@ func (s *Service) LinkAll(opts services.LinkOptions) error {
 	}
 
 	// Link from single profile (existing behavior)
+	s.showCurrentContext(opts.Profile)
 	cl, err := s.createLinkerWithFilterAndProfile(opts.TargetFilter, opts.Profile)
 	if err != nil {
 		return fmt.Errorf("failed to create component linker: %w", err)
@@ -326,6 +354,7 @@ func (s *Service) LinkAll(opts services.LinkOptions) error {
 
 // LinkByType links all components of a specific type to targets
 func (s *Service) LinkByType(componentType string, opts services.LinkOptions) error {
+	s.showCurrentContext(opts.Profile)
 	cl, err := s.createLinkerWithFilterAndProfile(opts.TargetFilter, opts.Profile)
 	if err != nil {
 		return fmt.Errorf("failed to create component linker: %w", err)
