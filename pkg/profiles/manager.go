@@ -537,8 +537,6 @@ func (pm *ProfileManager) ActivateProfileWithResult(profileName string) (*Profil
 		return nil, err
 	}
 
-	fmt.Printf("Activating profile '%s'...\n", profileName)
-
 	// Validate that the profile exists
 	profile := pm.loadProfile(profileName)
 	if !profile.IsValid() {
@@ -560,12 +558,6 @@ func (pm *ProfileManager) ActivateProfileWithResult(profileName string) (*Profil
 	// Check if trying to activate already active profile
 	if currentActive == profileName {
 		// Profile is already active - return success without error
-		agents, skills, commands := pm.CountComponents(profile)
-		totalComponents := agents + skills + commands
-
-		fmt.Printf("\n✓ Profile '%s' is already active\n", profileName)
-		fmt.Printf("Profile contains %d components (%d agents, %d skills, %d commands)\n", totalComponents, agents, skills, commands)
-
 		result := &ProfileActivationResult{
 			PreviousProfile: currentActive,
 			NewProfile:      profileName,
@@ -575,20 +567,10 @@ func (pm *ProfileManager) ActivateProfileWithResult(profileName string) (*Profil
 	}
 
 	// Update the active profile state file
-	fmt.Printf("Updating active profile state...\n")
 	activeProfilePath := filepath.Join(agentsDir, ".active-profile")
 	if err := os.WriteFile(activeProfilePath, []byte(profileName), 0644); err != nil {
 		return nil, fmt.Errorf("failed to write active profile state: %w", err)
 	}
-
-	// Count components for informational output
-	agents, skills, commands := pm.CountComponents(profile)
-	totalComponents := agents + skills + commands
-
-	fmt.Printf("\n✓ Successfully activated profile '%s'\n", profileName)
-	fmt.Printf("Profile contains %d components (%d agents, %d skills, %d commands)\n", totalComponents, agents, skills, commands)
-	fmt.Println("\nTo apply this profile to your editor, run:")
-	fmt.Println("  agent-smith link all")
 
 	// Create and return the result
 	result := &ProfileActivationResult{
@@ -1041,17 +1023,12 @@ func (pm *ProfileManager) DeactivateProfile() error {
 		return fmt.Errorf("no profile is currently active")
 	}
 
-	fmt.Printf("Deactivating profile '%s'...\n", currentActive)
-
 	// Clear the active profile state file
 	activeProfilePath := filepath.Join(agentsDir, ".active-profile")
 	if err := os.Remove(activeProfilePath); err != nil {
 		return fmt.Errorf("failed to clear active profile state: %w", err)
 	}
 
-	fmt.Printf("\n✓ Successfully deactivated profile '%s'\n", currentActive)
-	fmt.Println("\nTo apply this change to your editor, run:")
-	fmt.Println("  agent-smith link all")
 	return nil
 }
 

@@ -365,11 +365,11 @@ func (s *Service) ActivateProfile(name string) error {
 
 	// Display appropriate message based on whether we switched or it was already active
 	if result.Switched {
-		s.formatter.Info("%s Switched profile: %s → %s", formatter.SymbolSuccess, result.PreviousProfile, result.NewProfile)
+		s.formatter.Info("%s Switched profile: %s → %s", formatter.ColoredSuccess(), result.PreviousProfile, result.NewProfile)
 	} else if result.PreviousProfile == result.NewProfile {
-		s.formatter.Info("%s Profile '%s' is already active", formatter.SymbolSuccess, name)
+		s.formatter.Info("%s Profile '%s' is already active", formatter.ColoredSuccess(), name)
 	} else {
-		s.formatter.Info("%s Profile '%s' activated", formatter.SymbolSuccess, name)
+		s.formatter.Info("%s Profile '%s' activated", formatter.ColoredSuccess(), name)
 	}
 
 	s.formatter.EmptyLine()
@@ -396,7 +396,7 @@ func (s *Service) DeactivateProfile() error {
 		return fmt.Errorf("failed to deactivate profile: %w", err)
 	}
 
-	s.formatter.Info("%s Profile '%s' deactivated", formatter.SymbolSuccess, activeProfile)
+	s.formatter.Info("%s Profile '%s' deactivated", formatter.ColoredSuccess(), activeProfile)
 	s.formatter.EmptyLine()
 	s.formatter.Info("To activate a profile:")
 	s.formatter.Info("  agent-smith profile activate <profile-name>")
