@@ -1748,6 +1748,129 @@ EXAMPLES:
 	materializeCommandCmd.Flags().StringP("source", "s", "", "Source URL to disambiguate when component exists in multiple sources")
 	materializeCmd.AddCommand(materializeCommandCmd)
 
+	// Plural command - operate on ALL skills
+	materializeSkillsCmd := &cobra.Command{
+		Use:   "skills",
+		Short: "Materialize all skills to project directories",
+		Long: `Materialize all skills to project directories.
+
+This command copies all skills from ~/.agent-smith/skills/ to .opencode/skills/
+or .claude/skills/ with full provenance tracking. It continues on error with
+individual components.
+
+The target can be specified with --target flag or AGENT_SMITH_TARGET environment variable.
+
+EXAMPLES:
+  # Materialize all skills to OpenCode
+  agent-smith materialize skills --target opencode
+
+  # Materialize all skills to Claude Code
+  agent-smith materialize skills --target claudecode
+
+  # Materialize all skills from a specific profile
+  agent-smith materialize skills --target opencode --profile work
+
+  # Preview without making changes
+  agent-smith materialize skills --target opencode --dry-run`,
+		Args: noArgsWithHelp,
+		Run: func(cmd *cobra.Command, args []string) {
+			target, _ := cmd.Flags().GetString("target")
+			projectDir, _ := cmd.Flags().GetString("project-dir")
+			force, _ := cmd.Flags().GetBool("force")
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			profile, _ := cmd.Flags().GetString("profile")
+			handleMaterializeType("skills", target, projectDir, force, dryRun, profile)
+		},
+	}
+	materializeSkillsCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, universal, or all). Can also use AGENT_SMITH_TARGET environment variable")
+	materializeSkillsCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeSkillsCmd.Flags().BoolP("force", "f", false, "Overwrite existing components if they differ")
+	materializeSkillsCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
+	materializeSkillsCmd.Flags().StringP("profile", "p", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
+	materializeCmd.AddCommand(materializeSkillsCmd)
+
+	// Plural command - operate on ALL agents
+	materializeAgentsCmd := &cobra.Command{
+		Use:   "agents",
+		Short: "Materialize all agents to project directories",
+		Long: `Materialize all agents to project directories.
+
+This command copies all agents from ~/.agent-smith/agents/ to .opencode/agents/
+or .claude/agents/ with full provenance tracking. It continues on error with
+individual components.
+
+The target can be specified with --target flag or AGENT_SMITH_TARGET environment variable.
+
+EXAMPLES:
+  # Materialize all agents to OpenCode
+  agent-smith materialize agents --target opencode
+
+  # Materialize all agents to Claude Code
+  agent-smith materialize agents --target claudecode
+
+  # Materialize all agents from a specific profile
+  agent-smith materialize agents --target opencode --profile work
+
+  # Preview without making changes
+  agent-smith materialize agents --target opencode --dry-run`,
+		Args: noArgsWithHelp,
+		Run: func(cmd *cobra.Command, args []string) {
+			target, _ := cmd.Flags().GetString("target")
+			projectDir, _ := cmd.Flags().GetString("project-dir")
+			force, _ := cmd.Flags().GetBool("force")
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			profile, _ := cmd.Flags().GetString("profile")
+			handleMaterializeType("agents", target, projectDir, force, dryRun, profile)
+		},
+	}
+	materializeAgentsCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, universal, or all). Can also use AGENT_SMITH_TARGET environment variable")
+	materializeAgentsCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeAgentsCmd.Flags().BoolP("force", "f", false, "Overwrite existing components if they differ")
+	materializeAgentsCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
+	materializeAgentsCmd.Flags().StringP("profile", "p", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
+	materializeCmd.AddCommand(materializeAgentsCmd)
+
+	// Plural command - operate on ALL commands
+	materializeCommandsCmd := &cobra.Command{
+		Use:   "commands",
+		Short: "Materialize all commands to project directories",
+		Long: `Materialize all commands to project directories.
+
+This command copies all commands from ~/.agent-smith/commands/ to .opencode/commands/
+or .claude/commands/ with full provenance tracking. It continues on error with
+individual components.
+
+The target can be specified with --target flag or AGENT_SMITH_TARGET environment variable.
+
+EXAMPLES:
+  # Materialize all commands to OpenCode
+  agent-smith materialize commands --target opencode
+
+  # Materialize all commands to Claude Code
+  agent-smith materialize commands --target claudecode
+
+  # Materialize all commands from a specific profile
+  agent-smith materialize commands --target opencode --profile work
+
+  # Preview without making changes
+  agent-smith materialize commands --target opencode --dry-run`,
+		Args: noArgsWithHelp,
+		Run: func(cmd *cobra.Command, args []string) {
+			target, _ := cmd.Flags().GetString("target")
+			projectDir, _ := cmd.Flags().GetString("project-dir")
+			force, _ := cmd.Flags().GetBool("force")
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			profile, _ := cmd.Flags().GetString("profile")
+			handleMaterializeType("commands", target, projectDir, force, dryRun, profile)
+		},
+	}
+	materializeCommandsCmd.Flags().StringP("target", "t", "", "Target to materialize to (opencode, claudecode, copilot, universal, or all). Can also use AGENT_SMITH_TARGET environment variable")
+	materializeCommandsCmd.Flags().String("project-dir", "", "Override project directory detection")
+	materializeCommandsCmd.Flags().BoolP("force", "f", false, "Overwrite existing components if they differ")
+	materializeCommandsCmd.Flags().Bool("dry-run", false, "Preview what will be materialized without making changes")
+	materializeCommandsCmd.Flags().StringP("profile", "p", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
+	materializeCmd.AddCommand(materializeCommandsCmd)
+
 	materializeAllCmd := &cobra.Command{
 		Use:   "all",
 		Short: "Materialize all installed components to project directories",
@@ -1980,6 +2103,7 @@ var (
 	handleTargetRemove          func(name string)
 	handleTargetList            func()
 	handleMaterializeComponent  func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile, source string)
+	handleMaterializeType       func(componentType, target, projectDir string, force, dryRun bool, fromProfile string)
 	handleMaterializeAll        func(target, projectDir string, force, dryRun bool, fromProfile string)
 	handleMaterializeList       func(projectDir string)
 	handleMaterializeInfo       func(componentType, componentName, target, projectDir, source string)
@@ -2023,6 +2147,7 @@ func SetHandlers(
 	targetRemove func(name string),
 	targetList func(),
 	materializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile, source string),
+	materializeType func(componentType, target, projectDir string, force, dryRun bool, fromProfile string),
 	materializeAll func(target, projectDir string, force, dryRun bool, fromProfile string),
 	materializeList func(projectDir string),
 	materializeInfo func(componentType, componentName, target, projectDir, source string),
@@ -2064,6 +2189,7 @@ func SetHandlers(
 	handleTargetRemove = targetRemove
 	handleTargetList = targetList
 	handleMaterializeComponent = materializeComponent
+	handleMaterializeType = materializeType
 	handleMaterializeAll = materializeAll
 	handleMaterializeList = materializeList
 	handleMaterializeInfo = materializeInfo

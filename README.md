@@ -336,6 +336,15 @@ agent-smith materialize agent coding-assistant --target claudecode
 # Materialize a command to both targets
 agent-smith materialize command format-json --target all
 
+# Materialize all skills to a target
+agent-smith materialize skills --target opencode
+
+# Materialize all agents from a specific profile
+agent-smith materialize agents --target claudecode --profile work
+
+# Materialize all commands with preview
+agent-smith materialize commands --target all --dry-run
+
 # Materialize from a specific profile
 agent-smith materialize skill api-design --target opencode --profile work
 
@@ -653,6 +662,10 @@ cd ~/my-project
 agent-smith materialize skill api-design --target opencode
 agent-smith materialize agent code-reviewer --target opencode
 agent-smith materialize command test-runner --target opencode
+
+# Or materialize all components of a specific type
+agent-smith materialize skills --target opencode
+agent-smith materialize agents --target opencode
 
 # Commit to version control
 git add .opencode/

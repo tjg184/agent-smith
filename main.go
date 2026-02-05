@@ -855,6 +855,19 @@ func main() {
 				os.Exit(1)
 			}
 		},
+		func(componentType, target, projectDir string, force, dryRun bool, profile string) {
+			opts := services.MaterializeOptions{
+				Target:     target,
+				ProjectDir: projectDir,
+				Profile:    profile,
+				Force:      force,
+				DryRun:     dryRun,
+			}
+			if err := materializeService.MaterializeByType(componentType, opts); err != nil {
+				// Error already logged/displayed by service
+				os.Exit(1)
+			}
+		},
 		func(target, projectDir string, force, dryRun bool, profile string) {
 			opts := services.MaterializeOptions{
 				Target:     target,

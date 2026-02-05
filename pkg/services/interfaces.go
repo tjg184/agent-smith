@@ -72,6 +72,7 @@ type ListProfileOptions struct {
 // MaterializeService handles materializing components to projects
 type MaterializeService interface {
 	MaterializeComponent(componentType, name string, opts MaterializeOptions) error
+	MaterializeByType(componentType string, opts MaterializeOptions) error
 	MaterializeAll(opts MaterializeOptions) error
 	ListMaterialized(opts ListMaterializedOptions) error
 	ShowComponentInfo(componentType, name string, opts MaterializeInfoOptions) error

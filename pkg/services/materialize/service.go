@@ -425,6 +425,91 @@ func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
 	return nil
 }
 
+// MaterializeByType materializes all components of a specific type to a target
+func (s *Service) MaterializeByType(componentType string, opts services.MaterializeOptions) error {
+	// Validate component type
+	validTypes := map[string]bool{
+		"skills":   true,
+		"agents":   true,
+		"commands": true,
+	}
+	if !validTypes[componentType] {
+		return fmt.Errorf("invalid component type: %s (must be skills, agents, or commands)", componentType)
+	}
+
+	// Get source directory
+	baseDir, sourceProfile, err := s.getSourceDir(opts.Profile)
+	if err != nil {
+		return err
+	}
+
+	// Get all components of the specified type
+	var components []struct {
+		Type string
+		Name string
+	}
+
+	dir := filepath.Join(baseDir, componentType)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			s.formatter.Info("No %s found to materialize", componentType)
+			if sourceProfile != "" {
+				s.formatter.Info("  Source: profile '%s' (~/.agent-smith/profiles/%s/%s/)", sourceProfile, sourceProfile, componentType)
+			} else {
+				s.formatter.Info("  Source: ~/.agent-smith/%s/", componentType)
+			}
+			return nil
+		}
+		return fmt.Errorf("failed to read %s directory: %w", componentType, err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			components = append(components, struct {
+				Type string
+				Name string
+			}{componentType, entry.Name()})
+		}
+	}
+
+	if len(components) == 0 {
+		s.formatter.Info("No %s found to materialize", componentType)
+		if sourceProfile != "" {
+			s.formatter.Info("  Source: profile '%s' (~/.agent-smith/profiles/%s/%s/)", sourceProfile, sourceProfile, componentType)
+		} else {
+			s.formatter.Info("  Source: ~/.agent-smith/%s/", componentType)
+		}
+		return nil
+	}
+
+	// Materialize each component
+	successCount := 0
+	failureCount := 0
+	for _, comp := range components {
+		if err := s.MaterializeComponent(comp.Type, comp.Name, opts); err != nil {
+			s.formatter.WarningMsg("Failed to materialize %s '%s': %v", comp.Type, comp.Name, err)
+			failureCount++
+		} else {
+			successCount++
+		}
+	}
+
+	// Display summary if we processed any components
+	if successCount > 0 || failureCount > 0 {
+		s.formatter.EmptyLine()
+		if failureCount == 0 {
+			green := color.New(color.FgGreen).SprintFunc()
+			s.formatter.Info("%s Successfully materialized %d %s", green("✓"), successCount, componentType)
+		} else {
+			yellow := color.New(color.FgYellow).SprintFunc()
+			s.formatter.Info("%s Materialized %d %s, %d failed", yellow("⚠"), successCount, componentType, failureCount)
+		}
+	}
+
+	return nil
+}
+
 // ListMaterialized lists all materialized components in a project
 func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error {
 	projectRoot, err := s.getProjectRoot(opts.ProjectDir)
