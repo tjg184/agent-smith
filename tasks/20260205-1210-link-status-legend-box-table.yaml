@@ -1,0 +1,14 @@
+created: "2026-02-05T12:10:00Z"
+tasks:
+  - title: "Story-001: As a CLI tool, I want to add a DisplayLegendTable method to the Formatter so that legends can be displayed in a consistent, professional box table format - New DisplayLegendTable(items []LegendItem) method in formatter.go, LegendItem struct with Symbol and Description fields, Two-column BoxTable with Symbol and Meaning headers, Color formatting preserved"
+    completed: false
+    parallel_group: 0
+  - title: "Story-002: As a user running agent-smith link status, I want the legend to be displayed in a box table format so that it looks professional - ShowLinkStatus() updated to use DisplayLegendTable(), Lines 992-998 replaced with table formatting, All five symbols displayed with colors, Table borders match existing BoxTable styling"
+    completed: false
+    parallel_group: 1
+  - title: "Story-003: As a user running agent-smith link status --all-profiles, I want the legend to be displayed in a box table format so that it matches single-profile view - ShowAllProfilesLinkStatus() updated to use DisplayLegendTable(), Lines 1282-1288 replaced with table formatting, Consistent with single-profile view"
+    completed: false
+    parallel_group: 1
+  - title: "Story-004: As a developer, I want comprehensive integration tests for the updated legend formatting so that regressions are detected early - Integration test file link_status_legend_test.go created, Tests verify box-drawing characters and all symbols, Tests cover both single-profile and all-profiles views"
+    completed: false
+    parallel_group: 2

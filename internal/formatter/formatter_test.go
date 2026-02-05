@@ -557,3 +557,112 @@ func TestNextSteps_Empty(t *testing.T) {
 		t.Errorf("Expected 'Next steps:' header even for empty map, got: %s", output)
 	}
 }
+
+func TestDisplayLegendTable_WithMultipleItems(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	items := []LegendItem{
+		{Symbol: SymbolSuccess, Description: "Valid symlink"},
+		{Symbol: SymbolCopied, Description: "Copied directory"},
+		{Symbol: SymbolError, Description: "Broken link"},
+		{Symbol: SymbolNotLinked, Description: "Not linked"},
+		{Symbol: SymbolUnknown, Description: "Unknown status"},
+	}
+
+	f.DisplayLegendTable(items)
+
+	output := buf.String()
+
+	// Check for box-drawing characters
+	if !strings.Contains(output, "┌") {
+		t.Errorf("Expected top-left corner character, got: %s", output)
+	}
+	if !strings.Contains(output, "└") {
+		t.Errorf("Expected bottom-left corner character, got: %s", output)
+	}
+
+	// Check for table headers
+	if !strings.Contains(output, "Symbol") {
+		t.Errorf("Expected 'Symbol' header, got: %s", output)
+	}
+	if !strings.Contains(output, "Meaning") {
+		t.Errorf("Expected 'Meaning' header, got: %s", output)
+	}
+
+	// Check for all symbols
+	if !strings.Contains(output, SymbolSuccess) {
+		t.Errorf("Expected success symbol, got: %s", output)
+	}
+	if !strings.Contains(output, SymbolCopied) {
+		t.Errorf("Expected copied symbol, got: %s", output)
+	}
+	if !strings.Contains(output, SymbolError) {
+		t.Errorf("Expected error symbol, got: %s", output)
+	}
+	if !strings.Contains(output, SymbolNotLinked) {
+		t.Errorf("Expected not linked symbol, got: %s", output)
+	}
+	if !strings.Contains(output, SymbolUnknown) {
+		t.Errorf("Expected unknown symbol, got: %s", output)
+	}
+
+	// Check for all descriptions
+	if !strings.Contains(output, "Valid symlink") {
+		t.Errorf("Expected 'Valid symlink' description, got: %s", output)
+	}
+	if !strings.Contains(output, "Copied directory") {
+		t.Errorf("Expected 'Copied directory' description, got: %s", output)
+	}
+	if !strings.Contains(output, "Broken link") {
+		t.Errorf("Expected 'Broken link' description, got: %s", output)
+	}
+	if !strings.Contains(output, "Not linked") {
+		t.Errorf("Expected 'Not linked' description, got: %s", output)
+	}
+	if !strings.Contains(output, "Unknown status") {
+		t.Errorf("Expected 'Unknown status' description, got: %s", output)
+	}
+}
+
+func TestDisplayLegendTable_WithColoredSymbols(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	items := []LegendItem{
+		{Symbol: ColoredSuccess(), Description: "Success"},
+		{Symbol: ColoredError(), Description: "Error"},
+	}
+
+	f.DisplayLegendTable(items)
+
+	output := buf.String()
+
+	// Check that symbols are present (color codes will be in output)
+	if !strings.Contains(output, SymbolSuccess) {
+		t.Errorf("Expected success symbol in output, got: %s", output)
+	}
+	if !strings.Contains(output, SymbolError) {
+		t.Errorf("Expected error symbol in output, got: %s", output)
+	}
+
+	// Check that descriptions are present
+	if !strings.Contains(output, "Success") {
+		t.Errorf("Expected 'Success' description, got: %s", output)
+	}
+	if !strings.Contains(output, "Error") {
+		t.Errorf("Expected 'Error' description, got: %s", output)
+	}
+}
+
+func TestDisplayLegendTable_EmptyList(t *testing.T) {
+	buf := &bytes.Buffer{}
+	f := NewWithWriter(buf)
+
+	f.DisplayLegendTable([]LegendItem{})
+
+	output := buf.String()
+	if output != "" {
+		t.Errorf("Expected empty output for empty legend items list, got: %s", output)
+	}
+}

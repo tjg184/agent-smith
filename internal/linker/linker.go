@@ -895,7 +895,7 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 		for _, target := range cl.targets {
 			componentDir, err := target.GetComponentDir(comp.Type)
 			if err != nil {
-				status.Targets[target.GetName()] = "?"
+				status.Targets[target.GetName()] = colors.Warning("?")
 				continue
 			}
 
@@ -903,7 +903,7 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 
 			// Check if link exists
 			if _, err := os.Lstat(linkPath); os.IsNotExist(err) {
-				status.Targets[target.GetName()] = "-"
+				status.Targets[target.GetName()] = colors.Muted("-")
 				continue
 			}
 
@@ -914,16 +914,16 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 			switch linkType {
 			case "symlink":
 				if valid {
-					symbol = "✓"
+					symbol = colors.Success("✓")
 				} else {
-					symbol = "✗"
+					symbol = colors.Error("✗")
 				}
 			case "copied":
-				symbol = "◆"
+				symbol = colors.Success("◆")
 			case "broken":
-				symbol = "✗"
+				symbol = colors.Error("✗")
 			default:
-				symbol = "?"
+				symbol = colors.Warning("?")
 			}
 
 			status.Targets[target.GetName()] = symbol
@@ -991,11 +991,14 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 	// Print legend
 	cl.formatter.EmptyLine()
 	cl.formatter.SubsectionHeader("Legend")
-	cl.formatter.ListItem("✓  Valid symlink")
-	cl.formatter.ListItem("◆  Copied directory")
-	cl.formatter.ListItem("✗  Broken link")
-	cl.formatter.ListItem("-  Not linked")
-	cl.formatter.ListItem("?  Unknown status")
+	legendItems := []formatter.LegendItem{
+		{Symbol: colors.Success("✓"), Description: colors.Success("Valid symlink")},
+		{Symbol: colors.Success("◆"), Description: colors.Success("Copied directory")},
+		{Symbol: colors.Error("✗"), Description: colors.Error("Broken link")},
+		{Symbol: colors.Muted("-"), Description: colors.Muted("Not linked")},
+		{Symbol: colors.Warning("?"), Description: colors.Warning("Unknown status")},
+	}
+	cl.formatter.DisplayLegendTable(legendItems)
 
 	// Print summary
 	cl.formatter.EmptyLine()
@@ -1186,7 +1189,7 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 		for _, target := range cl.targets {
 			componentDir, err := target.GetComponentDir(comp.Type)
 			if err != nil {
-				status.Targets[target.GetName()] = "?"
+				status.Targets[target.GetName()] = colors.Warning("?")
 				continue
 			}
 
@@ -1194,7 +1197,7 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 
 			// Check if link exists
 			if _, err := os.Lstat(linkPath); os.IsNotExist(err) {
-				status.Targets[target.GetName()] = "-"
+				status.Targets[target.GetName()] = colors.Muted("-")
 				continue
 			}
 
@@ -1205,16 +1208,16 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 			switch linkType {
 			case "symlink":
 				if valid {
-					symbol = "✓"
+					symbol = colors.Success("✓")
 				} else {
-					symbol = "✗"
+					symbol = colors.Error("✗")
 				}
 			case "copied":
-				symbol = "◆"
+				symbol = colors.Success("◆")
 			case "broken":
-				symbol = "✗"
+				symbol = colors.Error("✗")
 			default:
-				symbol = "?"
+				symbol = colors.Warning("?")
 			}
 
 			status.Targets[target.GetName()] = symbol
@@ -1281,11 +1284,14 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 	// Print legend
 	cl.formatter.EmptyLine()
 	cl.formatter.SubsectionHeader("Legend")
-	cl.formatter.ListItem("✓  Valid symlink")
-	cl.formatter.ListItem("◆  Copied directory")
-	cl.formatter.ListItem("✗  Broken link")
-	cl.formatter.ListItem("-  Not linked")
-	cl.formatter.ListItem("?  Unknown status")
+	legendItems := []formatter.LegendItem{
+		{Symbol: colors.Success("✓"), Description: colors.Success("Valid symlink")},
+		{Symbol: colors.Success("◆"), Description: colors.Success("Copied directory")},
+		{Symbol: colors.Error("✗"), Description: colors.Error("Broken link")},
+		{Symbol: colors.Muted("-"), Description: colors.Muted("Not linked")},
+		{Symbol: colors.Warning("?"), Description: colors.Warning("Unknown status")},
+	}
+	cl.formatter.DisplayLegendTable(legendItems)
 
 	// Print summary
 	cl.formatter.EmptyLine()

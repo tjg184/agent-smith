@@ -315,3 +315,23 @@ func (f *Formatter) NextSteps(commands map[string]string) {
 		fmt.Fprintf(f.writer, "  • %s: %s\n", colors.Info(cmd), desc)
 	}
 }
+
+// LegendItem represents a single item in a legend table
+type LegendItem struct {
+	Symbol      string
+	Description string
+}
+
+// DisplayLegendTable displays a legend in a two-column box table format
+// This provides a more professional appearance compared to bullet-point lists
+func (f *Formatter) DisplayLegendTable(items []LegendItem) {
+	if len(items) == 0 {
+		return
+	}
+
+	table := NewBoxTable(f.writer, []string{"Symbol", "Meaning"})
+	for _, item := range items {
+		table.AddRow([]string{item.Symbol, item.Description})
+	}
+	table.Render()
+}

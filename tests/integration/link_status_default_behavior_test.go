@@ -81,18 +81,41 @@ func TestLinkStatus_DefaultBehavior(t *testing.T) {
 		"=== Link Status Across All Targets ===",
 		"Component",
 		"Profile",
-		"Legend:",
-		"✓  Valid symlink",
-		"◆  Copied directory",
-		"✗  Broken link",
-		"-  Not linked",
-		"?  Unknown status",
+		"--- Legend ---",
+		"Symbol",
+		"Meaning",
+		"Valid symlink",
+		"Copied directory",
+		"Broken link",
+		"Not linked",
+		"Unknown status",
 	}
 
 	for _, expected := range expectedStrings {
 		if !strings.Contains(outputStr, expected) {
 			t.Errorf("Default link status output missing expected string: %s\nFull output:\n%s", expected, outputStr)
 		}
+	}
+
+	// Verify all legend symbols are present
+	legendSymbols := []string{"✓", "◆", "✗", "-", "?"}
+	for _, symbol := range legendSymbols {
+		if !strings.Contains(outputStr, symbol) {
+			t.Errorf("Legend missing symbol: %s", symbol)
+		}
+	}
+
+	// Verify box-drawing characters are present (indicates table format)
+	boxChars := []string{"┌", "└", "│", "─"}
+	foundBoxChar := false
+	for _, char := range boxChars {
+		if strings.Contains(outputStr, char) {
+			foundBoxChar = true
+			break
+		}
+	}
+	if !foundBoxChar {
+		t.Error("Legend should use box-drawing table format")
 	}
 
 	// Verify it shows component types
@@ -222,7 +245,7 @@ func TestLinkStatus_NoNewFlagsRequired(t *testing.T) {
 	}
 
 	// Should show familiar output format
-	if !strings.Contains(outputStr, "Legend:") {
+	if !strings.Contains(outputStr, "--- Legend ---") {
 		t.Error("Output should contain familiar Legend section")
 	}
 }
@@ -290,12 +313,14 @@ func TestLinkStatus_OutputFormatUnchanged(t *testing.T) {
 		{"=== Link Status Across All Targets ===", "main header"},
 		{"Component", "component column header"},
 		{"Profile", "profile column header"},
-		{"Legend:", "legend section header"},
-		{"✓  Valid symlink", "valid symlink legend entry"},
-		{"◆  Copied directory", "copied directory legend entry"},
-		{"✗  Broken link", "broken link legend entry"},
-		{"-  Not linked", "not linked legend entry"},
-		{"?  Unknown status", "unknown status legend entry"},
+		{"--- Legend ---", "legend section header"},
+		{"Symbol", "legend symbol column header"},
+		{"Meaning", "legend meaning column header"},
+		{"Valid symlink", "valid symlink legend entry"},
+		{"Copied directory", "copied directory legend entry"},
+		{"Broken link", "broken link legend entry"},
+		{"Not linked", "not linked legend entry"},
+		{"Unknown status", "unknown status legend entry"},
 	}
 
 	for _, elem := range criticalElements {
