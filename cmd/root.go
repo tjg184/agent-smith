@@ -76,10 +76,10 @@ func showWelcomeScreen() {
 
 	// Core Commands Section
 	fmt.Println(bold("CORE COMMANDS"))
-	fmt.Printf("  %s  Install components from git repositories\n", green("install"))
-	fmt.Printf("  %s       Link components to AI editor targets\n", green("link"))
-	fmt.Printf("  %s      Update installed components\n", green("update"))
-	fmt.Printf("  %s     Manage profiles for context switching\n", green("profile"))
+	fmt.Printf("  %s Install components from git repositories\n", green("install "))
+	fmt.Printf("  %s Link components to AI editor targets\n", green("link    "))
+	fmt.Printf("  %s Update installed components\n", green("update  "))
+	fmt.Printf("  %s Manage profiles for context switching\n", green("profile "))
 	fmt.Println()
 
 	// Help hint
