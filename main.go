@@ -593,37 +593,37 @@ func main() {
 
 	// Set up handlers for Cobra commands
 	cmd.SetHandlers(
-		func(repoURL, name, profile, targetDir string) {
+		func(repoURL, name, profile, installDir string) {
 			opts := services.InstallOptions{
-				Profile:   profile,
-				TargetDir: targetDir,
+				Profile:    profile,
+				InstallDir: installDir,
 			}
 			if err := installService.InstallSkill(repoURL, name, opts); err != nil {
 				log.Fatal("Failed to install skill:", err)
 			}
 		},
-		func(repoURL, name, profile, targetDir string) {
+		func(repoURL, name, profile, installDir string) {
 			opts := services.InstallOptions{
-				Profile:   profile,
-				TargetDir: targetDir,
+				Profile:    profile,
+				InstallDir: installDir,
 			}
 			if err := installService.InstallAgent(repoURL, name, opts); err != nil {
 				log.Fatal("Failed to install agent:", err)
 			}
 		},
-		func(repoURL, name, profile, targetDir string) {
+		func(repoURL, name, profile, installDir string) {
 			opts := services.InstallOptions{
-				Profile:   profile,
-				TargetDir: targetDir,
+				Profile:    profile,
+				InstallDir: installDir,
 			}
 			if err := installService.InstallCommand(repoURL, name, opts); err != nil {
 				log.Fatal("Failed to install command:", err)
 			}
 		},
-		func(repoURL, profile, targetDir string) {
+		func(repoURL, profile, installDir string) {
 			opts := services.InstallOptions{
-				Profile:   profile,
-				TargetDir: targetDir,
+				Profile:    profile,
+				InstallDir: installDir,
 			}
 			if err := installService.InstallBulk(repoURL, opts); err != nil {
 				log.Fatal("Failed to bulk install:", err)

@@ -25,7 +25,7 @@ The system implements a two-tier architecture: global canonical storage in `~/.a
 - **Intelligent detection**: Recursive content-based detection supporting any repository structure
 - **Change tracking**: GitHub tree SHA-based update detection (only re-downloads when content changes)
 - **Bulk operations**: Install all components from a repository with `install all`
-- **Custom directories**: Install to project-local directories with `--target-dir` flag
+- **Custom directories**: Install to project-local directories with `--install-dir` flag
 
 **Storage Architecture**:
 ```
@@ -47,7 +47,7 @@ agent-smith install skill openai/cookbook gpt-skill
 agent-smith install all anthropics/skills
 
 # Install to custom directory (project-local, isolated)
-agent-smith install all github.com/org/tools --target-dir ./tools
+agent-smith install all github.com/org/tools --install-dir ./tools
 ```
 
 ---
@@ -290,7 +290,7 @@ agent-smith install all <repo-url>
 
 # Flags
 --profile, -p <name>      # Install to specific profile
---target-dir, -t <path>   # Install to custom directory (isolated)
+--install-dir, -t <path>   # Install to custom directory (isolated)
 ```
 
 ### Link Commands
@@ -453,7 +453,7 @@ agent-smith link all  # Switches editor to personal components
 
 ```bash
 # Install components to project directory (isolated)
-agent-smith install all github.com/org/experimental --target-dir ./test-components
+agent-smith install all github.com/org/experimental --install-dir ./test-components
 
 # Verify installation
 ls -la ./test-components/skills/
@@ -489,7 +489,7 @@ agent-smith uninstall skill skill-name  # Auto-unlinks first
 - Clear status commands show current state before taking action
 
 ### 2. **Isolation & Independence**
-- Custom target directories (`--target-dir`) are completely isolated from `~/.agent-smith/`
+- Custom target directories (`--install-dir`) are completely isolated from `~/.agent-smith/`
 - Profiles maintain independent component sets
 - Unmanaged directories won't be affected by agent-smith operations
 
@@ -662,7 +662,7 @@ Components in ~/.agent-smith/profiles/work/:
    - Configuration-based target management
 
 3. **Target Directory Feature** (2026-01-28)
-   - Install to project-local directories with `--target-dir`
+   - Install to project-local directories with `--install-dir`
    - Isolated from main `~/.agent-smith/` installation
 
 4. **Uninstall Command** (2026-01-28)

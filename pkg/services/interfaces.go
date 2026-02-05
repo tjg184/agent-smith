@@ -10,8 +10,8 @@ type InstallService interface {
 
 // InstallOptions configures component installation
 type InstallOptions struct {
-	Profile   string // Profile to install to (empty = base directory)
-	TargetDir string // Custom target directory (empty = use default)
+	Profile    string // Profile to install to (empty = base directory)
+	InstallDir string // Custom installation directory (empty = use default)
 }
 
 // LinkService handles linking/unlinking components to targets

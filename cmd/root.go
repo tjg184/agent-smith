@@ -172,16 +172,16 @@ EXAMPLES:
   agent-smith install skill openai/cookbook gpt-skill --profile work
 
   # Install to custom directory for testing (isolated from ~/.agent-smith/)
-  agent-smith install skill ./my-skill test-skill --target-dir ./test-components`,
+   agent-smith install skill ./my-skill test-skill --install-dir ./test-components`,
 		Args: exactArgsWithHelp(2, "agent-smith install skill <repository-url> <skill-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
-			targetDir, _ := cmd.Flags().GetString("target-dir")
-			handleAddSkill(args[0], args[1], profile, targetDir)
+			installDir, _ := cmd.Flags().GetString("install-dir")
+			handleAddSkill(args[0], args[1], profile, installDir)
 		},
 	}
 	installSkillCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agent-smith/")
-	installSkillCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory (isolated from ~/.agent-smith/)")
+	installSkillCmd.Flags().StringP("install-dir", "i", "", "Install to a custom directory (isolated from ~/.agent-smith/)")
 	installCmd.AddCommand(installSkillCmd)
 
 	installAgentCmd := &cobra.Command{
@@ -211,16 +211,16 @@ EXAMPLES:
   agent-smith install agent openai/assistant coding-agent --profile work
 
   # Install to custom directory for testing (isolated from ~/.agent-smith/)
-  agent-smith install agent ./my-agent test-agent --target-dir ./test-components`,
+   agent-smith install agent ./my-agent test-agent --install-dir ./test-components`,
 		Args: exactArgsWithHelp(2, "agent-smith install agent <repository-url> <agent-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
-			targetDir, _ := cmd.Flags().GetString("target-dir")
-			handleAddAgent(args[0], args[1], profile, targetDir)
+			installDir, _ := cmd.Flags().GetString("install-dir")
+			handleAddAgent(args[0], args[1], profile, installDir)
 		},
 	}
 	installAgentCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agent-smith/")
-	installAgentCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory (isolated from ~/.agent-smith/)")
+	installAgentCmd.Flags().StringP("install-dir", "i", "", "Install to a custom directory (isolated from ~/.agent-smith/)")
 	installCmd.AddCommand(installAgentCmd)
 
 	installCommandCmd := &cobra.Command{
@@ -250,16 +250,16 @@ EXAMPLES:
   agent-smith install command cli-tools/formatter json-formatter --profile work
 
   # Install to custom directory for testing (isolated from ~/.agent-smith/)
-  agent-smith install command ./my-command test-command --target-dir ./test-components`,
+   agent-smith install command ./my-command test-command --install-dir ./test-components`,
 		Args: exactArgsWithHelp(2, "agent-smith install command <repository-url> <command-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
-			targetDir, _ := cmd.Flags().GetString("target-dir")
-			handleAddCommand(args[0], args[1], profile, targetDir)
+			installDir, _ := cmd.Flags().GetString("install-dir")
+			handleAddCommand(args[0], args[1], profile, installDir)
 		},
 	}
 	installCommandCmd.Flags().StringP("profile", "p", "", "Install directly to a profile instead of ~/.agent-smith/")
-	installCommandCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory (isolated from ~/.agent-smith/)")
+	installCommandCmd.Flags().StringP("install-dir", "i", "", "Install to a custom directory (isolated from ~/.agent-smith/)")
 	installCmd.AddCommand(installCommandCmd)
 
 	installAllCmd := &cobra.Command{
@@ -296,20 +296,20 @@ EXAMPLES:
   # Download from local repository
   agent-smith install all /path/to/local/repo
 
-  # Install to a custom target directory (project-local, no profile)
-  agent-smith install all openai/cookbook --target-dir ./tools
+  # Install to a custom directory (project-local, no profile)
+   agent-smith install all openai/cookbook --install-dir ./tools
 
-  # Force creation of a new profile with a custom name
-  agent-smith install all openai/cookbook --profile my-custom-profile`,
+   # Force creation of a new profile with a custom name
+   agent-smith install all openai/cookbook --profile my-custom-profile`,
 		Args: exactArgsWithHelp(1, "agent-smith install all <repository-url>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
-			targetDir, _ := cmd.Flags().GetString("target-dir")
-			handleAddAll(args[0], profile, targetDir)
+			installDir, _ := cmd.Flags().GetString("install-dir")
+			handleAddAll(args[0], profile, installDir)
 		},
 	}
 	installAllCmd.Flags().StringP("profile", "p", "", "Force creation of a new profile with a custom name")
-	installAllCmd.Flags().StringP("target-dir", "t", "", "Install to a custom directory instead of ~/.agent-smith/")
+	installAllCmd.Flags().StringP("install-dir", "i", "", "Install to a custom directory instead of ~/.agent-smith/")
 	installCmd.AddCommand(installAllCmd)
 
 	rootCmd.AddCommand(installCmd)

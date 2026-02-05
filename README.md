@@ -61,8 +61,8 @@ agent-smith install command owner/repo command-name
 agent-smith install all owner/repo
 
 # Install to a custom directory (project-local, isolated from ~/.agent-smith/)
-agent-smith install all owner/repo --target-dir ./tools
-agent-smith install skill owner/repo skill-name --target-dir ./my-components
+agent-smith install all owner/repo --install-dir ./tools
+agent-smith install skill owner/repo skill-name --install-dir ./my-components
 ```
 
 **Repository URL formats:**
@@ -72,25 +72,25 @@ agent-smith install skill owner/repo skill-name --target-dir ./my-components
 - SSH URL: `git@github.com:owner/repo.git`
 - Local path: `/path/to/local/repo`
 
-**Custom target directories (`--target-dir` flag):**
+**Custom target directories (`--install-dir` flag):**
 
-The `--target-dir` (or `-t`) flag allows installing components to a custom directory instead of the default `~/.agent-smith/`. This is useful for:
+The `--install-dir` (or `-t`) flag allows installing components to a custom directory instead of the default `~/.agent-smith/`. This is useful for:
 - **Project-local installations**: Keep components version-controlled with your project
 - **Isolated testing**: Test components without affecting your main `~/.agent-smith/` installation
 - **Offline distribution**: Package components for air-gapped systems
 
 ```bash
 # Install to a project directory
-agent-smith install all github.com/org/tools --target-dir ./tools
+agent-smith install all github.com/org/tools --install-dir ./tools
 
 # Install with relative path
-agent-smith install skill ./my-skill local-skill --target-dir ./test-components
+agent-smith install skill ./my-skill local-skill --install-dir ./test-components
 
 # Install with absolute path
-agent-smith install all github.com/org/tools --target-dir /opt/ai-components
+agent-smith install all github.com/org/tools --install-dir /opt/ai-components
 
 # Install with tilde expansion
-agent-smith install all github.com/org/tools --target-dir ~/my-project/agents
+agent-smith install all github.com/org/tools --install-dir ~/my-project/agents
 ```
 
 **Important notes about custom directories:**
@@ -624,7 +624,7 @@ agent-smith update all
 
 ```bash
 # Install components to a test directory without affecting ~/.agent-smith/
-agent-smith install all github.com/org/experimental-tools --target-dir ./test-components
+agent-smith install all github.com/org/experimental-tools --install-dir ./test-components
 
 # Verify the installation
 ls -la ./test-components/skills/
@@ -639,7 +639,7 @@ rm -rf ./test-components
 
 ```bash
 # Install components to a distribution directory
-agent-smith install all github.com/org/ai-toolkit --target-dir ./dist/ai-components
+agent-smith install all github.com/org/ai-toolkit --install-dir ./dist/ai-components
 
 # Archive for distribution
 tar -czf ai-components.tar.gz -C ./dist ai-components

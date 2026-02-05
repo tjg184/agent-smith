@@ -436,7 +436,7 @@ func TestE2E_ProfileWorkflow(t *testing.T) {
 	})
 }
 
-// TestE2E_CustomTargetDirWorkflow tests: Install to custom --target-dir → verify isolation from ~/.agent-smith/
+// TestE2E_CustomTargetDirWorkflow tests: Install to custom --install-dir → verify isolation from ~/.agent-smith/
 func TestE2E_CustomTargetDirWorkflow(t *testing.T) {
 	// Create temporary directory and set HOME
 	tempDir := testutil.CreateTempDir(t, "agent-smith-e2e-targetdir-*")
@@ -462,7 +462,7 @@ func TestE2E_CustomTargetDirWorkflow(t *testing.T) {
 
 	// Step 1: Install to custom target directory
 	t.Run("Step1_InstallToCustomDir", func(t *testing.T) {
-		cmd := exec.Command(binaryPath, "install", "skill", testRepo, skillName, "--target-dir", customTargetDir)
+		cmd := exec.Command(binaryPath, "install", "skill", testRepo, skillName, "--install-dir", customTargetDir)
 		output, err := cmd.CombinedOutput()
 		outputStr := string(output)
 
@@ -503,7 +503,7 @@ func TestE2E_CustomTargetDirWorkflow(t *testing.T) {
 				}
 
 				if foundSkillInProfile {
-					t.Error("Skill was installed to profile directory despite using --target-dir")
+					t.Error("Skill was installed to profile directory despite using --install-dir")
 				}
 			}
 		}
@@ -519,7 +519,7 @@ func TestE2E_CustomTargetDirWorkflow(t *testing.T) {
 	t.Run("Step3_InstallSecondToSameCustomDir", func(t *testing.T) {
 		secondSkillName := "brand-guidelines"
 
-		cmd := exec.Command(binaryPath, "install", "skill", testRepo, secondSkillName, "--target-dir", customTargetDir)
+		cmd := exec.Command(binaryPath, "install", "skill", testRepo, secondSkillName, "--install-dir", customTargetDir)
 		output, err := cmd.CombinedOutput()
 		outputStr := string(output)
 

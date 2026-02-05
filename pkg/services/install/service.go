@@ -34,7 +34,7 @@ func NewService(
 
 // InstallSkill installs a skill component from a repository
 func (s *Service) InstallSkill(repoURL, name string, opts services.InstallOptions) error {
-	s.logger.Debug("[DEBUG] InstallSkill called with repoURL=%s, name=%s, profile=%s, targetDir=%s", repoURL, name, opts.Profile, opts.TargetDir)
+	s.logger.Debug("[DEBUG] InstallSkill called with repoURL=%s, name=%s, profile=%s, installDir=%s", repoURL, name, opts.Profile, opts.InstallDir)
 
 	// Validate options
 	if err := s.validateInstallOptions(opts); err != nil {
@@ -42,8 +42,8 @@ func (s *Service) InstallSkill(repoURL, name string, opts services.InstallOption
 	}
 
 	// Handle different installation modes
-	if opts.TargetDir != "" {
-		return s.installSkillToTargetDir(repoURL, name, opts.TargetDir)
+	if opts.InstallDir != "" {
+		return s.installSkillToTargetDir(repoURL, name, opts.InstallDir)
 	} else if opts.Profile != "" {
 		return s.installSkillToProfile(repoURL, name, opts.Profile)
 	}
@@ -54,7 +54,7 @@ func (s *Service) InstallSkill(repoURL, name string, opts services.InstallOption
 
 // InstallAgent installs an agent component from a repository
 func (s *Service) InstallAgent(repoURL, name string, opts services.InstallOptions) error {
-	s.logger.Debug("[DEBUG] InstallAgent called with repoURL=%s, name=%s, profile=%s, targetDir=%s", repoURL, name, opts.Profile, opts.TargetDir)
+	s.logger.Debug("[DEBUG] InstallAgent called with repoURL=%s, name=%s, profile=%s, installDir=%s", repoURL, name, opts.Profile, opts.InstallDir)
 
 	// Validate options
 	if err := s.validateInstallOptions(opts); err != nil {
@@ -62,8 +62,8 @@ func (s *Service) InstallAgent(repoURL, name string, opts services.InstallOption
 	}
 
 	// Handle different installation modes
-	if opts.TargetDir != "" {
-		return s.installAgentToTargetDir(repoURL, name, opts.TargetDir)
+	if opts.InstallDir != "" {
+		return s.installAgentToTargetDir(repoURL, name, opts.InstallDir)
 	} else if opts.Profile != "" {
 		return s.installAgentToProfile(repoURL, name, opts.Profile)
 	}
@@ -74,7 +74,7 @@ func (s *Service) InstallAgent(repoURL, name string, opts services.InstallOption
 
 // InstallCommand installs a command component from a repository
 func (s *Service) InstallCommand(repoURL, name string, opts services.InstallOptions) error {
-	s.logger.Debug("[DEBUG] InstallCommand called with repoURL=%s, name=%s, profile=%s, targetDir=%s", repoURL, name, opts.Profile, opts.TargetDir)
+	s.logger.Debug("[DEBUG] InstallCommand called with repoURL=%s, name=%s, profile=%s, installDir=%s", repoURL, name, opts.Profile, opts.InstallDir)
 
 	// Validate options
 	if err := s.validateInstallOptions(opts); err != nil {
@@ -82,8 +82,8 @@ func (s *Service) InstallCommand(repoURL, name string, opts services.InstallOpti
 	}
 
 	// Handle different installation modes
-	if opts.TargetDir != "" {
-		return s.installCommandToTargetDir(repoURL, name, opts.TargetDir)
+	if opts.InstallDir != "" {
+		return s.installCommandToTargetDir(repoURL, name, opts.InstallDir)
 	} else if opts.Profile != "" {
 		return s.installCommandToProfile(repoURL, name, opts.Profile)
 	}
@@ -94,7 +94,7 @@ func (s *Service) InstallCommand(repoURL, name string, opts services.InstallOpti
 
 // InstallBulk installs all components from a repository
 func (s *Service) InstallBulk(repoURL string, opts services.InstallOptions) error {
-	s.logger.Debug("[DEBUG] InstallBulk called with repoURL=%s, profile=%s, targetDir=%s", repoURL, opts.Profile, opts.TargetDir)
+	s.logger.Debug("[DEBUG] InstallBulk called with repoURL=%s, profile=%s, installDir=%s", repoURL, opts.Profile, opts.InstallDir)
 
 	// Validate options
 	if err := s.validateInstallOptions(opts); err != nil {
@@ -102,8 +102,8 @@ func (s *Service) InstallBulk(repoURL string, opts services.InstallOptions) erro
 	}
 
 	// Handle different installation modes
-	if opts.TargetDir != "" {
-		return s.installBulkToTargetDir(repoURL, opts.TargetDir)
+	if opts.InstallDir != "" {
+		return s.installBulkToTargetDir(repoURL, opts.InstallDir)
 	}
 
 	// Profile-based bulk installation (with auto-creation and reuse)
@@ -112,8 +112,8 @@ func (s *Service) InstallBulk(repoURL string, opts services.InstallOptions) erro
 
 // validateInstallOptions validates that conflicting options aren't specified
 func (s *Service) validateInstallOptions(opts services.InstallOptions) error {
-	if opts.Profile != "" && opts.TargetDir != "" {
-		return fmt.Errorf("cannot specify both --profile and --target-dir flags")
+	if opts.Profile != "" && opts.InstallDir != "" {
+		return fmt.Errorf("cannot specify both --profile and --install-dir flags")
 	}
 	return nil
 }
