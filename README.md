@@ -85,7 +85,7 @@ agent-smith install skill owner/repo skill-name --install-dir ./my-components
 
 **Custom target directories (`--install-dir` flag):**
 
-The `--install-dir` (or `-t`) flag allows installing components to a custom directory instead of the default `~/.agent-smith/`. This is useful for:
+The `--install-dir` (or `-i`) flag allows installing components to a custom directory instead of the default `~/.agent-smith/`. This is useful for:
 - **Project-local installations**: Keep components version-controlled with your project
 - **Isolated testing**: Test components without affecting your main `~/.agent-smith/` installation
 - **Offline distribution**: Package components for air-gapped systems
@@ -129,8 +129,8 @@ agent-smith link command format-json
 agent-smith link all
 
 # Link to specific target (built-in or custom)
-agent-smith link skill mcp-builder --target opencode
-agent-smith link all --target cursor
+agent-smith link skill mcp-builder --to opencode
+agent-smith link all --to cursor
 
 # Link all components from a specific profile (bypasses active profile)
 agent-smith link all --profile work
@@ -294,10 +294,10 @@ Targets are directories where agent-smith links your components. Built-in target
 **Using custom targets with link commands:**
 ```bash
 # Link all components to a custom target
-agent-smith link all --target cursor
+agent-smith link all --to cursor
 
 # Link specific component to custom target
-agent-smith link skill my-skill --target cursor
+agent-smith link skill my-skill --to cursor
 
 # Check link status (shows all targets including custom)
 agent-smith link status
@@ -327,7 +327,7 @@ Check for updates and update installed components.
 
 ```bash
 # Update a specific component
-agent-smith update skill mcp-builder
+agent-smith update skills mcp-builder
 
 # Update all components
 agent-smith update all
@@ -564,7 +564,7 @@ agent-smith link status
 agent-smith target add cursor ~/.cursor
 
 # Link all components to Cursor
-agent-smith link all --target cursor
+agent-smith link all --to cursor
 
 # Verify the links
 agent-smith link status
@@ -625,7 +625,7 @@ agent-smith uninstall all owner/deprecated-repo --force
 
 ```bash
 # Update a specific skill
-agent-smith update skill mcp-builder
+agent-smith update skills mcp-builder
 
 # Update all installed components
 agent-smith update all
