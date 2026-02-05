@@ -1007,7 +1007,8 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 		linkedCount := 0
 		for _, status := range statuses {
 			symbol := status.Targets[targetName]
-			if symbol == "✓" || symbol == "◆" {
+			// Compare against color-wrapped symbols
+			if symbol == colors.Success("✓") || symbol == colors.Success("◆") {
 				linkedCount++
 			}
 		}
@@ -1317,7 +1318,8 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 		linkedCount := 0
 		for _, status := range statuses {
 			symbol := status.Targets[targetName]
-			if symbol == "✓" || symbol == "◆" {
+			// Compare against color-wrapped symbols
+			if symbol == colors.Success("✓") || symbol == colors.Success("◆") {
 				linkedCount++
 			}
 		}

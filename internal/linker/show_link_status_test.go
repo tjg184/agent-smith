@@ -121,11 +121,11 @@ func TestShowLinkStatus_DefaultBehavior(t *testing.T) {
 		"Commands:",
 		"docker-helper",
 		"--- Legend ---",
-		"✓  Valid symlink",
-		"◆  Copied directory",
-		"✗  Broken link",
-		"-  Not linked",
-		"?  Unknown status",
+		"✓", "Valid symlink",
+		"◆", "Copied directory",
+		"✗", "Broken link",
+		"-", "Not linked",
+		"?", "Unknown status",
 		"--- Summary ---",
 	}
 
@@ -465,18 +465,19 @@ func TestShowLinkStatus_OutputFormat(t *testing.T) {
 		}
 	}
 
-	// Verify legend entries haven't changed
-	legendEntries := []string{
-		"✓  Valid symlink",
-		"◆  Copied directory",
-		"✗  Broken link",
-		"-  Not linked",
-		"?  Unknown status",
+	// Verify legend entries haven't changed (check separately for symbol and text)
+	legendSymbols := []string{"✓", "◆", "✗", "-", "?"}
+	legendTexts := []string{"Valid symlink", "Copied directory", "Broken link", "Not linked", "Unknown status"}
+
+	for _, symbol := range legendSymbols {
+		if !strings.Contains(output, symbol) {
+			t.Errorf("Legend format changed - missing symbol: %s\nOutput:\n%s", symbol, output)
+		}
 	}
 
-	for _, entry := range legendEntries {
-		if !strings.Contains(output, entry) {
-			t.Errorf("Legend format changed - missing entry: %s\nOutput:\n%s", entry, output)
+	for _, text := range legendTexts {
+		if !strings.Contains(output, text) {
+			t.Errorf("Legend format changed - missing text: %s\nOutput:\n%s", text, output)
 		}
 	}
 }
