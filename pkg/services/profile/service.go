@@ -358,11 +358,20 @@ func (s *Service) DeleteProfile(name string) error {
 
 // ActivateProfile activates a profile
 func (s *Service) ActivateProfile(name string) error {
-	if err := s.profileManager.ActivateProfile(name); err != nil {
+	result, err := s.profileManager.ActivateProfileWithResult(name)
+	if err != nil {
 		return fmt.Errorf("failed to activate profile: %w", err)
 	}
 
-	s.formatter.Info("%s Profile '%s' activated", formatter.SymbolSuccess, name)
+	// Display appropriate message based on whether we switched or it was already active
+	if result.Switched {
+		s.formatter.Info("%s Switched profile: %s → %s", formatter.SymbolSuccess, result.PreviousProfile, result.NewProfile)
+	} else if result.PreviousProfile == result.NewProfile {
+		s.formatter.Info("%s Profile '%s' is already active", formatter.SymbolSuccess, name)
+	} else {
+		s.formatter.Info("%s Profile '%s' activated", formatter.SymbolSuccess, name)
+	}
+
 	s.formatter.EmptyLine()
 	s.formatter.Info("Components from this profile are now ready to be linked:")
 	s.formatter.Info("  agent-smith link all")

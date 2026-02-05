@@ -362,30 +362,33 @@ func (s *Service) installBulkToProfile(repoURL, profile string) error {
 		return fmt.Errorf("failed to bulk download components: %w", err)
 	}
 
-	// Auto-activate profile if no profile is currently active
-	activeProfile, err := s.profileManager.GetActiveProfile()
+	// Auto-activate profile after successful installation
+	s.logger.Debug("[DEBUG] Auto-activating profile after install all: %s", profileName)
+	result, err := s.profileManager.ActivateProfileWithResult(profileName)
 	if err != nil {
-		return fmt.Errorf("failed to get active profile: %w", err)
+		// Don't fail the installation if activation fails, just warn
+		s.logger.Warn("⚠ Profile created but activation failed: %v", err)
+		s.formatter.EmptyLine()
+		s.formatter.Info("To manually activate this profile, run:")
+		s.formatter.Info("  agent-smith profile activate %s", profileName)
+		return nil
 	}
 
-	if activeProfile == "" {
-		s.logger.Debug("[DEBUG] No active profile detected, auto-activating profile: %s", profileName)
-		if err := s.profileManager.ActivateProfile(profileName); err != nil {
-			return fmt.Errorf("failed to auto-activate profile: %w", err)
-		}
-		s.logger.Info("Profile '%s' has been automatically activated as your first profile.", profileName)
-		s.logger.Info("Components from this profile are now ready to be linked.")
-	} else if activeProfile != profileName {
-		// Only show activation message if this is not the active profile
-		s.formatter.EmptyLine()
-		s.formatter.Info("Profile updated successfully!")
-		s.formatter.Info("To activate this profile and use these components, run:")
-		s.formatter.Info("  agent-smith profile activate %s", profileName)
-		s.formatter.Info("  agent-smith link all")
+	// Display activation result with clear messaging
+	s.formatter.EmptyLine()
+	if result.Switched {
+		s.formatter.SuccessMsg("Switched profile: %s → %s", result.PreviousProfile, result.NewProfile)
+	} else if result.PreviousProfile == result.NewProfile {
+		// Profile was already active - just confirm it's ready
+		s.formatter.SuccessMsg("Profile '%s' is active and ready", result.NewProfile)
 	} else {
-		// Profile is already active, components are ready
-		s.logger.Info("\nProfile updated successfully! Components are ready to be linked.")
+		// First activation
+		s.formatter.SuccessMsg("Profile activated: %s", result.NewProfile)
 	}
+
+	// Display next step hint
+	s.formatter.EmptyLine()
+	s.formatter.Info("Next: Run 'agent-smith link all' to apply changes to your editor(s)")
 
 	return nil
 }

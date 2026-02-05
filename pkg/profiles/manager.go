@@ -27,6 +27,13 @@ type ProfileMetadata struct {
 	SourceURL string `json:"source_url"` // Only populated for type="repo"
 }
 
+// ProfileActivationResult contains information about a profile activation operation
+type ProfileActivationResult struct {
+	PreviousProfile string // empty if no profile was active
+	NewProfile      string
+	Switched        bool // true if switching from another profile
+}
+
 // NewProfileManager creates a new ProfileManager instance
 // The linker parameter is optional - pass nil if unlinking functionality is not needed
 func NewProfileManager(componentLinker *linker.ComponentLinker) (*ProfileManager, error) {
@@ -518,9 +525,16 @@ func (pm *ProfileManager) GetComponentSource(profile *Profile, componentType, co
 // ActivateProfile activates a profile by updating the active profile state
 // This does not immediately affect the editor - use 'agent-smith link all' to apply changes
 func (pm *ProfileManager) ActivateProfile(profileName string) error {
+	_, err := pm.ActivateProfileWithResult(profileName)
+	return err
+}
+
+// ActivateProfileWithResult sets the given profile as the active profile and returns detailed result.
+// This does not immediately affect the editor - use 'agent-smith link all' to apply changes
+func (pm *ProfileManager) ActivateProfileWithResult(profileName string) (*ProfileActivationResult, error) {
 	// Validate profile name
 	if err := validateProfileName(profileName); err != nil {
-		return err
+		return nil, err
 	}
 
 	fmt.Printf("Activating profile '%s'...\n", profileName)
@@ -528,31 +542,43 @@ func (pm *ProfileManager) ActivateProfile(profileName string) error {
 	// Validate that the profile exists
 	profile := pm.loadProfile(profileName)
 	if !profile.IsValid() {
-		return fmt.Errorf("profile '%s' does not exist or has no components", profileName)
+		return nil, fmt.Errorf("profile '%s' does not exist or has no components", profileName)
 	}
 
 	// Get the agents directory
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
-		return fmt.Errorf("failed to get agents directory: %w", err)
+		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
 	// Check if a profile is currently active
 	currentActive, err := pm.GetActiveProfile()
 	if err != nil {
-		return fmt.Errorf("failed to check current active profile: %w", err)
+		return nil, fmt.Errorf("failed to check current active profile: %w", err)
 	}
 
 	// Check if trying to activate already active profile
 	if currentActive == profileName {
-		return fmt.Errorf("profile '%s' is already active", profileName)
+		// Profile is already active - return success without error
+		agents, skills, commands := pm.CountComponents(profile)
+		totalComponents := agents + skills + commands
+
+		fmt.Printf("\n✓ Profile '%s' is already active\n", profileName)
+		fmt.Printf("Profile contains %d components (%d agents, %d skills, %d commands)\n", totalComponents, agents, skills, commands)
+
+		result := &ProfileActivationResult{
+			PreviousProfile: currentActive,
+			NewProfile:      profileName,
+			Switched:        false, // Not switching since it's already active
+		}
+		return result, nil
 	}
 
 	// Update the active profile state file
 	fmt.Printf("Updating active profile state...\n")
 	activeProfilePath := filepath.Join(agentsDir, ".active-profile")
 	if err := os.WriteFile(activeProfilePath, []byte(profileName), 0644); err != nil {
-		return fmt.Errorf("failed to write active profile state: %w", err)
+		return nil, fmt.Errorf("failed to write active profile state: %w", err)
 	}
 
 	// Count components for informational output
@@ -563,7 +589,15 @@ func (pm *ProfileManager) ActivateProfile(profileName string) error {
 	fmt.Printf("Profile contains %d components (%d agents, %d skills, %d commands)\n", totalComponents, agents, skills, commands)
 	fmt.Println("\nTo apply this profile to your editor, run:")
 	fmt.Println("  agent-smith link all")
-	return nil
+
+	// Create and return the result
+	result := &ProfileActivationResult{
+		PreviousProfile: currentActive,
+		NewProfile:      profileName,
+		Switched:        currentActive != "",
+	}
+
+	return result, nil
 }
 
 // copyComponentWithMetadata is a helper that copies a component directory and its lock file entry
