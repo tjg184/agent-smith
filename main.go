@@ -9,12 +9,8 @@ import (
 
 	"github.com/tgaines/agent-smith/cmd"
 	"github.com/tgaines/agent-smith/internal/detector"
-	"github.com/tgaines/agent-smith/internal/downloader"
-	"github.com/tgaines/agent-smith/internal/fileutil"
 	"github.com/tgaines/agent-smith/internal/formatter"
 	"github.com/tgaines/agent-smith/internal/linker"
-	"github.com/tgaines/agent-smith/internal/models"
-	"github.com/tgaines/agent-smith/internal/updater"
 	"github.com/tgaines/agent-smith/pkg/config"
 	"github.com/tgaines/agent-smith/pkg/logger"
 	"github.com/tgaines/agent-smith/pkg/paths"
@@ -93,43 +89,6 @@ func debugPrintln(a ...interface{}) {
 	}
 }
 
-type BulkDownloader = downloader.BulkDownloader
-
-// Re-export types for backward compatibility
-type UpdateDetector = updater.UpdateDetector
-type ComponentLockFile = models.ComponentLockFile
-
-// Cross-platform helper functions
-func getCrossPlatformPermissions() os.FileMode {
-	return fileutil.GetCrossPlatformPermissions()
-}
-
-func getCrossPlatformFilePermissions() os.FileMode {
-	return fileutil.GetCrossPlatformFilePermissions()
-}
-
-func createDirectoryWithPermissions(path string) error {
-	return fileutil.CreateDirectoryWithPermissions(path)
-}
-
-func createFileWithPermissions(path string, data []byte) error {
-	return fileutil.CreateFileWithPermissions(path, data)
-}
-
-// parseFrontmatter extracts YAML frontmatter from a markdown file
-// Frontmatter must be delimited by "---" at the start of the file
-// Returns nil if no frontmatter is found (not an error)
-func parseFrontmatter(filePath string) (*models.ComponentFrontmatter, error) {
-	return fileutil.ParseFrontmatter(filePath)
-}
-
-// determineComponentName determines the component name using frontmatter or filename
-// Priority: frontmatter.name > filename (without extension)
-// Special files (README.md, index.md, main.md) are skipped
-func determineComponentName(frontmatter *models.ComponentFrontmatter, fileName string) string {
-	return fileutil.DetermineComponentName(frontmatter, fileName)
-}
-
 // determineDestinationFolderName determines the destination folder name using hierarchy heuristic
 // Walks up from component file directory, skipping component-type names (agents/commands/skills)
 // Returns first non-component-type directory name for preserving optional hierarchy
@@ -168,22 +127,6 @@ func determineDestinationFolderName(componentFilePath string) string {
 
 		currentDir = parentDir
 	}
-}
-
-func NewUpdateDetector() *UpdateDetector {
-	return updater.NewUpdateDetector()
-}
-
-func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
-	return updater.NewUpdateDetectorWithProfile(profile)
-}
-
-func NewUpdateDetectorWithBaseDir(baseDir string) *UpdateDetector {
-	return updater.NewUpdateDetectorWithBaseDir(baseDir)
-}
-
-func NewBulkDownloader() *BulkDownloader {
-	return downloader.NewBulkDownloader()
 }
 
 // NewComponentLinker creates a new ComponentLinker with dependencies injected

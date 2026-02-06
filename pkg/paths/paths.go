@@ -25,11 +25,6 @@ const (
 // Lock file patterns
 const (
 	ComponentLockFile = ".component-lock.json"
-
-	// Deprecated - kept for reference
-	SkillLockFile   = ".skill-lock.json"
-	AgentLockFile   = ".agent-lock.json"
-	CommandLockFile = ".command-lock.json"
 )
 
 // Special files

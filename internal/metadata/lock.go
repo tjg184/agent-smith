@@ -143,7 +143,7 @@ func LoadLockFileEntry(baseDir, componentType, componentName string) (*models.Co
 	}
 
 	// Get the appropriate nested map for this component type
-	targetMap, err := getTargetMapFromModel(&lockFile, componentType)
+	targetMap, err := getTargetMap(&lockFile, componentType)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func LoadLockFileEntryBySource(baseDir, componentType, componentName, sourceUrl 
 	}
 
 	// Get the appropriate nested map for this component type
-	targetMap, err := getTargetMapFromModel(&lockFile, componentType)
+	targetMap, err := getTargetMap(&lockFile, componentType)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +312,7 @@ func GetAllComponentNames(baseDir, componentType string) ([]string, error) {
 	}
 
 	// Get the appropriate nested map for this component type
-	targetMap, err := getTargetMapFromModel(&lockFile, componentType)
+	targetMap, err := getTargetMap(&lockFile, componentType)
 	if err != nil {
 		return nil, err
 	}
@@ -354,7 +354,7 @@ func FindComponentSources(baseDir, componentType, componentName string) ([]strin
 	}
 
 	// Get the appropriate nested map for this component type
-	targetMap, err := getTargetMapFromModel(&lockFile, componentType)
+	targetMap, err := getTargetMap(&lockFile, componentType)
 	if err != nil {
 		return nil, err
 	}
@@ -396,7 +396,7 @@ func FindAllComponentInstances(baseDir, componentType, componentName string) ([]
 	}
 
 	// Get the appropriate nested map for this component type
-	targetMap, err := getTargetMapFromModel(&lockFile, componentType)
+	targetMap, err := getTargetMap(&lockFile, componentType)
 	if err != nil {
 		return nil, err
 	}
@@ -479,19 +479,6 @@ func getTargetMap(lockFile *models.ComponentLockFile, componentType string) (map
 	}
 }
 
-func getTargetMapFromModel(lockFile *models.ComponentLockFile, componentType string) (map[string]map[string]models.ComponentEntry, error) {
-	switch componentType {
-	case "skills":
-		return lockFile.Skills, nil
-	case "agents":
-		return lockFile.Agents, nil
-	case "commands":
-		return lockFile.Commands, nil
-	default:
-		return nil, fmt.Errorf("unknown component type: %s", componentType)
-	}
-}
-
 // ResolveInstallFilesystemName determines the actual filesystem name to use for a component during install
 // If the exact component (sourceUrl + componentName) is already installed, returns its existing filesystem name
 // Otherwise, if componentName already exists, returns componentName-2, componentName-3, etc.
@@ -504,7 +491,7 @@ func ResolveInstallFilesystemName(baseDir, componentType, componentName, sourceU
 	}
 
 	// Get the component map for this type
-	componentMap, err := getTargetMapFromModel(&lockFile, componentType)
+	componentMap, err := getTargetMap(&lockFile, componentType)
 	if err != nil {
 		return "", err
 	}
