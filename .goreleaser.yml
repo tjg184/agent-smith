@@ -1,27 +1,42 @@
 version: 2
+
+project_name: agent-smith 
+
 builds:
-  - main: .
-    binary: agent-smith
+  - id: agent-smith 
+    main: .
+    binary: agent-smith 
+    ldflags:
+      - -s -w
+      - -X github.com/tgaines/agent-smith/cmd.Version={{.Version}}
+    env:
+      - CGO_ENABLED=0
     goos:
-      - linux
       - darwin
+      - linux
     goarch:
       - amd64
       - arm64
 
 archives:
-  - name_template: "agent-smith_{{ .Os }}_{{ .Arch }}"
-hooks:
-  pre_archive:
-    - cp README.md LICENSE dist/
-
-release:
-  github:
-    owner: tjg184 
-    name: agent-smith 
-
-changelog:
-  sort: asc
+  - id: default
+    formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
 
 checksum:
   name_template: "checksums.txt"
+
+changelog:
+  use: github-native
+
+release:
+  github:
+    owner: tjg184
+    name: agent-smith 
+  prerelease: auto
+  name_template: "v{{.Version}}"

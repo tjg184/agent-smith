@@ -7,14 +7,7 @@
   "include-v-in-tag": true,
   "packages": {
     ".": {
-      "changelog-path": "CHANGELOG.md",
-      "extra-files": [
-        {
-          "type": "generic",
-          "path": "cmd/root.go",
-          "glob": false
-        }
-      ]
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
