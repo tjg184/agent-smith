@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/tjg184/agent-smith/compare/v1.0.1...v1.0.2) (2026-02-07)
+
+
+### Bug Fixes
+
+* empty profiles would get created on invalid repos ([#13](https://github.com/tjg184/agent-smith/issues/13)) ([355b7c8](https://github.com/tjg184/agent-smith/commit/355b7c85cfaea320eaeb62db0aec230a9c00caed))
+
 ## [1.0.1](https://github.com/tjg184/agent-smith/compare/v1.0.0...v1.0.1) (2026-02-07)
 
 
