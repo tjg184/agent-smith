@@ -63,3 +63,23 @@ clean:
     @rm -f agent-smith
     @rm -f coverage-*.txt
     @go clean -testcache
+
+# Format code
+fmt:
+    @echo "Formatting all Go files..."
+    @go fmt ./...
+
+# Vet code
+vet:
+    @echo "Running go vet..."
+    @go vet ./...
+
+# Lint code
+lint:
+    @echo "Running golangci-lint..."
+    @golangci-lint run || echo "Install with 'brew install golangci-lint' or 'go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest'"
+
+# Tidy modules
+ tidy:
+    @echo "Tidying Go modules..."
+    @go mod tidy
