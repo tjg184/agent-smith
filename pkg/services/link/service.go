@@ -438,11 +438,6 @@ func (s *Service) ListLinked() error {
 
 // ShowStatus shows the link status of components
 func (s *Service) ShowStatus(opts services.LinkStatusOptions) error {
-	// Validate flags
-	if len(opts.ProfileFilter) > 0 && !opts.AllProfiles {
-		return fmt.Errorf("--profile flag requires --all-profiles")
-	}
-
 	if opts.AllProfiles {
 		// Check if any profiles exist
 		profilesList, err := s.profileManager.ScanProfiles()
@@ -476,8 +471,16 @@ func (s *Service) ShowStatus(opts services.LinkStatusOptions) error {
 		return cl.ShowAllProfilesLinkStatus(opts.ProfileFilter)
 	}
 
-	// Standard single-profile view
-	cl, err := s.createLinker()
+	// Single-profile view
+	// If --profile was specified, use that specific profile
+	// Otherwise, use active profile or base directory
+	var profileName string
+	if len(opts.ProfileFilter) > 0 {
+		// Use the first profile from the filter as the target profile
+		profileName = opts.ProfileFilter[0]
+	}
+
+	cl, err := s.createLinkerWithFilterAndProfile("", profileName)
 	if err != nil {
 		return fmt.Errorf("failed to create component linker: %w", err)
 	}

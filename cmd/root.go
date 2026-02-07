@@ -791,14 +791,17 @@ This is more detailed than 'link list' - it shows a table with components as row
 and editors as columns, making it easy to see exactly what is linked where.
 
 EXAMPLES:
-  # Show status for current profile/base only
+  # Show status for active profile/base
   agent-smith link status
+
+  # Show status for a specific profile
+  agent-smith link status --profile tjg184-skills
 
   # Show status for all profiles
   agent-smith link status --all-profiles
 
-  # Show status for specific profiles only
-  agent-smith link status --all-profiles --profile=work,personal
+  # Show status for specific profiles only (filter)
+  agent-smith link status --all-profiles --profile work,personal
 
 LEGEND:
   ✓ - Valid symlink (linked and working)
@@ -814,7 +817,7 @@ LEGEND:
 		},
 	}
 	linkStatusCmd.Flags().Bool("all-profiles", false, "Show link status for all profiles")
-	linkStatusCmd.Flags().StringSlice("profile", []string{}, "Filter to specific profiles (requires --all-profiles)")
+	linkStatusCmd.Flags().StringSlice("profile", []string{}, "Show status for specific profile (or filter when used with --all-profiles)")
 	linkCmd.AddCommand(linkStatusCmd)
 
 	rootCmd.AddCommand(linkCmd)

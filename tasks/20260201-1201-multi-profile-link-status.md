@@ -1,6 +1,18 @@
 # PRD: Multi-Profile Link Status Command
 
-**Created**: 2026-02-01 12:01 UTC
+**Created**: 2026-02-01 12:01 UTC  
+**Updated**: 2026-02-07 (Enhanced --profile flag behavior)
+
+---
+
+## Update History
+
+### 2026-02-07: Enhanced --profile Flag Behavior
+The `--profile` flag behavior was enhanced to work independently:
+- **Before**: `--profile` required `--all-profiles` flag (filtering only)
+- **After**: `--profile` works standalone to show a specific profile's link status
+- **With --all-profiles**: `--profile` still acts as a filter
+- **Rationale**: Better UX consistency with `profile status` command
 
 ---
 
@@ -244,10 +256,10 @@ Active Profile: work-profile
 **When**: User runs `agent-smith link status --all-profiles`
 **Then**: Display shows components from base installation only, summary indicates "1 profile (base)"
 
-### Scenario 4: Invalid Flag Combination
-**Given**: User attempts to filter without all-profiles flag
+### Scenario 4: Single Profile Selection (Updated 2026-02-07)
+**Given**: User wants to view link status for a specific profile
 **When**: User runs `agent-smith link status --profile=work`
-**Then**: Error message displayed: "--profile flag requires --all-profiles"
+**Then**: Single-profile view displayed showing only the 'work' profile (does not require --all-profiles)
 
 ### Scenario 5: Backward Compatibility
 **Given**: User runs existing command without new flags
