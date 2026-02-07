@@ -159,7 +159,7 @@ When using the updated skill:
 2. Verify profiles exist: `ls ~/.agent-smith/profiles/`
 3. Test component scanner: `skills/agent-smith-profile-builder/lib/component-scanner.sh list-all`
 4. Follow SKILL.md Workflow A for template-based profile creation
-5. Verify new profile contains copied components: `./agent-smith profile show <profile-name>`
+5. Verify new profile contains copied components: `./agent-smith profile status [profile-name]`
 
 ### Implementation Notes
 

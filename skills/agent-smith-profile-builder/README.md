@@ -236,7 +236,7 @@ go build -o agent-smith .
 ./agent-smith profile add skills test-java-profile sql-optimization-patterns
 
 # Verify
-./agent-smith profile show test-java-profile
+./agent-smith profile status test-java-profile
 
 # Clean up
 ./agent-smith profile delete test-java-profile --force

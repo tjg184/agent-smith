@@ -131,7 +131,7 @@ agent-smith profile create work
 agent-smith profile activate work
 agent-smith profile deactivate
 agent-smith profile list
-agent-smith profile show work
+agent-smith profile status
 agent-smith profile delete work
 
 # Copy components between profiles

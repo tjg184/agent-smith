@@ -719,6 +719,22 @@ func main() {
 			}
 		},
 		func(profileName string) {
+			// If no profile name provided, use active profile
+			if profileName == "" {
+				pm, err := profiles.NewProfileManager(nil)
+				if err != nil {
+					log.Fatal("Failed to initialize profile manager:", err)
+				}
+				activeProfile, err := pm.GetActiveProfile()
+				if err != nil {
+					log.Fatal("Failed to get active profile:", err)
+				}
+				if activeProfile == "" {
+					log.Fatal("No profile specified and no active profile set")
+				}
+				profileName = activeProfile
+			}
+
 			if err := profileService.ShowProfile(profileName); err != nil {
 				log.Fatal("Failed to show profile:", err)
 			}

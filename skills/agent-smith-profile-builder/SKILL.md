@@ -392,7 +392,7 @@ cd /Users/tgaines/dev/git/agent-smith
 
 ./agent-smith profile activate <profile-name>
 ./agent-smith link all
-./agent-smith profile show <profile-name>
+./agent-smith profile status [profile-name]
 ```
 
 #### A9. Show Final Summary
