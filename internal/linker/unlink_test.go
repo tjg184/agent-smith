@@ -952,3 +952,174 @@ func TestUnlinkAllComponents_EmptyTarget(t *testing.T) {
 		t.Errorf("Agent symlink should still exist in target2: %v", err)
 	}
 }
+
+// TestIsSymlinkFromCurrentProfile_BaseInstallation tests that base installation only matches base symlinks
+func TestIsSymlinkFromCurrentProfile_BaseInstallation(t *testing.T) {
+	// Create temp directory structure
+	tempDir, err := os.MkdirTemp("", "agent-smith-profile-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create base installation structure
+	baseDir := filepath.Join(tempDir, ".agent-smith")
+	baseSkillsDir := filepath.Join(baseDir, "skills", "test-skill")
+	profileDir := filepath.Join(baseDir, "profiles", "work")
+	profileSkillsDir := filepath.Join(profileDir, "skills", "profile-skill")
+	targetDir := filepath.Join(tempDir, "target")
+
+	for _, dir := range []string{baseSkillsDir, profileSkillsDir, targetDir} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatalf("Failed to create directory %s: %v", dir, err)
+		}
+	}
+
+	// Create test files
+	if err := os.WriteFile(filepath.Join(baseSkillsDir, "SKILL.md"), []byte("# Base Skill"), 0644); err != nil {
+		t.Fatalf("Failed to create base skill file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(profileSkillsDir, "SKILL.md"), []byte("# Profile Skill"), 0644); err != nil {
+		t.Fatalf("Failed to create profile skill file: %v", err)
+	}
+
+	// Create target skills directory
+	targetSkillsDir := filepath.Join(targetDir, "skills")
+	if err := os.MkdirAll(targetSkillsDir, 0755); err != nil {
+		t.Fatalf("Failed to create target skills dir: %v", err)
+	}
+
+	// Create symlinks: one to base, one to profile
+	baseSymlink := filepath.Join(targetSkillsDir, "base-skill")
+	profileSymlink := filepath.Join(targetSkillsDir, "profile-skill")
+
+	// Create base symlink (relative path)
+	baseRelPath, _ := filepath.Rel(targetSkillsDir, baseSkillsDir)
+	if err := os.Symlink(baseRelPath, baseSymlink); err != nil {
+		t.Fatalf("Failed to create base symlink: %v", err)
+	}
+
+	// Create profile symlink (relative path)
+	profileRelPath, _ := filepath.Rel(targetSkillsDir, profileSkillsDir)
+	if err := os.Symlink(profileRelPath, profileSymlink); err != nil {
+		t.Fatalf("Failed to create profile symlink: %v", err)
+	}
+
+	// Create linker with base directory
+	det := detector.NewRepositoryDetector()
+	mockTargets := []config.Target{&mockTarget{name: "test-target", baseDir: targetDir}}
+	linker, err := NewComponentLinker(baseDir, mockTargets, det, nil)
+	if err != nil {
+		t.Fatalf("Failed to create linker: %v", err)
+	}
+
+	// Test: base symlink should be recognized as from current profile (base)
+	isBase, err := linker.isSymlinkFromCurrentProfile(baseSymlink)
+	if err != nil {
+		t.Fatalf("isSymlinkFromCurrentProfile failed for base symlink: %v", err)
+	}
+	if !isBase {
+		t.Errorf("Base symlink should be recognized as from current profile (base), got false")
+	}
+
+	// Test: profile symlink should NOT be recognized as from current profile (base)
+	isProfile, err := linker.isSymlinkFromCurrentProfile(profileSymlink)
+	if err != nil {
+		t.Fatalf("isSymlinkFromCurrentProfile failed for profile symlink: %v", err)
+	}
+	if isProfile {
+		t.Errorf("Profile symlink should NOT be recognized as from current profile (base), got true")
+	}
+}
+
+// TestIsSymlinkFromCurrentProfile_ProfileInstallation tests that profile installation only matches that profile's symlinks
+func TestIsSymlinkFromCurrentProfile_ProfileInstallation(t *testing.T) {
+	// Create temp directory structure
+	tempDir, err := os.MkdirTemp("", "agent-smith-profile-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create base installation structure
+	baseDir := filepath.Join(tempDir, ".agent-smith")
+	workProfileDir := filepath.Join(baseDir, "profiles", "work")
+	personalProfileDir := filepath.Join(baseDir, "profiles", "personal")
+	targetDir := filepath.Join(tempDir, "target")
+
+	workSkillDir := filepath.Join(workProfileDir, "skills", "work-skill")
+	personalSkillDir := filepath.Join(personalProfileDir, "skills", "personal-skill")
+
+	for _, dir := range []string{workSkillDir, personalSkillDir, targetDir} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatalf("Failed to create directory %s: %v", dir, err)
+		}
+	}
+
+	// Create test files
+	for _, f := range []struct {
+		path string
+		data string
+	}{
+		{filepath.Join(workSkillDir, "SKILL.md"), "# Work Skill"},
+		{filepath.Join(personalSkillDir, "SKILL.md"), "# Personal Skill"},
+	} {
+		if err := os.WriteFile(f.path, []byte(f.data), 0644); err != nil {
+			t.Fatalf("Failed to create file %s: %v", f.path, err)
+		}
+	}
+
+	// Create target skills directory
+	targetSkillsDir := filepath.Join(targetDir, "skills")
+	if err := os.MkdirAll(targetSkillsDir, 0755); err != nil {
+		t.Fatalf("Failed to create target skills dir: %v", err)
+	}
+
+	// Create symlinks: one to work profile, one to personal profile
+	workSymlink := filepath.Join(targetSkillsDir, "work-skill")
+	personalSymlink := filepath.Join(targetSkillsDir, "personal-skill")
+
+	// Create work symlink (relative path)
+	workRelPath, err := filepath.Rel(targetSkillsDir, workSkillDir)
+	if err != nil {
+		t.Fatalf("Failed to create relative path for work: %v", err)
+	}
+	if err := os.Symlink(workRelPath, workSymlink); err != nil {
+		t.Fatalf("Failed to create work symlink: %v", err)
+	}
+
+	// Create personal symlink (relative path)
+	personalRelPath, err := filepath.Rel(targetSkillsDir, personalSkillDir)
+	if err != nil {
+		t.Fatalf("Failed to create relative path for personal: %v", err)
+	}
+	if err := os.Symlink(personalRelPath, personalSymlink); err != nil {
+		t.Fatalf("Failed to create personal symlink: %v", err)
+	}
+
+	// Create linker with work profile directory
+	det := detector.NewRepositoryDetector()
+	mockTargets := []config.Target{&mockTarget{name: "test-target", baseDir: targetDir}}
+	linker, err := NewComponentLinker(workProfileDir, mockTargets, det, nil)
+	if err != nil {
+		t.Fatalf("Failed to create linker: %v", err)
+	}
+
+	// Test: work profile symlink should be recognized as from current profile
+	isWork, err := linker.isSymlinkFromCurrentProfile(workSymlink)
+	if err != nil {
+		t.Fatalf("isSymlinkFromCurrentProfile failed for work symlink: %v", err)
+	}
+	if !isWork {
+		t.Errorf("Work profile symlink should be recognized as from current profile, got false")
+	}
+
+	// Test: personal profile symlink should NOT be recognized as from current profile (work)
+	isPersonal, err := linker.isSymlinkFromCurrentProfile(personalSymlink)
+	if err != nil {
+		t.Fatalf("isSymlinkFromCurrentProfile failed for personal symlink: %v", err)
+	}
+	if isPersonal {
+		t.Errorf("Personal profile symlink should NOT be recognized as from current profile (work), got true")
+	}
+}

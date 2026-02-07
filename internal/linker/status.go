@@ -30,19 +30,29 @@ func (cl *ComponentLinker) getSourceDescription() string {
 // getProfileFromPath extracts the profile name from a component path
 // Returns "base" if the component is in the base installation, or the profile name
 func getProfileFromPath(path string) string {
+	// Clean the path first
+	path = filepath.Clean(path)
+
+	// Check if the path itself is a profile directory (e.g., ~/.agent-smith/profiles/work)
+	// In this case, the parent directory is "profiles"
+	parent := filepath.Dir(path)
+	if filepath.Base(parent) == "profiles" {
+		return filepath.Base(path)
+	}
+
 	// Walk up the directory tree to find "profiles" directory
-	dir := filepath.Dir(path)
+	dir := parent
 	for {
-		parent := filepath.Dir(dir)
-		if filepath.Base(parent) == "profiles" {
+		grandparent := filepath.Dir(dir)
+		if filepath.Base(grandparent) == "profiles" {
 			// This is a profile directory
 			return filepath.Base(dir)
 		}
-		if parent == dir || parent == "." || parent == "/" {
+		if grandparent == dir || grandparent == "." || grandparent == "/" {
 			// Reached root without finding "profiles"
 			return "base"
 		}
-		dir = parent
+		dir = grandparent
 	}
 }
 
