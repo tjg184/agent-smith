@@ -1667,13 +1667,16 @@ func (cl *ComponentLinker) isSymlinkFromCurrentProfile(symlinkPath string) (bool
 		target = filepath.Join(filepath.Dir(symlinkPath), target)
 	}
 
-	// Clean both paths for comparison
+	// Clean the target path
 	target = filepath.Clean(target)
-	agentsDir := filepath.Clean(cl.agentsDir)
 
-	// Check if the target path starts with the current profile's agents directory
-	// This works for both base installation and profile-specific installations
-	return strings.HasPrefix(target, agentsDir), nil
+	// Get profile names and compare
+	// This correctly distinguishes base installation from profile installations
+	// because profile directories are physically inside ~/.agent-smith/ but
+	// getProfileFromPath() extracts the actual profile name from the path
+	currentProfile := getProfileFromPath(cl.agentsDir)
+	targetProfile := getProfileFromPath(target)
+	return currentProfile == targetProfile, nil
 }
 
 // isSymlinkFromAgentSmith checks if a symlink points to any agent-smith directory
