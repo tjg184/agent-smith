@@ -25,5 +25,5 @@ release:
 changelog:
   sort: asc
 
-checksums:
+checksum:
   name_template: "checksums.txt"
