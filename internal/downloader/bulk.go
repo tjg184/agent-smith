@@ -55,22 +55,20 @@ func NewBulkDownloaderForProfile(profileName string) *BulkDownloader {
 	}
 }
 
-// AddAll downloads all components from a repository
-func (bd *BulkDownloader) AddAll(repoURL string) error {
+// ValidateRepo clones a repository and detects components without installing.
+// Returns the temp directory path (caller must clean up), detected components, and any error.
+// This allows validation before creating profiles or other state.
+func (bd *BulkDownloader) ValidateRepo(repoURL string) (tempDir string, components []models.DetectedComponent, err error) {
 	fullURL, err := bd.detector.NormalizeURL(repoURL)
 	if err != nil {
-		return fmt.Errorf("failed to normalize repository URL: %w", err)
+		return "", nil, fmt.Errorf("failed to normalize repository URL: %w", err)
 	}
-
-	// Display installation header
-	bd.formatter.SectionHeader(fmt.Sprintf("Installing components from %s", repoURL))
 
 	// Create temporary directory for repository detection
-	tempDir, err := os.MkdirTemp("", "agent-smith-bulk-*")
+	tempDir, err = os.MkdirTemp("", "agent-smith-bulk-*")
 	if err != nil {
-		return fmt.Errorf("failed to create temporary directory: %w", err)
+		return "", nil, fmt.Errorf("failed to create temporary directory: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
 
 	// Clone repository to temporary location for detection
 	cloneOpts := &git.CloneOptions{
@@ -87,20 +85,53 @@ func (bd *BulkDownloader) AddAll(repoURL string) error {
 
 	_, err = git.PlainClone(tempDir, false, cloneOpts)
 	if err != nil {
-		return fmt.Errorf("failed to clone repository for bulk detection: %w", err)
+		os.RemoveAll(tempDir)
+		return "", nil, fmt.Errorf("failed to clone repository for bulk detection: %w", err)
 	}
 
 	// Detect all components in the repository from root
-	components, err := bd.detector.DetectComponentsInRepo(tempDir)
+	components, err = bd.detector.DetectComponentsInRepo(tempDir)
 	if err != nil {
-		return fmt.Errorf("failed to detect components: %w", err)
+		os.RemoveAll(tempDir)
+		return "", nil, fmt.Errorf("failed to detect components: %w", err)
 	}
 
 	if len(components) == 0 {
-		return fmt.Errorf("no components (skills, agents, or commands) detected in repository")
+		os.RemoveAll(tempDir)
+		return "", nil, fmt.Errorf("no components (skills, agents, or commands) detected in repository")
 	}
 
+	return tempDir, components, nil
+}
+
+// AddAllFromTemp installs components from a pre-cloned repository.
+// The tempDir should contain a cloned repository with the components to install.
+// This is used after ValidateRepo to avoid double-cloning.
+func (bd *BulkDownloader) AddAllFromTemp(repoURL string, components []models.DetectedComponent, tempDir string) error {
+	fullURL, err := bd.detector.NormalizeURL(repoURL)
+	if err != nil {
+		return fmt.Errorf("failed to normalize repository URL: %w", err)
+	}
+
+	// Display installation header
+	bd.formatter.SectionHeader(fmt.Sprintf("Installing components from %s", repoURL))
+
+	// Clean up temp directory when done
+	defer os.RemoveAll(tempDir)
+
 	return bd.processComponents(components, fullURL, repoURL, tempDir)
+}
+
+// AddAll downloads all components from a repository
+func (bd *BulkDownloader) AddAll(repoURL string) error {
+	// Validate repository and get components
+	tempDir, components, err := bd.ValidateRepo(repoURL)
+	if err != nil {
+		return err
+	}
+
+	// Install from the temp directory (ValidateRepo already created it)
+	return bd.AddAllFromTemp(repoURL, components, tempDir)
 }
 
 // processComponents handles downloading components from the repository
