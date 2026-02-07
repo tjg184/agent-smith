@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/tjg184/agent-smith/compare/v1.0.2...v2.0.0) (2026-02-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* 'profile show' command replaced with 'profile status'
+
+### Features
+
+* improve link status for base components ([#15](https://github.com/tjg184/agent-smith/issues/15)) ([1be5e35](https://github.com/tjg184/agent-smith/commit/1be5e350af93c88e0633ca50169a001ca36c7361))
+
 ## [1.0.2](https://github.com/tjg184/agent-smith/compare/v1.0.1...v1.0.2) (2026-02-07)
 
 
