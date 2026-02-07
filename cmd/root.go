@@ -11,10 +11,15 @@ import (
 	"github.com/tgaines/agent-smith/pkg/profiles"
 )
 
+// Version is the current version of agent-smith.
+// This is set by GoReleaser during build using ldflags.
+var Version = "dev"
+
 var rootCmd = &cobra.Command{
-	Use:   "agent-smith",
-	Short: "Agent Smith - A CLI tool for managing AI agents, skills, and commands",
-	Long:  getBanner(),
+	Use:     "agent-smith",
+	Short:   "Agent Smith - A CLI tool for managing AI agents, skills, and commands",
+	Long:    getBanner(),
+	Version: Version,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Show enhanced welcome screen when no subcommand is provided
 		showWelcomeScreen()
@@ -223,6 +228,9 @@ func exactArgsWithComponentTypeValidation(n int, componentTypeIndex int, usage s
 func init() {
 	// Hide completion command from help output
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
+
+	// Add version flag
+	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
 
 	// Create 'install' parent command with subcommands
 	installCmd := &cobra.Command{
@@ -2112,7 +2120,6 @@ EXAMPLES:
 
 	rootCmd.AddCommand(materializeCmd)
 
-	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
 	rootCmd.PersistentFlags().Bool("verbose", false, "Show informational output (default: show only errors)")
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable verbose debug output for troubleshooting")
 }
