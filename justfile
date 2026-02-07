@@ -80,6 +80,6 @@ lint:
     @golangci-lint run || echo "Install with 'brew install golangci-lint' or 'go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest'"
 
 # Tidy modules
- tidy:
+tidy:
     @echo "Tidying Go modules..."
     @go mod tidy
