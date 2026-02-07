@@ -791,14 +791,17 @@ This is more detailed than 'link list' - it shows a table with components as row
 and editors as columns, making it easy to see exactly what is linked where.
 
 EXAMPLES:
-  # Show status for current profile/base only
+  # Show status for active profile/base
   agent-smith link status
+
+  # Show status for a specific profile
+  agent-smith link status --profile tjg184-skills
 
   # Show status for all profiles
   agent-smith link status --all-profiles
 
-  # Show status for specific profiles only
-  agent-smith link status --all-profiles --profile=work,personal
+  # Show status for specific profiles only (filter)
+  agent-smith link status --all-profiles --profile work,personal
 
 LEGEND:
   ✓ - Valid symlink (linked and working)
@@ -814,7 +817,7 @@ LEGEND:
 		},
 	}
 	linkStatusCmd.Flags().Bool("all-profiles", false, "Show link status for all profiles")
-	linkStatusCmd.Flags().StringSlice("profile", []string{}, "Filter to specific profiles (requires --all-profiles)")
+	linkStatusCmd.Flags().StringSlice("profile", []string{}, "Show status for specific profile (or filter when used with --all-profiles)")
 	linkCmd.AddCommand(linkStatusCmd)
 
 	rootCmd.AddCommand(linkCmd)
@@ -1279,10 +1282,12 @@ Filtering options:
 	profilesListCmd.Flags().Bool("active-only", false, "Show only the active profile")
 	profilesListCmd.Flags().String("type", "", "Filter by profile type (repo or user)")
 
-	profilesShowCmd := &cobra.Command{
-		Use:   "show <profile-name>",
+	profilesStatusCmd := &cobra.Command{
+		Use:   "status [profile-name]",
 		Short: "Show detailed information about a profile",
 		Long: `Display detailed information about a specific profile.
+
+If no profile name is provided, shows information about the currently active profile.
 
 This command shows:
   - Profile name and active status
@@ -1294,15 +1299,22 @@ This command shows:
 Use this before activating a profile to see exactly what components it contains.
 
 EXAMPLES:
-  # Show details of a profile
-  agent-smith profile show my-profile
+  # Show details of active profile
+  agent-smith profile status
+  
+  # Show details of a specific profile
+  agent-smith profile status my-profile
   
   # View contents before activating
-  agent-smith profile show work-profile
+  agent-smith profile status work-profile
   agent-smith profile activate work-profile`,
-		Args: exactArgsWithHelp(1, "agent-smith profile show <profile-name>"),
+		Args: rangeArgsWithHelp(0, 1, "agent-smith profile status [profile-name]"),
 		Run: func(cmd *cobra.Command, args []string) {
-			handleProfilesShow(args[0])
+			profileName := ""
+			if len(args) > 0 {
+				profileName = args[0]
+			}
+			handleProfilesShow(profileName)
 		},
 	}
 
@@ -1519,7 +1531,7 @@ EXAMPLES:
 	profilesCherryPickCmd.Flags().StringSliceVarP(&cherryPickSources, "source", "s", []string{}, "Source profile(s) to cherry-pick from (repeatable)")
 
 	profilesCmd.AddCommand(profilesListCmd)
-	profilesCmd.AddCommand(profilesShowCmd)
+	profilesCmd.AddCommand(profilesStatusCmd)
 	profilesCmd.AddCommand(profilesCreateCmd)
 	profilesCmd.AddCommand(profilesDeleteCmd)
 	profilesCmd.AddCommand(profilesActivateCmd)

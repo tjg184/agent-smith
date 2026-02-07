@@ -132,10 +132,16 @@ func (pm *ProfileManager) LoadProfileMetadata(profileName string) (*ProfileMetad
 	return &metadata, nil
 }
 
-// GetProfileType returns the type of a profile ("repo", "user", or "unknown").
+// GetProfileType returns the type of a profile ("repo", "user", "base", or "unknown").
+// Returns "base" for the base installation (paths.BaseProfileName).
 // Returns "unknown" for profiles without metadata (legacy profiles).
 // Returns an error only if there's a problem reading the metadata file.
 func (pm *ProfileManager) GetProfileType(profileName string) (string, error) {
+	// Handle base installation
+	if profileName == paths.BaseProfileName {
+		return "base", nil
+	}
+
 	metadata, err := pm.LoadProfileMetadata(profileName)
 	if err != nil {
 		return "", fmt.Errorf("failed to load metadata: %w", err)

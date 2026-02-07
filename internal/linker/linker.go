@@ -739,7 +739,7 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 				linkType, targetPath, valid := cl.analyzeLinkStatus(fullPath)
 
 				// Determine profile from target path
-				profile := "base"
+				profile := paths.BaseProfileName
 				if targetPath != "" {
 					profile = getProfileFromPath(targetPath)
 				}
@@ -1065,7 +1065,7 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 			baseComponents = append(baseComponents, ComponentInfo{
 				Name:    entry.Name(),
 				Type:    componentType,
-				Profile: "base",
+				Profile: paths.BaseProfileName,
 			})
 		}
 	}
@@ -1306,9 +1306,9 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 	profileCountStr := fmt.Sprintf("%d", profileCount)
 	if len(profileFilter) == 0 {
 		if len(filteredProfiles) == 0 {
-			profileCountStr = "1 (base only)"
+			profileCountStr = fmt.Sprintf("1 (%s only)", paths.BaseProfileName)
 		} else {
-			profileCountStr = fmt.Sprintf("%d (base + %d custom)", profileCount, len(filteredProfiles))
+			profileCountStr = fmt.Sprintf("%d (%s + %d custom)", profileCount, paths.BaseProfileName, len(filteredProfiles))
 		}
 	}
 	cl.formatter.ListItem("Profiles scanned: %s", profileCountStr)
@@ -1890,7 +1890,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 				profileMsg = " from all profiles"
 			} else if profilesExist {
 				// Show profile context only when profiles actually exist
-				if currentProfileName == "base" {
+				if currentProfileName == paths.BaseProfileName {
 					profileMsg = " from base installation"
 				} else {
 					profileMsg = fmt.Sprintf(" from profile '%s'", currentProfileName)
@@ -1921,7 +1921,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 		}
 		if totalLinks == 0 {
 			if skippedProfilesCount > 0 {
-				if currentProfileName == "base" {
+				if currentProfileName == paths.BaseProfileName {
 					cl.formatter.InfoMsg("No symlinked components from base installation to unlink (found %d from profiles)", skippedProfilesCount)
 				} else {
 					cl.formatter.InfoMsg("No symlinked components from profile '%s' to unlink (found %d from other profiles)", currentProfileName, skippedProfilesCount)
@@ -1949,7 +1949,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 			headerMsg = fmt.Sprintf("Unlinking all components (all profiles) from: %s", targetFilter)
 		} else if profilesExist {
 			// Only show profile context in header when profiles actually exist
-			if currentProfileName == "base" {
+			if currentProfileName == paths.BaseProfileName {
 				headerMsg = fmt.Sprintf("Unlinking components (base installation) from: %s", targetFilter)
 			} else {
 				headerMsg = fmt.Sprintf("Unlinking components (profile '%s') from: %s", currentProfileName, targetFilter)
@@ -1969,7 +1969,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 			headerMsg = fmt.Sprintf("Unlinking all components (all profiles) from: %s", targetList)
 		} else if profilesExist {
 			// Only show profile context in header when profiles actually exist
-			if currentProfileName == "base" {
+			if currentProfileName == paths.BaseProfileName {
 				headerMsg = fmt.Sprintf("Unlinking components (base installation) from: %s", targetList)
 			} else {
 				headerMsg = fmt.Sprintf("Unlinking components (profile '%s') from: %s", currentProfileName, targetList)
@@ -2049,7 +2049,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 				// This applies to both valid symlinks and broken symlinks
 				if profilesExist && (linkType == "symlink" || linkType == "broken") {
 					profileName := GetProfileNameFromSymlink(fullPath)
-					if profileName != "" && profileName != "base" {
+					if profileName != "" && profileName != paths.BaseProfileName {
 						profileNote = fmt.Sprintf(" [%s]", profileName)
 					}
 				}
@@ -2088,7 +2088,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 			}
 		}
 		cl.formatter.EmptyLine()
-		if currentProfileName == "base" {
+		if currentProfileName == paths.BaseProfileName {
 			cl.formatter.InfoMsg("Use --all-profiles flag to unlink components from all profiles")
 		} else {
 			cl.formatter.InfoMsg("Use --all-profiles flag to unlink components from all profiles, or switch to the respective profile")

@@ -49,7 +49,7 @@ found: sql-optimization-patterns (in anthropics-skills)
 ./agent-smith profile activate <name>
 
 # Show profile info
-./agent-smith profile show <name>
+./agent-smith profile status [name]
 
 # Add component from base directory (rarely used)
 ./agent-smith profile add skills <name> <skill-name>

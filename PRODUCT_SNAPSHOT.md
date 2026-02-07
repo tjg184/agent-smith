@@ -366,7 +366,7 @@ agent-smith profile deactivate
 
 # Profile inspection
 agent-smith profile list
-agent-smith profile show <name>
+agent-smith profile status [name]
 
 # Component management
 agent-smith profile add <type> <profile> <component>

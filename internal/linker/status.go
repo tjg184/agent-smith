@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/tgaines/agent-smith/pkg/paths"
 )
 
 // LinkStatus represents the status of a linked component
@@ -14,7 +16,7 @@ type LinkStatus struct {
 	Target     string
 	Valid      bool
 	TargetPath string
-	Profile    string // "base" or profile name
+	Profile    string // paths.BaseProfileName or profile name
 }
 
 // getSourceDescription returns a human-readable description of the source directory
@@ -28,7 +30,7 @@ func (cl *ComponentLinker) getSourceDescription() string {
 }
 
 // getProfileFromPath extracts the profile name from a component path
-// Returns "base" if the component is in the base installation, or the profile name
+// Returns paths.BaseProfileName if the component is in the base installation, or the profile name
 func getProfileFromPath(path string) string {
 	// Clean the path first
 	path = filepath.Clean(path)
@@ -50,14 +52,14 @@ func getProfileFromPath(path string) string {
 		}
 		if grandparent == dir || grandparent == "." || grandparent == "/" {
 			// Reached root without finding "profiles"
-			return "base"
+			return paths.BaseProfileName
 		}
 		dir = grandparent
 	}
 }
 
 // GetProfileNameFromSymlink extracts the profile name from a symlink's target path
-// Returns the profile name if the symlink points to a profile, or "base" if it points to base installation
+// Returns the profile name if the symlink points to a profile, or paths.BaseProfileName if it points to base installation
 // Returns empty string if the symlink is broken or invalid
 func GetProfileNameFromSymlink(symlinkPath string) string {
 	// Read the symlink target

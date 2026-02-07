@@ -3,9 +3,11 @@ package profile
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/tgaines/agent-smith/internal/formatter"
 	"github.com/tgaines/agent-smith/pkg/logger"
+	"github.com/tgaines/agent-smith/pkg/paths"
 	"github.com/tgaines/agent-smith/pkg/profiles"
 	"github.com/tgaines/agent-smith/pkg/services"
 )
@@ -37,6 +39,22 @@ func (s *Service) ListProfiles(opts services.ListProfileOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to scan profiles: %w", err)
 	}
+
+	// Scan base installation for components
+	baseAgentsDir, err := paths.GetAgentsDir()
+	if err != nil {
+		return fmt.Errorf("failed to get base agents directory: %w", err)
+	}
+
+	baseProfile := s.scanBaseInstallation(baseAgentsDir)
+
+	// Prepend base to the list if it has components
+	allProfiles := []*profiles.Profile{}
+	if baseProfile != nil {
+		allProfiles = append(allProfiles, baseProfile)
+	}
+	allProfiles = append(allProfiles, profilesList...)
+	profilesList = allProfiles
 
 	// Get active profile
 	activeProfile, err := s.profileManager.GetActiveProfile()
@@ -127,9 +145,9 @@ func (s *Service) ListProfiles(opts services.ListProfileOptions) error {
 			profileType = "unknown"
 		}
 
-		// Get metadata for repo profiles
+		// Get metadata for repo profiles (skip for base)
 		var sourceURL string
-		if profileType == "repo" {
+		if profile.Name != paths.BaseProfileName && profileType == "repo" {
 			metadata, err := s.profileManager.LoadProfileMetadata(profile.Name)
 			if err == nil && metadata != nil {
 				sourceURL = metadata.SourceURL
@@ -171,8 +189,9 @@ func (s *Service) ListProfiles(opts services.ListProfileOptions) error {
 		}
 
 		// Build profile cell with active indicator and type emoji
+		// Never show active indicator for base
 		activeIndicator := " "
-		if profile.Name == activeProfile {
+		if profile.Name != paths.BaseProfileName && profile.Name == activeProfile {
 			activeIndicator = formatter.ColoredSuccess()
 		}
 
@@ -183,6 +202,8 @@ func (s *Service) ListProfiles(opts services.ListProfileOptions) error {
 			typeEmoji = "📦"
 		case "user":
 			typeEmoji = "👤"
+		case "base":
+			typeEmoji = "⊙"
 		default:
 			typeEmoji = "❓"
 		}
@@ -208,12 +229,40 @@ func (s *Service) ListProfiles(opts services.ListProfileOptions) error {
 	s.formatter.Info("  %s - Currently active profile", formatter.ColoredSuccess())
 	s.formatter.Info("  📦 - Repository-sourced profile")
 	s.formatter.Info("  👤 - User-created profile")
+	s.formatter.Info("  ⊙ - Base installation (no profile)")
 
-	// Display total count
-	if len(opts.ProfileFilter) > 0 || opts.ActiveOnly || opts.TypeFilter != "" {
-		s.formatter.Info("\nShowing: %d profile(s) (filtered from %d total)", len(filteredProfiles), len(profilesList))
+	// Count base separately from profiles
+	baseCount := 0
+	profileCount := len(filteredProfiles)
+
+	for _, p := range filteredProfiles {
+		if p.Name == paths.BaseProfileName {
+			baseCount = 1
+			profileCount--
+			break
+		}
+	}
+
+	// Display appropriate count string
+	s.formatter.EmptyLine()
+	if opts.ProfileFilter != nil || opts.ActiveOnly || opts.TypeFilter != "" {
+		// For filtered views, just show count
+		if baseCount > 0 && profileCount > 0 {
+			s.formatter.Info("Showing: %d profile(s) + base installation", profileCount)
+		} else if baseCount > 0 {
+			s.formatter.Info("Showing: base installation only")
+		} else {
+			s.formatter.Info("Showing: %d profile(s)", profileCount)
+		}
 	} else {
-		s.formatter.Info("\nTotal: %d profile(s)", len(filteredProfiles))
+		// For unfiltered view, show total
+		if baseCount > 0 && profileCount > 0 {
+			s.formatter.Info("Total: %d profile(s) + base installation", profileCount)
+		} else if baseCount > 0 {
+			s.formatter.Info("Total: base installation only")
+		} else {
+			s.formatter.Info("Total: %d profile(s)", profileCount)
+		}
 	}
 
 	return nil
@@ -458,4 +507,65 @@ func joinStrings(strs []string, sep string) string {
 		result += sep + strs[i]
 	}
 	return result
+}
+
+// scanBaseInstallation creates a pseudo-profile for base installation
+// Returns nil if base has no components
+func (s *Service) scanBaseInstallation(baseDir string) *profiles.Profile {
+	baseProfile := &profiles.Profile{
+		Name:     paths.BaseProfileName,
+		BasePath: baseDir,
+	}
+
+	hasComponents := false
+
+	// Check for skills directory
+	skillsDir := filepath.Join(baseDir, "skills")
+	if entries, err := os.ReadDir(skillsDir); err == nil && len(entries) > 0 {
+		// Count non-hidden directories
+		for _, entry := range entries {
+			if entry.IsDir() && !isHidden(entry.Name()) {
+				baseProfile.HasSkills = true
+				hasComponents = true
+				break
+			}
+		}
+	}
+
+	// Check for agents directory
+	agentsDir := filepath.Join(baseDir, "agents")
+	if entries, err := os.ReadDir(agentsDir); err == nil && len(entries) > 0 {
+		// Count non-hidden directories
+		for _, entry := range entries {
+			if entry.IsDir() && !isHidden(entry.Name()) {
+				baseProfile.HasAgents = true
+				hasComponents = true
+				break
+			}
+		}
+	}
+
+	// Check for commands directory
+	commandsDir := filepath.Join(baseDir, "commands")
+	if entries, err := os.ReadDir(commandsDir); err == nil && len(entries) > 0 {
+		// Count non-hidden directories
+		for _, entry := range entries {
+			if entry.IsDir() && !isHidden(entry.Name()) {
+				baseProfile.HasCommands = true
+				hasComponents = true
+				break
+			}
+		}
+	}
+
+	if !hasComponents {
+		return nil
+	}
+
+	return baseProfile
+}
+
+// isHidden returns true if the filename starts with a dot
+func isHidden(name string) bool {
+	return len(name) > 0 && name[0] == '.'
 }

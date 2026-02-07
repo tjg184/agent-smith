@@ -33,6 +33,12 @@ const (
 	DetectionConfigFile = "detection-config.json"
 )
 
+// Profile name constants
+const (
+	// BaseProfileName is the label used for base installation (not in a profile)
+	BaseProfileName = "(no profile)"
+)
+
 // Path patterns for detection
 const (
 	AgentsPathPattern   = "/agents/"
