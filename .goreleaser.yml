@@ -10,12 +10,10 @@ builds:
       - arm64
 
 archives:
-  - format: tar.gz
-    name_template: "agent-smith_{{ .Os }}_{{ .Arch }}"
-    files:
-      - agent-smith
-      - README.md
-      - LICENSE
+  - name_template: "agent-smith_{{ .Os }}_{{ .Arch }}"
+extra_files:
+  - glob: README.md
+  - glob: LICENSE
 
 release:
   github:
