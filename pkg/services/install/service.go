@@ -2,6 +2,7 @@ package install
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/tgaines/agent-smith/internal/downloader"
 	"github.com/tgaines/agent-smith/internal/fileutil"
@@ -289,13 +290,26 @@ func (s *Service) installBulkToTargetDir(repoURL, targetDir string) error {
 
 // installBulkToProfile installs all components to a profile (with auto-creation and reuse)
 func (s *Service) installBulkToProfile(repoURL, profile string) error {
+	// STEP 1: Validate repository first before creating any state
+	// This ensures we don't create empty profiles for invalid URLs
+	s.logger.Info("Validating repository: %s", repoURL)
+	validationDownloader := downloader.NewBulkDownloader()
+	tempDir, components, err := validationDownloader.ValidateRepo(repoURL)
+	if err != nil {
+		return fmt.Errorf("repository validation failed: %w", err)
+	}
+	// Note: tempDir will be cleaned up by AddAllFromTemp after installation
+
+	// STEP 2: Determine profile name and check existence
 	var profileName string
+	var isNewProfile bool
 
 	if profile != "" {
 		// Custom profile name provided via --profile flag
 		// Check if profile with this name already exists
 		profilesList, err := s.profileManager.ScanProfiles()
 		if err != nil {
+			os.RemoveAll(tempDir) // Clean up temp dir on error
 			return fmt.Errorf("failed to scan profiles: %w", err)
 		}
 
@@ -308,33 +322,32 @@ func (s *Service) installBulkToProfile(repoURL, profile string) error {
 		}
 
 		if profileExists {
+			os.RemoveAll(tempDir) // Clean up temp dir on error
 			return fmt.Errorf("profile '%s' already exists. Please choose a different name or remove the --profile flag to update the existing profile", profile)
 		}
 
 		profileName = profile
-		s.logger.Info("Creating profile: %s", profileName)
-
-		// Create the profile with metadata
-		if err := s.profileManager.CreateProfileWithMetadata(profileName, repoURL); err != nil {
-			return fmt.Errorf("failed to create profile: %w", err)
-		}
+		isNewProfile = true
 	} else {
 		// No custom profile name - use auto-detection and reuse logic
 		// Check if a profile already exists for this repository
 		existingProfileName, err := s.profileManager.FindProfileBySourceURL(repoURL)
 		if err != nil {
+			os.RemoveAll(tempDir) // Clean up temp dir on error
 			return fmt.Errorf("failed to search for existing profile: %w", err)
 		}
 
 		if existingProfileName != "" {
 			// Profile already exists, reuse it
 			profileName = existingProfileName
+			isNewProfile = false
 			s.logger.Info("Found existing profile for repository: %s", profileName)
 			s.logger.Info("Updating profile with latest components...")
 		} else {
 			// Get existing profiles for name generation
 			existingProfiles, err := s.profileManager.ScanProfiles()
 			if err != nil {
+				os.RemoveAll(tempDir) // Clean up temp dir on error
 				return fmt.Errorf("failed to scan profiles: %w", err)
 			}
 
@@ -345,24 +358,35 @@ func (s *Service) installBulkToProfile(repoURL, profile string) error {
 
 			// Generate a unique profile name
 			profileName = profiles.GenerateProfileNameFromRepo(repoURL, existingProfileNames)
-			s.logger.Info("Creating profile: %s", profileName)
-
-			// Create the profile with metadata
-			if err := s.profileManager.CreateProfileWithMetadata(profileName, repoURL); err != nil {
-				return fmt.Errorf("failed to create profile: %w", err)
-			}
+			isNewProfile = true
 		}
 	}
 
-	// Install components to the profile
+	// STEP 3: Create profile only after successful validation
+	if isNewProfile {
+		s.logger.Info("Creating profile: %s", profileName)
+		if err := s.profileManager.CreateProfileWithMetadata(profileName, repoURL); err != nil {
+			os.RemoveAll(tempDir) // Clean up temp dir on error
+			return fmt.Errorf("failed to create profile: %w", err)
+		}
+	}
+
+	// STEP 4: Install components to the profile using the pre-cloned temp directory
 	s.logger.Info("Installing components to profile: %s", profileName)
 	bulkDownloader := downloader.NewBulkDownloaderForProfile(profileName)
 
-	if err := bulkDownloader.AddAll(repoURL); err != nil {
+	if err := bulkDownloader.AddAllFromTemp(repoURL, components, tempDir); err != nil {
+		// Installation failed - clean up the profile if it was newly created
+		if isNewProfile {
+			s.logger.Debug("[DEBUG] Installation failed, cleaning up newly created profile: %s", profileName)
+			if cleanupErr := s.profileManager.DeleteProfile(profileName); cleanupErr != nil {
+				s.logger.Warn("Failed to clean up profile after installation failure: %v", cleanupErr)
+			}
+		}
 		return fmt.Errorf("failed to bulk download components: %w", err)
 	}
 
-	// Auto-activate profile after successful installation
+	// STEP 5: Auto-activate profile after successful installation
 	s.logger.Debug("[DEBUG] Auto-activating profile after install all: %s", profileName)
 	result, err := s.profileManager.ActivateProfileWithResult(profileName)
 	if err != nil {
