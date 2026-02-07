@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/tjg184/agent-smith/compare/v1.0.0...v1.0.1) (2026-02-07)
+
+
+### Bug Fixes
+
+* unlink base components was unlinking everything ([#11](https://github.com/tjg184/agent-smith/issues/11)) ([0421c8c](https://github.com/tjg184/agent-smith/commit/0421c8cebf237409c653b8b066682e6efaef9d9e))
+
 ## 1.0.0 (2026-02-07)
 
 
