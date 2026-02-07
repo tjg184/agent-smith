@@ -1,0 +1,28 @@
+builds:
+  - main: .
+    binary: agent-smith
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+    name_template: "agent-smith_{{ .Os }}_{{ .Arch }}"
+    files:
+      - agent-smith
+      - README.md
+      - LICENSE
+
+release:
+  github:
+    owner: tjg184 
+    name: agent-smith 
+
+changelog:
+  sort: asc
+
+checksums:
+  name_template: "checksums.txt"
