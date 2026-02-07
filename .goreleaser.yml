@@ -11,9 +11,9 @@ builds:
 
 archives:
   - name_template: "agent-smith_{{ .Os }}_{{ .Arch }}"
-extra_files:
-  - glob: README.md
-  - glob: LICENSE
+    extra_files:
+      - glob: README.md
+      - glob: LICENSE
 
 release:
   github:
