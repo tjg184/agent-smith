@@ -28,7 +28,7 @@ Install, manage, and link AI components with ease:
 
 ## Installation
 
-This is a test to see how pr might work.
+This is a test to see how pr might work. Another change but better
 
 ```bash
 # Build from source
