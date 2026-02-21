@@ -115,7 +115,7 @@ The component scanner is the heart of the skill:
 - You can add more profiles to increase component availability
 
 ### "profile command not found"
-- Build agent-smith first: `cd /Users/tgaines/dev/git/agent-smith && go build -o agent-smith .`
+- Build agent-smith first: `cd /path/to/agent-smith && go build -o agent-smith .`
 - Run from agent-smith directory or add to PATH
 
 ### "No matching skills found"

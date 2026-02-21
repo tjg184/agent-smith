@@ -110,12 +110,12 @@ This PRD addresses the issue by validating the repository accessibility and dete
 
 ### Files to Modify
 
-1. `/Users/tgaines/dev/git/agent-smith/internal/downloader/bulk.go`
+1. `/path/to/agent-smith/internal/downloader/bulk.go`
    - Add `ValidateRepo(repoURL string) (tempDir string, components []models.DetectedComponent, err error)`
    - Add `AddAllFromTemp(repoURL, tempDir string, components []models.DetectedComponent) error`
    - Refactor `AddAll()` to use `ValidateRepo()` + `AddAllFromTemp()`
 
-2. `/Users/tgaines/dev/git/agent-smith/pkg/services/install/service.go`
+2. `/path/to/agent-smith/pkg/services/install/service.go`
    - Modify `installBulkToProfile()` to validate before profile creation
    - Use `ValidateRepo()` then `AddAllFromTemp()` for installation
 

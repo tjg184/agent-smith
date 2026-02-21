@@ -53,7 +53,7 @@ When running `agent-smith unlink all` with no active profile (using base install
 
 ### Root Cause
 
-In `/Users/tgaines/dev/git/agent-smith/internal/linker/linker.go`, the `isSymlinkFromCurrentProfile()` function:
+In `/path/to/agent-smith/internal/linker/linker.go`, the `isSymlinkFromCurrentProfile()` function:
 
 ```go
 return strings.HasPrefix(target, agentsDir), nil
@@ -79,6 +79,6 @@ This ensures:
 
 ## References
 
-- Bug location: `/Users/tgaines/dev/git/agent-smith/internal/linker/linker.go:1658-1677`
-- Related function: `getProfileFromPath()` in `/Users/tgaines/dev/git/agent-smith/internal/linker/status.go:32`
-- Related function: `GetProfileNameFromSymlink()` in `/Users/tgaines/dev/git/agent-smith/internal/linker/status.go:52`
+- Bug location: `/path/to/agent-smith/internal/linker/linker.go:1658-1677`
+- Related function: `getProfileFromPath()` in `/path/to/agent-smith/internal/linker/status.go:32`
+- Related function: `GetProfileNameFromSymlink()` in `/path/to/agent-smith/internal/linker/status.go:52`

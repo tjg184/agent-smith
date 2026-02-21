@@ -108,7 +108,7 @@ Simplify and standardize the materialize command output format to align with oth
 ## Technical Implementation Details
 
 ### Files Modified
-- `/Users/tgaines/dev/git/agent-smith/main.go`
+- `/path/to/agent-smith/main.go`
 
 ### Changes Made
 
@@ -341,9 +341,9 @@ When running manual tests, verify:
 
 ## Related Files
 
-- `/Users/tgaines/dev/git/agent-smith/main.go` - Main implementation
-- `/Users/tgaines/dev/git/agent-smith/internal/materializer/materializer.go` - Helper functions (unchanged)
-- `/Users/tgaines/dev/git/agent-smith/pkg/formatter/formatter.go` - Symbol constants (unchanged)
+- `/path/to/agent-smith/main.go` - Main implementation
+- `/path/to/agent-smith/internal/materializer/materializer.go` - Helper functions (unchanged)
+- `/path/to/agent-smith/pkg/formatter/formatter.go` - Symbol constants (unchanged)
 
 ---
 
