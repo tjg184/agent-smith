@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/testutil"
-	"github.com/tgaines/agent-smith/pkg/project"
+	"github.com/tjg184/agent-smith/internal/testutil"
+	"github.com/tjg184/agent-smith/pkg/project"
 )
 
 // TestMaterializeAllComponentTypes verifies that skills, agents, and commands

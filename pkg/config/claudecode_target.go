@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/tgaines/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
 // ClaudeCodeTarget implements the Target interface for the claudecode configuration system

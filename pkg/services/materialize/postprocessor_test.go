@@ -3,7 +3,7 @@ package materialize
 import (
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/formatter"
+	"github.com/tjg184/agent-smith/internal/formatter"
 )
 
 // MockPostprocessor is a test postprocessor for testing the registry

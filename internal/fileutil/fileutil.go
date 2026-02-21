@@ -13,7 +13,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/internal/models"
 	"gopkg.in/yaml.v3"
 )
 

@@ -115,7 +115,7 @@ import (
     "path/filepath"
     "testing"
     
-    "github.com/tgaines/agent-smith/internal/testutil"
+    "github.com/tjg184/agent-smith/internal/testutil"
 )
 
 func TestComponentCopy(t *testing.T) {

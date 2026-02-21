@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/tgaines/agent-smith/internal/models"
-	"github.com/tgaines/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
 // ComponentEntryOptions holds optional parameters for SaveComponentEntry

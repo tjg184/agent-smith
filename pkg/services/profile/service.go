@@ -5,11 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/tgaines/agent-smith/internal/formatter"
-	"github.com/tgaines/agent-smith/pkg/logger"
-	"github.com/tgaines/agent-smith/pkg/paths"
-	"github.com/tgaines/agent-smith/pkg/profiles"
-	"github.com/tgaines/agent-smith/pkg/services"
+	"github.com/tjg184/agent-smith/internal/formatter"
+	"github.com/tjg184/agent-smith/pkg/logger"
+	"github.com/tjg184/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/pkg/profiles"
+	"github.com/tjg184/agent-smith/pkg/services"
 )
 
 // Service implements the ProfileService interface

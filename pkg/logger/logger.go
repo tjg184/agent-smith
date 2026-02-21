@@ -7,8 +7,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/tgaines/agent-smith/pkg/colors"
-	"github.com/tgaines/agent-smith/pkg/errors"
+	"github.com/tjg184/agent-smith/pkg/colors"
+	"github.com/tjg184/agent-smith/pkg/errors"
 )
 
 // Level represents the severity level of a log message.

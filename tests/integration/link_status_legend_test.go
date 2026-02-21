@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/testutil"
+	"github.com/tjg184/agent-smith/internal/testutil"
 )
 
 // TestLinkStatusLegend_SingleProfile verifies that the legend is displayed in a box table format

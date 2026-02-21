@@ -148,7 +148,7 @@ Currently, four CLI commands (`profile list`, `profile show`, `status`, `target 
 ## Technical Details
 
 ### Files to Modify
-- **File**: `/Users/tgaines/dev/git/agent-smith/main.go`
+- **File**: `/path/to/agent-smith/main.go`
 - **Scope**: Only modify the four handler functions for profile list, profile show, status, and target list
 
 ### Line Ranges to Update

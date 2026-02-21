@@ -1,7 +1,7 @@
 package materialize
 
 import (
-	"github.com/tgaines/agent-smith/internal/formatter"
+	"github.com/tjg184/agent-smith/internal/formatter"
 )
 
 // ComponentPostprocessor handles post-materialization processing for specific

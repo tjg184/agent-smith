@@ -1,4 +1,4 @@
-module github.com/tgaines/agent-smith
+module github.com/tjg184/agent-smith
 
 go 1.23.0
 

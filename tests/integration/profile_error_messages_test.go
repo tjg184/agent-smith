@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/testutil"
-	"github.com/tgaines/agent-smith/pkg/paths"
-	"github.com/tgaines/agent-smith/pkg/profiles"
+	"github.com/tjg184/agent-smith/internal/testutil"
+	"github.com/tjg184/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/pkg/profiles"
 )
 
 // TestInvalidProfileErrorMessages tests that clear error messages are provided when specifying invalid profiles

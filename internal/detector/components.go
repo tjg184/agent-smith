@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tgaines/agent-smith/internal/fileutil"
-	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/internal/fileutil"
+	"github.com/tjg184/agent-smith/internal/models"
 )
 
 // DetectComponentForPattern checks if a file matches a component detection pattern

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/tgaines/agent-smith/internal/formatter"
-	"github.com/tgaines/agent-smith/pkg/colors"
+	"github.com/tjg184/agent-smith/internal/formatter"
+	"github.com/tjg184/agent-smith/pkg/colors"
 )
 
 // ProgressCheckingFormat returns a formatted "Checking..." message

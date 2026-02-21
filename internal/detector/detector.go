@@ -8,11 +8,11 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/tgaines/agent-smith/internal/fileutil"
-	gitpkg "github.com/tgaines/agent-smith/internal/git"
-	"github.com/tgaines/agent-smith/internal/models"
-	"github.com/tgaines/agent-smith/pkg/logger"
-	"github.com/tgaines/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/internal/fileutil"
+	gitpkg "github.com/tjg184/agent-smith/internal/git"
+	"github.com/tjg184/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/pkg/logger"
+	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
 // RepositoryDetector maintains repository patterns and component detection

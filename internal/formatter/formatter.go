@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/tgaines/agent-smith/pkg/colors"
+	"github.com/tjg184/agent-smith/pkg/colors"
 )
 
 // Formatter handles all output formatting for the application

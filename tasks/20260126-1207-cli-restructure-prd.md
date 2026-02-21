@@ -158,7 +158,7 @@ agent-smith run <target> [args...]
 
 ## File Changes Required
 
-### `/Users/tgaines/dev/git/agent-smith/cmd/root.go`
+### `/path/to/agent-smith/cmd/root.go`
 
 **Changes**:
 1. Remove flat commands: `install-skill`, `install-agent`, `install-command`, `install-all`, `auto-link`, `list-links`, `link-status`, `npx`
@@ -168,7 +168,7 @@ agent-smith run <target> [args...]
 5. Update help text to reflect new structure
 
 **No changes needed**:
-- `/Users/tgaines/dev/git/agent-smith/main.go` - All handlers remain unchanged
+- `/path/to/agent-smith/main.go` - All handlers remain unchanged
 - Handler function signatures remain the same
 - No changes to internal packages required
 

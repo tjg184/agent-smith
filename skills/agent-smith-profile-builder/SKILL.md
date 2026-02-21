@@ -252,7 +252,7 @@ Execute agent-smith commands:
 
 ```bash
 # Navigate to agent-smith project directory
-cd /Users/tgaines/dev/git/agent-smith
+cd /path/to/agent-smith
 
 # Build agent-smith if not already built
 if [[ ! -f "./agent-smith" ]]; then
@@ -388,7 +388,7 @@ If yes:
 If user says yes:
 
 ```bash
-cd /Users/tgaines/dev/git/agent-smith
+cd /path/to/agent-smith
 
 ./agent-smith profile activate <profile-name>
 ./agent-smith link all
@@ -569,7 +569,7 @@ Same as Workflow A, steps A6-A9.
 #### C1. List Existing Profiles
 
 ```bash
-cd /Users/tgaines/dev/git/agent-smith
+cd /path/to/agent-smith
 
 # List profiles
 profiles=$(ls ~/.agent-smith/profiles/)
