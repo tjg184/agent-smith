@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/formatter"
+	"github.com/tjg184/agent-smith/internal/formatter"
 )
 
 func TestAgentFlattenPostprocessor_ShouldProcess(t *testing.T) {

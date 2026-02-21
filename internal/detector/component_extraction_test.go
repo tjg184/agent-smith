@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/detector"
-	"github.com/tgaines/agent-smith/internal/fileutil"
-	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/internal/detector"
+	"github.com/tjg184/agent-smith/internal/fileutil"
+	"github.com/tjg184/agent-smith/internal/models"
 )
 
 // TestComponentNameExtraction tests component name extraction for all component types

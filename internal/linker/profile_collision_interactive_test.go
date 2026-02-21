@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/detector"
-	"github.com/tgaines/agent-smith/pkg/config"
-	"github.com/tgaines/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/internal/detector"
+	"github.com/tjg184/agent-smith/pkg/config"
+	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
 // TestPromptProfileSelection_ValidSelection tests that valid user input is handled correctly

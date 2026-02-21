@@ -3,7 +3,7 @@ package formatter
 import (
 	"fmt"
 
-	"github.com/tgaines/agent-smith/pkg/colors"
+	"github.com/tjg184/agent-smith/pkg/colors"
 )
 
 // InstallResult represents the result of a single component installation

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/internal/models"
 )
 
 // TestCopyFileErrorMessages tests that CopyFile provides clear, actionable error messages

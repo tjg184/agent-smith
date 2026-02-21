@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/tgaines/agent-smith/pkg/colors"
+	"github.com/tjg184/agent-smith/pkg/colors"
 )
 
 // ColorizeText parses and colorizes help text line by line

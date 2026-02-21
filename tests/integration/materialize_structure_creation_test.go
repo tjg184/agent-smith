@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/testutil"
+	"github.com/tjg184/agent-smith/internal/testutil"
 )
 
 // TestMaterializeStructureCreation verifies that the first materialize command

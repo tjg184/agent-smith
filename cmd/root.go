@@ -7,9 +7,9 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/tgaines/agent-smith/pkg/help"
-	"github.com/tgaines/agent-smith/pkg/paths"
-	"github.com/tgaines/agent-smith/pkg/profiles"
+	"github.com/tjg184/agent-smith/pkg/help"
+	"github.com/tjg184/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/pkg/profiles"
 )
 
 // Version is the current version of agent-smith.

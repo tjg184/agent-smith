@@ -1,7 +1,7 @@
 package detector
 
 import (
-	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/internal/models"
 )
 
 // Detector defines the interface for repository and component detection

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tgaines/agent-smith/internal/metadata"
-	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/internal/metadata"
+	"github.com/tjg184/agent-smith/internal/models"
 )
 
 // TestUnifiedLockFormat_InstallWorkflow tests the complete install workflow using unified format

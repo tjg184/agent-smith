@@ -4,9 +4,9 @@
 package main
 
 import (
-	"github.com/tgaines/agent-smith/internal/detector"
-	"github.com/tgaines/agent-smith/internal/downloader"
-	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/internal/detector"
+	"github.com/tjg184/agent-smith/internal/downloader"
+	"github.com/tjg184/agent-smith/internal/models"
 	"os"
 	"os/exec"
 	"path/filepath"

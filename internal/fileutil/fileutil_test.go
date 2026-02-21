@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/internal/models"
 )
 
 // TestGetCrossPlatformPermissions tests cross-platform directory permissions

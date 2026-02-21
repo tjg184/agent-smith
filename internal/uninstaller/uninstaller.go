@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tgaines/agent-smith/internal/detector"
-	"github.com/tgaines/agent-smith/internal/formatter"
-	"github.com/tgaines/agent-smith/internal/linker"
-	"github.com/tgaines/agent-smith/internal/metadata"
-	"github.com/tgaines/agent-smith/internal/models"
-	"github.com/tgaines/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/internal/detector"
+	"github.com/tjg184/agent-smith/internal/formatter"
+	"github.com/tjg184/agent-smith/internal/linker"
+	"github.com/tjg184/agent-smith/internal/metadata"
+	"github.com/tjg184/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
 // Uninstaller handles component removal

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/testutil"
+	"github.com/tjg184/agent-smith/internal/testutil"
 )
 
 // TestLinkStatus_DefaultBehavior verifies that the default `agent-smith link status` command

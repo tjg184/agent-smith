@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tgaines/agent-smith/pkg/colors"
+	"github.com/tjg184/agent-smith/pkg/colors"
 )
 
 // TestIsSectionHeader tests section header detection

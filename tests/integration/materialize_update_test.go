@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tgaines/agent-smith/internal/testutil"
-	"github.com/tgaines/agent-smith/pkg/project"
+	"github.com/tjg184/agent-smith/internal/testutil"
+	"github.com/tjg184/agent-smith/pkg/project"
 )
 
 // TestMaterializeUpdate tests the materialize update command

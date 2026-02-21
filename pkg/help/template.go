@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/tgaines/agent-smith/pkg/colors"
+	"github.com/tjg184/agent-smith/pkg/colors"
 )
 
 func init() {
