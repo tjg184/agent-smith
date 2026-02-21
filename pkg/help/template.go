@@ -43,13 +43,13 @@ func getUsageTemplate() string {
 {{.Example}}{{end}}{{if .HasAvailableSubCommands}}{{$cmds := .Commands}}{{if eq (len .Groups) 0}}
 
 {{colorizeSection "Available Commands:"}}{{range $cmds}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
-  {{colorizeCommand .Name}} {{.Short}}{{end}}{{end}}{{else}}{{range $group := .Groups}}
+  {{colorizeCommand (rpad .Name .NamePadding)}} {{.Short}}{{end}}{{end}}{{else}}{{range $group := .Groups}}
 
 {{.Title}}{{range $cmds}}{{if (and (eq .GroupID $group.ID) (or .IsAvailableCommand (eq .Name "help")))}}
-  {{colorizeCommand .Name}} {{.Short}}{{end}}{{end}}{{end}}{{if not .AllChildCommandsHaveGroup}}
+  {{colorizeCommand (rpad .Name .NamePadding)}} {{.Short}}{{end}}{{end}}{{end}}{{if not .AllChildCommandsHaveGroup}}
 
 Additional Commands:{{range $cmds}}{{if (and (eq .GroupID "") (or .IsAvailableCommand (eq .Name "help")))}}
-  {{colorizeCommand .Name}} {{.Short}}{{end}}{{end}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
+  {{colorizeCommand (rpad .Name .NamePadding)}} {{.Short}}{{end}}{{end}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
 {{colorizeSection "Flags:"}}
 {{colorizeFlagUsages .LocalFlags}}{{end}}{{if .HasAvailableInheritedFlags}}
