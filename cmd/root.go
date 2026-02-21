@@ -7,6 +7,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"github.com/tgaines/agent-smith/pkg/help"
 	"github.com/tgaines/agent-smith/pkg/paths"
 	"github.com/tgaines/agent-smith/pkg/profiles"
 )
@@ -226,6 +227,9 @@ func exactArgsWithComponentTypeValidation(n int, componentTypeIndex int, usage s
 }
 
 func init() {
+	// Setup colored help templates for all commands
+	help.SetupCustomTemplates(rootCmd)
+
 	// Hide completion command from help output
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 
