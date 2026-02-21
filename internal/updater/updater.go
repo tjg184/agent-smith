@@ -7,16 +7,16 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/tgaines/agent-smith/internal/detector"
-	"github.com/tgaines/agent-smith/internal/downloader"
-	"github.com/tgaines/agent-smith/internal/formatter"
-	gitpkg "github.com/tgaines/agent-smith/internal/git"
-	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
-	"github.com/tgaines/agent-smith/internal/models"
-	"github.com/tgaines/agent-smith/pkg/colors"
-	"github.com/tgaines/agent-smith/pkg/paths"
-	"github.com/tgaines/agent-smith/pkg/profiles"
-	"github.com/tgaines/agent-smith/pkg/styles"
+	"github.com/tjg184/agent-smith/internal/detector"
+	"github.com/tjg184/agent-smith/internal/downloader"
+	"github.com/tjg184/agent-smith/internal/formatter"
+	gitpkg "github.com/tjg184/agent-smith/internal/git"
+	metadataPkg "github.com/tjg184/agent-smith/internal/metadata"
+	"github.com/tjg184/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/pkg/colors"
+	"github.com/tjg184/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/pkg/profiles"
+	"github.com/tjg184/agent-smith/pkg/styles"
 )
 
 // UpdateDetector provides functionality to detect and apply updates to components

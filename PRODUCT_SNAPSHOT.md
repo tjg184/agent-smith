@@ -801,4 +801,4 @@ The system's two-tier architecture (centralized storage + symlinks), profile man
 
 **Document Version**: 1.0  
 **Last Updated**: January 30, 2026  
-**Project Repository**: https://github.com/tgaines/agent-smith
+**Project Repository**: https://github.com/tjg184/agent-smith

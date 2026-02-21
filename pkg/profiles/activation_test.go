@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/tgaines/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
 // Note: Profile activation/deactivation tests that require accessing the system

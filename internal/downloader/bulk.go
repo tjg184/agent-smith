@@ -7,10 +7,10 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/schollz/progressbar/v3"
-	"github.com/tgaines/agent-smith/internal/detector"
-	"github.com/tgaines/agent-smith/internal/formatter"
-	gitpkg "github.com/tgaines/agent-smith/internal/git"
-	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/internal/detector"
+	"github.com/tjg184/agent-smith/internal/formatter"
+	gitpkg "github.com/tjg184/agent-smith/internal/git"
+	"github.com/tjg184/agent-smith/internal/models"
 )
 
 // BulkDownloader handles bulk downloading of all components from a repository

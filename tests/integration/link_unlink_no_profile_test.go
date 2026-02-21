@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/testutil"
+	"github.com/tjg184/agent-smith/internal/testutil"
 )
 
 // TestLinkAll_NoProfile verifies that link all works without profiles (backward compatibility)

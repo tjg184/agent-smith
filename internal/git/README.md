@@ -41,7 +41,7 @@ type Cloner interface {
 ### Basic Usage
 
 ```go
-import gitpkg "github.com/tgaines/agent-smith/internal/git"
+import gitpkg "github.com/tjg184/agent-smith/internal/git"
 
 // Create a cloner
 cloner := gitpkg.NewDefaultCloner()
@@ -63,7 +63,7 @@ fmt.Println("Commit:", hash)
 ### Testing with Mocks
 
 ```go
-import gitpkg "github.com/tgaines/agent-smith/internal/git"
+import gitpkg "github.com/tjg184/agent-smith/internal/git"
 
 // Create a mock cloner
 mockCloner := &gitpkg.MockCloner{

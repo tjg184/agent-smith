@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tgaines/agent-smith/internal/metadata"
-	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/internal/metadata"
+	"github.com/tjg184/agent-smith/internal/models"
 )
 
 // Re-export types for backward compatibility

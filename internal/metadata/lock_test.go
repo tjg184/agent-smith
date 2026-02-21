@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/internal/models"
 )
 
 func TestUnifiedComponentEntry(t *testing.T) {

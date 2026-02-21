@@ -155,7 +155,7 @@ None - the skill instructions are self-contained and guide users through the cor
 ### Testing Recommendations
 
 When using the updated skill:
-1. Ensure agent-smith binary is built: `cd /Users/tgaines/dev/git/agent-smith && go build -o agent-smith .`
+1. Ensure agent-smith binary is built: `cd /path/to/agent-smith && go build -o agent-smith .`
 2. Verify profiles exist: `ls ~/.agent-smith/profiles/`
 3. Test component scanner: `skills/agent-smith-profile-builder/lib/component-scanner.sh list-all`
 4. Follow SKILL.md Workflow A for template-based profile creation

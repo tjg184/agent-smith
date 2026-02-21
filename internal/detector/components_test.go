@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/internal/models"
 )
 
 // TestDetectComponentForPattern tests component detection for various patterns

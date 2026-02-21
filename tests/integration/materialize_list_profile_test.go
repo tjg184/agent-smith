@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/testutil"
+	"github.com/tjg184/agent-smith/internal/testutil"
 )
 
 // TestMaterializeList_Story015 verifies Story-015 acceptance criteria

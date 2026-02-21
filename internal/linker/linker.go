@@ -7,15 +7,15 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/tgaines/agent-smith/internal/detector"
-	"github.com/tgaines/agent-smith/internal/fileutil"
-	"github.com/tgaines/agent-smith/internal/formatter"
-	metadataPkg "github.com/tgaines/agent-smith/internal/metadata"
-	"github.com/tgaines/agent-smith/internal/models"
-	"github.com/tgaines/agent-smith/pkg/colors"
-	"github.com/tgaines/agent-smith/pkg/config"
-	"github.com/tgaines/agent-smith/pkg/paths"
-	"github.com/tgaines/agent-smith/pkg/styles"
+	"github.com/tjg184/agent-smith/internal/detector"
+	"github.com/tjg184/agent-smith/internal/fileutil"
+	"github.com/tjg184/agent-smith/internal/formatter"
+	metadataPkg "github.com/tjg184/agent-smith/internal/metadata"
+	"github.com/tjg184/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/pkg/colors"
+	"github.com/tjg184/agent-smith/pkg/config"
+	"github.com/tjg184/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/pkg/styles"
 )
 
 // ComponentLinker handles linking components to configured targets

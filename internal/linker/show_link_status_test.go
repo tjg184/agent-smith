@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/detector"
-	"github.com/tgaines/agent-smith/internal/formatter"
-	"github.com/tgaines/agent-smith/pkg/config"
+	"github.com/tjg184/agent-smith/internal/detector"
+	"github.com/tjg184/agent-smith/internal/formatter"
+	"github.com/tjg184/agent-smith/pkg/config"
 )
 
 // TestShowLinkStatus_DefaultBehavior verifies that ShowLinkStatus() maintains backward compatibility

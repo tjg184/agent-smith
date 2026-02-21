@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tgaines/agent-smith/internal/metadata"
-	"github.com/tgaines/agent-smith/internal/models"
-	"github.com/tgaines/agent-smith/internal/updater"
-	"github.com/tgaines/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/internal/metadata"
+	"github.com/tjg184/agent-smith/internal/models"
+	"github.com/tjg184/agent-smith/internal/updater"
+	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
 // MaterializationMetadata is now an alias for ComponentLockFile for backward compatibility

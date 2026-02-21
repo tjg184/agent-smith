@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/detector"
-	"github.com/tgaines/agent-smith/internal/downloader"
-	"github.com/tgaines/agent-smith/internal/fileutil"
+	"github.com/tjg184/agent-smith/internal/detector"
+	"github.com/tjg184/agent-smith/internal/downloader"
+	"github.com/tjg184/agent-smith/internal/fileutil"
 )
 
 // TestAgentDownloadErrorCleanup tests that directories are cleaned up on errors

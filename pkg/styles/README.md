@@ -51,7 +51,7 @@ This package extracts common formatting patterns that were previously duplicated
 ### Basic Status Messages
 
 ```go
-import "github.com/tgaines/agent-smith/pkg/styles"
+import "github.com/tjg184/agent-smith/pkg/styles"
 
 // Check for updates
 fmt.Print(styles.ProgressCheckingFormat("skills", "api-design"))
@@ -145,9 +145,9 @@ fmt.Println(hint)
 ```go
 import (
     "fmt"
-    "github.com/tgaines/agent-smith/internal/formatter"
-    "github.com/tgaines/agent-smith/pkg/colors"
-    "github.com/tgaines/agent-smith/pkg/styles"
+    "github.com/tjg184/agent-smith/internal/formatter"
+    "github.com/tjg184/agent-smith/pkg/colors"
+    "github.com/tjg184/agent-smith/pkg/styles"
 )
 
 // Build a summary table

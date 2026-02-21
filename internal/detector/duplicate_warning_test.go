@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tgaines/agent-smith/internal/detector"
-	"github.com/tgaines/agent-smith/pkg/logger"
+	"github.com/tjg184/agent-smith/internal/detector"
+	"github.com/tjg184/agent-smith/pkg/logger"
 )
 
 // TestDuplicateComponentWarnings tests Story-005: Clear warnings when duplicate component names are detected

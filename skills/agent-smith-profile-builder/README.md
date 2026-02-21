@@ -181,7 +181,7 @@ done
 ### Phase 3: Profile Creation
 ```bash
 # Build agent-smith if needed
-cd /Users/tgaines/dev/git/agent-smith
+cd /path/to/agent-smith
 go build -o agent-smith .
 
 # Create profile
@@ -225,7 +225,7 @@ EOF
 
 ```bash
 # Build agent-smith
-cd /Users/tgaines/dev/git/agent-smith
+cd /path/to/agent-smith
 go build -o agent-smith .
 
 # Create a test profile

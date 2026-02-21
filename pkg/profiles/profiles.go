@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/tgaines/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
 // Profile represents a user profile with agents, skills, and commands
