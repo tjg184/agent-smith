@@ -16,6 +16,7 @@ import (
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
 	"github.com/tjg184/agent-smith/pkg/services"
+	findsvc "github.com/tjg184/agent-smith/pkg/services/find"
 	installsvc "github.com/tjg184/agent-smith/pkg/services/install"
 	linksvc "github.com/tjg184/agent-smith/pkg/services/link"
 	materializesvc "github.com/tjg184/agent-smith/pkg/services/materialize"
@@ -533,6 +534,7 @@ func main() {
 	linkService := linksvc.NewService(profileManager, appLogger, appFormatter)
 	profileService := profilesvc.NewService(profileManager, appLogger, appFormatter)
 	materializeService := materializesvc.NewService(profileManager, appLogger, appFormatter)
+	findService := findsvc.NewService(appLogger, appFormatter)
 
 	// Set up handlers for Cobra commands
 	cmd.SetHandlers(
@@ -879,6 +881,15 @@ func main() {
 			if err := materializeService.UpdateMaterialized(opts); err != nil {
 				// Error already logged/displayed by service
 				os.Exit(1)
+			}
+		},
+		func(query string, limit int, jsonOutput bool) {
+			opts := services.FindOptions{
+				Limit: limit,
+				JSON:  jsonOutput,
+			}
+			if err := findService.FindSkills(query, opts); err != nil {
+				log.Fatal("Failed to search skills:", err)
 			}
 		},
 	)

@@ -73,6 +73,29 @@ agent-smith install all owner/repo --install-dir ./tools
 
 **URL formats:** `owner/repo`, `https://github.com/owner/repo`, `git@github.com:owner/repo.git`, `/path/to/local/repo`
 
+### Find
+
+Search for skills in the remote skills.sh registry.
+
+```bash
+# Search for skills by keyword
+agent-smith find skill prd
+agent-smith find skill typescript
+agent-smith find skill react
+
+# Limit results
+agent-smith find skill api --limit 10
+
+# Get JSON output for scripting
+agent-smith find skill prd --json
+```
+
+Results show:
+- Skill name and source repository
+- Install count (popularity)
+- Installation commands for both specific skill and all skills from repo
+- skills.sh URL for reference
+
 ### Link
 
 Link installed components to detected targets (OpenCode, Claude Code, or custom).
