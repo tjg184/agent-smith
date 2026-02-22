@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/tjg184/agent-smith/compare/v1.0.0...v1.1.0) (2026-02-22)
+
+
+### Features
+
+* add a way to find and install skill ([#23](https://github.com/tjg184/agent-smith/issues/23)) ([e898ebd](https://github.com/tjg184/agent-smith/commit/e898ebd2e52df9823d087a1af95b4ff5f3bc8ee2))
+
 ## 1.0.0 (2026-02-21)
 
 
