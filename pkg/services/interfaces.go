@@ -162,3 +162,14 @@ type TargetService interface {
 type StatusService interface {
 	ShowSystemStatus() error
 }
+
+// FindService handles searching for components in remote registries
+type FindService interface {
+	FindSkills(query string, opts FindOptions) error
+}
+
+// FindOptions configures component search
+type FindOptions struct {
+	Limit int  // Max results to display (default: 20)
+	JSON  bool // Output as JSON for scripting
+}
