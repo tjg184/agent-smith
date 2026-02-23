@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.0](https://github.com/tjg184/agent-smith/compare/v1.1.0...v1.2.0) (2026-02-23)
+
+
+### Features
+
+* add a skill to guide adding a skill ([#25](https://github.com/tjg184/agent-smith/issues/25)) ([99b2f5f](https://github.com/tjg184/agent-smith/commit/99b2f5fef49dad87188b749cd44097b9355e29cb))
+* add installer ([#27](https://github.com/tjg184/agent-smith/issues/27)) ([27d75b2](https://github.com/tjg184/agent-smith/commit/27d75b2230018444a82bab9157c87b70aead2dbf))
+* add way to share profiles ([#28](https://github.com/tjg184/agent-smith/issues/28)) ([c5abbb9](https://github.com/tjg184/agent-smith/commit/c5abbb9b0c43f015f48bdc0f3fc877a76829dfdf))
+
 ## [1.1.0](https://github.com/tjg184/agent-smith/compare/v1.0.0...v1.1.0) (2026-02-22)
 
 
