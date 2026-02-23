@@ -22,19 +22,75 @@ Install, manage, and link AI components with ease:
 - Remove components cleanly when no longer needed
 
 
+## Installation
+
+### Quick Install (Recommended)
+
+Install the latest version:
+```bash
+curl -sSL https://raw.githubusercontent.com/tjg184/agent-smith/main/scripts/install.sh | bash
+```
+
+Install a specific version:
+```bash
+curl -sSL https://raw.githubusercontent.com/tjg184/agent-smith/main/scripts/install.sh | bash -s -- v1.1.0
+```
+
+After installation, add agent-smith to your PATH (the installer will show instructions).
+
+### Alternative Installation Methods
+
+<details>
+<summary>Using Go</summary>
+
+```bash
+go install github.com/tjg184/agent-smith@latest
+```
+</details>
+
+<details>
+<summary>Manual Download</summary>
+
+1. Download the appropriate binary for your platform from [Releases](https://github.com/tjg184/agent-smith/releases)
+2. Extract: `tar -xzf agent-smith_*.tar.gz`
+3. Move to PATH: `mv agent-smith ~/.agent-smith/bin/` (or `/usr/local/bin/`)
+4. Make executable: `chmod +x ~/.agent-smith/bin/agent-smith`
+5. Add `~/.agent-smith/bin` to your PATH
+</details>
+
+<details>
+<summary>Build from Source</summary>
+
+```bash
+git clone https://github.com/tjg184/agent-smith.git
+cd agent-smith
+just build
+just install
+```
+</details>
+
+### Updating
+
+To update to the latest version, re-run the installation script:
+```bash
+curl -sSL https://raw.githubusercontent.com/tjg184/agent-smith/main/scripts/install.sh | bash --force
+```
+
+### Uninstall
+
+Remove the agent-smith binary:
+```bash
+curl -sSL https://raw.githubusercontent.com/tjg184/agent-smith/main/scripts/uninstall.sh | bash
+```
+
+Remove binary and all data (skills, agents, profiles):
+```bash
+curl -sSL https://raw.githubusercontent.com/tjg184/agent-smith/main/scripts/uninstall.sh | bash -s -- --purge
+```
+
 ## Documentation
 
 - [TESTING.md](TESTING.md) - Testing guide
-
-## Installation
-
-```bash
-# Build from source
-just build
-
-# Install to $GOPATH/bin
-just install
-```
 
 ## Quick Start
 
@@ -269,6 +325,33 @@ agent-smith materialize update
 ## Testing
 
 See [TESTING.md](TESTING.md) for information about running tests.
+
+## Troubleshooting
+
+### Installation Issues
+
+**"command not found: agent-smith"**
+- Make sure `~/.agent-smith/bin` is in your PATH
+- Restart your shell after adding to PATH
+- Verify with: `echo $PATH | grep agent-smith`
+
+**"checksum mismatch"**
+- Network issue during download
+- Re-run the installer
+- If persists, file an issue
+
+**"permission denied"**
+- Make sure the binary is executable: `chmod +x ~/.agent-smith/bin/agent-smith`
+
+### Platform Support
+
+Supported platforms:
+- macOS (Intel): `darwin_amd64`
+- macOS (Apple Silicon): `darwin_arm64`
+- Linux (x86_64): `linux_amd64`
+- Linux (ARM64): `linux_arm64`
+
+Windows is not currently supported.
 
 ## Contributing
 
