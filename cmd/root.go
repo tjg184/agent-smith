@@ -2140,7 +2140,7 @@ EXAMPLES:
 	findCmd := &cobra.Command{
 		Use:   "find",
 		Short: "Search for components in remote registries",
-		Long: `Search for skills, agents, and commands across the skills.sh registry.
+		Long: `Search for skills across the skills.sh registry.
 
 This command queries the skills.sh API to discover components you can install.
 Results are ranked by popularity (install count).
