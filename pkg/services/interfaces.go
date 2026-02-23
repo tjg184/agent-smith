@@ -60,6 +60,7 @@ type ProfileService interface {
 	CopyComponent(sourceProfile, targetProfile, componentType, componentName string) error
 	RemoveComponent(profileName, componentType, componentName string) error
 	CherryPickComponents(targetProfile string, sourceProfiles []string) error
+	ShareProfile(name, outputPath string) error
 }
 
 // ListProfileOptions configures profile listing
