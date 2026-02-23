@@ -781,6 +781,15 @@ func main() {
 				log.Fatal("Failed to cherry-pick components:", err)
 			}
 		},
+		func(profileName, outputFile string) {
+			// Allow "base" as an alias for the base installation
+			if profileName == "base" {
+				profileName = paths.BaseProfileName
+			}
+			if err := profileService.ShareProfile(profileName, outputFile); err != nil {
+				log.Fatal("Failed to share profile:", err)
+			}
+		},
 		func() {
 			if err := statusService.ShowSystemStatus(); err != nil {
 				log.Fatal("Failed to show system status:", err)

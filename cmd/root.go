@@ -1534,6 +1534,37 @@ EXAMPLES:
 	}
 	profilesCherryPickCmd.Flags().StringSliceVarP(&cherryPickSources, "source", "s", []string{}, "Source profile(s) to cherry-pick from (repeatable)")
 
+	// profiles share - Generate commands to recreate a profile
+	profilesShareCmd := &cobra.Command{
+		Use:   "share <profile-name>",
+		Short: "Generate commands to recreate a profile",
+		Long: `Generate a shareable text file containing the exact commands needed to recreate a profile.
+
+The output includes all install commands required to recreate the profile from scratch.
+You can share this with teammates, commit it to version control, or use it as backup.
+
+Components installed from local paths are skipped as they cannot be recreated.
+
+EXAMPLES:
+  # Display commands to stdout
+  agent-smith profile share work
+
+  # Save to file
+  agent-smith profile share work --output setup-work.txt
+
+  # Copy to clipboard (macOS)
+  agent-smith profile share work | pbcopy
+
+  # Share base installation
+  agent-smith profile share base --output my-setup.txt`,
+		Args: exactArgsWithHelp(1, "agent-smith profile share <profile-name>"),
+		Run: func(cmd *cobra.Command, args []string) {
+			outputFile, _ := cmd.Flags().GetString("output")
+			handleProfilesShare(args[0], outputFile)
+		},
+	}
+	profilesShareCmd.Flags().StringP("output", "o", "", "Save commands to file instead of stdout")
+
 	profilesCmd.AddCommand(profilesListCmd)
 	profilesCmd.AddCommand(profilesStatusCmd)
 	profilesCmd.AddCommand(profilesCreateCmd)
@@ -1544,6 +1575,7 @@ EXAMPLES:
 	profilesCmd.AddCommand(profilesCopyCmd)
 	profilesCmd.AddCommand(profilesRemoveCmd)
 	profilesCmd.AddCommand(profilesCherryPickCmd)
+	profilesCmd.AddCommand(profilesShareCmd)
 	rootCmd.AddCommand(profilesCmd)
 
 	// Add status command
@@ -2229,6 +2261,7 @@ var (
 	handleProfilesCopy          func(componentType, sourceProfile, targetProfile, componentName string)
 	handleProfilesRemove        func(componentType, profileName, componentName string)
 	handleProfilesCherryPick    func(targetProfile string, sourceProfiles []string)
+	handleProfilesShare         func(profileName, outputFile string)
 	handleStatus                func()
 	handleTargetAdd             func(name, path string)
 	handleTargetRemove          func(name string)
@@ -2274,6 +2307,7 @@ func SetHandlers(
 	profilesCopy func(componentType, sourceProfile, targetProfile, componentName string),
 	profilesRemove func(componentType, profileName, componentName string),
 	profilesCherryPick func(targetProfile string, sourceProfiles []string),
+	profilesShare func(profileName, outputFile string),
 	status func(),
 	targetAdd func(name, path string),
 	targetRemove func(name string),
@@ -2317,6 +2351,7 @@ func SetHandlers(
 	handleProfilesCopy = profilesCopy
 	handleProfilesRemove = profilesRemove
 	handleProfilesCherryPick = profilesCherryPick
+	handleProfilesShare = profilesShare
 	handleStatus = status
 	handleTargetAdd = targetAdd
 	handleTargetRemove = targetRemove

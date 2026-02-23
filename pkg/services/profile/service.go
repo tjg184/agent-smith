@@ -1,11 +1,15 @@
 package profile
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/tjg184/agent-smith/internal/formatter"
+	"github.com/tjg184/agent-smith/internal/models"
 	"github.com/tjg184/agent-smith/pkg/logger"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
@@ -568,4 +572,203 @@ func (s *Service) scanBaseInstallation(baseDir string) *profiles.Profile {
 // isHidden returns true if the filename starts with a dot
 func isHidden(name string) bool {
 	return len(name) > 0 && name[0] == '.'
+}
+
+// ShareProfile generates commands to recreate a profile
+func (s *Service) ShareProfile(profileName, outputPath string) error {
+	// Validate profile exists
+	profilesList, err := s.profileManager.ScanProfiles()
+	if err != nil {
+		return fmt.Errorf("failed to scan profiles: %w", err)
+	}
+
+	// Check if it's the base profile
+	isBase := profileName == paths.BaseProfileName
+	var targetProfile *profiles.Profile
+
+	if isBase {
+		// Get base installation directory
+		baseAgentsDir, err := paths.GetAgentsDir()
+		if err != nil {
+			return fmt.Errorf("failed to get base directory: %w", err)
+		}
+		targetProfile = s.scanBaseInstallation(baseAgentsDir)
+		if targetProfile == nil {
+			return fmt.Errorf("base installation is empty - no components to share")
+		}
+	} else {
+		// Find the named profile
+		for _, p := range profilesList {
+			if p.Name == profileName {
+				targetProfile = p
+				break
+			}
+		}
+
+		if targetProfile == nil {
+			return fmt.Errorf("profile '%s' not found", profileName)
+		}
+	}
+
+	// Generate commands
+	commands, err := s.generateProfileCommands(targetProfile, isBase)
+	if err != nil {
+		return fmt.Errorf("failed to generate commands: %w", err)
+	}
+
+	// Output to file or stdout
+	if outputPath != "" {
+		if err := os.WriteFile(outputPath, []byte(commands), 0644); err != nil {
+			return fmt.Errorf("failed to write to file: %w", err)
+		}
+		s.formatter.Info("%s Commands saved to: %s", formatter.SymbolSuccess, outputPath)
+	} else {
+		fmt.Print(commands)
+	}
+
+	return nil
+}
+
+// generateProfileCommands creates the full command output for a profile
+func (s *Service) generateProfileCommands(profile *profiles.Profile, isBase bool) (string, error) {
+	var buf strings.Builder
+	now := time.Now().Format("2006-01-02")
+
+	// Header
+	buf.WriteString(fmt.Sprintf("# Agent Smith Profile: %s\n", profile.Name))
+	buf.WriteString(fmt.Sprintf("# Generated on: %s\n", now))
+	buf.WriteString("#\n")
+	buf.WriteString("# To recreate this profile, copy and run these commands:\n\n")
+
+	// Profile creation (skip for base)
+	if !isBase {
+		buf.WriteString(fmt.Sprintf("agent-smith profile create %s\n", profile.Name))
+		buf.WriteString(fmt.Sprintf("agent-smith profile activate %s\n\n", profile.Name))
+	}
+
+	// Get components from lock files
+	skillCommands, skillCount := s.generateComponentCommands(profile, "skills", isBase)
+	agentCommands, agentCount := s.generateComponentCommands(profile, "agents", isBase)
+	commandCommands, commandCount := s.generateComponentCommands(profile, "commands", isBase)
+
+	totalCount := skillCount + agentCount + commandCount
+
+	if totalCount == 0 {
+		buf.WriteString("# This profile is empty - no components to install\n")
+		return buf.String(), nil
+	}
+
+	// Add skill commands
+	if skillCount > 0 {
+		buf.WriteString(fmt.Sprintf("# Install skills (%d components)\n", skillCount))
+		buf.WriteString(skillCommands)
+		buf.WriteString("\n")
+	}
+
+	// Add agent commands
+	if agentCount > 0 {
+		buf.WriteString(fmt.Sprintf("# Install agents (%d components)\n", agentCount))
+		buf.WriteString(agentCommands)
+		buf.WriteString("\n")
+	}
+
+	// Add command commands
+	if commandCount > 0 {
+		buf.WriteString(fmt.Sprintf("# Install commands (%d components)\n", commandCount))
+		buf.WriteString(commandCommands)
+		buf.WriteString("\n")
+	}
+
+	// Footer
+	buf.WriteString("# Link to your editor (optional)\n")
+	buf.WriteString("agent-smith link all\n\n")
+
+	// Summary
+	buf.WriteString(fmt.Sprintf("# Total: %d components (", totalCount))
+	parts := []string{}
+	if skillCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d skills", skillCount))
+	}
+	if agentCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d agents", agentCount))
+	}
+	if commandCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d commands", commandCount))
+	}
+	buf.WriteString(strings.Join(parts, ", "))
+	buf.WriteString(")\n")
+
+	return buf.String(), nil
+}
+
+// generateComponentCommands generates install commands for a component type
+func (s *Service) generateComponentCommands(profile *profiles.Profile, componentType string, isBase bool) (string, int) {
+	var buf strings.Builder
+	count := 0
+
+	// Read lock file
+	lockPath := paths.GetComponentLockPath(profile.BasePath, componentType)
+	lockData, err := os.ReadFile(lockPath)
+	if err != nil {
+		// File doesn't exist or can't be read - no components of this type
+		return "", 0
+	}
+
+	var lockFile models.ComponentLockFile
+	if err := json.Unmarshal(lockData, &lockFile); err != nil {
+		// Invalid lock file - skip
+		return "", 0
+	}
+
+	// Get appropriate map based on component type
+	var componentMap map[string]map[string]models.ComponentEntry
+	switch componentType {
+	case "skills":
+		componentMap = lockFile.Skills
+	case "agents":
+		componentMap = lockFile.Agents
+	case "commands":
+		componentMap = lockFile.Commands
+	default:
+		return "", 0
+	}
+
+	// Generate install commands
+	for sourceURL, components := range componentMap {
+		// Skip local paths (they can't be shared)
+		if isLocalPath(sourceURL) {
+			continue
+		}
+
+		for componentName := range components {
+			singularType := strings.TrimSuffix(componentType, "s") // "skills" -> "skill"
+
+			if isBase {
+				// Base installation doesn't use --profile flag
+				buf.WriteString(fmt.Sprintf("agent-smith install %s %s %s\n",
+					singularType,
+					sourceURL,
+					componentName))
+			} else {
+				// Named profile uses --profile flag
+				buf.WriteString(fmt.Sprintf("agent-smith install %s %s %s --profile %s\n",
+					singularType,
+					sourceURL,
+					componentName,
+					profile.Name))
+			}
+			count++
+		}
+	}
+
+	return buf.String(), count
+}
+
+// isLocalPath checks if a path is a local file path
+func isLocalPath(path string) bool {
+	return strings.HasPrefix(path, "/") ||
+		strings.HasPrefix(path, "file://") ||
+		strings.HasPrefix(path, "~/") ||
+		strings.HasPrefix(path, ".") ||
+		(len(path) > 1 && path[1] == ':') // Windows drive letter
 }
