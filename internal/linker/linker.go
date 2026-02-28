@@ -47,7 +47,13 @@ func displayName(name string) string {
 	if d, ok := displayNames[name]; ok {
 		return d
 	}
-	return strings.ToUpper(name[:1]) + name[1:]
+	replaced := strings.ReplaceAll(name, "-", " ")
+	replaced = strings.ReplaceAll(replaced, "_", " ")
+	words := strings.Fields(replaced)
+	for i, word := range words {
+		words[i] = strings.ToUpper(word[:1]) + word[1:]
+	}
+	return strings.Join(words, "")
 }
 
 // Profile represents a user profile (minimal interface to avoid circular dependency)
