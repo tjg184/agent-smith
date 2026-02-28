@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/tjg184/agent-smith/internal/detector"
@@ -1275,6 +1276,170 @@ func (pm *ProfileManager) GetAllAvailableComponents(sourceProfiles []string) ([]
 	return items, nil
 }
 
+// PromptComponentSelection displays an interactive UI for selecting components
+// Returns the selected components, or error if cancelled
+func (pm *ProfileManager) PromptComponentSelection(components []ComponentItem) ([]ComponentItem, error) {
+	if len(components) == 0 {
+		return nil, fmt.Errorf("no components available for selection")
+	}
+
+	// Group components by type
+	var skills, agents, commands []ComponentItem
+	for _, c := range components {
+		switch c.Type {
+		case "skills":
+			skills = append(skills, c)
+		case "agents":
+			agents = append(agents, c)
+		case "commands":
+			commands = append(commands, c)
+		}
+	}
+
+	// Display available components
+	fmt.Println("\nAvailable Components:")
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	if len(skills) > 0 {
+		fmt.Printf("\nSkills (%d):\n", len(skills))
+		for i, c := range skills {
+			fmt.Printf("  [%d] %s  (from: %s)\n", i+1, c.Name, c.SourceProfile)
+		}
+	}
+
+	if len(agents) > 0 {
+		fmt.Printf("\nAgents (%d):\n", len(agents))
+		for i, c := range agents {
+			idx := len(skills) + i + 1
+			fmt.Printf("  [%d] %s  (from: %s)\n", idx, c.Name, c.SourceProfile)
+		}
+	}
+
+	if len(commands) > 0 {
+		fmt.Printf("\nCommands (%d):\n", len(commands))
+		for i, c := range commands {
+			idx := len(skills) + len(agents) + i + 1
+			fmt.Printf("  [%d] %s  (from: %s)\n", idx, c.Name, c.SourceProfile)
+		}
+	}
+
+	fmt.Println("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Println("\nSelect components:")
+	fmt.Println("  Enter numbers (e.g., 1,3,5 or 1-3)")
+	fmt.Println("  Keywords: a=all, s=skills, g=agents, c=commands")
+	fmt.Println("  q=quit")
+	fmt.Printf("\nSelection: ")
+
+	var response string
+	fmt.Scanln(&response)
+	response = strings.TrimSpace(response)
+
+	// Handle quit
+	if strings.ToLower(response) == "q" {
+		return nil, fmt.Errorf("selection cancelled")
+	}
+
+	selected := make(map[int]ComponentItem)
+
+	// Build index to ComponentItem map
+	indexMap := make(map[int]ComponentItem)
+	allComponents := [][]ComponentItem{skills, agents, commands}
+	idx := 1
+	for _, group := range allComponents {
+		for _, c := range group {
+			indexMap[idx] = c
+			idx++
+		}
+	}
+
+	// Parse selection
+	parts := strings.Split(response, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+
+		// Handle keywords
+		switch strings.ToLower(part) {
+		case "a", "all":
+			for i, c := range indexMap {
+				selected[i] = c
+			}
+			continue
+		case "s", "skills":
+			for i, c := range indexMap {
+				if c.Type == "skills" {
+					selected[i] = c
+				}
+			}
+			continue
+		case "g", "agents":
+			for i, c := range indexMap {
+				if c.Type == "agents" {
+					selected[i] = c
+				}
+			}
+			continue
+		case "c", "commands":
+			for i, c := range indexMap {
+				if c.Type == "commands" {
+					selected[i] = c
+				}
+			}
+			continue
+		}
+
+		// Handle range (e.g., 1-4)
+		if strings.Contains(part, "-") {
+			rangeParts := strings.Split(part, "-")
+			if len(rangeParts) == 2 {
+				start, err1 := strconv.Atoi(strings.TrimSpace(rangeParts[0]))
+				end, err2 := strconv.Atoi(strings.TrimSpace(rangeParts[1]))
+				if err1 == nil && err2 == nil && start <= end {
+					for i := start; i <= end; i++ {
+						if c, ok := indexMap[i]; ok {
+							selected[i] = c
+						}
+					}
+				}
+			}
+			continue
+		}
+
+		// Handle single number
+		num, err := strconv.Atoi(part)
+		if err == nil {
+			if c, ok := indexMap[num]; ok {
+				selected[num] = c
+			}
+		}
+	}
+
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("no components selected")
+	}
+
+	// Show selected summary
+	fmt.Println("\nSelected:")
+	for _, c := range selected {
+		fmt.Printf("  ✓ %s (%s) from %s\n", c.Name, c.Type, c.SourceProfile)
+	}
+
+	// Confirm
+	fmt.Printf("\nCopy to profile? [y/n]: ")
+	var confirm string
+	fmt.Scanln(&confirm)
+	if strings.ToLower(strings.TrimSpace(confirm)) != "y" {
+		return nil, fmt.Errorf("cancelled")
+	}
+
+	// Convert map to slice
+	result := make([]ComponentItem, 0, len(selected))
+	for _, c := range selected {
+		result = append(result, c)
+	}
+
+	return result, nil
+}
+
 // CherryPickComponents copies selected components from source profiles to target profile
 func (pm *ProfileManager) CherryPickComponents(targetProfile string, components []ComponentItem) error {
 	// Validate target profile
@@ -1284,7 +1449,10 @@ func (pm *ProfileManager) CherryPickComponents(targetProfile string, components 
 
 	profile := pm.loadProfile(targetProfile)
 	if !profile.IsValid() {
-		return fmt.Errorf("target profile '%s' does not exist or has no components", targetProfile)
+		fmt.Printf("Creating new profile '%s'...\n", targetProfile)
+		if err := pm.CreateProfile(targetProfile); err != nil {
+			return fmt.Errorf("failed to create target profile: %w", err)
+		}
 	}
 
 	fmt.Printf("Cherry-picking %d component(s) to profile '%s'...\n\n", len(components), targetProfile)

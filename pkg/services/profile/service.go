@@ -489,15 +489,29 @@ func (s *Service) RemoveComponent(profileName, componentType, componentName stri
 
 // CherryPickComponents allows selecting components from multiple source profiles
 func (s *Service) CherryPickComponents(targetProfile string, sourceProfiles []string) error {
-	// Need to convert sourceProfiles to ComponentItems
-	// This method is complex and interactive, so we delegate to ProfileManager
-	// which will handle the interactive selection
-	var components []profiles.ComponentItem // Empty for now, actual implementation would gather from sourceProfiles
-	if err := s.profileManager.CherryPickComponents(targetProfile, components); err != nil {
+	components, err := s.profileManager.GetAllAvailableComponents(sourceProfiles)
+	if err != nil {
+		return fmt.Errorf("failed to get available components: %w", err)
+	}
+
+	if len(components) == 0 {
+		return fmt.Errorf("no components found in source profile(s)")
+	}
+
+	selectedComponents, err := s.profileManager.PromptComponentSelection(components)
+	if err != nil {
+		return err
+	}
+
+	if len(selectedComponents) == 0 {
+		return fmt.Errorf("no components selected")
+	}
+
+	if err := s.profileManager.CherryPickComponents(targetProfile, selectedComponents); err != nil {
 		return fmt.Errorf("failed to cherry-pick components: %w", err)
 	}
 
-	s.formatter.Info("%s Cherry-picked components into profile '%s'", formatter.SymbolSuccess, targetProfile)
+	s.formatter.Info("%s Cherry-picked %d component(s) into profile '%s'", formatter.SymbolSuccess, len(selectedComponents), targetProfile)
 	return nil
 }
 
