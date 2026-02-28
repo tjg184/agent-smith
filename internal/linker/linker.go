@@ -34,6 +34,22 @@ type ProfileManager interface {
 	GetActiveProfile() (string, error)
 }
 
+func displayName(name string) string {
+	if name == "" {
+		return ""
+	}
+	displayNames := map[string]string{
+		"opencode":   "OpenCode",
+		"claudecode": "ClaudeCode",
+		"copilot":    "Copilot",
+		"universal":  "Universal",
+	}
+	if d, ok := displayNames[name]; ok {
+		return d
+	}
+	return strings.ToUpper(name[:1]) + name[1:]
+}
+
 // Profile represents a user profile (minimal interface to avoid circular dependency)
 // This must match the Profile struct from pkg/profiles/profiles.go
 type Profile struct {
@@ -772,7 +788,7 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 		targetDir, _ := target.GetBaseDir()
 
 		// Display results for this target
-		fmt.Printf("\n=== %s ===\n", strings.ToUpper(targetName))
+		fmt.Printf("\n=== %s ===\n", displayName(targetName))
 		fmt.Printf("%s\n", cl.getSourceDescription())
 
 		if totalCount == 0 {
@@ -949,7 +965,7 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 	// Build headers for table
 	headers := []string{"Component", "Profile"}
 	for _, targetName := range targetNames {
-		headers = append(headers, strings.ToUpper(targetName))
+		headers = append(headers, displayName(targetName))
 	}
 
 	// Create table using formatter's writer
@@ -1029,7 +1045,7 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 				linkedCount++
 			}
 		}
-		cl.formatter.ListItem("%s: %d/%d components linked", strings.ToUpper(targetName), linkedCount, len(statuses))
+		cl.formatter.ListItem("%s: %d/%d components linked", displayName(targetName), linkedCount, len(statuses))
 	}
 
 	return nil
@@ -1282,7 +1298,7 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 	// Build headers for table
 	headers := []string{"Component", "Type", "Profile"}
 	for _, targetName := range targetNames {
-		headers = append(headers, strings.ToUpper(targetName))
+		headers = append(headers, displayName(targetName))
 	}
 
 	// Create table
@@ -1384,7 +1400,7 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 		if len(statuses) > 0 {
 			percentage = (linkedCount * 100) / len(statuses)
 		}
-		cl.formatter.ListItem("%s: %d/%d linked (%d%%)", strings.ToUpper(targetName), linkedCount, len(statuses), percentage)
+		cl.formatter.ListItem("%s: %d/%d linked (%d%%)", displayName(targetName), linkedCount, len(statuses), percentage)
 	}
 
 	// Show active profile
