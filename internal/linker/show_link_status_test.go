@@ -99,7 +99,7 @@ func TestShowLinkStatus_DefaultBehavior(t *testing.T) {
 	linker.SetFormatter(formatter.NewWithWriter(&buf))
 
 	// Execute ShowLinkStatus
-	err = linker.ShowLinkStatus()
+	err = linker.ShowLinkStatus(false)
 	if err != nil {
 		t.Fatalf("ShowLinkStatus() returned error: %v", err)
 	}
@@ -222,10 +222,10 @@ func TestShowLinkStatus_WithoutComponents(t *testing.T) {
 	var buf bytes.Buffer
 	linker.SetFormatter(formatter.NewWithWriter(&buf))
 
-	// Execute ShowLinkStatus
-	err = linker.ShowLinkStatus()
+	// Execute ShowLinkStatus with linkedOnly=false (default behavior)
+	err = linker.ShowLinkStatus(false)
 	if err != nil {
-		t.Fatalf("ShowLinkStatus() should not error with empty directories: %v", err)
+		t.Fatalf("ShowLinkStatus() returned error: %v", err)
 	}
 
 	// Get output
@@ -301,7 +301,7 @@ func TestShowLinkStatus_ProfileDetection(t *testing.T) {
 	linker.SetFormatter(formatter.NewWithWriter(&buf))
 
 	// Execute ShowLinkStatus
-	err = linker.ShowLinkStatus()
+	err = linker.ShowLinkStatus(false)
 	if err != nil {
 		t.Fatalf("ShowLinkStatus() returned error: %v", err)
 	}
@@ -379,7 +379,7 @@ func TestShowLinkStatus_BackwardCompatibility(t *testing.T) {
 	var buf bytes.Buffer
 	linker.SetFormatter(formatter.NewWithWriter(&buf))
 
-	err = linker.ShowLinkStatus()
+	err = linker.ShowLinkStatus(false)
 	if err != nil {
 		t.Fatalf("ShowLinkStatus() should work without ProfileManager: %v", err)
 	}
@@ -443,7 +443,7 @@ func TestShowLinkStatus_OutputFormat(t *testing.T) {
 	var buf bytes.Buffer
 	linker.SetFormatter(formatter.NewWithWriter(&buf))
 
-	err = linker.ShowLinkStatus()
+	err = linker.ShowLinkStatus(false)
 	if err != nil {
 		t.Fatalf("ShowLinkStatus() failed: %v", err)
 	}

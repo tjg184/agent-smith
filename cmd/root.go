@@ -804,6 +804,12 @@ EXAMPLES:
   # Show status for all profiles
   agent-smith link status --all-profiles
 
+  # Show only linked components (hide unlinked)
+  agent-smith link status --linked-only
+
+  # Show only linked components across all profiles
+  agent-smith link status --all-profiles --linked-only
+
   # Show status for specific profiles only (filter)
   agent-smith link status --all-profiles --profile work,personal
 
@@ -817,11 +823,13 @@ LEGEND:
 		Run: func(cmd *cobra.Command, args []string) {
 			allProfiles, _ := cmd.Flags().GetBool("all-profiles")
 			profileFilter, _ := cmd.Flags().GetStringSlice("profile")
-			handleLinkStatus(allProfiles, profileFilter)
+			linkedOnly, _ := cmd.Flags().GetBool("linked-only")
+			handleLinkStatus(allProfiles, profileFilter, linkedOnly)
 		},
 	}
 	linkStatusCmd.Flags().Bool("all-profiles", false, "Show link status for all profiles")
 	linkStatusCmd.Flags().StringSlice("profile", []string{}, "Show status for specific profile (or filter when used with --all-profiles)")
+	linkStatusCmd.Flags().Bool("linked-only", false, "Show only components that have at least one link")
 	linkCmd.AddCommand(linkStatusCmd)
 
 	rootCmd.AddCommand(linkCmd)
@@ -2242,7 +2250,7 @@ var (
 	handleLinkType              func(componentType, targetFilter, profile string)
 	handleAutoLink              func()
 	handleListLinks             func()
-	handleLinkStatus            func(allProfiles bool, profileFilter []string)
+	handleLinkStatus            func(allProfiles bool, profileFilter []string, linkedOnly bool)
 	handleUnlink                func(componentType, componentName, targetFilter string)
 	handleUnlinkWithProfile     func(componentType, componentName, targetFilter, profile string)
 	handleUnlinkAll             func(targetFilter string, force bool, allProfiles bool)
@@ -2288,7 +2296,7 @@ func SetHandlers(
 	linkType func(componentType, targetFilter, profile string),
 	autoLink func(),
 	listLinks func(),
-	linkStatus func(allProfiles bool, profileFilter []string),
+	linkStatus func(allProfiles bool, profileFilter []string, linkedOnly bool),
 	unlink func(componentType, componentName, targetFilter string),
 	unlinkWithProfile func(componentType, componentName, targetFilter, profile string),
 	unlinkAll func(targetFilter string, force bool, allProfiles bool),

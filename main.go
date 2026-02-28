@@ -628,10 +628,11 @@ func main() {
 				log.Fatal("Failed to list linked components:", err)
 			}
 		},
-		func(allProfiles bool, profileFilter []string) {
+		func(allProfiles bool, profileFilter []string, linkedOnly bool) {
 			opts := services.LinkStatusOptions{
 				AllProfiles:   allProfiles,
 				ProfileFilter: profileFilter,
+				LinkedOnly:    linkedOnly,
 			}
 			if err := linkService.ShowStatus(opts); err != nil {
 				log.Fatal("Failed to show link status:", err)
