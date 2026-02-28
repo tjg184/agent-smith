@@ -7,6 +7,8 @@ import (
 	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
+const universalProjectDirName = ".agents"
+
 // UniversalTarget implements the Target interface for the universal (.agents) directory
 // This provides a target-agnostic location for materialized components that can be used
 // by any AI coding assistant.
@@ -30,48 +32,48 @@ func NewUniversalTargetWithDir(dir string) *UniversalTarget {
 	}
 }
 
-// GetBaseDir returns the base universal directory
+// GetGlobalBaseDir returns the base universal directory
 // For universal target, this is always empty as it's project-local only
-func (t *UniversalTarget) GetBaseDir() (string, error) {
+func (t *UniversalTarget) GetGlobalBaseDir() (string, error) {
 	if t.baseDir == "" {
 		return "", fmt.Errorf("universal target has no global directory (project-local only)")
 	}
 	return t.baseDir, nil
 }
 
-// GetSkillsDir returns the directory where skills should be linked
-func (t *UniversalTarget) GetSkillsDir() (string, error) {
+// GetGlobalSkillsDir returns the directory where skills should be linked
+func (t *UniversalTarget) GetGlobalSkillsDir() (string, error) {
 	if t.baseDir == "" {
 		return "", fmt.Errorf("universal target requires project context")
 	}
 	return filepath.Join(t.baseDir, paths.SkillsSubDir), nil
 }
 
-// GetAgentsDir returns the directory where agents should be linked
-func (t *UniversalTarget) GetAgentsDir() (string, error) {
+// GetGlobalAgentsDir returns the directory where agents should be linked
+func (t *UniversalTarget) GetGlobalAgentsDir() (string, error) {
 	if t.baseDir == "" {
 		return "", fmt.Errorf("universal target requires project context")
 	}
 	return filepath.Join(t.baseDir, paths.AgentsSubDir), nil
 }
 
-// GetCommandsDir returns the directory where commands should be linked
-func (t *UniversalTarget) GetCommandsDir() (string, error) {
+// GetGlobalCommandsDir returns the directory where commands should be linked
+func (t *UniversalTarget) GetGlobalCommandsDir() (string, error) {
 	if t.baseDir == "" {
 		return "", fmt.Errorf("universal target requires project context")
 	}
 	return filepath.Join(t.baseDir, paths.CommandsSubDir), nil
 }
 
-// GetComponentDir returns the directory for a specific component type
-func (t *UniversalTarget) GetComponentDir(componentType string) (string, error) {
+// GetGlobalComponentDir returns the directory for a specific component type
+func (t *UniversalTarget) GetGlobalComponentDir(componentType string) (string, error) {
 	switch componentType {
 	case paths.SkillsSubDir:
-		return t.GetSkillsDir()
+		return t.GetGlobalSkillsDir()
 	case paths.AgentsSubDir:
-		return t.GetAgentsDir()
+		return t.GetGlobalAgentsDir()
 	case paths.CommandsSubDir:
-		return t.GetCommandsDir()
+		return t.GetGlobalCommandsDir()
 	default:
 		return "", fmt.Errorf("unknown component type: %s", componentType)
 	}
@@ -88,4 +90,24 @@ func (t *UniversalTarget) GetDetectionConfigPath() (string, error) {
 // GetName returns the human-readable name of this target
 func (t *UniversalTarget) GetName() string {
 	return "universal"
+}
+
+// GetProjectDirName returns the directory name used in projects
+func (t *UniversalTarget) GetProjectDirName() string {
+	return universalProjectDirName
+}
+
+// GetProjectBaseDir returns the base directory within a project
+func (t *UniversalTarget) GetProjectBaseDir(projectRoot string) string {
+	return filepath.Join(projectRoot, universalProjectDirName)
+}
+
+// GetProjectComponentDir returns the component directory within a project
+func (t *UniversalTarget) GetProjectComponentDir(projectRoot, componentType string) (string, error) {
+	return filepath.Join(projectRoot, universalProjectDirName, componentType), nil
+}
+
+// IsUniversalTarget returns true for universal target
+func (t *UniversalTarget) IsUniversalTarget() bool {
+	return true
 }

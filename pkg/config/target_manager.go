@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 // TargetType represents the type of target environment
@@ -61,6 +62,48 @@ func NewTarget(targetType string) (Target, error) {
 	return nil, fmt.Errorf("unknown target type: %s (valid options: opencode, claudecode, copilot, universal, or custom targets from config)", targetType)
 }
 
+// NewTargetForProject creates a Target configured for a specific project
+// The returned Target will use project-relative paths based on the provided projectRoot
+// For built-in targets, this returns a Target with the appropriate project directory name
+// For custom targets, this validates that ProjectDir is configured
+func NewTargetForProject(targetType, projectRoot string) (Target, error) {
+	if targetType == "" {
+		targetType = string(TargetOpenCode)
+	}
+
+	// Handle built-in targets
+	switch TargetType(targetType) {
+	case TargetOpenCode:
+		opencodeTarget := NewOpencodeTargetWithDir(filepath.Join(projectRoot, ".opencode"))
+		return opencodeTarget, nil
+	case TargetClaudeCode:
+		claudeCodeTarget := NewClaudeCodeTargetWithDir(filepath.Join(projectRoot, ".claude"))
+		return claudeCodeTarget, nil
+	case TargetCopilot:
+		copilotTarget := NewCopilotTargetWithDir(filepath.Join(projectRoot, ".github"))
+		return copilotTarget, nil
+	case TargetUniversal:
+		universalTarget := NewUniversalTargetWithDir(filepath.Join(projectRoot, ".agents"))
+		return universalTarget, nil
+	}
+
+	// Check custom targets from config
+	config, err := LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+
+	for _, customTargetConfig := range config.CustomTargets {
+		if customTargetConfig.Name == targetType {
+			// For custom targets, we need to set the baseDir to the project-relative path
+			customTargetConfig.BaseDir = filepath.Join(projectRoot, customTargetConfig.ProjectDir)
+			return NewCustomTarget(customTargetConfig)
+		}
+	}
+
+	return nil, fmt.Errorf("unknown target type: %s (valid options: opencode, claudecode, copilot, universal, or custom targets from config)", targetType)
+}
+
 // DetectTarget attempts to detect which target environment is available
 // Priority: AGENT_SMITH_TARGET env var > auto-detection > default to OpenCode
 func DetectTarget() (Target, error) {
@@ -74,7 +117,7 @@ func DetectTarget() (Target, error) {
 	// Priority: OpenCode > Claude Code > Copilot (since OpenCode is the primary target)
 	opencodeTarget, err := NewOpencodeTarget()
 	if err == nil {
-		baseDir, _ := opencodeTarget.GetBaseDir()
+		baseDir, _ := opencodeTarget.GetGlobalBaseDir()
 		if _, err := os.Stat(baseDir); err == nil {
 			return opencodeTarget, nil
 		}
@@ -82,7 +125,7 @@ func DetectTarget() (Target, error) {
 
 	claudeCodeTarget, err := NewClaudeCodeTarget()
 	if err == nil {
-		baseDir, _ := claudeCodeTarget.GetBaseDir()
+		baseDir, _ := claudeCodeTarget.GetGlobalBaseDir()
 		if _, err := os.Stat(baseDir); err == nil {
 			return claudeCodeTarget, nil
 		}
@@ -90,7 +133,7 @@ func DetectTarget() (Target, error) {
 
 	copilotTarget, err := NewCopilotTarget()
 	if err == nil {
-		baseDir, _ := copilotTarget.GetBaseDir()
+		baseDir, _ := copilotTarget.GetGlobalBaseDir()
 		if _, err := os.Stat(baseDir); err == nil {
 			return copilotTarget, nil
 		}
@@ -109,6 +152,16 @@ func GetAvailableTargets() []string {
 	}
 }
 
+// GetAllTargetTypes returns all valid target type strings (including universal)
+func GetAllTargetTypes() []string {
+	return []string{
+		string(TargetOpenCode),
+		string(TargetClaudeCode),
+		string(TargetCopilot),
+		string(TargetUniversal),
+	}
+}
+
 // DetectAllTargets returns all detected target environments that exist on the system
 // This checks which target directories are present and returns Target instances for each
 // Also includes custom targets from config file
@@ -118,7 +171,7 @@ func DetectAllTargets() ([]Target, error) {
 	// Check OpenCode
 	opencodeTarget, err := NewOpencodeTarget()
 	if err == nil {
-		baseDir, _ := opencodeTarget.GetBaseDir()
+		baseDir, _ := opencodeTarget.GetGlobalBaseDir()
 		if _, err := os.Stat(baseDir); err == nil {
 			targets = append(targets, opencodeTarget)
 		}
@@ -127,7 +180,7 @@ func DetectAllTargets() ([]Target, error) {
 	// Check Claude Code
 	claudeCodeTarget, err := NewClaudeCodeTarget()
 	if err == nil {
-		baseDir, _ := claudeCodeTarget.GetBaseDir()
+		baseDir, _ := claudeCodeTarget.GetGlobalBaseDir()
 		if _, err := os.Stat(baseDir); err == nil {
 			targets = append(targets, claudeCodeTarget)
 		}
@@ -136,7 +189,7 @@ func DetectAllTargets() ([]Target, error) {
 	// Check Copilot
 	copilotTarget, err := NewCopilotTarget()
 	if err == nil {
-		baseDir, _ := copilotTarget.GetBaseDir()
+		baseDir, _ := copilotTarget.GetGlobalBaseDir()
 		if _, err := os.Stat(baseDir); err == nil {
 			targets = append(targets, copilotTarget)
 		}
@@ -153,7 +206,7 @@ func DetectAllTargets() ([]Target, error) {
 				continue
 			}
 			// Check if the base directory exists
-			baseDir, _ := customTarget.GetBaseDir()
+			baseDir, _ := customTarget.GetGlobalBaseDir()
 			if _, err := os.Stat(baseDir); err == nil {
 				targets = append(targets, customTarget)
 			}

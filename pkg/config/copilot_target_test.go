@@ -5,13 +5,13 @@ import (
 	"testing"
 )
 
-func TestCopilotTarget_GetBaseDir(t *testing.T) {
+func TestCopilotTarget_GetGlobalBaseDir(t *testing.T) {
 	target, err := NewCopilotTarget()
 	if err != nil {
 		t.Fatalf("Failed to create copilot target: %v", err)
 	}
 
-	baseDir, err := target.GetBaseDir()
+	baseDir, err := target.GetGlobalBaseDir()
 	if err != nil {
 		t.Fatalf("Failed to get base dir: %v", err)
 	}
@@ -21,13 +21,13 @@ func TestCopilotTarget_GetBaseDir(t *testing.T) {
 	}
 }
 
-func TestCopilotTarget_GetSkillsDir(t *testing.T) {
+func TestCopilotTarget_GetGlobalSkillsDir(t *testing.T) {
 	target, err := NewCopilotTarget()
 	if err != nil {
 		t.Fatalf("Failed to create copilot target: %v", err)
 	}
 
-	skillsDir, err := target.GetSkillsDir()
+	skillsDir, err := target.GetGlobalSkillsDir()
 	if err != nil {
 		t.Fatalf("Failed to get skills dir: %v", err)
 	}
@@ -36,20 +36,20 @@ func TestCopilotTarget_GetSkillsDir(t *testing.T) {
 		t.Error("Skills dir should not be empty")
 	}
 
-	baseDir, _ := target.GetBaseDir()
+	baseDir, _ := target.GetGlobalBaseDir()
 	expectedSkillsDir := filepath.Join(baseDir, "skills")
 	if skillsDir != expectedSkillsDir {
 		t.Errorf("Expected skills dir %s, got %s", expectedSkillsDir, skillsDir)
 	}
 }
 
-func TestCopilotTarget_GetAgentsDir(t *testing.T) {
+func TestCopilotTarget_GetGlobalAgentsDir(t *testing.T) {
 	target, err := NewCopilotTarget()
 	if err != nil {
 		t.Fatalf("Failed to create copilot target: %v", err)
 	}
 
-	agentsDir, err := target.GetAgentsDir()
+	agentsDir, err := target.GetGlobalAgentsDir()
 	if err != nil {
 		t.Fatalf("Failed to get agents dir: %v", err)
 	}
@@ -58,20 +58,20 @@ func TestCopilotTarget_GetAgentsDir(t *testing.T) {
 		t.Error("Agents dir should not be empty")
 	}
 
-	baseDir, _ := target.GetBaseDir()
+	baseDir, _ := target.GetGlobalBaseDir()
 	expectedAgentsDir := filepath.Join(baseDir, "agents")
 	if agentsDir != expectedAgentsDir {
 		t.Errorf("Expected agents dir %s, got %s", expectedAgentsDir, agentsDir)
 	}
 }
 
-func TestCopilotTarget_GetCommandsDir(t *testing.T) {
+func TestCopilotTarget_GetGlobalCommandsDir(t *testing.T) {
 	target, err := NewCopilotTarget()
 	if err != nil {
 		t.Fatalf("Failed to create copilot target: %v", err)
 	}
 
-	commandsDir, err := target.GetCommandsDir()
+	commandsDir, err := target.GetGlobalCommandsDir()
 	if err != nil {
 		t.Fatalf("Failed to get commands dir: %v", err)
 	}
@@ -80,14 +80,14 @@ func TestCopilotTarget_GetCommandsDir(t *testing.T) {
 		t.Error("Commands dir should not be empty")
 	}
 
-	baseDir, _ := target.GetBaseDir()
+	baseDir, _ := target.GetGlobalBaseDir()
 	expectedCommandsDir := filepath.Join(baseDir, "commands")
 	if commandsDir != expectedCommandsDir {
 		t.Errorf("Expected commands dir %s, got %s", expectedCommandsDir, commandsDir)
 	}
 }
 
-func TestCopilotTarget_GetComponentDir(t *testing.T) {
+func TestCopilotTarget_GetGlobalComponentDir(t *testing.T) {
 	target, err := NewCopilotTarget()
 	if err != nil {
 		t.Fatalf("Failed to create copilot target: %v", err)
@@ -106,7 +106,7 @@ func TestCopilotTarget_GetComponentDir(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dir, err := target.GetComponentDir(tt.componentType)
+			dir, err := target.GetGlobalComponentDir(tt.componentType)
 			if tt.shouldError {
 				if err == nil {
 					t.Error("Expected error for invalid component type")
@@ -138,7 +138,7 @@ func TestCopilotTarget_GetDetectionConfigPath(t *testing.T) {
 		t.Error("Detection config path should not be empty")
 	}
 
-	baseDir, _ := target.GetBaseDir()
+	baseDir, _ := target.GetGlobalBaseDir()
 	expectedPath := filepath.Join(baseDir, "detection-config.json")
 	if configPath != expectedPath {
 		t.Errorf("Expected config path %s, got %s", expectedPath, configPath)
@@ -161,7 +161,7 @@ func TestCopilotTargetWithDir_CustomDirectory(t *testing.T) {
 	customDir := "/custom/copilot/path"
 	target := NewCopilotTargetWithDir(customDir)
 
-	baseDir, err := target.GetBaseDir()
+	baseDir, err := target.GetGlobalBaseDir()
 	if err != nil {
 		t.Fatalf("Failed to get base dir: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestCopilotTargetWithDir_CustomDirectory(t *testing.T) {
 	}
 
 	// Test that subdirectories are correct
-	skillsDir, _ := target.GetSkillsDir()
+	skillsDir, _ := target.GetGlobalSkillsDir()
 	expectedSkillsDir := filepath.Join(customDir, "skills")
 	if skillsDir != expectedSkillsDir {
 		t.Errorf("Expected skills dir %s, got %s", expectedSkillsDir, skillsDir)

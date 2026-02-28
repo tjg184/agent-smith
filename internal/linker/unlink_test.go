@@ -11,36 +11,56 @@ import (
 
 // mockTarget implements config.Target for testing
 type mockTarget struct {
-	name    string
-	baseDir string
+	name       string
+	baseDir    string
+	projectDir string
 }
 
 func (m *mockTarget) GetName() string {
 	return m.name
 }
 
-func (m *mockTarget) GetBaseDir() (string, error) {
+func (m *mockTarget) GetGlobalBaseDir() (string, error) {
 	return m.baseDir, nil
 }
 
-func (m *mockTarget) GetSkillsDir() (string, error) {
+func (m *mockTarget) GetGlobalSkillsDir() (string, error) {
 	return filepath.Join(m.baseDir, "skills"), nil
 }
 
-func (m *mockTarget) GetAgentsDir() (string, error) {
+func (m *mockTarget) GetGlobalAgentsDir() (string, error) {
 	return filepath.Join(m.baseDir, "agents"), nil
 }
 
-func (m *mockTarget) GetCommandsDir() (string, error) {
+func (m *mockTarget) GetGlobalCommandsDir() (string, error) {
 	return filepath.Join(m.baseDir, "commands"), nil
 }
 
-func (m *mockTarget) GetComponentDir(componentType string) (string, error) {
+func (m *mockTarget) GetGlobalComponentDir(componentType string) (string, error) {
 	return filepath.Join(m.baseDir, componentType), nil
 }
 
 func (m *mockTarget) GetDetectionConfigPath() (string, error) {
 	return filepath.Join(m.baseDir, ".detection-config.json"), nil
+}
+
+func (m *mockTarget) GetProjectDirName() string {
+	if m.projectDir != "" {
+		return m.projectDir
+	}
+	return ".mocktarget"
+}
+
+func (m *mockTarget) GetProjectBaseDir(projectRoot string) string {
+	return filepath.Join(projectRoot, m.GetProjectDirName())
+}
+
+func (m *mockTarget) GetProjectComponentDir(projectRoot, componentType string) (string, error) {
+	return filepath.Join(projectRoot, m.GetProjectDirName(), componentType), nil
+}
+
+func (m *mockTarget) IsUniversalTarget() bool {
+	return false
 }
 
 // setupTestEnvironment creates a test directory structure with source and targets
