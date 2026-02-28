@@ -786,3 +786,133 @@ func TestProfileManager_ActivateProfile_NonExistent(t *testing.T) {
 		t.Error("ActivateProfile() should return error for non-existent profile")
 	}
 }
+
+func TestProfileManager_GetAllAvailableComponents_WithSourceProfiles(t *testing.T) {
+	tempDir := t.TempDir()
+	profilesDir := filepath.Join(tempDir, "profiles")
+
+	profile1 := filepath.Join(profilesDir, "profile1")
+	if err := os.MkdirAll(filepath.Join(profile1, paths.SkillsSubDir), 0755); err != nil {
+		t.Fatalf("Failed to create profile1: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(profile1, paths.AgentsSubDir), 0755); err != nil {
+		t.Fatalf("Failed to create profile1 agents: %v", err)
+	}
+
+	profile2 := filepath.Join(profilesDir, "profile2")
+	if err := os.MkdirAll(filepath.Join(profile2, paths.SkillsSubDir), 0755); err != nil {
+		t.Fatalf("Failed to create profile2: %v", err)
+	}
+
+	// Create skill subdirectories (components are directories, not files)
+	if err := os.MkdirAll(filepath.Join(profile1, paths.SkillsSubDir, "skill1"), 0755); err != nil {
+		t.Fatalf("Failed to create skill1: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(profile1, paths.SkillsSubDir, "skill2"), 0755); err != nil {
+		t.Fatalf("Failed to create skill2: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(profile1, paths.AgentsSubDir, "agent1"), 0755); err != nil {
+		t.Fatalf("Failed to create agent1: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(profile2, paths.SkillsSubDir, "skill3"), 0755); err != nil {
+		t.Fatalf("Failed to create skill3: %v", err)
+	}
+
+	pm := &ProfileManager{profilesDir: profilesDir}
+
+	t.Run("Get components from specific profile", func(t *testing.T) {
+		components, err := pm.GetAllAvailableComponents([]string{"profile1"})
+		if err != nil {
+			t.Fatalf("GetAllAvailableComponents() error = %v", err)
+		}
+
+		// Should have 3 components from profile1 (2 skills + 1 agent)
+		if len(components) != 3 {
+			t.Errorf("Expected 3 components, got %d", len(components))
+		}
+
+		// Verify all are from profile1
+		for _, c := range components {
+			if c.SourceProfile != "profile1" {
+				t.Errorf("Expected source profile 'profile1', got '%s'", c.SourceProfile)
+			}
+		}
+
+		// Check we have the right types
+		skills := 0
+		agents := 0
+		for _, c := range components {
+			if c.Type == "skills" {
+				skills++
+			}
+			if c.Type == "agents" {
+				agents++
+			}
+		}
+		if skills != 2 {
+			t.Errorf("Expected 2 skills, got %d", skills)
+		}
+		if agents != 1 {
+			t.Errorf("Expected 1 agent, got %d", agents)
+		}
+	})
+
+	t.Run("Get components from multiple profiles", func(t *testing.T) {
+		components, err := pm.GetAllAvailableComponents([]string{"profile1", "profile2"})
+		if err != nil {
+			t.Fatalf("GetAllAvailableComponents() error = %v", err)
+		}
+
+		// Should have 4 components total (3 from profile1 + 1 from profile2)
+		if len(components) != 4 {
+			t.Errorf("Expected 4 components, got %d", len(components))
+		}
+	})
+
+	t.Run("Non-existent profile returns error", func(t *testing.T) {
+		_, err := pm.GetAllAvailableComponents([]string{"non-existent"})
+		if err == nil {
+			t.Error("Expected error for non-existent profile")
+		}
+	})
+}
+
+func TestProfileManager_GetAllAvailableComponents_EmptyProfiles(t *testing.T) {
+	tempDir := t.TempDir()
+	profilesDir := filepath.Join(tempDir, "profiles")
+
+	// Create an empty profiles directory
+	if err := os.MkdirAll(profilesDir, 0755); err != nil {
+		t.Fatalf("Failed to create profiles dir: %v", err)
+	}
+
+	pm := &ProfileManager{profilesDir: profilesDir}
+
+	// Should return empty list without error
+	components, err := pm.GetAllAvailableComponents([]string{})
+	if err != nil {
+		t.Fatalf("GetAllAvailableComponents() error = %v", err)
+	}
+
+	if len(components) != 0 {
+		t.Errorf("Expected 0 components for empty profiles dir, got %d", len(components))
+	}
+}
+
+func TestComponentItem_Structure(t *testing.T) {
+	item := ComponentItem{
+		Type:          "skills",
+		Name:          "test-skill",
+		SourceProfile: "work",
+	}
+
+	if item.Type != "skills" {
+		t.Errorf("Expected Type 'skills', got '%s'", item.Type)
+	}
+	if item.Name != "test-skill" {
+		t.Errorf("Expected Name 'test-skill', got '%s'", item.Name)
+	}
+	if item.SourceProfile != "work" {
+		t.Errorf("Expected SourceProfile 'work', got '%s'", item.SourceProfile)
+	}
+}
