@@ -162,7 +162,7 @@ func (s *Service) ListTargets() error {
 			continue
 		}
 
-		baseDir, _ := target.GetBaseDir()
+		baseDir, _ := target.GetGlobalBaseDir()
 		exists := false
 		if _, err := os.Stat(baseDir); err == nil {
 			exists = true
@@ -191,7 +191,7 @@ func (s *Service) ListTargets() error {
 			continue
 		}
 
-		baseDir, _ := customTarget.GetBaseDir()
+		baseDir, _ := customTarget.GetGlobalBaseDir()
 		exists := false
 		if _, err := os.Stat(baseDir); err == nil {
 			exists = true

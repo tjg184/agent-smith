@@ -255,11 +255,12 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 	symlinkRegistry := make(map[string]string)
 
 	for _, tgt := range targets {
-		targetDir := project.GetTargetDirectory(projectRoot, tgt)
-		if targetDir == "" {
+		target, err := config.NewTargetForProject(tgt, projectRoot)
+		if err != nil {
 			fmt.Println(errors.NewInvalidTargetError(tgt).Format())
 			return fmt.Errorf("invalid target: %s", tgt)
 		}
+		targetDir := target.GetProjectBaseDir(projectRoot)
 
 		// Load materialization metadata to check for filesystem name conflicts
 		matMetadata, err := project.LoadMaterializationMetadata(targetDir)
@@ -620,7 +621,12 @@ func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error 
 
 	// Check each target
 	for _, targetName := range []string{"opencode", "claudecode", "copilot"} {
-		targetDir := project.GetTargetDirectory(projectRoot, targetName)
+		target, err := config.NewTargetForProject(targetName, projectRoot)
+		if err != nil {
+			s.logger.Debug("Failed to create target %s: %v", targetName, err)
+			continue
+		}
+		targetDir := target.GetProjectBaseDir(projectRoot)
 
 		// Check if target directory exists
 		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
@@ -766,7 +772,12 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 
 	// Check each target
 	for _, targetName := range targetsToCheck {
-		targetDir := project.GetTargetDirectory(projectRoot, targetName)
+		target, err := config.NewTargetForProject(targetName, projectRoot)
+		if err != nil {
+			s.logger.Debug("Failed to create target %s: %v", targetName, err)
+			continue
+		}
+		targetDir := target.GetProjectBaseDir(projectRoot)
 
 		// Check if target directory exists
 		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
@@ -883,7 +894,11 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 			// Collect available components from all targets
 			var availableComponents []string
 			for _, targetName := range []string{"opencode", "claudecode", "copilot"} {
-				targetDir := project.GetTargetDirectory(projectRoot, targetName)
+				target, err := config.NewTargetForProject(targetName, projectRoot)
+				if err != nil {
+					continue
+				}
+				targetDir := target.GetProjectBaseDir(projectRoot)
 				if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 					continue
 				}
@@ -938,7 +953,12 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 
 	// Check each target
 	for _, targetName := range targetsToCheck {
-		targetDir := project.GetTargetDirectory(projectRoot, targetName)
+		target, err := config.NewTargetForProject(targetName, projectRoot)
+		if err != nil {
+			s.logger.Debug("Failed to create target %s: %v", targetName, err)
+			continue
+		}
+		targetDir := target.GetProjectBaseDir(projectRoot)
 
 		// Check if target directory exists
 		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
@@ -1114,7 +1134,12 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 
 	// Update each target
 	for _, targetName := range targetsToUpdate {
-		targetDir := project.GetTargetDirectory(projectRoot, targetName)
+		target, err := config.NewTargetForProject(targetName, projectRoot)
+		if err != nil {
+			s.logger.Debug("Failed to create target %s: %v", targetName, err)
+			continue
+		}
+		targetDir := target.GetProjectBaseDir(projectRoot)
 
 		// Check if target directory exists
 		if _, err := os.Stat(targetDir); os.IsNotExist(err) {

@@ -6,10 +6,11 @@ import (
 	"testing"
 )
 
-func TestCustomTarget_GetBaseDir(t *testing.T) {
+func TestCustomTarget_GetGlobalBaseDir(t *testing.T) {
 	config := CustomTargetConfig{
 		Name:        "test-target",
 		BaseDir:     "/test/custom",
+		ProjectDir:  ".custom",
 		SkillsDir:   "skills",
 		AgentsDir:   "agents",
 		CommandsDir: "commands",
@@ -20,7 +21,7 @@ func TestCustomTarget_GetBaseDir(t *testing.T) {
 		t.Fatalf("Expected no error creating target, got %v", err)
 	}
 
-	baseDir, err := target.GetBaseDir()
+	baseDir, err := target.GetGlobalBaseDir()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -32,10 +33,11 @@ func TestCustomTarget_GetBaseDir(t *testing.T) {
 	}
 }
 
-func TestCustomTarget_GetSkillsDir(t *testing.T) {
+func TestCustomTarget_GetGlobalSkillsDir(t *testing.T) {
 	config := CustomTargetConfig{
 		Name:        "test-target",
 		BaseDir:     "/test/custom",
+		ProjectDir:  ".custom",
 		SkillsDir:   "my-skills",
 		AgentsDir:   "agents",
 		CommandsDir: "commands",
@@ -46,7 +48,7 @@ func TestCustomTarget_GetSkillsDir(t *testing.T) {
 		t.Fatalf("Expected no error creating target, got %v", err)
 	}
 
-	skillsDir, err := target.GetSkillsDir()
+	skillsDir, err := target.GetGlobalSkillsDir()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -58,10 +60,11 @@ func TestCustomTarget_GetSkillsDir(t *testing.T) {
 	}
 }
 
-func TestCustomTarget_GetAgentsDir(t *testing.T) {
+func TestCustomTarget_GetGlobalAgentsDir(t *testing.T) {
 	config := CustomTargetConfig{
 		Name:        "test-target",
 		BaseDir:     "/test/custom",
+		ProjectDir:  ".custom",
 		SkillsDir:   "skills",
 		AgentsDir:   "my-agents",
 		CommandsDir: "commands",
@@ -72,7 +75,7 @@ func TestCustomTarget_GetAgentsDir(t *testing.T) {
 		t.Fatalf("Expected no error creating target, got %v", err)
 	}
 
-	agentsDir, err := target.GetAgentsDir()
+	agentsDir, err := target.GetGlobalAgentsDir()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -84,10 +87,11 @@ func TestCustomTarget_GetAgentsDir(t *testing.T) {
 	}
 }
 
-func TestCustomTarget_GetCommandsDir(t *testing.T) {
+func TestCustomTarget_GetGlobalCommandsDir(t *testing.T) {
 	config := CustomTargetConfig{
 		Name:        "test-target",
 		BaseDir:     "/test/custom",
+		ProjectDir:  ".custom",
 		SkillsDir:   "skills",
 		AgentsDir:   "agents",
 		CommandsDir: "my-commands",
@@ -98,7 +102,7 @@ func TestCustomTarget_GetCommandsDir(t *testing.T) {
 		t.Fatalf("Expected no error creating target, got %v", err)
 	}
 
-	commandsDir, err := target.GetCommandsDir()
+	commandsDir, err := target.GetGlobalCommandsDir()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -110,10 +114,11 @@ func TestCustomTarget_GetCommandsDir(t *testing.T) {
 	}
 }
 
-func TestCustomTarget_GetComponentDir(t *testing.T) {
+func TestCustomTarget_GetGlobalComponentDir(t *testing.T) {
 	config := CustomTargetConfig{
 		Name:        "test-target",
 		BaseDir:     "/test/custom",
+		ProjectDir:  ".custom",
 		SkillsDir:   "skills",
 		AgentsDir:   "agents",
 		CommandsDir: "commands",
@@ -159,7 +164,7 @@ func TestCustomTarget_GetComponentDir(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dir, err := target.GetComponentDir(tt.componentType)
+			dir, err := target.GetGlobalComponentDir(tt.componentType)
 
 			if tt.shouldError {
 				if err == nil {
@@ -181,6 +186,7 @@ func TestCustomTarget_GetName(t *testing.T) {
 	config := CustomTargetConfig{
 		Name:        "my-custom-target",
 		BaseDir:     "/test/custom",
+		ProjectDir:  ".custom",
 		SkillsDir:   "skills",
 		AgentsDir:   "agents",
 		CommandsDir: "commands",
@@ -208,6 +214,7 @@ func TestCustomTarget_TildeExpansion(t *testing.T) {
 	config := CustomTargetConfig{
 		Name:        "test-target",
 		BaseDir:     "~/test/custom",
+		ProjectDir:  ".custom",
 		SkillsDir:   "skills",
 		AgentsDir:   "agents",
 		CommandsDir: "commands",
@@ -218,7 +225,7 @@ func TestCustomTarget_TildeExpansion(t *testing.T) {
 		t.Fatalf("Expected no error creating target, got %v", err)
 	}
 
-	baseDir, err := target.GetBaseDir()
+	baseDir, err := target.GetGlobalBaseDir()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -240,6 +247,7 @@ func TestCustomTarget_InvalidConfig(t *testing.T) {
 			config: CustomTargetConfig{
 				Name:        "",
 				BaseDir:     "/test/custom",
+				ProjectDir:  ".custom",
 				SkillsDir:   "skills",
 				AgentsDir:   "agents",
 				CommandsDir: "commands",
@@ -250,6 +258,7 @@ func TestCustomTarget_InvalidConfig(t *testing.T) {
 			config: CustomTargetConfig{
 				Name:        "test/target",
 				BaseDir:     "/test/custom",
+				ProjectDir:  ".custom",
 				SkillsDir:   "skills",
 				AgentsDir:   "agents",
 				CommandsDir: "commands",
@@ -260,6 +269,7 @@ func TestCustomTarget_InvalidConfig(t *testing.T) {
 			config: CustomTargetConfig{
 				Name:        "test-target",
 				BaseDir:     "",
+				ProjectDir:  ".custom",
 				SkillsDir:   "skills",
 				AgentsDir:   "agents",
 				CommandsDir: "commands",
@@ -270,6 +280,7 @@ func TestCustomTarget_InvalidConfig(t *testing.T) {
 			config: CustomTargetConfig{
 				Name:        "test-target",
 				BaseDir:     "/test/custom",
+				ProjectDir:  ".custom",
 				SkillsDir:   "",
 				AgentsDir:   "agents",
 				CommandsDir: "commands",
@@ -280,6 +291,7 @@ func TestCustomTarget_InvalidConfig(t *testing.T) {
 			config: CustomTargetConfig{
 				Name:        "test-target",
 				BaseDir:     "/test/custom",
+				ProjectDir:  ".custom",
 				SkillsDir:   "my/skills",
 				AgentsDir:   "agents",
 				CommandsDir: "commands",

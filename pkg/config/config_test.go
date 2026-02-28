@@ -12,6 +12,7 @@ func TestValidateCustomTargetConfig_Valid(t *testing.T) {
 		{
 			Name:        "cursor",
 			BaseDir:     "~/.cursor",
+			ProjectDir:  ".cursor",
 			SkillsDir:   "skills",
 			AgentsDir:   "agents",
 			CommandsDir: "commands",
@@ -19,6 +20,7 @@ func TestValidateCustomTargetConfig_Valid(t *testing.T) {
 		{
 			Name:        "vscode-123",
 			BaseDir:     "/opt/vscode/agent-smith",
+			ProjectDir:  ".vscode",
 			SkillsDir:   "skills",
 			AgentsDir:   "agents",
 			CommandsDir: "commands",
@@ -26,6 +28,7 @@ func TestValidateCustomTargetConfig_Valid(t *testing.T) {
 		{
 			Name:        "my_custom_target",
 			BaseDir:     "./relative/path",
+			ProjectDir:  ".custom",
 			SkillsDir:   "skills",
 			AgentsDir:   "agents",
 			CommandsDir: "commands",
@@ -146,6 +149,7 @@ func TestValidateConfig_Valid(t *testing.T) {
 			{
 				Name:        "cursor",
 				BaseDir:     "~/.cursor",
+				ProjectDir:  ".cursor",
 				SkillsDir:   "skills",
 				AgentsDir:   "agents",
 				CommandsDir: "commands",
@@ -153,6 +157,7 @@ func TestValidateConfig_Valid(t *testing.T) {
 			{
 				Name:        "vscode",
 				BaseDir:     "~/.vscode/agent-smith",
+				ProjectDir:  ".vscode",
 				SkillsDir:   "skills",
 				AgentsDir:   "agents",
 				CommandsDir: "commands",
@@ -173,6 +178,7 @@ func TestValidateConfig_DuplicateNames(t *testing.T) {
 			{
 				Name:        "cursor",
 				BaseDir:     "~/.cursor",
+				ProjectDir:  ".cursor",
 				SkillsDir:   "skills",
 				AgentsDir:   "agents",
 				CommandsDir: "commands",
@@ -180,6 +186,7 @@ func TestValidateConfig_DuplicateNames(t *testing.T) {
 			{
 				Name:        "Cursor", // Same name, different case
 				BaseDir:     "~/.cursor2",
+				ProjectDir:  ".cursor2",
 				SkillsDir:   "skills",
 				AgentsDir:   "agents",
 				CommandsDir: "commands",
@@ -296,6 +303,7 @@ func TestSaveAndLoadConfig(t *testing.T) {
 			{
 				Name:        "cursor",
 				BaseDir:     "~/.cursor",
+				ProjectDir:  ".cursor",
 				SkillsDir:   "skills",
 				AgentsDir:   "agents",
 				CommandsDir: "commands",
@@ -303,6 +311,7 @@ func TestSaveAndLoadConfig(t *testing.T) {
 			{
 				Name:        "vscode",
 				BaseDir:     "~/.vscode/agent-smith",
+				ProjectDir:  ".vscode",
 				SkillsDir:   "my-skills",
 				AgentsDir:   "my-agents",
 				CommandsDir: "my-commands",

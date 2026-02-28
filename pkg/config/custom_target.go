@@ -12,6 +12,7 @@ type CustomTarget struct {
 	skillsDir   string
 	agentsDir   string
 	commandsDir string
+	projectDir  string
 }
 
 // NewCustomTarget creates a new CustomTarget from a CustomTargetConfig
@@ -33,44 +34,51 @@ func NewCustomTarget(config CustomTargetConfig) (*CustomTarget, error) {
 		return nil, fmt.Errorf("failed to resolve base directory: %w", err)
 	}
 
+	// Validate projectDir if provided (required for materialize support)
+	projectDir := config.ProjectDir
+	if projectDir == "" {
+		return nil, fmt.Errorf("custom target '%s' must have ProjectDir configured for materialize support", config.Name)
+	}
+
 	return &CustomTarget{
 		name:        config.Name,
 		baseDir:     absBaseDir,
 		skillsDir:   config.SkillsDir,
 		agentsDir:   config.AgentsDir,
 		commandsDir: config.CommandsDir,
+		projectDir:  projectDir,
 	}, nil
 }
 
-// GetBaseDir returns the base directory for this target
-func (t *CustomTarget) GetBaseDir() (string, error) {
+// GetGlobalBaseDir returns the base directory for this target
+func (t *CustomTarget) GetGlobalBaseDir() (string, error) {
 	return t.baseDir, nil
 }
 
-// GetSkillsDir returns the directory where skills should be linked
-func (t *CustomTarget) GetSkillsDir() (string, error) {
+// GetGlobalSkillsDir returns the directory where skills should be linked
+func (t *CustomTarget) GetGlobalSkillsDir() (string, error) {
 	return filepath.Join(t.baseDir, t.skillsDir), nil
 }
 
-// GetAgentsDir returns the directory where agents should be linked
-func (t *CustomTarget) GetAgentsDir() (string, error) {
+// GetGlobalAgentsDir returns the directory where agents should be linked
+func (t *CustomTarget) GetGlobalAgentsDir() (string, error) {
 	return filepath.Join(t.baseDir, t.agentsDir), nil
 }
 
-// GetCommandsDir returns the directory where commands should be linked
-func (t *CustomTarget) GetCommandsDir() (string, error) {
+// GetGlobalCommandsDir returns the directory where commands should be linked
+func (t *CustomTarget) GetGlobalCommandsDir() (string, error) {
 	return filepath.Join(t.baseDir, t.commandsDir), nil
 }
 
-// GetComponentDir returns the directory for a specific component type
-func (t *CustomTarget) GetComponentDir(componentType string) (string, error) {
+// GetGlobalComponentDir returns the directory for a specific component type
+func (t *CustomTarget) GetGlobalComponentDir(componentType string) (string, error) {
 	switch componentType {
 	case "skills":
-		return t.GetSkillsDir()
+		return t.GetGlobalSkillsDir()
 	case "agents":
-		return t.GetAgentsDir()
+		return t.GetGlobalAgentsDir()
 	case "commands":
-		return t.GetCommandsDir()
+		return t.GetGlobalCommandsDir()
 	default:
 		return "", fmt.Errorf("unknown component type: %s", componentType)
 	}
@@ -84,6 +92,26 @@ func (t *CustomTarget) GetDetectionConfigPath() (string, error) {
 // GetName returns the human-readable name of this target
 func (t *CustomTarget) GetName() string {
 	return t.name
+}
+
+// GetProjectDirName returns the directory name used in projects
+func (t *CustomTarget) GetProjectDirName() string {
+	return t.projectDir
+}
+
+// GetProjectBaseDir returns the base directory within a project
+func (t *CustomTarget) GetProjectBaseDir(projectRoot string) string {
+	return filepath.Join(projectRoot, t.projectDir)
+}
+
+// GetProjectComponentDir returns the component directory within a project
+func (t *CustomTarget) GetProjectComponentDir(projectRoot, componentType string) (string, error) {
+	return filepath.Join(projectRoot, t.projectDir, componentType), nil
+}
+
+// IsUniversalTarget returns false for custom targets (they are editor-specific)
+func (t *CustomTarget) IsUniversalTarget() bool {
+	return false
 }
 
 // IsCustom returns true to indicate this is a custom target (not built-in)

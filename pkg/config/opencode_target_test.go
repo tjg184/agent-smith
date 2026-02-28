@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-func TestOpencodeTarget_GetBaseDir(t *testing.T) {
+func TestOpencodeTarget_GetGlobalBaseDir(t *testing.T) {
 	target := NewOpencodeTargetWithDir("/test/opencode")
 
-	baseDir, err := target.GetBaseDir()
+	baseDir, err := target.GetGlobalBaseDir()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -19,10 +19,10 @@ func TestOpencodeTarget_GetBaseDir(t *testing.T) {
 	}
 }
 
-func TestOpencodeTarget_GetSkillsDir(t *testing.T) {
+func TestOpencodeTarget_GetGlobalSkillsDir(t *testing.T) {
 	target := NewOpencodeTargetWithDir("/test/opencode")
 
-	skillsDir, err := target.GetSkillsDir()
+	skillsDir, err := target.GetGlobalSkillsDir()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -33,10 +33,10 @@ func TestOpencodeTarget_GetSkillsDir(t *testing.T) {
 	}
 }
 
-func TestOpencodeTarget_GetAgentsDir(t *testing.T) {
+func TestOpencodeTarget_GetGlobalAgentsDir(t *testing.T) {
 	target := NewOpencodeTargetWithDir("/test/opencode")
 
-	agentsDir, err := target.GetAgentsDir()
+	agentsDir, err := target.GetGlobalAgentsDir()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -47,10 +47,10 @@ func TestOpencodeTarget_GetAgentsDir(t *testing.T) {
 	}
 }
 
-func TestOpencodeTarget_GetCommandsDir(t *testing.T) {
+func TestOpencodeTarget_GetGlobalCommandsDir(t *testing.T) {
 	target := NewOpencodeTargetWithDir("/test/opencode")
 
-	commandsDir, err := target.GetCommandsDir()
+	commandsDir, err := target.GetGlobalCommandsDir()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -61,7 +61,7 @@ func TestOpencodeTarget_GetCommandsDir(t *testing.T) {
 	}
 }
 
-func TestOpencodeTarget_GetComponentDir(t *testing.T) {
+func TestOpencodeTarget_GetGlobalComponentDir(t *testing.T) {
 	target := NewOpencodeTargetWithDir("/test/opencode")
 
 	tests := []struct {
@@ -97,7 +97,7 @@ func TestOpencodeTarget_GetComponentDir(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dir, err := target.GetComponentDir(tt.componentType)
+			dir, err := target.GetGlobalComponentDir(tt.componentType)
 
 			if tt.shouldError {
 				if err == nil {
@@ -151,7 +151,7 @@ func TestNewOpencodeTarget(t *testing.T) {
 	}
 
 	// Verify it has a base dir set
-	baseDir, err := target.GetBaseDir()
+	baseDir, err := target.GetGlobalBaseDir()
 	if err != nil {
 		t.Fatalf("Expected no error getting base dir, got %v", err)
 	}

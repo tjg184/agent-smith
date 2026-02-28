@@ -106,23 +106,6 @@ func FindProjectRootFromDir(startDir string) (string, error) {
 		"  3. Or initialize version control: git init")
 }
 
-// GetTargetDirectory returns the target directory path for a given target name
-// (opencode, claudecode, copilot, or universal) within the project root.
-func GetTargetDirectory(projectRoot, targetName string) string {
-	switch targetName {
-	case "opencode":
-		return filepath.Join(projectRoot, ".opencode")
-	case "claudecode":
-		return filepath.Join(projectRoot, ".claude")
-	case "copilot":
-		return filepath.Join(projectRoot, ".github")
-	case "universal":
-		return filepath.Join(projectRoot, ".agents")
-	default:
-		return ""
-	}
-}
-
 // EnsureTargetStructure creates the target directory structure if it doesn't exist.
 // Creates the target directory and subdirectories: skills/, agents/, commands/
 // Returns true if any directories were created (structure was initialized), false if all existed.

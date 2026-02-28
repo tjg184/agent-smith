@@ -7,64 +7,64 @@ import (
 	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
-func TestUniversalTarget_GetBaseDir(t *testing.T) {
+func TestUniversalTarget_GetGlobalBaseDir(t *testing.T) {
 	target, err := NewUniversalTarget()
 	if err != nil {
 		t.Fatalf("NewUniversalTarget() error = %v", err)
 	}
 
-	_, err = target.GetBaseDir()
+	_, err = target.GetGlobalBaseDir()
 	if err == nil {
-		t.Error("GetBaseDir() expected error for universal target without base dir, got nil")
+		t.Error("GetGlobalBaseDir() expected error for universal target without base dir, got nil")
 	}
 }
 
-func TestUniversalTarget_GetSkillsDir(t *testing.T) {
+func TestUniversalTarget_GetGlobalSkillsDir(t *testing.T) {
 	testDir := "/test/project/.agents"
 	target := NewUniversalTargetWithDir(testDir)
 
-	got, err := target.GetSkillsDir()
+	got, err := target.GetGlobalSkillsDir()
 	if err != nil {
-		t.Fatalf("GetSkillsDir() error = %v", err)
+		t.Fatalf("GetGlobalSkillsDir() error = %v", err)
 	}
 
 	want := filepath.Join(testDir, paths.SkillsSubDir)
 	if got != want {
-		t.Errorf("GetSkillsDir() = %v, want %v", got, want)
+		t.Errorf("GetGlobalSkillsDir() = %v, want %v", got, want)
 	}
 }
 
-func TestUniversalTarget_GetAgentsDir(t *testing.T) {
+func TestUniversalTarget_GetGlobalAgentsDir(t *testing.T) {
 	testDir := "/test/project/.agents"
 	target := NewUniversalTargetWithDir(testDir)
 
-	got, err := target.GetAgentsDir()
+	got, err := target.GetGlobalAgentsDir()
 	if err != nil {
-		t.Fatalf("GetAgentsDir() error = %v", err)
+		t.Fatalf("GetGlobalAgentsDir() error = %v", err)
 	}
 
 	want := filepath.Join(testDir, paths.AgentsSubDir)
 	if got != want {
-		t.Errorf("GetAgentsDir() = %v, want %v", got, want)
+		t.Errorf("GetGlobalAgentsDir() = %v, want %v", got, want)
 	}
 }
 
-func TestUniversalTarget_GetCommandsDir(t *testing.T) {
+func TestUniversalTarget_GetGlobalCommandsDir(t *testing.T) {
 	testDir := "/test/project/.agents"
 	target := NewUniversalTargetWithDir(testDir)
 
-	got, err := target.GetCommandsDir()
+	got, err := target.GetGlobalCommandsDir()
 	if err != nil {
-		t.Fatalf("GetCommandsDir() error = %v", err)
+		t.Fatalf("GetGlobalCommandsDir() error = %v", err)
 	}
 
 	want := filepath.Join(testDir, paths.CommandsSubDir)
 	if got != want {
-		t.Errorf("GetCommandsDir() = %v, want %v", got, want)
+		t.Errorf("GetGlobalCommandsDir() = %v, want %v", got, want)
 	}
 }
 
-func TestUniversalTarget_GetComponentDir(t *testing.T) {
+func TestUniversalTarget_GetGlobalComponentDir(t *testing.T) {
 	testDir := "/test/project/.agents"
 	target := NewUniversalTargetWithDir(testDir)
 
@@ -102,13 +102,13 @@ func TestUniversalTarget_GetComponentDir(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := target.GetComponentDir(tt.componentType)
+			got, err := target.GetGlobalComponentDir(tt.componentType)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetComponentDir() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetGlobalComponentDir() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("GetComponentDir() = %v, want %v", got, tt.want)
+				t.Errorf("GetGlobalComponentDir() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -146,13 +146,13 @@ func TestUniversalTargetWithDir_CustomDirectory(t *testing.T) {
 	customDir := "/custom/path/.agents"
 	target := NewUniversalTargetWithDir(customDir)
 
-	baseDir, err := target.GetBaseDir()
+	baseDir, err := target.GetGlobalBaseDir()
 	if err != nil {
-		t.Fatalf("GetBaseDir() error = %v", err)
+		t.Fatalf("GetGlobalBaseDir() error = %v", err)
 	}
 
 	if baseDir != customDir {
-		t.Errorf("GetBaseDir() = %v, want %v", baseDir, customDir)
+		t.Errorf("GetGlobalBaseDir() = %v, want %v", baseDir, customDir)
 	}
 }
 
@@ -163,19 +163,19 @@ func TestUniversalTarget_RequiresProjectContext(t *testing.T) {
 	}
 
 	// All directory methods should return error when no base dir is set
-	_, err = target.GetSkillsDir()
+	_, err = target.GetGlobalSkillsDir()
 	if err == nil {
-		t.Error("GetSkillsDir() expected error without project context, got nil")
+		t.Error("GetGlobalSkillsDir() expected error without project context, got nil")
 	}
 
-	_, err = target.GetAgentsDir()
+	_, err = target.GetGlobalAgentsDir()
 	if err == nil {
-		t.Error("GetAgentsDir() expected error without project context, got nil")
+		t.Error("GetGlobalAgentsDir() expected error without project context, got nil")
 	}
 
-	_, err = target.GetCommandsDir()
+	_, err = target.GetGlobalCommandsDir()
 	if err == nil {
-		t.Error("GetCommandsDir() expected error without project context, got nil")
+		t.Error("GetGlobalCommandsDir() expected error without project context, got nil")
 	}
 
 	_, err = target.GetDetectionConfigPath()

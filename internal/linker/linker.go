@@ -82,7 +82,7 @@ func NewComponentLinker(agentsDir string, targets []config.Target, det *detector
 
 	// Create target base directories if they don't exist
 	for _, target := range targets {
-		targetDir, err := target.GetBaseDir()
+		targetDir, err := target.GetGlobalBaseDir()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get target base directory: %w", err)
 		}
@@ -227,7 +227,7 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 		targetName := target.GetName()
 
 		// Get destination directory from target
-		componentDir, err := target.GetComponentDir(componentType)
+		componentDir, err := target.GetGlobalComponentDir(componentType)
 		if err != nil {
 			linkResults = append(linkResults, linkResult{
 				name:    targetName,
@@ -611,7 +611,7 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 				}
 				for _, target := range cl.targets {
 					// Get destination directory from target
-					componentDir, err := target.GetComponentDir(componentType)
+					componentDir, err := target.GetGlobalComponentDir(componentType)
 					if err != nil {
 						fmt.Printf("Warning: failed to get target component directory for %s: %v\n", target.GetName(), err)
 						continue
@@ -733,7 +733,7 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 		brokenCount := 0
 
 		for _, componentType := range componentTypes {
-			componentDir, err := target.GetComponentDir(componentType)
+			componentDir, err := target.GetGlobalComponentDir(componentType)
 			if err != nil {
 				return fmt.Errorf("failed to get target component directory: %w", err)
 			}
@@ -791,7 +791,7 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 
 		// Get target info for display
 		targetName := target.GetName()
-		targetDir, _ := target.GetBaseDir()
+		targetDir, _ := target.GetGlobalBaseDir()
 
 		// Display results for this target
 		fmt.Printf("\n=== %s ===\n", displayName(targetName))
@@ -917,7 +917,7 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 		}
 
 		for _, target := range cl.targets {
-			componentDir, err := target.GetComponentDir(comp.Type)
+			componentDir, err := target.GetGlobalComponentDir(comp.Type)
 			if err != nil {
 				status.Targets[target.GetName()] = colors.Warning("?")
 				continue
@@ -1230,7 +1230,7 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 
 		// For each target, check the link status
 		for _, target := range cl.targets {
-			componentDir, err := target.GetComponentDir(comp.Type)
+			componentDir, err := target.GetGlobalComponentDir(comp.Type)
 			if err != nil {
 				status.Targets[target.GetName()] = colors.Warning("?")
 				continue
@@ -1472,7 +1472,7 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 	}
 
 	for _, target := range targetsToUnlink {
-		componentDir, err := target.GetComponentDir(componentType)
+		componentDir, err := target.GetGlobalComponentDir(componentType)
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("failed to get target component directory for %s: %v", target.GetName(), err))
 			failedCount++
@@ -1591,7 +1591,7 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 
 	// First, collect all symlinks across all targets
 	for _, target := range targetsToUnlink {
-		componentDir, err := target.GetComponentDir(componentType)
+		componentDir, err := target.GetGlobalComponentDir(componentType)
 		if err != nil {
 			return fmt.Errorf("failed to get target component directory: %w", err)
 		}
@@ -1679,7 +1679,7 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 	errorCount := 0
 
 	for _, target := range targetsToUnlink {
-		componentDir, err := target.GetComponentDir(componentType)
+		componentDir, err := target.GetGlobalComponentDir(componentType)
 		if err != nil {
 			return fmt.Errorf("failed to get target component directory: %w", err)
 		}
@@ -1879,7 +1879,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 
 	for _, target := range targetsToUnlink {
 		for _, componentType := range componentTypes {
-			componentDir, err := target.GetComponentDir(componentType)
+			componentDir, err := target.GetGlobalComponentDir(componentType)
 			if err != nil {
 				return fmt.Errorf("failed to get target component directory: %w", err)
 			}
@@ -2068,7 +2068,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 
 	for _, target := range targetsToUnlink {
 		for _, componentType := range componentTypes {
-			componentDir, err := target.GetComponentDir(componentType)
+			componentDir, err := target.GetGlobalComponentDir(componentType)
 			if err != nil {
 				return fmt.Errorf("failed to get target component directory: %w", err)
 			}

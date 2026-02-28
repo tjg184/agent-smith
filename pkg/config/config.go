@@ -76,10 +76,12 @@ type Config struct {
 // Validation rules:
 //   - name: Cannot be empty, must match ^[a-zA-Z0-9_-]+$, case-insensitive unique
 //   - baseDir: Cannot be empty, must be a valid path (absolute or with ~)
+//   - projectDir: Cannot be empty, used for project-relative paths (e.g., ".custom")
 //   - skillsDir/agentsDir/commandsDir: Cannot be empty, no path separators, not "." or ".."
 type CustomTargetConfig struct {
 	Name        string `json:"name"`        // Unique target identifier
 	BaseDir     string `json:"baseDir"`     // Root directory for target configuration
+	ProjectDir  string `json:"projectDir"`  // Directory name used in projects (e.g., ".custom")
 	SkillsDir   string `json:"skillsDir"`   // Skills subdirectory name
 	AgentsDir   string `json:"agentsDir"`   // Agents subdirectory name
 	CommandsDir string `json:"commandsDir"` // Commands subdirectory name
@@ -332,6 +334,7 @@ func validateConfig(config *Config) error {
 // Validation rules:
 //   - name: Cannot be empty, must match pattern ^[a-zA-Z0-9_-]+$
 //   - baseDir: Cannot be empty, must be a valid path (supports ~ expansion)
+//   - projectDir: Cannot be empty, must be a simple directory name (for project-relative paths)
 //   - skillsDir, agentsDir, commandsDir: Cannot be empty, must be simple directory
 //     names without path separators, cannot be "." or ".."
 //
@@ -363,6 +366,14 @@ func validateCustomTargetConfig(target *CustomTargetConfig) error {
 		return fmt.Errorf("invalid baseDir path %q: %w", target.BaseDir, err)
 	}
 	_ = absBaseDir // We've validated it, but we don't modify the original value
+
+	// Validate projectDir
+	if target.ProjectDir == "" {
+		return fmt.Errorf("projectDir cannot be empty (required for materialize support)")
+	}
+	if err := validateSubdirectoryName(target.ProjectDir, "projectDir"); err != nil {
+		return err
+	}
 
 	// Validate subdirectory names
 	if err := validateSubdirectoryName(target.SkillsDir, "skillsDir"); err != nil {
