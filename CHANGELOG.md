@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0](https://github.com/tjg184/agent-smith/compare/v1.2.0...v1.3.0) (2026-02-28)
+
+
+### Features
+
+* add flag for linked only ([#29](https://github.com/tjg184/agent-smith/issues/29)) ([34092bc](https://github.com/tjg184/agent-smith/commit/34092bcea8d0c1feebfeb6b5428cb3e44292efb2))
+
+
+### Bug Fixes
+
+* link status showing base components ([#31](https://github.com/tjg184/agent-smith/issues/31)) ([75df727](https://github.com/tjg184/agent-smith/commit/75df727245c3f645335361746179be1bd9ac0b8a))
+
 ## [1.2.0](https://github.com/tjg184/agent-smith/compare/v1.1.0...v1.2.0) (2026-02-23)
 
 
