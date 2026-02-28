@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/tjg184/agent-smith/compare/v1.3.0...v1.3.1) (2026-02-28)
+
+
+### Bug Fixes
+
+* cherry pick not activating ([#33](https://github.com/tjg184/agent-smith/issues/33)) ([5a21826](https://github.com/tjg184/agent-smith/commit/5a21826f76b8805102492456c4c001004caa3654))
+
 ## [1.3.0](https://github.com/tjg184/agent-smith/compare/v1.2.0...v1.3.0) (2026-02-28)
 
 
