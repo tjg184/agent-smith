@@ -840,9 +840,10 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 
 	// Collect all unique components from source directory
 	type ComponentInfo struct {
-		Name    string
-		Type    string
-		Profile string
+		Name     string
+		Type     string
+		Profile  string
+		BasePath string // Full path to the profile or base directory
 	}
 	allComponents := make([]ComponentInfo, 0)
 
@@ -866,9 +867,10 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 			componentPath := filepath.Join(sourceDir, entry.Name())
 			profile := getProfileFromPath(componentPath)
 			allComponents = append(allComponents, ComponentInfo{
-				Name:    entry.Name(),
-				Type:    componentType,
-				Profile: profile,
+				Name:     entry.Name(),
+				Type:     componentType,
+				Profile:  profile,
+				BasePath: cl.agentsDir,
 			})
 		}
 	}
@@ -1030,9 +1032,10 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 
 	// Collect all unique components from all profiles
 	type ComponentInfo struct {
-		Name    string
-		Type    string
-		Profile string
+		Name     string
+		Type     string
+		Profile  string
+		BasePath string // Full path to the profile or base directory
 	}
 	allComponents := make([]ComponentInfo, 0)
 
@@ -1063,9 +1066,10 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 				continue
 			}
 			baseComponents = append(baseComponents, ComponentInfo{
-				Name:    entry.Name(),
-				Type:    componentType,
-				Profile: paths.BaseProfileName,
+				Name:     entry.Name(),
+				Type:     componentType,
+				Profile:  paths.BaseProfileName,
+				BasePath: baseDir,
 			})
 		}
 	}
@@ -1148,9 +1152,10 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 					continue
 				}
 				profileComponents = append(profileComponents, ComponentInfo{
-					Name:    entry.Name(),
-					Type:    componentType,
-					Profile: profile.Name,
+					Name:     entry.Name(),
+					Type:     componentType,
+					Profile:  profile.Name,
+					BasePath: profile.BasePath,
 				})
 			}
 		}
@@ -1203,7 +1208,28 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 			}
 
 			// Get link status
-			linkType, _, valid := cl.analyzeLinkStatus(linkPath)
+			linkType, linkTarget, valid := cl.analyzeLinkStatus(linkPath)
+
+			// Verify that the symlink actually points to THIS profile's component
+			if linkType == "symlink" && valid {
+				expectedSource := filepath.Join(comp.BasePath, comp.Type, comp.Name)
+
+				// Resolve both paths to absolute for comparison
+				absTarget, err1 := filepath.Abs(linkTarget)
+				absExpected, err2 := filepath.Abs(expectedSource)
+
+				if err1 == nil && err2 == nil {
+					// Clean paths for comparison
+					absTarget = filepath.Clean(absTarget)
+					absExpected = filepath.Clean(absExpected)
+
+					// If the symlink doesn't point to this profile's component, mark as not linked
+					if absTarget != absExpected {
+						status.Targets[target.GetName()] = colors.Muted("-")
+						continue
+					}
+				}
+			}
 
 			var symbol string
 			switch linkType {
