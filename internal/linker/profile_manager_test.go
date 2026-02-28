@@ -129,7 +129,7 @@ func TestShowAllProfilesLinkStatus_WithoutProfileManager(t *testing.T) {
 	}
 
 	// Test: Calling ShowAllProfilesLinkStatus without ProfileManager should return error
-	err = linker.ShowAllProfilesLinkStatus([]string{})
+	err = linker.ShowAllProfilesLinkStatus([]string{}, false)
 	if err == nil {
 		t.Fatal("Expected error when calling ShowAllProfilesLinkStatus without ProfileManager")
 	}
@@ -189,7 +189,7 @@ func TestShowAllProfilesLinkStatus_WithProfileManager(t *testing.T) {
 
 	// Test: Calling ShowAllProfilesLinkStatus with ProfileManager should not error
 	// (Note: It might not find components, but it should run without the "profile manager not available" error)
-	err = linker.ShowAllProfilesLinkStatus([]string{})
+	err = linker.ShowAllProfilesLinkStatus([]string{}, false)
 	if err != nil {
 		// Check that it's not the "profile manager not available" error
 		if err.Error() == "profile manager not available - this operation requires a profile manager" {

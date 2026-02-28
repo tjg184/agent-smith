@@ -46,6 +46,7 @@ type UnlinkOptions struct {
 type LinkStatusOptions struct {
 	AllProfiles   bool     // Show status for all profiles
 	ProfileFilter []string // Filter by specific profile names
+	LinkedOnly    bool     // Show only components with at least one link
 }
 
 // ProfileService handles profile management operations

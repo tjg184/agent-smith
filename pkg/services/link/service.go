@@ -468,7 +468,7 @@ func (s *Service) ShowStatus(opts services.LinkStatusOptions) error {
 			return fmt.Errorf("failed to create component linker: %w", err)
 		}
 
-		return cl.ShowAllProfilesLinkStatus(opts.ProfileFilter)
+		return cl.ShowAllProfilesLinkStatus(opts.ProfileFilter, opts.LinkedOnly)
 	}
 
 	// Single-profile view
@@ -484,5 +484,5 @@ func (s *Service) ShowStatus(opts services.LinkStatusOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to create component linker: %w", err)
 	}
-	return cl.ShowLinkStatus()
+	return cl.ShowLinkStatus(opts.LinkedOnly)
 }

@@ -835,7 +835,7 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 }
 
 // ShowLinkStatus displays a matrix view of components and their status across all targets
-func (cl *ComponentLinker) ShowLinkStatus() error {
+func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 	componentTypes := paths.GetComponentTypes()
 
 	// Collect all unique components from source directory
@@ -974,6 +974,21 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 		table.AddRow(sectionRow)
 
 		for _, status := range components {
+			// Skip if linkedOnly and component has no links
+			if linkedOnly {
+				hasAnyLink := false
+				for _, symbol := range status.Targets {
+					// Check if the symbol is NOT "not linked" (-)
+					if symbol != colors.Muted("-") {
+						hasAnyLink = true
+						break
+					}
+				}
+				if !hasAnyLink {
+					continue
+				}
+			}
+
 			componentName := fmt.Sprintf("  %s", status.Component.Name)
 			row := []string{componentName, status.Component.Profile}
 
@@ -1020,7 +1035,7 @@ func (cl *ComponentLinker) ShowLinkStatus() error {
 
 // ShowAllProfilesLinkStatus displays link status for components across all profiles
 // profileFilter can filter to specific profiles, or empty to show all
-func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) error {
+func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, linkedOnly bool) error {
 	// Validate that profileManager is available
 	if cl.profileManager == nil {
 		return fmt.Errorf("profile manager not available - this operation requires a profile manager")
@@ -1268,6 +1283,22 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string) err
 		table.AddRow(sectionRow)
 
 		for _, status := range components {
+			// Skip if linkedOnly and component has no links
+			if linkedOnly {
+				hasAnyLink := false
+				for _, targetName := range targetNames {
+					symbol := status.Targets[targetName]
+					// Check if the symbol is NOT "not linked" (-)
+					if symbol != colors.Muted("-") {
+						hasAnyLink = true
+						break
+					}
+				}
+				if !hasAnyLink {
+					continue
+				}
+			}
+
 			componentName := fmt.Sprintf("  %s", status.Component.Name)
 			row := []string{componentName, status.Component.Type, status.Component.Profile}
 
