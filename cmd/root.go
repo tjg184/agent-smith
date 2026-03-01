@@ -97,7 +97,7 @@ func showWelcomeScreen() {
 // showSystemStatus displays a brief system status in the welcome screen
 func showSystemStatus(bold func(...interface{}) string, cyan func(...interface{}) string, gray func(...interface{}) string) {
 	// Initialize profile manager to check status
-	pm, _ := profiles.NewProfileManager(nil)
+	pm, _ := profiles.NewProfileManager(nil, nil)
 	activeProfile, _ := pm.GetActiveProfile()
 
 	// Count components

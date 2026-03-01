@@ -38,7 +38,7 @@ func NewUpdateDetector() *UpdateDetector {
 	var profileName string
 
 	// Check if a profile is active
-	pm, err := profiles.NewProfileManager(nil)
+	pm, err := profiles.NewProfileManager(nil, nil)
 	if err == nil {
 		activeProfile, err := pm.GetActiveProfile()
 		if err == nil && activeProfile != "" {
@@ -80,7 +80,7 @@ func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
 		fmt.Printf("Using specified profile for updates: %s\n", profile)
 	} else {
 		// Check if a profile is active
-		pm, err := profiles.NewProfileManager(nil)
+		pm, err := profiles.NewProfileManager(nil, nil)
 		if err == nil {
 			activeProfile, err := pm.GetActiveProfile()
 			if err == nil && activeProfile != "" {
