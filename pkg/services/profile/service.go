@@ -1,7 +1,6 @@
 package profile
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,7 +8,6 @@ import (
 	"time"
 
 	"github.com/tjg184/agent-smith/internal/formatter"
-	"github.com/tjg184/agent-smith/internal/models"
 	"github.com/tjg184/agent-smith/pkg/logger"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
@@ -661,34 +659,48 @@ func (s *Service) generateProfileCommands(profile *profiles.Profile, isBase bool
 	}
 
 	// Get components from lock files
-	skillCommands, skillCount := s.generateComponentCommands(profile, "skills", isBase)
-	agentCommands, agentCount := s.generateComponentCommands(profile, "agents", isBase)
-	commandCommands, commandCount := s.generateComponentCommands(profile, "commands", isBase)
+	skillCommands, skillShareable, skillTotal := s.generateComponentCommands(profile, "skills", isBase)
+	agentCommands, agentShareable, agentTotal := s.generateComponentCommands(profile, "agents", isBase)
+	commandCommands, commandShareable, commandTotal := s.generateComponentCommands(profile, "commands", isBase)
 
-	totalCount := skillCount + agentCount + commandCount
+	totalShareable := skillShareable + agentShareable + commandShareable
+	totalComponents := skillTotal + agentTotal + commandTotal
 
-	if totalCount == 0 {
-		buf.WriteString("# This profile is empty - no components to install\n")
+	if totalShareable == 0 {
+		buf.WriteString("# This profile has no shareable components\n")
+		if totalComponents > 0 {
+			buf.WriteString(fmt.Sprintf("# Note: Found %d local-only component(s) that cannot be shared:\n", totalComponents))
+			if skillTotal > 0 {
+				buf.WriteString(fmt.Sprintf("#   - %d skill(s)\n", skillTotal))
+			}
+			if agentTotal > 0 {
+				buf.WriteString(fmt.Sprintf("#   - %d agent(s)\n", agentTotal))
+			}
+			if commandTotal > 0 {
+				buf.WriteString(fmt.Sprintf("#   - %d command(s)\n", commandTotal))
+			}
+			buf.WriteString("# Local components must be installed from a repository to be shareable\n")
+		}
 		return buf.String(), nil
 	}
 
 	// Add skill commands
-	if skillCount > 0 {
-		buf.WriteString(fmt.Sprintf("# Install skills (%d components)\n", skillCount))
+	if skillShareable > 0 {
+		buf.WriteString(fmt.Sprintf("# Install skills (%d components)\n", skillShareable))
 		buf.WriteString(skillCommands)
 		buf.WriteString("\n")
 	}
 
 	// Add agent commands
-	if agentCount > 0 {
-		buf.WriteString(fmt.Sprintf("# Install agents (%d components)\n", agentCount))
+	if agentShareable > 0 {
+		buf.WriteString(fmt.Sprintf("# Install agents (%d components)\n", agentShareable))
 		buf.WriteString(agentCommands)
 		buf.WriteString("\n")
 	}
 
 	// Add command commands
-	if commandCount > 0 {
-		buf.WriteString(fmt.Sprintf("# Install commands (%d components)\n", commandCount))
+	if commandShareable > 0 {
+		buf.WriteString(fmt.Sprintf("# Install commands (%d components)\n", commandShareable))
 		buf.WriteString(commandCommands)
 		buf.WriteString("\n")
 	}
@@ -698,84 +710,82 @@ func (s *Service) generateProfileCommands(profile *profiles.Profile, isBase bool
 	buf.WriteString("agent-smith link all\n\n")
 
 	// Summary
-	buf.WriteString(fmt.Sprintf("# Total: %d components (", totalCount))
+	buf.WriteString(fmt.Sprintf("# Total: %d shareable components (", totalShareable))
 	parts := []string{}
-	if skillCount > 0 {
-		parts = append(parts, fmt.Sprintf("%d skills", skillCount))
+	if skillShareable > 0 {
+		parts = append(parts, fmt.Sprintf("%d skills", skillShareable))
 	}
-	if agentCount > 0 {
-		parts = append(parts, fmt.Sprintf("%d agents", agentCount))
+	if agentShareable > 0 {
+		parts = append(parts, fmt.Sprintf("%d agents", agentShareable))
 	}
-	if commandCount > 0 {
-		parts = append(parts, fmt.Sprintf("%d commands", commandCount))
+	if commandShareable > 0 {
+		parts = append(parts, fmt.Sprintf("%d commands", commandShareable))
 	}
 	buf.WriteString(strings.Join(parts, ", "))
 	buf.WriteString(")\n")
+
+	// Note about local components if any were skipped
+	localCount := totalComponents - totalShareable
+	if localCount > 0 {
+		buf.WriteString(fmt.Sprintf("# Note: %d local-only component(s) not included\n", localCount))
+	}
 
 	return buf.String(), nil
 }
 
 // generateComponentCommands generates install commands for a component type
-func (s *Service) generateComponentCommands(profile *profiles.Profile, componentType string, isBase bool) (string, int) {
+// Returns: (commands string, shareable count, total count)
+func (s *Service) generateComponentCommands(profile *profiles.Profile, componentType string, isBase bool) (string, int, int) {
 	var buf strings.Builder
-	count := 0
+	shareableCount := 0
 
-	// Read lock file
-	lockPath := paths.GetComponentLockPath(profile.BasePath, componentType)
-	lockData, err := os.ReadFile(lockPath)
-	if err != nil {
-		// File doesn't exist or can't be read - no components of this type
-		return "", 0
-	}
+	// Get component names from filesystem (source of truth)
+	agents, skills, commands := s.profileManager.GetComponentNames(profile)
 
-	var lockFile models.ComponentLockFile
-	if err := json.Unmarshal(lockData, &lockFile); err != nil {
-		// Invalid lock file - skip
-		return "", 0
-	}
-
-	// Get appropriate map based on component type
-	var componentMap map[string]map[string]models.ComponentEntry
+	// Select the appropriate component list based on type
+	var componentNames []string
 	switch componentType {
 	case "skills":
-		componentMap = lockFile.Skills
+		componentNames = skills
 	case "agents":
-		componentMap = lockFile.Agents
+		componentNames = agents
 	case "commands":
-		componentMap = lockFile.Commands
+		componentNames = commands
 	default:
-		return "", 0
+		return "", 0, 0
 	}
 
-	// Generate install commands
-	for sourceURL, components := range componentMap {
-		// Skip local paths (they can't be shared)
-		if isLocalPath(sourceURL) {
+	totalCount := len(componentNames)
+
+	// Generate install commands for each component
+	singularType := strings.TrimSuffix(componentType, "s") // "skills" -> "skill"
+	for _, componentName := range componentNames {
+		// Get source URL from lock file (for enrichment)
+		sourceURL := s.profileManager.GetComponentSource(profile, componentType, componentName)
+
+		// Skip components without source URLs (can't be shared) or with local paths
+		if sourceURL == "" || isLocalPath(sourceURL) {
 			continue
 		}
 
-		for componentName := range components {
-			singularType := strings.TrimSuffix(componentType, "s") // "skills" -> "skill"
-
-			if isBase {
-				// Base installation doesn't use --profile flag
-				buf.WriteString(fmt.Sprintf("agent-smith install %s %s %s\n",
-					singularType,
-					sourceURL,
-					componentName))
-			} else {
-				// Named profile uses --profile flag
-				buf.WriteString(fmt.Sprintf("agent-smith install %s %s %s --profile %s\n",
-					singularType,
-					sourceURL,
-					componentName,
-					profile.Name))
-			}
-			count++
+		if isBase {
+			// Base installation doesn't use --profile flag
+			buf.WriteString(fmt.Sprintf("agent-smith install %s %s %s\n",
+				singularType,
+				sourceURL,
+				componentName))
+		} else {
+			// Named profile uses --profile flag
+			buf.WriteString(fmt.Sprintf("agent-smith install %s %s %s --profile %s\n",
+				singularType,
+				sourceURL,
+				componentName,
+				profile.Name))
 		}
+		shareableCount++
 	}
 
-	return buf.String(), count
+	return buf.String(), shareableCount, totalCount
 }
 
 // isLocalPath checks if a path is a local file path

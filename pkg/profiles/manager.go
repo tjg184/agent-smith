@@ -493,17 +493,11 @@ func (pm *ProfileManager) GetComponentSource(profile *Profile, componentType, co
 		return ""
 	}
 
-	// Parse lock file
+	// Parse lock file with nested structure: { "skills": { "sourceURL": { "componentName": {...} } } }
 	var lockFile struct {
-		Skills map[string]struct {
-			SourceUrl string `json:"sourceUrl"`
-		} `json:"skills"`
-		Agents map[string]struct {
-			SourceUrl string `json:"sourceUrl"`
-		} `json:"agents,omitempty"`
-		Commands map[string]struct {
-			SourceUrl string `json:"sourceUrl"`
-		} `json:"commands,omitempty"`
+		Skills   map[string]map[string]map[string]interface{} `json:"skills"`
+		Agents   map[string]map[string]map[string]interface{} `json:"agents,omitempty"`
+		Commands map[string]map[string]map[string]interface{} `json:"commands,omitempty"`
 	}
 
 	if err := json.Unmarshal(lockData, &lockFile); err != nil {
@@ -511,18 +505,25 @@ func (pm *ProfileManager) GetComponentSource(profile *Profile, componentType, co
 	}
 
 	// Get source URL based on component type
+	// We need to iterate through sourceURLs to find our component
 	switch componentType {
 	case "agents":
-		if entry, exists := lockFile.Agents[componentName]; exists {
-			return entry.SourceUrl
+		for sourceURL, components := range lockFile.Agents {
+			if _, exists := components[componentName]; exists {
+				return sourceURL
+			}
 		}
 	case "skills":
-		if entry, exists := lockFile.Skills[componentName]; exists {
-			return entry.SourceUrl
+		for sourceURL, components := range lockFile.Skills {
+			if _, exists := components[componentName]; exists {
+				return sourceURL
+			}
 		}
 	case "commands":
-		if entry, exists := lockFile.Commands[componentName]; exists {
-			return entry.SourceUrl
+		for sourceURL, components := range lockFile.Commands {
+			if _, exists := components[componentName]; exists {
+				return sourceURL
+			}
 		}
 	}
 
@@ -652,7 +653,8 @@ func (pm *ProfileManager) copyComponentWithMetadata(
 	// Actually, we can just import it - let's check if there's a conflict
 
 	// Try to load the lock entry from source
-	sourceLockPath := filepath.Join(sourceBaseDir, fmt.Sprintf(".%s-lock.json", componentType[:len(componentType)-1]))
+	// All lock files are named .component-lock.json (not .skill-lock.json, etc.)
+	sourceLockPath := filepath.Join(sourceBaseDir, ".component-lock.json")
 
 	// Read source lock file
 	lockData, err := os.ReadFile(sourceLockPath)
@@ -681,14 +683,42 @@ func (pm *ProfileManager) copyComponentWithMetadata(
 	}
 
 	// Extract the entry for this component
+	// The lock file structure is: { "skills": { "sourceURL": { "componentName": {...} } } }
+	// We need to search through all sourceURLs to find our component
 	var entryMap map[string]interface{}
+	var sourceURL string
+
 	switch componentType {
 	case "skills":
-		entryMap = sourceLockFile.Skills[componentName]
+		for url, components := range sourceLockFile.Skills {
+			if comp, exists := components[componentName]; exists {
+				if compMap, ok := comp.(map[string]interface{}); ok {
+					entryMap = compMap
+					sourceURL = url
+					break
+				}
+			}
+		}
 	case "agents":
-		entryMap = sourceLockFile.Agents[componentName]
+		for url, components := range sourceLockFile.Agents {
+			if comp, exists := components[componentName]; exists {
+				if compMap, ok := comp.(map[string]interface{}); ok {
+					entryMap = compMap
+					sourceURL = url
+					break
+				}
+			}
+		}
 	case "commands":
-		entryMap = sourceLockFile.Commands[componentName]
+		for url, components := range sourceLockFile.Commands {
+			if comp, exists := components[componentName]; exists {
+				if compMap, ok := comp.(map[string]interface{}); ok {
+					entryMap = compMap
+					sourceURL = url
+					break
+				}
+			}
+		}
 	}
 
 	if entryMap == nil {
@@ -697,8 +727,11 @@ func (pm *ProfileManager) copyComponentWithMetadata(
 		return nil
 	}
 
+	fmt.Printf("Found metadata for component from source: %s\n", sourceURL)
+
 	// Read or create target lock file
-	targetLockPath := filepath.Join(targetBaseDir, fmt.Sprintf(".%s-lock.json", componentType[:len(componentType)-1]))
+	// All lock files are named .component-lock.json (not .skill-lock.json, etc.)
+	targetLockPath := filepath.Join(targetBaseDir, ".component-lock.json")
 
 	var targetLockFile struct {
 		Version  int                               `json:"version"`
@@ -739,14 +772,26 @@ func (pm *ProfileManager) copyComponentWithMetadata(
 		}
 	}
 
-	// Add the entry to target lock file
+	// Add the entry to target lock file, preserving the sourceURL nesting
 	switch componentType {
 	case "skills":
-		targetLockFile.Skills[componentName] = entryMap
+		// Ensure the sourceURL map exists
+		if targetLockFile.Skills[sourceURL] == nil {
+			targetLockFile.Skills[sourceURL] = make(map[string]interface{})
+		}
+		targetLockFile.Skills[sourceURL][componentName] = entryMap
 	case "agents":
-		targetLockFile.Agents[componentName] = entryMap
+		// Ensure the sourceURL map exists
+		if targetLockFile.Agents[sourceURL] == nil {
+			targetLockFile.Agents[sourceURL] = make(map[string]interface{})
+		}
+		targetLockFile.Agents[sourceURL][componentName] = entryMap
 	case "commands":
-		targetLockFile.Commands[componentName] = entryMap
+		// Ensure the sourceURL map exists
+		if targetLockFile.Commands[sourceURL] == nil {
+			targetLockFile.Commands[sourceURL] = make(map[string]interface{})
+		}
+		targetLockFile.Commands[sourceURL][componentName] = entryMap
 	}
 
 	// Write target lock file
