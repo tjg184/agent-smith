@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/tjg184/agent-smith/compare/v1.3.1...v1.3.2) (2026-03-01)
+
+
+### Bug Fixes
+
+* use profile to determine ownership of components ([e89d0e7](https://github.com/tjg184/agent-smith/commit/e89d0e730a94f8b7acd80f1430ef0ef282a08eb2))
+
 ## [1.3.1](https://github.com/tjg184/agent-smith/compare/v1.3.0...v1.3.1) (2026-02-28)
 
 
