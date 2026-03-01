@@ -86,14 +86,14 @@ func TestAgentFlattenPostprocessor_Process_Success(t *testing.T) {
 	// Run postprocessor
 	p := NewAgentFlattenPostprocessor()
 	ctx := PostprocessContext{
-		ComponentType: "agents",
-		ComponentName: "my-agent",
+		ComponentType:  "agents",
+		ComponentName:  "my-agent",
 		FilesystemName: "my-agent",
-		Target:        "copilot",
-		TargetDir:     targetDir,
-		DestPath:      agentFolder,
-		DryRun:        false,
-		Formatter:     formatter.New(),
+		Target:         "copilot",
+		TargetDir:      targetDir,
+		DestPath:       agentFolder,
+		DryRun:         false,
+		Formatter:      formatter.New(),
 	}
 
 	if err := p.Process(ctx); err != nil {
@@ -151,14 +151,14 @@ func TestAgentFlattenPostprocessor_Process_DryRun(t *testing.T) {
 
 	p := NewAgentFlattenPostprocessor()
 	ctx := PostprocessContext{
-		ComponentType: "agents",
-		ComponentName: "my-agent",
+		ComponentType:  "agents",
+		ComponentName:  "my-agent",
 		FilesystemName: "my-agent",
-		Target:        "copilot",
-		TargetDir:     targetDir,
-		DestPath:      agentFolder,
-		DryRun:        true,
-		Formatter:     formatter.New(),
+		Target:         "copilot",
+		TargetDir:      targetDir,
+		DestPath:       agentFolder,
+		DryRun:         true,
+		Formatter:      formatter.New(),
 	}
 
 	if err := p.Process(ctx); err != nil {
@@ -186,14 +186,14 @@ func TestAgentFlattenPostprocessor_Process_MissingAgentFile(t *testing.T) {
 
 	p := NewAgentFlattenPostprocessor()
 	ctx := PostprocessContext{
-		ComponentType: "agents",
-		ComponentName: "my-agent",
+		ComponentType:  "agents",
+		ComponentName:  "my-agent",
 		FilesystemName: "my-agent",
-		Target:        "copilot",
-		TargetDir:     targetDir,
-		DestPath:      agentFolder,
-		DryRun:        false,
-		Formatter:     formatter.New(),
+		Target:         "copilot",
+		TargetDir:      targetDir,
+		DestPath:       agentFolder,
+		DryRun:         false,
+		Formatter:      formatter.New(),
 	}
 
 	// Should not error - just log warning
@@ -231,14 +231,14 @@ func TestAgentFlattenPostprocessor_Process_SymlinkAlreadyExists(t *testing.T) {
 
 	p := NewAgentFlattenPostprocessor()
 	ctx := PostprocessContext{
-		ComponentType: "agents",
-		ComponentName: "my-agent",
+		ComponentType:  "agents",
+		ComponentName:  "my-agent",
 		FilesystemName: "my-agent",
-		Target:        "copilot",
-		TargetDir:     targetDir,
-		DestPath:      agentFolder,
-		DryRun:        false,
-		Formatter:     formatter.New(),
+		Target:         "copilot",
+		TargetDir:      targetDir,
+		DestPath:       agentFolder,
+		DryRun:         false,
+		Formatter:      formatter.New(),
 	}
 
 	// Should not error - idempotent
@@ -280,14 +280,14 @@ func TestAgentFlattenPostprocessor_Process_RegularFileConflict(t *testing.T) {
 
 	p := NewAgentFlattenPostprocessor()
 	ctx := PostprocessContext{
-		ComponentType: "agents",
-		ComponentName: "my-agent",
+		ComponentType:  "agents",
+		ComponentName:  "my-agent",
 		FilesystemName: "my-agent",
-		Target:        "copilot",
-		TargetDir:     targetDir,
-		DestPath:      agentFolder,
-		DryRun:        false,
-		Formatter:     formatter.New(),
+		Target:         "copilot",
+		TargetDir:      targetDir,
+		DestPath:       agentFolder,
+		DryRun:         false,
+		Formatter:      formatter.New(),
 	}
 
 	// Should return fatal error for file conflict
@@ -315,14 +315,14 @@ func TestAgentFlattenPostprocessor_Cleanup(t *testing.T) {
 
 	p := NewAgentFlattenPostprocessor()
 	ctx := PostprocessContext{
-		ComponentType: "agents",
-		ComponentName: "my-agent",
+		ComponentType:  "agents",
+		ComponentName:  "my-agent",
 		FilesystemName: "my-agent",
-		Target:        "copilot",
-		TargetDir:     targetDir,
-		DestPath:      agentFolder,
-		DryRun:        false,
-		Formatter:     formatter.New(),
+		Target:         "copilot",
+		TargetDir:      targetDir,
+		DestPath:       agentFolder,
+		DryRun:         false,
+		Formatter:      formatter.New(),
 	}
 
 	// Run cleanup
@@ -350,14 +350,14 @@ func TestAgentFlattenPostprocessor_Cleanup_SymlinkMissing(t *testing.T) {
 
 	p := NewAgentFlattenPostprocessor()
 	ctx := PostprocessContext{
-		ComponentType: "agents",
-		ComponentName: "my-agent",
+		ComponentType:  "agents",
+		ComponentName:  "my-agent",
 		FilesystemName: "my-agent",
-		Target:        "copilot",
-		TargetDir:     targetDir,
-		DestPath:      agentFolder,
-		DryRun:        false,
-		Formatter:     formatter.New(),
+		Target:         "copilot",
+		TargetDir:      targetDir,
+		DestPath:       agentFolder,
+		DryRun:         false,
+		Formatter:      formatter.New(),
 	}
 
 	// Should not error when symlink doesn't exist
@@ -398,7 +398,7 @@ func TestAgentFlattenPostprocessor_Process_MultipleFiles(t *testing.T) {
 	ctx := PostprocessContext{
 		ComponentType:   "agents",
 		ComponentName:   "backend-development",
-		FilesystemName:   "backend-development",
+		FilesystemName:  "backend-development",
 		Target:          "copilot",
 		TargetDir:       targetDir,
 		DestPath:        agentFolder,
@@ -478,7 +478,7 @@ func TestAgentFlattenPostprocessor_Process_MixedFiles(t *testing.T) {
 	ctx := PostprocessContext{
 		ComponentType:   "agents",
 		ComponentName:   "my-agent",
-		FilesystemName:   "my-agent",
+		FilesystemName:  "my-agent",
 		Target:          "copilot",
 		TargetDir:       targetDir,
 		DestPath:        agentFolder,
@@ -541,7 +541,7 @@ func TestAgentFlattenPostprocessor_Process_IgnoredFiles(t *testing.T) {
 	ctx := PostprocessContext{
 		ComponentType:   "agents",
 		ComponentName:   "my-agent",
-		FilesystemName:   "my-agent",
+		FilesystemName:  "my-agent",
 		Target:          "copilot",
 		TargetDir:       targetDir,
 		DestPath:        agentFolder,
@@ -595,7 +595,7 @@ func TestAgentFlattenPostprocessor_Process_NameConflict(t *testing.T) {
 	ctx1 := PostprocessContext{
 		ComponentType:   "agents",
 		ComponentName:   "backend-dev",
-		FilesystemName:   "backend-dev",
+		FilesystemName:  "backend-dev",
 		Target:          "copilot",
 		TargetDir:       targetDir,
 		DestPath:        agent1Folder,
@@ -623,7 +623,7 @@ func TestAgentFlattenPostprocessor_Process_NameConflict(t *testing.T) {
 	ctx2 := PostprocessContext{
 		ComponentType:   "agents",
 		ComponentName:   "api-scaffold",
-		FilesystemName:   "api-scaffold",
+		FilesystemName:  "api-scaffold",
 		Target:          "copilot",
 		TargetDir:       targetDir,
 		DestPath:        agent2Folder,
@@ -672,7 +672,7 @@ func TestAgentFlattenPostprocessor_Process_NoMarkdownFiles(t *testing.T) {
 	ctx := PostprocessContext{
 		ComponentType:   "agents",
 		ComponentName:   "my-agent",
-		FilesystemName:   "my-agent",
+		FilesystemName:  "my-agent",
 		Target:          "copilot",
 		TargetDir:       targetDir,
 		DestPath:        agentFolder,
@@ -738,14 +738,14 @@ func TestAgentFlattenPostprocessor_Cleanup_MultipleSymlinks(t *testing.T) {
 	// Run cleanup
 	p := NewAgentFlattenPostprocessor()
 	ctx := PostprocessContext{
-		ComponentType: "agents",
-		ComponentName: "backend-dev",
+		ComponentType:  "agents",
+		ComponentName:  "backend-dev",
 		FilesystemName: "backend-dev",
-		Target:        "copilot",
-		TargetDir:     targetDir,
-		DestPath:      agentFolder,
-		DryRun:        false,
-		Formatter:     formatter.New(),
+		Target:         "copilot",
+		TargetDir:      targetDir,
+		DestPath:       agentFolder,
+		DryRun:         false,
+		Formatter:      formatter.New(),
 	}
 
 	if err := p.Cleanup(ctx); err != nil {
