@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	"github.com/tjg184/agent-smith/internal/testutil"
+	"github.com/tjg184/agent-smith/pkg/logger"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
+	locksvc "github.com/tjg184/agent-smith/pkg/services/lock"
 )
 
 // TestInvalidProfileErrorMessages tests that clear error messages are provided when specifying invalid profiles
@@ -36,7 +38,7 @@ func TestInvalidProfileErrorMessages(t *testing.T) {
 	// Test case 1: Profile doesn't exist at all
 	t.Run("NonExistentProfile", func(t *testing.T) {
 		// Try to use a profile that doesn't exist
-		_, err := profiles.NewProfileManager(nil, nil)
+		_, err := profiles.NewProfileManager(nil, locksvc.NewService(logger.New(logger.LevelError)))
 		if err != nil {
 			t.Fatalf("Failed to create profile manager: %v", err)
 		}

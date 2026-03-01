@@ -21,7 +21,7 @@ import (
 type ProfileManager struct {
 	profilesDir string
 	linker      *linker.ComponentLinker       // Optional - can be nil
-	lockService services.ComponentLockService // Optional - can be nil
+	lockService services.ComponentLockService // Required for lock file operations
 }
 
 // ProfileMetadata stores metadata about a profile's source
@@ -38,7 +38,8 @@ type ProfileActivationResult struct {
 }
 
 // NewProfileManager creates a new ProfileManager instance
-// The linker and lockService parameters are optional - pass nil if not needed
+// The linker parameter is optional (pass nil if not needed for unlinking functionality)
+// The lockService parameter is required for full ProfileManager functionality
 func NewProfileManager(componentLinker *linker.ComponentLinker, lockService services.ComponentLockService) (*ProfileManager, error) {
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
@@ -488,53 +489,6 @@ func (pm *ProfileManager) GetComponentNames(profile *Profile) (agents, skills, c
 // GetComponentSource returns the source URL for a component from its lock file
 // Returns empty string if the component has no source metadata
 func (pm *ProfileManager) GetComponentSource(profile *Profile, componentType, componentName string) string {
-	// If lock service is not available, fall back to direct file reading
-	if pm.lockService == nil {
-		lockFilePath := paths.GetComponentLockPath(profile.BasePath, componentType)
-
-		// Read lock file
-		lockData, err := os.ReadFile(lockFilePath)
-		if err != nil {
-			return ""
-		}
-
-		// Parse lock file with nested structure: { "skills": { "sourceURL": { "componentName": {...} } } }
-		var lockFile struct {
-			Skills   map[string]map[string]map[string]interface{} `json:"skills"`
-			Agents   map[string]map[string]map[string]interface{} `json:"agents,omitempty"`
-			Commands map[string]map[string]map[string]interface{} `json:"commands,omitempty"`
-		}
-
-		if err := json.Unmarshal(lockData, &lockFile); err != nil {
-			return ""
-		}
-
-		// Get source URL based on component type
-		// We need to iterate through sourceURLs to find our component
-		switch componentType {
-		case "agents":
-			for sourceURL, components := range lockFile.Agents {
-				if _, exists := components[componentName]; exists {
-					return sourceURL
-				}
-			}
-		case "skills":
-			for sourceURL, components := range lockFile.Skills {
-				if _, exists := components[componentName]; exists {
-					return sourceURL
-				}
-			}
-		case "commands":
-			for sourceURL, components := range lockFile.Commands {
-				if _, exists := components[componentName]; exists {
-					return sourceURL
-				}
-			}
-		}
-
-		return ""
-	}
-
 	// Use lock service
 	sources, err := pm.lockService.FindComponentSources(profile.BasePath, componentType, componentName)
 	if err != nil || len(sources) == 0 {
@@ -660,18 +614,7 @@ func (pm *ProfileManager) copyComponentWithMetadata(
 	}
 
 	// Copy lock file entry if it exists
-	// Import the internal/metadata package at the top of the file
 	fmt.Printf("Copying metadata...\n")
-
-	// We need to import the internal/metadata package to use these functions
-	// Use reflection to avoid circular imports by using the metadata package directly
-	// Actually, we can just import it - let's check if there's a conflict
-
-	// If lockService is not available, skip metadata copy
-	if pm.lockService == nil {
-		fmt.Printf("Note: Lock service not available, skipping metadata copy\n")
-		return nil
-	}
 
 	// Try to load the lock entry from source using the lock service
 	entry, err := pm.lockService.LoadEntry(sourceBaseDir, componentType, componentName)
