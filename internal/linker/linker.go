@@ -885,9 +885,25 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 			if strings.HasPrefix(entry.Name(), ".") {
 				continue
 			}
-			// Determine profile from source directory
+			// Determine profile from component location
+			// If it's a symlink, check where it points to determine the actual profile
 			componentPath := filepath.Join(sourceDir, entry.Name())
-			profile := getProfileFromPath(componentPath)
+
+			var profile string
+			// Check if the component is a symlink
+			info, err := os.Lstat(componentPath)
+			if err == nil && info.Mode()&os.ModeSymlink != 0 {
+				// It's a symlink - determine profile from target
+				profile = GetProfileNameFromSymlink(componentPath)
+				// If GetProfileNameFromSymlink returns empty (broken link), fall back to path-based detection
+				if profile == "" {
+					profile = getProfileFromPath(componentPath)
+				}
+			} else {
+				// Not a symlink - use path-based detection
+				profile = getProfileFromPath(componentPath)
+			}
+
 			allComponents = append(allComponents, ComponentInfo{
 				Name:     entry.Name(),
 				Type:     componentType,
@@ -931,8 +947,24 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 				continue
 			}
 
-			// Get link status
-			linkType, _, valid := cl.analyzeLinkStatus(linkPath)
+			// Get link status and target path
+			linkType, targetPath, valid := cl.analyzeLinkStatus(linkPath)
+
+			// Verify the target matches this component's source
+			expectedSource := filepath.Join(comp.BasePath, comp.Type, comp.Name)
+
+			// For symlinks, check if they point to this specific component
+			if linkType == "symlink" && valid {
+				// Resolve both paths for comparison
+				expectedSource, _ = filepath.EvalSymlinks(expectedSource)
+				targetPath, _ = filepath.EvalSymlinks(targetPath)
+
+				// If the target doesn't match this component's source, it's not linked to this one
+				if expectedSource != targetPath {
+					status.Targets[target.GetName()] = colors.Muted("-")
+					continue
+				}
+			}
 
 			var symbol string
 			switch linkType {
@@ -1102,10 +1134,30 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 			if !entry.IsDir() {
 				continue
 			}
+
+			// Determine profile from component location
+			// If it's a symlink, check where it points to determine the actual profile
+			componentPath := filepath.Join(sourceDir, entry.Name())
+
+			var profile string
+			// Check if the component is a symlink
+			info, err := os.Lstat(componentPath)
+			if err == nil && info.Mode()&os.ModeSymlink != 0 {
+				// It's a symlink - determine profile from target
+				profile = GetProfileNameFromSymlink(componentPath)
+				// If GetProfileNameFromSymlink returns empty (broken link), fall back to base
+				if profile == "" {
+					profile = paths.BaseProfileName
+				}
+			} else {
+				// Not a symlink - use base profile
+				profile = paths.BaseProfileName
+			}
+
 			baseComponents = append(baseComponents, ComponentInfo{
 				Name:     entry.Name(),
 				Type:     componentType,
-				Profile:  paths.BaseProfileName,
+				Profile:  profile,
 				BasePath: baseDir,
 			})
 		}
