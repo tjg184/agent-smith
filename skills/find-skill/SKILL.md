@@ -1,187 +1,67 @@
-
 ---
 name: find-skills
-description: Helps users discover and install agent skills when they ask questions like "how do I do X", "find a skill for X", "is there a skill that can...", or express interest in extending capabilities. This skill should be used when the user is looking for functionality that might exist as an installable skill.
+description: Helps users discover and install agent skills using the agent-smith CLI package manager. Use when users ask "how do I do X", "find a skill for X", "is there a skill that can...", "can you do X", or express interest in extending capabilities with skills, tools, templates, or workflows for specific domains (design, testing, deployment, etc.).
 ---
 
 # Find Skills
 
-This skill helps you discover and install skills from the open agent skills ecosystem.
+This skill helps you discover and install skills from the open agent skills ecosystem using the agent-smith CLI.
 
-## When to Use This Skill
+**Browse all skills:** https://skills.sh/
 
-Use this skill when the user:
+## Core Commands
 
-- Asks "how do I do X" where X might be a common task with an existing skill
-- Says "find a skill for X" or "is there a skill for X"
-- Asks "can you do X" where X is a specialized capability
-- Expresses interest in extending agent capabilities
-- Wants to search for tools, templates, or workflows
-- Mentions they wish they had help with a specific domain (design, testing, deployment, etc.)
+```bash
+agent-smith find skill [query]          # Search for skills
+agent-smith install skill <repo> <name> # Install a skill
+agent-smith status                      # Check active profile
+```
 
-## What is the agent-smith CLI?
+## Workflow
 
-The agent-smith CLI (`agent-smith`) is the package manager for the open agent skills ecosystem. Skills are modular packages that extend agent capabilities with specialized knowledge, workflows, and tools.
+### Step 1: Understand the User's Need
 
-**Key commands:**
-
-- `agent-smith find skill [query]` - Search for skills interactively or by keyword
-- `agent-smith install skill <repository> <skill-name>` - Install a skill from GitHub or other sources
-- `agent-smith status` - Check installed components and active profile
-- `agent-smith update all` - Update all installed components
-- `agent-smith profile list` - View all available profiles
-
-**Browse skills at:** https://skills.sh/
-
-## How to Help Users Find Skills
-
-### Step 1: Understand What They Need
-
-When a user asks for help with something, identify:
-
-1. The domain (e.g., React, testing, design, deployment)
-2. The specific task (e.g., writing tests, creating animations, reviewing PRs)
-3. Whether this is a common enough task that a skill likely exists
+Identify the domain and specific task:
+- Domain: React, testing, design, deployment, etc.
+- Task: Writing tests, creating animations, reviewing PRs, etc.
 
 ### Step 2: Search for Skills
 
-Run the find command with a relevant query:
+Run `agent-smith find skill [query]` with relevant keywords.
 
-```bash
-agent-smith find skill [query]
+**Examples:**
+- "How do I make my React app faster?" → `agent-smith find skill react performance`
+- "Can you help with PR reviews?" → `agent-smith find skill pr review`
+- "I need to create a changelog" → `agent-smith find skill changelog`
+
+**For search optimization tips:** See [references/search-tips.md](references/search-tips.md)
+
+### Step 3: Present Options
+
+When you find relevant skills, present:
+1. Skill name and what it does
+2. Install command
+3. Link to skills.sh for more info
+
+**Example response:**
 ```
+I found the "vercel-react-best-practices" skill - it provides React and Next.js 
+performance optimization guidelines from Vercel Engineering.
 
-For example:
-
-- User asks "how do I make my React app faster?" → `agent-smith find skill react performance`
-- User asks "can you help me with PR reviews?" → `agent-smith find skill pr review`
-- User asks "I need to create a changelog" → `agent-smith find skill changelog`
-
-The command will return results like:
-
-```
-Install with:  agent-smith install skill <owner/repo> <skill-name>
-          or:  agent-smith install all <owner/repo>
-
-vercel-labs/agent-skills@vercel-react-best-practices 158.8K installs
-└ https://skills.sh/vercel-labs/agent-skills/vercel-react-best-practices
-  agent-smith install skill vercel-labs/agent-skills vercel-react-best-practices
-```
-
-### Step 3: Present Options to the User
-
-When you find relevant skills, present them to the user with:
-
-1. The skill name and what it does
-2. The install command they can run
-3. A link to learn more at skills.sh
-
-Example response:
-
-```
-I found a skill that might help! The "vercel-react-best-practices" skill provides
-React and Next.js performance optimization guidelines from Vercel Engineering.
-
-To install it:
+To install:
 agent-smith install skill vercel-labs/agent-skills vercel-react-best-practices
 
 Learn more: https://skills.sh/vercel-labs/agent-skills/vercel-react-best-practices
 ```
 
-### Step 4: Offer to Install
+### Step 4: Install the Skill
 
-If the user wants to proceed, determine where to install the skill using profiles.
+If the user wants to proceed, follow the profile selection workflow.
 
-#### Profile Selection Workflow
+**For complete profile management details:** See [references/profiles.md](references/profiles.md)
 
-1. **Check available profiles:**
-   ```bash
-   agent-smith status
-   ```
-   or
-   ```bash
-   agent-smith profile list
-   ```
-
-2. **Ask the user using the question tool:**
-
-   Use the `question` tool with these options:
-   - **Header:** "Installation Profile"
-   - **Question:** "Which profile should this skill be installed to?"
-   - **Options:**
-     1. "Active profile: `<profile-name>`" (only if a profile is active) - **Recommended**
-     2. "Base installation (no profile)" - Available globally
-     3. "Choose a different profile"
-
-3. **Handle the user's choice:**
-
-   **Option 1 - Active profile (or Option 2 - Base installation):**
-   ```bash
-   agent-smith install skill <owner/repo> <skill-name>
-   ```
-
-   **Option 3 - Different profile:**
-   - Parse the output from `agent-smith profile list`
-   - Ask a follow-up question with all available profiles
-   - Install with:
-   ```bash
-   agent-smith install skill <owner/repo> <skill-name> --profile <chosen-profile>
-   ```
-
-#### Understanding Profiles
-
-agent-smith organizes components using profiles:
-
-- **📦 Repository Profiles**: Auto-created from `install all <repo>`, tied to source
-- **👤 User Profiles**: Custom collections you create manually
-- **⊙ Base Installation**: Default location (no profile active)
-
-**Quick profile commands:**
-```bash
-# View all profiles
-agent-smith profile list
-
-# Activate a profile
-agent-smith profile activate <profile-name>
-
-# Check what's active
-agent-smith status
-```
-
-## Common Skill Categories
-
-When searching, consider these common categories:
-
-| Category        | Example Queries                          |
-| --------------- | ---------------------------------------- |
-| Web Development | react, nextjs, typescript, css, tailwind |
-| Testing         | testing, jest, playwright, e2e           |
-| DevOps          | deploy, docker, kubernetes, ci-cd        |
-| Documentation   | docs, readme, changelog, api-docs        |
-| Code Quality    | review, lint, refactor, best-practices   |
-| Design          | ui, ux, design-system, accessibility     |
-| Productivity    | workflow, automation, git                |
-
-## Tips for Effective Searches
-
-1. **Use specific keywords**: "react testing" is better than just "testing"
-2. **Try alternative terms**: If "deploy" doesn't work, try "deployment" or "ci-cd"
-3. **Check popular sources**: Many skills come from `vercel-labs/agent-skills` or `ComposioHQ/awesome-claude-skills`
-
-## When No Skills Are Found
-
-If no relevant skills exist:
-
-1. Acknowledge that no existing skill was found
-2. Offer to help with the task directly using your general capabilities
-3. Suggest the user could create their own skill (feature planned for future release)
-
-Example:
-
-```
-I searched for skills related to "xyz" but didn't find any matches.
-I can still help you with this task directly! Would you like me to proceed?
-
-If this is something you do often, you could create your own skill.
-(Note: Skill creation tooling is planned for a future release of agent-smith)
-```
+**Quick workflow:**
+1. Run `agent-smith status` to check active profile
+2. Ask user which profile to install to (use `question` tool)
+3. Install with: `agent-smith install skill <owner/repo> <skill-name>`
+4. For different profile: Add `--profile <profile-name>` flag
