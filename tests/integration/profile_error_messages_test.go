@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	"github.com/tjg184/agent-smith/internal/testutil"
+	"github.com/tjg184/agent-smith/pkg/logger"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
+	locksvc "github.com/tjg184/agent-smith/pkg/services/lock"
 )
 
 // TestInvalidProfileErrorMessages tests that clear error messages are provided when specifying invalid profiles
@@ -36,7 +38,7 @@ func TestInvalidProfileErrorMessages(t *testing.T) {
 	// Test case 1: Profile doesn't exist at all
 	t.Run("NonExistentProfile", func(t *testing.T) {
 		// Try to use a profile that doesn't exist
-		_, err := profiles.NewProfileManager(nil)
+		_, err := profiles.NewProfileManager(nil, locksvc.NewService(logger.New(logger.LevelError)))
 		if err != nil {
 			t.Fatalf("Failed to create profile manager: %v", err)
 		}
@@ -65,7 +67,7 @@ func TestInvalidProfileErrorMessages(t *testing.T) {
 
 	// Test case 2: Profile exists but has no components
 	t.Run("EmptyProfile", func(t *testing.T) {
-		pm, err := profiles.NewProfileManager(nil)
+		pm, err := profiles.NewProfileManager(nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to create profile manager: %v", err)
 		}
@@ -119,7 +121,7 @@ func TestInvalidProfileErrorMessages(t *testing.T) {
 
 	// Test case 3: Profile exists with components - should work
 	t.Run("ValidProfile", func(t *testing.T) {
-		pm, err := profiles.NewProfileManager(nil)
+		pm, err := profiles.NewProfileManager(nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to create profile manager: %v", err)
 		}
@@ -256,7 +258,7 @@ func TestAvailableProfilesInErrorMessage(t *testing.T) {
 	os.Setenv("HOME", tempDir)
 	defer os.Unsetenv("HOME")
 
-	pm, err := profiles.NewProfileManager(nil)
+	pm, err := profiles.NewProfileManager(nil, nil)
 	if err != nil {
 		t.Fatalf("Failed to create profile manager: %v", err)
 	}

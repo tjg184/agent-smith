@@ -14,12 +14,14 @@ import (
 	"github.com/tjg184/agent-smith/internal/detector"
 	"github.com/tjg184/agent-smith/internal/linker"
 	"github.com/tjg184/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/pkg/services"
 )
 
 // ProfileManager handles profile discovery and management
 type ProfileManager struct {
 	profilesDir string
-	linker      *linker.ComponentLinker // Optional - can be nil
+	linker      *linker.ComponentLinker       // Optional - can be nil
+	lockService services.ComponentLockService // Required for lock file operations
 }
 
 // ProfileMetadata stores metadata about a profile's source
@@ -36,8 +38,9 @@ type ProfileActivationResult struct {
 }
 
 // NewProfileManager creates a new ProfileManager instance
-// The linker parameter is optional - pass nil if unlinking functionality is not needed
-func NewProfileManager(componentLinker *linker.ComponentLinker) (*ProfileManager, error) {
+// The linker parameter is optional (pass nil if not needed for unlinking functionality)
+// The lockService parameter is required for full ProfileManager functionality
+func NewProfileManager(componentLinker *linker.ComponentLinker, lockService services.ComponentLockService) (*ProfileManager, error) {
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get profiles directory: %w", err)
@@ -45,6 +48,7 @@ func NewProfileManager(componentLinker *linker.ComponentLinker) (*ProfileManager
 	return &ProfileManager{
 		profilesDir: profilesDir,
 		linker:      componentLinker,
+		lockService: lockService,
 	}, nil
 }
 
@@ -485,48 +489,14 @@ func (pm *ProfileManager) GetComponentNames(profile *Profile) (agents, skills, c
 // GetComponentSource returns the source URL for a component from its lock file
 // Returns empty string if the component has no source metadata
 func (pm *ProfileManager) GetComponentSource(profile *Profile, componentType, componentName string) string {
-	lockFilePath := paths.GetComponentLockPath(profile.BasePath, componentType)
-
-	// Read lock file
-	lockData, err := os.ReadFile(lockFilePath)
-	if err != nil {
+	// Use lock service
+	sources, err := pm.lockService.FindComponentSources(profile.BasePath, componentType, componentName)
+	if err != nil || len(sources) == 0 {
 		return ""
 	}
 
-	// Parse lock file
-	var lockFile struct {
-		Skills map[string]struct {
-			SourceUrl string `json:"sourceUrl"`
-		} `json:"skills"`
-		Agents map[string]struct {
-			SourceUrl string `json:"sourceUrl"`
-		} `json:"agents,omitempty"`
-		Commands map[string]struct {
-			SourceUrl string `json:"sourceUrl"`
-		} `json:"commands,omitempty"`
-	}
-
-	if err := json.Unmarshal(lockData, &lockFile); err != nil {
-		return ""
-	}
-
-	// Get source URL based on component type
-	switch componentType {
-	case "agents":
-		if entry, exists := lockFile.Agents[componentName]; exists {
-			return entry.SourceUrl
-		}
-	case "skills":
-		if entry, exists := lockFile.Skills[componentName]; exists {
-			return entry.SourceUrl
-		}
-	case "commands":
-		if entry, exists := lockFile.Commands[componentName]; exists {
-			return entry.SourceUrl
-		}
-	}
-
-	return ""
+	// Return the first source (if there are multiple, caller should handle disambiguation)
+	return sources[0]
 }
 
 // ActivateProfile activates a profile by updating the active profile state
@@ -644,120 +614,22 @@ func (pm *ProfileManager) copyComponentWithMetadata(
 	}
 
 	// Copy lock file entry if it exists
-	// Import the internal/metadata package at the top of the file
 	fmt.Printf("Copying metadata...\n")
 
-	// We need to import the internal/metadata package to use these functions
-	// Use reflection to avoid circular imports by using the metadata package directly
-	// Actually, we can just import it - let's check if there's a conflict
-
-	// Try to load the lock entry from source
-	sourceLockPath := filepath.Join(sourceBaseDir, fmt.Sprintf(".%s-lock.json", componentType[:len(componentType)-1]))
-
-	// Read source lock file
-	lockData, err := os.ReadFile(sourceLockPath)
+	// Try to load the lock entry from source using the lock service
+	entry, err := pm.lockService.LoadEntry(sourceBaseDir, componentType, componentName)
 	if err != nil {
-		if os.IsNotExist(err) {
-			// No lock file in source - this is OK for manually created components
-			fmt.Printf("Note: No lock file entry found in source (manual component)\n")
-			return nil
-		}
-		// Log warning but don't fail
-		fmt.Printf("Warning: Failed to read source lock file: %v\n", err)
+		// Component might not exist in lock file (manual component)
+		fmt.Printf("Note: No lock file entry found in source (manual component)\n")
 		return nil
 	}
 
-	// Parse the lock file
-	var sourceLockFile struct {
-		Version  int                               `json:"version"`
-		Skills   map[string]map[string]interface{} `json:"skills,omitempty"`
-		Agents   map[string]map[string]interface{} `json:"agents,omitempty"`
-		Commands map[string]map[string]interface{} `json:"commands,omitempty"`
-	}
+	fmt.Printf("Found metadata for component from source: %s\n", entry.SourceUrl)
 
-	if err := json.Unmarshal(lockData, &sourceLockFile); err != nil {
-		fmt.Printf("Warning: Failed to parse source lock file: %v\n", err)
-		return nil
-	}
-
-	// Extract the entry for this component
-	var entryMap map[string]interface{}
-	switch componentType {
-	case "skills":
-		entryMap = sourceLockFile.Skills[componentName]
-	case "agents":
-		entryMap = sourceLockFile.Agents[componentName]
-	case "commands":
-		entryMap = sourceLockFile.Commands[componentName]
-	}
-
-	if entryMap == nil {
-		// No entry found - this is OK for manually created components
-		fmt.Printf("Note: No lock entry found for component (manual component)\n")
-		return nil
-	}
-
-	// Read or create target lock file
-	targetLockPath := filepath.Join(targetBaseDir, fmt.Sprintf(".%s-lock.json", componentType[:len(componentType)-1]))
-
-	var targetLockFile struct {
-		Version  int                               `json:"version"`
-		Skills   map[string]map[string]interface{} `json:"skills"`
-		Agents   map[string]map[string]interface{} `json:"agents"`
-		Commands map[string]map[string]interface{} `json:"commands"`
-	}
-
-	targetData, err := os.ReadFile(targetLockPath)
+	// Save entry to target profile
+	err = pm.lockService.SaveEntry(targetBaseDir, componentType, componentName, entry)
 	if err != nil {
-		if os.IsNotExist(err) {
-			// Create new lock file
-			targetLockFile.Version = 3
-			targetLockFile.Skills = make(map[string]map[string]interface{})
-			targetLockFile.Agents = make(map[string]map[string]interface{})
-			targetLockFile.Commands = make(map[string]map[string]interface{})
-		} else {
-			fmt.Printf("Warning: Failed to read target lock file: %v\n", err)
-			return nil
-		}
-	} else {
-		if err := json.Unmarshal(targetData, &targetLockFile); err != nil {
-			// Create new lock file if parsing fails
-			targetLockFile.Version = 3
-			targetLockFile.Skills = make(map[string]map[string]interface{})
-			targetLockFile.Agents = make(map[string]map[string]interface{})
-			targetLockFile.Commands = make(map[string]map[string]interface{})
-		}
-		// Ensure maps exist
-		if targetLockFile.Skills == nil {
-			targetLockFile.Skills = make(map[string]map[string]interface{})
-		}
-		if targetLockFile.Agents == nil {
-			targetLockFile.Agents = make(map[string]map[string]interface{})
-		}
-		if targetLockFile.Commands == nil {
-			targetLockFile.Commands = make(map[string]map[string]interface{})
-		}
-	}
-
-	// Add the entry to target lock file
-	switch componentType {
-	case "skills":
-		targetLockFile.Skills[componentName] = entryMap
-	case "agents":
-		targetLockFile.Agents[componentName] = entryMap
-	case "commands":
-		targetLockFile.Commands[componentName] = entryMap
-	}
-
-	// Write target lock file
-	jsonData, err := json.MarshalIndent(targetLockFile, "", "  ")
-	if err != nil {
-		fmt.Printf("Warning: Failed to marshal target lock file: %v\n", err)
-		return nil
-	}
-
-	if err := os.WriteFile(targetLockPath, jsonData, 0644); err != nil {
-		fmt.Printf("Warning: Failed to write target lock file: %v\n", err)
+		fmt.Printf("Warning: Failed to save metadata to target: %v\n", err)
 		return nil
 	}
 

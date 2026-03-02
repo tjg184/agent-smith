@@ -1,5 +1,7 @@
 package services
 
+import "github.com/tjg184/agent-smith/internal/models"
+
 // InstallService handles installation of components (skills, agents, commands)
 type InstallService interface {
 	InstallSkill(repoURL, name string, opts InstallOptions) error
@@ -175,3 +177,25 @@ type FindOptions struct {
 	Limit int  // Max results to display (default: 20)
 	JSON  bool // Output as JSON for scripting
 }
+
+// ComponentLockService handles reading and writing component lock files
+type ComponentLockService interface {
+	// Read operations
+	LoadEntry(baseDir, componentType, componentName string) (*ComponentEntry, error)
+	LoadEntryBySource(baseDir, componentType, componentName, sourceURL string) (*ComponentEntry, error)
+	GetAllComponentNames(baseDir, componentType string) ([]string, error)
+	FindComponentSources(baseDir, componentType, componentName string) ([]string, error)
+	FindAllInstances(baseDir, componentType, componentName string) ([]*ComponentEntry, error)
+
+	// Write operations
+	SaveEntry(baseDir, componentType, componentName string, entry *ComponentEntry) error
+	RemoveEntry(baseDir, componentType, componentName string) error
+	RemoveEntryBySource(baseDir, componentType, componentName, sourceURL string) error
+
+	// Utility operations
+	ResolveFilesystemName(baseDir, componentType, desiredName, sourceURL string) (string, error)
+	HasConflict(baseDir, componentType, componentName string) (bool, error)
+}
+
+// ComponentEntry is re-exported from models for service interface
+type ComponentEntry = models.ComponentEntry

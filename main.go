@@ -19,6 +19,7 @@ import (
 	findsvc "github.com/tjg184/agent-smith/pkg/services/find"
 	installsvc "github.com/tjg184/agent-smith/pkg/services/install"
 	linksvc "github.com/tjg184/agent-smith/pkg/services/link"
+	locksvc "github.com/tjg184/agent-smith/pkg/services/lock"
 	materializesvc "github.com/tjg184/agent-smith/pkg/services/materialize"
 	profilesvc "github.com/tjg184/agent-smith/pkg/services/profile"
 	statussvc "github.com/tjg184/agent-smith/pkg/services/status"
@@ -130,6 +131,11 @@ func determineDestinationFolderName(componentFilePath string) string {
 	}
 }
 
+// NewLockService creates a new ComponentLockService
+func NewLockService() services.ComponentLockService {
+	return locksvc.NewService(appLogger)
+}
+
 // NewComponentLinker creates a new ComponentLinker with dependencies injected
 func NewComponentLinker() (*linker.ComponentLinker, error) {
 	debugPrintln("[DEBUG] NewComponentLinker: Creating component linker")
@@ -140,7 +146,7 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 	debugPrintf("[DEBUG] NewComponentLinker: Base agents directory: %s\n", agentsDir)
 
 	// Check if a profile is active and use its path instead
-	profileManager, err := profiles.NewProfileManager(nil)
+	profileManager, err := profiles.NewProfileManager(nil, NewLockService())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create profile manager: %w", err)
 	}
@@ -267,7 +273,7 @@ func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string)
 		profilePath := filepath.Join(profilesDir, profile)
 		if _, err := os.Stat(profilePath); os.IsNotExist(err) {
 			// Profile directory doesn't exist - provide helpful error with available profiles
-			pm, pmErr := profiles.NewProfileManager(nil)
+			pm, pmErr := profiles.NewProfileManager(nil, NewLockService())
 			if pmErr == nil {
 				availableProfiles, scanErr := pm.ScanProfiles()
 				if scanErr == nil && len(availableProfiles) > 0 {
@@ -313,7 +319,7 @@ func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string)
 		infoPrintf("Using explicit profile: %s\n", profile)
 	} else {
 		// No explicit profile, use active profile logic
-		profileManager, err := profiles.NewProfileManager(nil)
+		profileManager, err := profiles.NewProfileManager(nil, NewLockService())
 		if err != nil {
 			return nil, fmt.Errorf("failed to create profile manager: %w", err)
 		}
@@ -391,7 +397,7 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 	debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Base agents directory: %s\n", agentsDir)
 
 	// Check if a profile is active and use its path instead
-	profileManager, err := profiles.NewProfileManager(nil)
+	profileManager, err := profiles.NewProfileManager(nil, NewLockService())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create profile manager: %w", err)
 	}
@@ -514,7 +520,7 @@ func main() {
 	}
 
 	// Initialize services with dependency injection
-	profileManager, err := profiles.NewProfileManager(nil)
+	profileManager, err := profiles.NewProfileManager(nil, NewLockService())
 	if err != nil {
 		log.Fatal("Failed to initialize profile manager:", err)
 	}
@@ -724,7 +730,7 @@ func main() {
 		func(profileName string) {
 			// If no profile name provided, use active profile
 			if profileName == "" {
-				pm, err := profiles.NewProfileManager(nil)
+				pm, err := profiles.NewProfileManager(nil, NewLockService())
 				if err != nil {
 					log.Fatal("Failed to initialize profile manager:", err)
 				}

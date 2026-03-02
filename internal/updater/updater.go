@@ -14,8 +14,10 @@ import (
 	metadataPkg "github.com/tjg184/agent-smith/internal/metadata"
 	"github.com/tjg184/agent-smith/internal/models"
 	"github.com/tjg184/agent-smith/pkg/colors"
+	"github.com/tjg184/agent-smith/pkg/logger"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
+	locksvc "github.com/tjg184/agent-smith/pkg/services/lock"
 	"github.com/tjg184/agent-smith/pkg/styles"
 )
 
@@ -38,7 +40,7 @@ func NewUpdateDetector() *UpdateDetector {
 	var profileName string
 
 	// Check if a profile is active
-	pm, err := profiles.NewProfileManager(nil)
+	pm, err := profiles.NewProfileManager(nil, locksvc.NewService(logger.New(logger.LevelError)))
 	if err == nil {
 		activeProfile, err := pm.GetActiveProfile()
 		if err == nil && activeProfile != "" {
@@ -80,7 +82,7 @@ func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
 		fmt.Printf("Using specified profile for updates: %s\n", profile)
 	} else {
 		// Check if a profile is active
-		pm, err := profiles.NewProfileManager(nil)
+		pm, err := profiles.NewProfileManager(nil, locksvc.NewService(logger.New(logger.LevelError)))
 		if err == nil {
 			activeProfile, err := pm.GetActiveProfile()
 			if err == nil && activeProfile != "" {
