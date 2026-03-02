@@ -22,6 +22,20 @@ var ComputeLocalFolderHash = metadata.ComputeLocalFolderHash
 func DetermineDestinationFolderName(componentFilePath string) string {
 	componentTypeNames := []string{"skills", "agents", "commands"}
 
+	// Handle single-file components first
+	fileName := filepath.Base(componentFilePath)
+	fileExt := filepath.Ext(fileName)
+
+	// If this is a single-file .md component (not SKILL.md, AGENT.md, COMMAND.md)
+	// use the filename without extension as the destination folder name
+	if fileExt == ".md" &&
+		fileName != "SKILL.md" &&
+		fileName != "AGENT.md" &&
+		fileName != "COMMAND.md" {
+		return strings.TrimSuffix(fileName, fileExt)
+	}
+
+	// Directory-based component: use existing hierarchy heuristic
 	// Get directory containing the component file
 	currentDir := filepath.Dir(componentFilePath)
 

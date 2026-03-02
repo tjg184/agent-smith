@@ -91,7 +91,7 @@ func (rd *RepositoryDetector) DetectComponentForPattern(fileName, relPath, fullR
 			if rd.logger != nil {
 				rd.logger.Debug("Path pattern + extension match, name: %s (frontmatter: %v)", componentName, frontmatter != nil)
 			}
-			return componentName, relPath, true
+			return componentName, fullRelPath, true
 		}
 		if rd.logger != nil {
 			rd.logger.Debug("Path pattern + extension check failed")
@@ -114,7 +114,7 @@ func (rd *RepositoryDetector) DetectComponentForPattern(fileName, relPath, fullR
 		if rd.logger != nil {
 			rd.logger.Debug("Path pattern match, name: %s (frontmatter: %v)", componentName, frontmatter != nil)
 		}
-		return componentName, relPath, true
+		return componentName, fullRelPath, true
 	}
 	if rd.logger != nil {
 		rd.logger.Debug("Path pattern check failed")
