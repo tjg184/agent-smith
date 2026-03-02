@@ -2,6 +2,7 @@
 package testutil
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -204,4 +205,111 @@ func CreateGitRepo(t testing.TB, path string) string {
 	}
 
 	return path
+}
+
+// CreateComponentLockFile creates a component lock file with the correct nested structure (version 5).
+// This helper ensures tests use the correct lock file format that matches the code's expectations:
+//
+//	{
+//	  "version": 5,
+//	  "skills": {
+//	    "https://github.com/...": {
+//	      "component-name": { ... entry ... }
+//	    }
+//	  }
+//	}
+func CreateComponentLockFile(t testing.TB, lockFilePath, componentType, componentName, sourceUrl string, entry map[string]interface{}) {
+	t.Helper()
+
+	// Ensure the entry has the minimum required fields
+	if entry["sourceUrl"] == nil {
+		entry["sourceUrl"] = sourceUrl
+	}
+	if entry["version"] == nil {
+		entry["version"] = 5
+	}
+
+	// Build the nested structure: map[componentType]map[sourceUrl]map[componentName]entry
+	lockData := map[string]interface{}{
+		"version": 5,
+		componentType: map[string]interface{}{
+			sourceUrl: map[string]interface{}{
+				componentName: entry,
+			},
+		},
+	}
+
+	lockJSON, err := json.MarshalIndent(lockData, "", "  ")
+	AssertNoError(t, err, "Failed to marshal lock data")
+
+	// Create parent directory if it doesn't exist
+	dir := filepath.Dir(lockFilePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("failed to create directory %s: %v", dir, err)
+	}
+
+	err = os.WriteFile(lockFilePath, lockJSON, 0644)
+	AssertNoError(t, err, "Failed to write lock file")
+}
+
+// AddComponentToLockFile adds a component to an existing lock file, or creates it if it doesn't exist.
+// This maintains the correct nested structure for version 5 lock files.
+func AddComponentToLockFile(t testing.TB, lockFilePath, componentType, componentName, sourceUrl string, entry map[string]interface{}) {
+	t.Helper()
+
+	// Ensure the entry has the minimum required fields
+	if entry["sourceUrl"] == nil {
+		entry["sourceUrl"] = sourceUrl
+	}
+	if entry["version"] == nil {
+		entry["version"] = 5
+	}
+
+	// Read existing lock file or create new one
+	var lockData map[string]interface{}
+	lockBytes, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Create new lock file structure
+			lockData = map[string]interface{}{
+				"version": 5,
+			}
+		} else {
+			t.Fatalf("failed to read lock file: %v", err)
+		}
+	} else {
+		if err := json.Unmarshal(lockBytes, &lockData); err != nil {
+			t.Fatalf("failed to unmarshal lock file: %v", err)
+		}
+	}
+
+	// Ensure component type map exists
+	if lockData[componentType] == nil {
+		lockData[componentType] = make(map[string]interface{})
+	}
+
+	componentTypeMap := lockData[componentType].(map[string]interface{})
+
+	// Ensure source URL map exists
+	if componentTypeMap[sourceUrl] == nil {
+		componentTypeMap[sourceUrl] = make(map[string]interface{})
+	}
+
+	sourceUrlMap := componentTypeMap[sourceUrl].(map[string]interface{})
+
+	// Add the component entry
+	sourceUrlMap[componentName] = entry
+
+	// Write back
+	lockJSON, err := json.MarshalIndent(lockData, "", "  ")
+	AssertNoError(t, err, "Failed to marshal lock data")
+
+	// Create parent directory if it doesn't exist
+	dir := filepath.Dir(lockFilePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("failed to create directory %s: %v", dir, err)
+	}
+
+	err = os.WriteFile(lockFilePath, lockJSON, 0644)
+	AssertNoError(t, err, "Failed to write lock file")
 }

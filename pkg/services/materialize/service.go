@@ -176,12 +176,14 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 	// Determine project root
 	projectRoot, err := s.getProjectRoot(opts.ProjectDir)
 	if err != nil {
+		s.logger.Error("Failed to determine project root: %v", err)
 		return err
 	}
 
 	// Get source directory
 	baseDir, sourceProfile, err := s.getSourceDir(opts.Profile)
 	if err != nil {
+		s.logger.Error("Failed to get source directory: %v", err)
 		return err
 	}
 
@@ -193,6 +195,7 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 		var loadErr error
 		lockEntry, loadErr = metadataPkg.LoadLockFileEntryBySource(baseDir, componentType, componentName, opts.Source)
 		if loadErr != nil {
+			s.logger.Error("Failed to load component metadata from source %s: %v", opts.Source, loadErr)
 			return fmt.Errorf("failed to load component metadata from source %s: %w", opts.Source, loadErr)
 		}
 	} else {
@@ -209,6 +212,7 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 				}
 				return fmt.Errorf("ambiguous component name")
 			}
+			s.logger.Error("Failed to load component metadata: %v", loadErr)
 			return fmt.Errorf("failed to load component metadata: %w", loadErr)
 		}
 	}

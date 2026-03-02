@@ -24,15 +24,8 @@ func TestE2E_InstallLinkUpdateWorkflow(t *testing.T) {
 		os.Setenv("HOME", oldHome)
 	})
 
-	// Build agent-smith binary
-	binaryPath := filepath.Join(tempDir, "agent-smith")
-	// Build from repository root (../../ from tests/integration)
-	repoRoot := filepath.Join("..", "..")
-	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-	cmd.Dir = repoRoot
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", err, string(output))
-	}
+	// Use the globally compiled binary (built once in TestMain)
+	binaryPath := AgentSmithBinary
 
 	// Test repository (using a well-known public repo)
 	testRepo := "anthropics/skills"
@@ -196,15 +189,8 @@ func TestE2E_SingleComponentWorkflow(t *testing.T) {
 		os.Setenv("HOME", oldHome)
 	})
 
-	// Build agent-smith binary
-	binaryPath := filepath.Join(tempDir, "agent-smith")
-	// Build from repository root (../../ from tests/integration)
-	repoRoot := filepath.Join("..", "..")
-	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-	cmd.Dir = repoRoot
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", err, string(output))
-	}
+	// Use the globally compiled binary (built once in TestMain)
+	binaryPath := AgentSmithBinary
 
 	testRepo := "anthropics/skills"
 	// We'll use a skill that's likely to exist in the repo
@@ -284,15 +270,8 @@ func TestE2E_ProfileWorkflow(t *testing.T) {
 		os.Setenv("HOME", oldHome)
 	})
 
-	// Build agent-smith binary
-	binaryPath := filepath.Join(tempDir, "agent-smith")
-	// Build from repository root (../../ from tests/integration)
-	repoRoot := filepath.Join("..", "..")
-	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-	cmd.Dir = repoRoot
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", err, string(output))
-	}
+	// Use the globally compiled binary (built once in TestMain)
+	binaryPath := AgentSmithBinary
 
 	testRepo := "anthropics/skills"
 	profileName := "work-profile"
@@ -386,8 +365,17 @@ func TestE2E_ProfileWorkflow(t *testing.T) {
 		testutil.AssertTrue(t, strings.Contains(outputStr, profileName), "work-profile should be listed")
 		testutil.AssertTrue(t, strings.Contains(outputStr, "skills"), "skills profile should be listed")
 
-		// Count active markers - there should be none
-		activeCount := strings.Count(outputStr, "[active]")
+		// Count active markers - there should be none (no checkmarks before profile names)
+		// Active profiles have "✓" at the start of their line
+		lines := strings.Split(outputStr, "\n")
+		activeCount := 0
+		for _, line := range lines {
+			// Check if line starts with "│ ✓" which indicates an active profile
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "│ ✓") {
+				activeCount++
+			}
+		}
 		testutil.AssertEqual(t, 0, activeCount, "No profiles should be active")
 	})
 
@@ -407,8 +395,18 @@ func TestE2E_ProfileWorkflow(t *testing.T) {
 		outputStr = string(output)
 
 		testutil.AssertNoError(t, err, "Failed to list profiles")
-		testutil.AssertTrue(t, strings.Contains(outputStr, "skills") && strings.Contains(outputStr, "[active]"),
-			"Skills profile should be active")
+
+		// Check if skills profile is active (line should start with "│ ✓" and contain "skills")
+		isActive := false
+		lines := strings.Split(outputStr, "\n")
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "│ ✓") && strings.Contains(line, "skills") {
+				isActive = true
+				break
+			}
+		}
+		testutil.AssertTrue(t, isActive, "Skills profile should be active")
 
 		t.Logf("Successfully activated skills profile")
 	})
@@ -429,8 +427,18 @@ func TestE2E_ProfileWorkflow(t *testing.T) {
 		outputStr = string(output)
 
 		testutil.AssertNoError(t, err, "Failed to list profiles")
-		testutil.AssertTrue(t, strings.Contains(outputStr, profileName) && strings.Contains(outputStr, "[active]"),
-			"work-profile should be active")
+
+		// Check if work-profile is active (line should start with "│ ✓" and contain profileName)
+		isActive := false
+		lines := strings.Split(outputStr, "\n")
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "│ ✓") && strings.Contains(line, profileName) {
+				isActive = true
+				break
+			}
+		}
+		testutil.AssertTrue(t, isActive, "work-profile should be active")
 
 		t.Logf("Successfully switched to work-profile")
 	})
@@ -446,15 +454,8 @@ func TestE2E_CustomTargetDirWorkflow(t *testing.T) {
 		os.Setenv("HOME", oldHome)
 	})
 
-	// Build agent-smith binary
-	binaryPath := filepath.Join(tempDir, "agent-smith")
-	// Build from repository root (../../ from tests/integration)
-	repoRoot := filepath.Join("..", "..")
-	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-	cmd.Dir = repoRoot
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", err, string(output))
-	}
+	// Use the globally compiled binary (built once in TestMain)
+	binaryPath := AgentSmithBinary
 
 	testRepo := "anthropics/skills"
 	skillName := "web-artifacts-builder"

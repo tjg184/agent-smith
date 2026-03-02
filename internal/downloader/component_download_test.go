@@ -1,17 +1,14 @@
-//go:build integration
-// +build integration
-
-package main
+package downloader
 
 import (
-	"github.com/tjg184/agent-smith/internal/detector"
-	"github.com/tjg184/agent-smith/internal/downloader"
-	"github.com/tjg184/agent-smith/internal/models"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/tjg184/agent-smith/internal/detector"
+	"github.com/tjg184/agent-smith/internal/models"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -37,6 +34,18 @@ func NewTestHelper(t *testing.T) *TestHelper {
 
 // Cleanup removes all temporary directories
 func (h *TestHelper) Cleanup() {
+	// First, ensure all files are writable by walking the directory tree
+	// This is necessary because Go module cache files are read-only
+	_ = filepath.Walk(h.tempDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Continue walking even if we hit an error
+		}
+		// Make the file/directory writable
+		_ = os.Chmod(path, 0755)
+		return nil
+	})
+
+	// Now attempt to remove the directory
 	if err := os.RemoveAll(h.tempDir); err != nil {
 		h.t.Logf("Warning: failed to clean up temp directory: %v", err)
 	}
@@ -237,7 +246,7 @@ func TestGroupedComponentDownload(t *testing.T) {
 
 	// Create downloader
 	detect := detector.NewRepositoryDetector()
-	dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
+	dl := NewAgentDownloaderWithParams(agentsDir, detect)
 
 	// Detect components first
 	components, err := detect.DetectComponentsInRepo(repoPath)
@@ -283,7 +292,7 @@ func TestMultipleComponentsFromSameGroup(t *testing.T) {
 
 	// Create downloader
 	detect := detector.NewRepositoryDetector()
-	dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
+	dl := NewAgentDownloaderWithParams(agentsDir, detect)
 
 	// Detect components first
 	components, err := detect.DetectComponentsInRepo(repoPath)
@@ -342,7 +351,7 @@ func TestBackwardCompatibilityFlatStructure(t *testing.T) {
 
 	// Create downloader
 	detect := detector.NewRepositoryDetector()
-	dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
+	dl := NewAgentDownloaderWithParams(agentsDir, detect)
 
 	// Detect components first
 	components, err := detect.DetectComponentsInRepo(repoPath)
@@ -382,7 +391,7 @@ func TestBackwardCompatibilityMonorepo(t *testing.T) {
 	_ = helper.CreateMonorepo()
 
 	// Test with bulk downloader (monorepo scenario)
-	_ = downloader.NewBulkDownloader()
+	_ = NewBulkDownloader()
 
 	// Download all components using AddAll (requires proper URL format)
 	// AddAll expects a github-style URL, so this test may not work with file:// URLs
@@ -403,7 +412,7 @@ func TestLinkingComponents(t *testing.T) {
 
 	// Create downloader and download agent
 	detect := detector.NewRepositoryDetector()
-	dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
+	dl := NewAgentDownloaderWithParams(agentsDir, detect)
 
 	// Detect components first
 	components, err := detect.DetectComponentsInRepo(repoPath)
@@ -465,7 +474,7 @@ func TestCrossPlatformPathHandling(t *testing.T) {
 
 	// Create downloader
 	detect := detector.NewRepositoryDetector()
-	dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
+	dl := NewAgentDownloaderWithParams(agentsDir, detect)
 
 	// Detect components first
 	components, err := detect.DetectComponentsInRepo(repoPath)
@@ -518,7 +527,7 @@ func TestErrorHandlingMissingComponent(t *testing.T) {
 
 	// Create downloader
 	detect := detector.NewRepositoryDetector()
-	dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
+	dl := NewAgentDownloaderWithParams(agentsDir, detect)
 
 	// Detect components first
 	components, err := detect.DetectComponentsInRepo(repoPath)
@@ -630,7 +639,7 @@ func BenchmarkComponentDownload(b *testing.B) {
 		agentsDir := filepath.Join(installDir, "agents")
 
 		detect := detector.NewRepositoryDetector()
-		dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
+		dl := NewAgentDownloaderWithParams(agentsDir, detect)
 
 		// Detect components first
 		components, err := detect.DetectComponentsInRepo(repoPath)
@@ -668,7 +677,7 @@ func TestGitOperations(t *testing.T) {
 
 	// Download agent
 	detect := detector.NewRepositoryDetector()
-	dl := downloader.NewAgentDownloaderWithParams(agentsDir, detect)
+	dl := NewAgentDownloaderWithParams(agentsDir, detect)
 
 	// Detect components first
 	components, err := detect.DetectComponentsInRepo(repoPath)
@@ -774,7 +783,7 @@ Third skill`,
 	installDir := filepath.Join(tempDir, "install")
 
 	// Create downloader
-	dl := downloader.NewSkillDownloaderWithTargetDir(installDir)
+	dl := NewSkillDownloaderWithTargetDir(installDir)
 
 	// Try to download a non-existent skill (use repo path directly for local repos)
 	err = dl.DownloadSkill(repoPath, "non-existent-skill", repoPath)
@@ -964,7 +973,7 @@ func TestComponentDownloadPreservesResources(t *testing.T) {
 	installDir := helper.CreateInstallDir()
 
 	// Create downloader (it will create skills subdirectory automatically)
-	dl := downloader.NewSkillDownloaderWithTargetDir(installDir)
+	dl := NewSkillDownloaderWithTargetDir(installDir)
 
 	// Download skill (use repoPath directly for local repos, not file:// URL)
 	err := dl.DownloadSkill(repoPath, "my-skill", repoPath)
@@ -1016,7 +1025,7 @@ func TestMultipleComponentsWithResources(t *testing.T) {
 	installDir := helper.CreateInstallDir()
 
 	// Create downloader (it will create skills subdirectory automatically)
-	dl := downloader.NewSkillDownloaderWithTargetDir(installDir)
+	dl := NewSkillDownloaderWithTargetDir(installDir)
 
 	// Download all three skills
 	skills := []string{"skill-a", "skill-b", "skill-c"}
@@ -1064,7 +1073,7 @@ func TestCopyComponentFilesRecursive(t *testing.T) {
 	installDir := helper.CreateInstallDir()
 
 	// Create downloader (it will create skills subdirectory automatically)
-	dl := downloader.NewSkillDownloaderWithTargetDir(installDir)
+	dl := NewSkillDownloaderWithTargetDir(installDir)
 
 	// Download skill (use repoPath directly for local repos)
 	err := dl.DownloadSkill(repoPath, "test-skill", repoPath)

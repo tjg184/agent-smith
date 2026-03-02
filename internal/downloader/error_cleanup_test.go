@@ -1,7 +1,4 @@
-//go:build integration
-// +build integration
-
-package main
+package downloader
 
 import (
 	"os"
@@ -9,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/tjg184/agent-smith/internal/detector"
-	"github.com/tjg184/agent-smith/internal/downloader"
 	"github.com/tjg184/agent-smith/internal/fileutil"
 )
 
@@ -28,7 +24,7 @@ func TestAgentDownloadErrorCleanup(t *testing.T) {
 	}
 
 	// Create downloader with test base directory
-	ad := downloader.NewAgentDownloaderWithParams(baseDir, detector.NewRepositoryDetector())
+	ad := NewAgentDownloaderWithParams(baseDir, detector.NewRepositoryDetector())
 
 	// Test case: Invalid repository URL should not leave empty directories
 	t.Run("InvalidRepoURL", func(t *testing.T) {
@@ -107,7 +103,7 @@ func TestCommandDownloadErrorCleanup(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create downloader with test base directory (constructor will create commands subdir)
-	cd := downloader.NewCommandDownloaderWithTargetDir(tempDir)
+	cd := NewCommandDownloaderWithTargetDir(tempDir)
 	baseDir := filepath.Join(tempDir, "commands")
 
 	// Test case: Invalid repository URL should not leave empty directories
@@ -139,7 +135,7 @@ func TestSkillDownloadErrorCleanup(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create downloader with test base directory (constructor will create skills subdir)
-	sd := downloader.NewSkillDownloaderWithTargetDir(tempDir)
+	sd := NewSkillDownloaderWithTargetDir(tempDir)
 	baseDir := filepath.Join(tempDir, "skills")
 
 	// Test case: Invalid repository URL should not leave empty directories

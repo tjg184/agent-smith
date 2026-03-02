@@ -8,224 +8,240 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/tjg184/agent-smith/internal/testutil"
 )
 
-// TestProfileAddPreservesLockFileEntries tests that the `profile add` command
-// preserves lock file entries when copying components from base installation to a profile.
-// This is the acceptance test for Story-004 from 20260201-0052-profile-component-copy.md
-func TestProfileAddPreservesLockFileEntries(t *testing.T) {
-	// Create a temporary directory for testing
-	tempDir, err := os.MkdirTemp("", "agent-smith-profile-add-lock-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Build agent-smith binary
-	binaryPath := filepath.Join(tempDir, "agent-smith")
-	// Build from repository root (../../ from tests/integration)
-	repoRoot := filepath.Join("..", "..")
-	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-	cmd.Dir = repoRoot
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", err, string(output))
-	}
-
-	// Set HOME to test directory to avoid affecting actual configuration
+// TestE2E_ProfileAddWorkflow tests the full workflow: install → create profile → add to profile → verify update works
+// This verifies that lock file entries are preserved when copying components to profiles.
+func TestE2E_ProfileAddWorkflow(t *testing.T) {
+	tempDir := testutil.CreateTempDir(t, "agent-smith-e2e-profile-add-*")
 	oldHome := os.Getenv("HOME")
-	testHome := tempDir
-	os.Setenv("HOME", testHome)
-	defer os.Setenv("HOME", oldHome)
+	os.Setenv("HOME", tempDir)
+	t.Cleanup(func() {
+		os.Setenv("HOME", oldHome)
+	})
 
-	t.Run("ProfileAddPreservesLockEntry", func(t *testing.T) {
-		// Step 1: Install a skill from Git to the base directory
-		t.Log("Step 1: Installing skill from Git to base directory...")
-		installCmd := exec.Command(binaryPath, "install", "skill", "anthropics/skills", "frontend-design")
-		output, err := installCmd.CombinedOutput()
+	binaryPath := AgentSmithBinary
+	testRepo := "anthropics/skills"
+	skillName := "frontend-design"
+	profileName := "test-profile"
+
+	// Step 1: Install skill to base directory
+	t.Run("Step1_InstallSkillToBase", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "install", "skill", testRepo, skillName)
+		output, err := cmd.CombinedOutput()
 		outputStr := string(output)
+
 		t.Logf("Install output:\n%s", outputStr)
 
 		if err != nil {
-			t.Fatalf("Failed to install skill: %v\nOutput: %s", err, outputStr)
+			t.Fatalf("Install failed: %v\nOutput: %s", err, outputStr)
 		}
 
-		// Step 2: Verify the lock file entry exists in base installation
-		t.Log("Step 2: Verifying lock file entry in base installation...")
-		baseLockPath := filepath.Join(testHome, ".agent-smith", ".component-lock.json")
-		baseLockData, err := os.ReadFile(baseLockPath)
-		if err != nil {
-			t.Fatalf("Failed to read base lock file: %v", err)
-		}
+		// Verify skill was installed
+		skillDir := filepath.Join(tempDir, ".agent-smith", "skills", skillName)
+		testutil.AssertDirectoryExists(t, skillDir)
 
-		var baseLockFile struct {
-			Version int                               `json:"version"`
-			Skills  map[string]map[string]interface{} `json:"skills"`
-		}
-		if err := json.Unmarshal(baseLockData, &baseLockFile); err != nil {
-			t.Fatalf("Failed to parse base lock file: %v", err)
-		}
-
-		// Verify frontend-design entry exists
-		frontendDesignEntry, exists := baseLockFile.Skills["frontend-design"]
-		if !exists {
-			t.Fatalf("frontend-design entry not found in base lock file. Available entries: %v", getMapKeys(baseLockFile.Skills))
-		}
-
-		// Verify the entry has required fields
-		requiredFields := []string{"sourceUrl", "commitHash", "installedAt"}
-		for _, field := range requiredFields {
-			if _, ok := frontendDesignEntry[field]; !ok {
-				t.Errorf("Lock entry missing required field '%s'. Entry: %v", field, frontendDesignEntry)
-			}
-		}
-
-		// Store the original commit hash for later comparison
-		originalCommitHash, _ := frontendDesignEntry["commitHash"].(string)
-		t.Logf("Base lock entry commitHash: %s", originalCommitHash)
-
-		// Step 3: Create a profile
-		t.Log("Step 3: Creating test profile...")
-		createProfileCmd := exec.Command(binaryPath, "profile", "create", "test-profile")
-		output, err = createProfileCmd.CombinedOutput()
-		outputStr = string(output)
-		t.Logf("Create profile output:\n%s", outputStr)
-
-		if err != nil {
-			t.Fatalf("Failed to create profile: %v\nOutput: %s", err, outputStr)
-		}
-
-		// Step 4: Add the skill to the profile using 'profile add'
-		t.Log("Step 4: Adding skill to profile using 'profile add'...")
-		addCmd := exec.Command(binaryPath, "profile", "add", "skills", "test-profile", "frontend-design")
-		output, err = addCmd.CombinedOutput()
-		outputStr = string(output)
-		t.Logf("Profile add output:\n%s", outputStr)
-
-		if err != nil {
-			t.Fatalf("Failed to add component to profile: %v\nOutput: %s", err, outputStr)
-		}
-
-		// Step 5: Verify the lock file entry was copied to the profile
-		t.Log("Step 5: Verifying lock file entry was copied to profile...")
-		profileLockPath := filepath.Join(testHome, ".agent-smith", "profiles", "test-profile", ".component-lock.json")
-		profileLockData, err := os.ReadFile(profileLockPath)
-		if err != nil {
-			t.Fatalf("Failed to read profile lock file at %s: %v", profileLockPath, err)
-		}
-
-		var profileLockFile struct {
-			Version int                               `json:"version"`
-			Skills  map[string]map[string]interface{} `json:"skills"`
-		}
-		if err := json.Unmarshal(profileLockData, &profileLockFile); err != nil {
-			t.Fatalf("Failed to parse profile lock file: %v", err)
-		}
-
-		// Verify frontend-design entry exists in profile
-		profileEntry, exists := profileLockFile.Skills["frontend-design"]
-		if !exists {
-			t.Fatalf("frontend-design entry not found in profile lock file. Available entries: %v", getMapKeys(profileLockFile.Skills))
-		}
-
-		// Step 6: Verify all metadata fields were preserved
-		t.Log("Step 6: Verifying metadata fields were preserved...")
-		for _, field := range requiredFields {
-			if _, ok := profileEntry[field]; !ok {
-				t.Errorf("Profile lock entry missing required field '%s'. Entry: %v", field, profileEntry)
-			}
-		}
-
-		// Verify commit hash matches
-		profileCommitHash, _ := profileEntry["commitHash"].(string)
-		if profileCommitHash != originalCommitHash {
-			t.Errorf("Commit hash mismatch. Base: %s, Profile: %s", originalCommitHash, profileCommitHash)
-		}
-
-		// Step 7: Verify the component files were copied
-		t.Log("Step 7: Verifying component files were copied...")
-		profileComponentPath := filepath.Join(testHome, ".agent-smith", "profiles", "test-profile", "skills", "frontend-design")
-		if _, err := os.Stat(profileComponentPath); os.IsNotExist(err) {
-			t.Fatalf("Component directory not found in profile at %s", profileComponentPath)
-		}
-
-		// Check for SKILL.md file (or similar marker file)
-		skillFiles, err := os.ReadDir(profileComponentPath)
-		if err != nil {
-			t.Fatalf("Failed to read component directory: %v", err)
-		}
-		if len(skillFiles) == 0 {
-			t.Errorf("Component directory is empty at %s", profileComponentPath)
-		}
-
-		t.Log("✓ Profile add successfully preserved lock file entry")
-		t.Logf("✓ Component is now updateable in profile 'test-profile'")
+		t.Logf("Successfully installed skill: %s", skillName)
 	})
 
-	t.Run("ProfileAddHandlesMissingLockEntry", func(t *testing.T) {
-		// Test that profile add handles components without lock entries gracefully
-		// This tests backward compatibility with manually created components
-
-		// Step 1: Create a profile
-		t.Log("Step 1: Creating test profile for manual component...")
-		createProfileCmd := exec.Command(binaryPath, "profile", "create", "manual-profile")
-		output, err := createProfileCmd.CombinedOutput()
+	// Step 2: Create profile
+	t.Run("Step2_CreateProfile", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "profile", "create", profileName)
+		output, err := cmd.CombinedOutput()
 		outputStr := string(output)
+
 		t.Logf("Create profile output:\n%s", outputStr)
 
 		if err != nil {
-			t.Fatalf("Failed to create profile: %v\nOutput: %s", err, outputStr)
+			t.Fatalf("Create profile failed: %v\nOutput: %s", err, outputStr)
 		}
 
-		// Step 2: Create a manual skill (no Git source)
-		t.Log("Step 2: Creating manual skill...")
-		manualSkillDir := filepath.Join(testHome, ".agent-smith", "skills", "manual-skill")
-		if err := os.MkdirAll(manualSkillDir, 0755); err != nil {
-			t.Fatalf("Failed to create manual skill directory: %v", err)
-		}
+		// Verify profile directory was created
+		profileDir := filepath.Join(tempDir, ".agent-smith", "profiles", profileName)
+		testutil.AssertDirectoryExists(t, profileDir)
 
-		// Write a simple SKILL.md file
-		skillContent := `# Manual Skill
+		t.Logf("Successfully created profile: %s", profileName)
+	})
 
-This is a manually created skill without Git source.
-`
-		if err := os.WriteFile(filepath.Join(manualSkillDir, "SKILL.md"), []byte(skillContent), 0644); err != nil {
-			t.Fatalf("Failed to write skill file: %v", err)
-		}
+	// Step 3: Add skill to profile
+	t.Run("Step3_AddSkillToProfile", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "profile", "add", "skills", profileName, skillName)
+		output, err := cmd.CombinedOutput()
+		outputStr := string(output)
 
-		// Step 3: Add the manual skill to the profile
-		t.Log("Step 3: Adding manual skill to profile...")
-		addCmd := exec.Command(binaryPath, "profile", "add", "skills", "manual-profile", "manual-skill")
-		output, err = addCmd.CombinedOutput()
-		outputStr = string(output)
 		t.Logf("Profile add output:\n%s", outputStr)
 
 		if err != nil {
-			t.Fatalf("Failed to add manual component to profile: %v\nOutput: %s", err, outputStr)
+			t.Fatalf("Profile add failed: %v\nOutput: %s", err, outputStr)
 		}
 
-		// Step 4: Verify the component was copied even without lock entry
-		t.Log("Step 4: Verifying manual component was copied...")
-		profileComponentPath := filepath.Join(testHome, ".agent-smith", "profiles", "manual-profile", "skills", "manual-skill")
-		if _, err := os.Stat(profileComponentPath); os.IsNotExist(err) {
-			t.Fatalf("Manual component directory not found in profile at %s", profileComponentPath)
+		// Verify skill was copied to profile
+		profileSkillDir := filepath.Join(tempDir, ".agent-smith", "profiles", profileName, "skills", skillName)
+		testutil.AssertDirectoryExists(t, profileSkillDir)
+
+		// Verify component files exist
+		skillFiles, err := os.ReadDir(profileSkillDir)
+		testutil.AssertNoError(t, err, "Failed to read profile skill directory")
+		if len(skillFiles) == 0 {
+			t.Fatalf("Profile skill directory is empty")
 		}
 
-		// Check that SKILL.md was copied
-		skillPath := filepath.Join(profileComponentPath, "SKILL.md")
-		if _, err := os.Stat(skillPath); os.IsNotExist(err) {
-			t.Errorf("SKILL.md file not found in profile component at %s", skillPath)
+		t.Logf("Successfully added skill to profile: %s", profileName)
+	})
+
+	// Step 4: Verify lock file entry was preserved (implementation verification)
+	t.Run("Step4_VerifyLockFilePreserved", func(t *testing.T) {
+		// Read base lock file
+		baseLockPath := filepath.Join(tempDir, ".agent-smith", ".component-lock.json")
+		baseLockData, err := os.ReadFile(baseLockPath)
+		testutil.AssertNoError(t, err, "Failed to read base lock file")
+
+		var baseLockFile struct {
+			Skills map[string]map[string]interface{} `json:"skills"`
+		}
+		testutil.AssertNoError(t, json.Unmarshal(baseLockData, &baseLockFile), "Failed to parse base lock file")
+
+		// Read profile lock file
+		profileLockPath := filepath.Join(tempDir, ".agent-smith", "profiles", profileName, ".component-lock.json")
+		profileLockData, err := os.ReadFile(profileLockPath)
+		testutil.AssertNoError(t, err, "Failed to read profile lock file")
+
+		var profileLockFile struct {
+			Skills map[string]map[string]interface{} `json:"skills"`
+		}
+		testutil.AssertNoError(t, json.Unmarshal(profileLockData, &profileLockFile), "Failed to parse profile lock file")
+
+		// Verify lock entry exists in both
+		expectedSourceUrl := "https://github.com/anthropics/skills"
+		baseEntry := baseLockFile.Skills[expectedSourceUrl][skillName].(map[string]interface{})
+		profileEntry := profileLockFile.Skills[expectedSourceUrl][skillName].(map[string]interface{})
+
+		// Verify commit hash matches (key field for updates)
+		baseCommitHash := baseEntry["commitHash"].(string)
+		profileCommitHash := profileEntry["commitHash"].(string)
+
+		if baseCommitHash != profileCommitHash {
+			t.Errorf("Commit hash mismatch. Base: %s, Profile: %s", baseCommitHash, profileCommitHash)
 		}
 
-		t.Log("✓ Profile add successfully handled manual component without lock entry")
+		t.Logf("Verified lock file entry preserved with commit hash: %s", profileCommitHash)
+	})
+
+	// Step 5: Activate profile and verify update command works (E2E verification)
+	t.Run("Step5_UpdateSkillInProfile", func(t *testing.T) {
+		// Activate the profile
+		activateCmd := exec.Command(binaryPath, "profile", "activate", profileName)
+		output, err := activateCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Profile activate failed: %v\nOutput: %s", err, string(output))
+		}
+
+		// Run update command (should work because lock file was preserved)
+		updateCmd := exec.Command(binaryPath, "update", "skills", skillName)
+		output, err = updateCmd.CombinedOutput()
+		outputStr := string(output)
+
+		t.Logf("Update output:\n%s", outputStr)
+
+		if err != nil {
+			t.Fatalf("Update failed: %v\nOutput: %s", err, outputStr)
+		}
+
+		// Verify update completed (should show "Up to date" or "Updated")
+		if !strings.Contains(outputStr, "Up to date") && !strings.Contains(outputStr, "Updated") {
+			t.Errorf("Expected update success message, got: %s", outputStr)
+		}
+
+		t.Logf("Successfully verified update works in profile (lock file preserved)")
 	})
 }
 
-// Helper function to get keys from a map
-func getMapKeys(m map[string]map[string]interface{}) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
+// TestE2E_ProfileAddManualComponentWorkflow tests adding manually created components to profiles
+// This verifies backward compatibility with components not installed via Git
+func TestE2E_ProfileAddManualComponentWorkflow(t *testing.T) {
+	tempDir := testutil.CreateTempDir(t, "agent-smith-e2e-profile-manual-*")
+	oldHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempDir)
+	t.Cleanup(func() {
+		os.Setenv("HOME", oldHome)
+	})
+
+	binaryPath := AgentSmithBinary
+	profileName := "manual-profile"
+	skillName := "manual-skill"
+
+	// Step 1: Create manual skill in base directory (no Git source)
+	t.Run("Step1_CreateManualSkill", func(t *testing.T) {
+		skillDir := filepath.Join(tempDir, ".agent-smith", "skills", skillName)
+		err := os.MkdirAll(skillDir, 0755)
+		testutil.AssertNoError(t, err, "Failed to create manual skill directory")
+
+		skillContent := "# Manual Skill\n\nThis is a manually created skill without Git source.\n"
+		err = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0644)
+		testutil.AssertNoError(t, err, "Failed to write skill file")
+
+		t.Logf("Created manual skill: %s", skillName)
+	})
+
+	// Step 2: Create profile
+	t.Run("Step2_CreateProfile", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "profile", "create", profileName)
+		output, err := cmd.CombinedOutput()
+		outputStr := string(output)
+
+		t.Logf("Create profile output:\n%s", outputStr)
+
+		if err != nil {
+			t.Fatalf("Create profile failed: %v\nOutput: %s", err, outputStr)
+		}
+
+		t.Logf("Successfully created profile: %s", profileName)
+	})
+
+	// Step 3: Add manual skill to profile
+	t.Run("Step3_AddManualSkillToProfile", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "profile", "add", "skills", profileName, skillName)
+		output, err := cmd.CombinedOutput()
+		outputStr := string(output)
+
+		t.Logf("Profile add output:\n%s", outputStr)
+
+		if err != nil {
+			t.Fatalf("Profile add failed: %v\nOutput: %s", err, outputStr)
+		}
+
+		// Verify skill was copied to profile
+		profileSkillDir := filepath.Join(tempDir, ".agent-smith", "profiles", profileName, "skills", skillName)
+		testutil.AssertDirectoryExists(t, profileSkillDir)
+
+		// Verify SKILL.md was copied
+		skillPath := filepath.Join(profileSkillDir, "SKILL.md")
+		testutil.AssertFileExists(t, skillPath)
+
+		t.Logf("Successfully added manual skill to profile")
+	})
+
+	// Step 4: Verify profile list shows the skill
+	t.Run("Step4_VerifySkillInProfile", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "profile", "list")
+		output, err := cmd.CombinedOutput()
+		outputStr := string(output)
+
+		t.Logf("Profile list output:\n%s", outputStr)
+
+		if err != nil {
+			t.Fatalf("Profile list failed: %v\nOutput: %s", err, outputStr)
+		}
+
+		// Should show the profile with skill count
+		if !strings.Contains(outputStr, profileName) {
+			t.Errorf("Expected profile %s in list output", profileName)
+		}
+
+		t.Logf("Verified manual skill appears in profile")
+	})
 }
