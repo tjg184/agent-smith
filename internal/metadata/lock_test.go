@@ -230,6 +230,39 @@ func TestUnifiedComponentEntry(t *testing.T) {
 	})
 }
 
+func TestFilesystemNameConflicts(t *testing.T) {
+	tempDir := t.TempDir()
+	skillsDir := filepath.Join(tempDir, "skills")
+	os.MkdirAll(skillsDir, 0755)
+
+	componentName := "conflict-skill"
+	sourceURL1 := "https://github.com/test/repo1"
+	sourceURL2 := "https://github.com/test/repo2"
+
+	// First install uses base name
+	os.MkdirAll(filepath.Join(skillsDir, componentName), 0755)
+	name1, err := ResolveInstallFilesystemName(tempDir, "skills", componentName, sourceURL1)
+	if err != nil {
+		t.Fatalf("Failed to resolve first name: %v", err)
+	}
+	if name1 != componentName {
+		t.Errorf("First install should use base name %s, got %s", componentName, name1)
+	}
+
+	SaveComponentEntry(tempDir, "skills", componentName, "github", "git", sourceURL1, "abc123", "",
+		ComponentEntryOptions{FilesystemName: name1, UpdatedAt: time.Now().Format(time.RFC3339)})
+
+	// Second install gets suffixed name
+	name2, err := ResolveInstallFilesystemName(tempDir, "skills", componentName, sourceURL2)
+	if err != nil {
+		t.Fatalf("Failed to resolve second name: %v", err)
+	}
+	expected := componentName + "-2"
+	if name2 != expected {
+		t.Errorf("Second install should get name %s, got %s", expected, name2)
+	}
+}
+
 func TestBackwardCompatibility(t *testing.T) {
 	// Test that ComponentLockEntry type alias still works
 	var entry models.ComponentLockEntry

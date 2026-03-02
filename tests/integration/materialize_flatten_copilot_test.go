@@ -4,7 +4,6 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,13 +33,8 @@ func TestMaterializeAgentFlatteningPostprocessor(t *testing.T) {
 	})
 
 	// Build the binary
-	binaryPath := filepath.Join(tempDir, "agent-smith")
-	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-	cmd.Dir = filepath.Join(originalDir, "../..")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to build binary: %v\nOutput: %s", err, string(output))
-	}
+	// Use the globally compiled binary (built once in TestMain)
+	binaryPath := AgentSmithBinary
 
 	t.Run("materializing agent to copilot creates symlink", func(t *testing.T) {
 		// Set up base directory with agent
@@ -64,23 +58,15 @@ A test agent for copilot flattening.
 
 		// Create lock file
 		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
-		lockData := map[string]interface{}{
-			"version": 3,
-			"agents": map[string]interface{}{
-				"test-agent": map[string]interface{}{
-					"source":       "test-repo",
-					"sourceType":   "github",
-					"sourceUrl":    "https://github.com/test/repo",
-					"commitHash":   "abc123",
-					"originalPath": "agents/test-agent/test-agent.md",
-					"installedAt":  "2024-01-15T10:30:00Z",
-				},
-			},
-		}
-		lockJSON, err := json.MarshalIndent(lockData, "", "  ")
-		testutil.AssertNoError(t, err, "Failed to marshal lock data")
-		err = os.WriteFile(lockFilePath, lockJSON, 0644)
-		testutil.AssertNoError(t, err, "Failed to write lock file")
+		testutil.CreateComponentLockFile(t, lockFilePath, "agents", "test-agent", "https://github.com/test/repo", map[string]interface{}{
+			"source":       "test-repo",
+			"sourceType":   "github",
+			"sourceUrl":    "https://github.com/test/repo",
+			"commitHash":   "abc123",
+			"originalPath": "agents/test-agent/test-agent.md",
+			"installedAt":  "2024-01-15T10:30:00Z",
+			"updatedAt":    "2024-01-15T10:30:00Z",
+		})
 
 		// Create project directory with .github structure
 		projectDir := filepath.Join(tempDir, "test-project-copilot")
@@ -166,17 +152,15 @@ A test agent for copilot flattening.
 
 		// Create lock file
 		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
-		lockData := map[string]interface{}{
-			"version": 3,
-			"agents": map[string]interface{}{
-				"opencode-agent": map[string]interface{}{
-					"source":     "test-repo",
-					"sourceType": "github",
-				},
-			},
-		}
-		lockJSON, _ := json.MarshalIndent(lockData, "", "  ")
-		os.WriteFile(lockFilePath, lockJSON, 0644)
+		testutil.CreateComponentLockFile(t, lockFilePath, "agents", "opencode-agent", "https://github.com/test/repo", map[string]interface{}{
+			"source":       "test-repo",
+			"sourceType":   "github",
+			"sourceUrl":    "https://github.com/test/repo",
+			"commitHash":   "abc123",
+			"originalPath": "agents/opencode-agent/opencode-agent.md",
+			"installedAt":  "2024-01-15T10:30:00Z",
+			"updatedAt":    "2024-01-15T10:30:00Z",
+		})
 
 		// Create project directory with .opencode structure
 		projectDir := filepath.Join(tempDir, "test-project-opencode")
@@ -225,17 +209,15 @@ A test agent for copilot flattening.
 
 		// Create lock file
 		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
-		lockData := map[string]interface{}{
-			"version": 3,
-			"skills": map[string]interface{}{
-				"test-skill": map[string]interface{}{
-					"source":     "test-repo",
-					"sourceType": "github",
-				},
-			},
-		}
-		lockJSON, _ := json.MarshalIndent(lockData, "", "  ")
-		os.WriteFile(lockFilePath, lockJSON, 0644)
+		testutil.CreateComponentLockFile(t, lockFilePath, "skills", "test-skill", "https://github.com/test/repo", map[string]interface{}{
+			"source":       "test-repo",
+			"sourceType":   "github",
+			"sourceUrl":    "https://github.com/test/repo",
+			"commitHash":   "abc123",
+			"originalPath": "skills/test-skill/SKILL.md",
+			"installedAt":  "2024-01-15T10:30:00Z",
+			"updatedAt":    "2024-01-15T10:30:00Z",
+		})
 
 		// Create project directory with .github structure
 		projectDir := filepath.Join(tempDir, "test-project-skill")
@@ -284,17 +266,15 @@ A test agent for copilot flattening.
 
 		// Create lock file
 		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
-		lockData := map[string]interface{}{
-			"version": 3,
-			"agents": map[string]interface{}{
-				"dryrun-agent": map[string]interface{}{
-					"source":     "test-repo",
-					"sourceType": "github",
-				},
-			},
-		}
-		lockJSON, _ := json.MarshalIndent(lockData, "", "  ")
-		os.WriteFile(lockFilePath, lockJSON, 0644)
+		testutil.CreateComponentLockFile(t, lockFilePath, "agents", "dryrun-agent", "https://github.com/test/repo", map[string]interface{}{
+			"source":       "test-repo",
+			"sourceType":   "github",
+			"sourceUrl":    "https://github.com/test/repo",
+			"commitHash":   "abc123",
+			"originalPath": "agents/dryrun-agent/dryrun-agent.md",
+			"installedAt":  "2024-01-15T10:30:00Z",
+			"updatedAt":    "2024-01-15T10:30:00Z",
+		})
 
 		// Create project directory
 		projectDir := filepath.Join(tempDir, "test-project-dryrun")
@@ -365,23 +345,15 @@ Designs event-sourced systems.`,
 
 		// Create lock file
 		lockFilePath := filepath.Join(baseDir, ".component-lock.json")
-		lockData := map[string]interface{}{
-			"version": 3,
-			"agents": map[string]interface{}{
-				"backend-development": map[string]interface{}{
-					"source":       "test-repo",
-					"sourceType":   "github",
-					"sourceUrl":    "https://github.com/test/repo",
-					"commitHash":   "abc123",
-					"originalPath": "agents/backend-development",
-					"installedAt":  "2024-01-15T10:30:00Z",
-				},
-			},
-		}
-		lockJSON, err := json.MarshalIndent(lockData, "", "  ")
-		testutil.AssertNoError(t, err, "Failed to marshal lock data")
-		err = os.WriteFile(lockFilePath, lockJSON, 0644)
-		testutil.AssertNoError(t, err, "Failed to write lock file")
+		testutil.CreateComponentLockFile(t, lockFilePath, "agents", "backend-development", "https://github.com/test/repo", map[string]interface{}{
+			"source":       "test-repo",
+			"sourceType":   "github",
+			"sourceUrl":    "https://github.com/test/repo",
+			"commitHash":   "abc123",
+			"originalPath": "agents/backend-development",
+			"installedAt":  "2024-01-15T10:30:00Z",
+			"updatedAt":    "2024-01-15T10:30:00Z",
+		})
 
 		// Create project directory with .github structure
 		projectDir := filepath.Join(tempDir, "test-project-multifile")

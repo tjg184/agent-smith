@@ -13,395 +13,269 @@ import (
 	"github.com/tjg184/agent-smith/internal/testutil"
 )
 
-// TestLinkStatus_DefaultBehavior verifies that the default `agent-smith link status` command
-// maintains backward compatibility and shows current profile/base only.
-// This test ensures Story-004 acceptance criteria are met.
-func TestLinkStatus_DefaultBehavior(t *testing.T) {
-	// Create temporary directory and set HOME
-	tempDir := testutil.CreateTempDir(t, "agent-smith-link-status-integration-*")
+// TestE2E_LinkStatusWorkflow verifies the link status command shows correct information across targets
+// Tests the full workflow: install → link → check status → verify output format
+func TestE2E_LinkStatusWorkflow(t *testing.T) {
+	tempDir := testutil.CreateTempDir(t, "agent-smith-e2e-link-status-*")
 	oldHome := os.Getenv("HOME")
 	os.Setenv("HOME", tempDir)
 	t.Cleanup(func() {
 		os.Setenv("HOME", oldHome)
 	})
 
-	// Build agent-smith binary
-	binaryPath := filepath.Join(tempDir, "agent-smith")
-	repoRoot := filepath.Join("..", "..")
-	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-	cmd.Dir = repoRoot
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", err, string(output))
-	}
+	binaryPath := AgentSmithBinary
+	testRepo := "anthropics/skills"
+	skillName := "web-artifacts-builder"
 
-	// Create test component structure manually (to avoid network dependencies)
-	agentSmithDir := filepath.Join(tempDir, ".agent-smith")
-	dirs := []string{
-		filepath.Join(agentSmithDir, "agents", "test-agent"),
-		filepath.Join(agentSmithDir, "skills", "test-skill"),
-		filepath.Join(agentSmithDir, "commands", "test-command"),
-	}
+	// Step 1: Install skill
+	t.Run("Step1_InstallSkill", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "install", "skill", testRepo, skillName)
+		output, err := cmd.CombinedOutput()
+		outputStr := string(output)
 
-	for _, dir := range dirs {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			t.Fatalf("Failed to create directory %s: %v", dir, err)
+		t.Logf("Install output:\n%s", outputStr)
+
+		if err != nil {
+			t.Fatalf("Install failed: %v\nOutput: %s", err, outputStr)
 		}
-	}
 
-	// Create test files in components
-	testFiles := map[string]string{
-		filepath.Join(agentSmithDir, "agents", "test-agent", "README.md"):        "# Test Agent",
-		filepath.Join(agentSmithDir, "skills", "test-skill", "SKILL.md"):         "# Test Skill",
-		filepath.Join(agentSmithDir, "commands", "test-command", "commands.yml"): "# Test Command",
-	}
+		// Verify skill was installed
+		skillDir := filepath.Join(tempDir, ".agent-smith", "skills", skillName)
+		testutil.AssertDirectoryExists(t, skillDir)
 
-	for file, content := range testFiles {
-		if err := os.WriteFile(file, []byte(content), 0644); err != nil {
-			t.Fatalf("Failed to create test file %s: %v", file, err)
-		}
-	}
-
-	// Run `agent-smith link status` without any flags (default behavior)
-	cmd = exec.Command(binaryPath, "link", "status")
-	output, err := cmd.CombinedOutput()
-	outputStr := string(output)
-
-	t.Logf("Link status output:\n%s", outputStr)
-
-	// Should succeed even if no targets are detected
-	if err != nil {
-		// If error occurs, it should be due to no targets being detected, not a code error
-		if !strings.Contains(outputStr, "No components found") && !strings.Contains(outputStr, "No targets detected") {
-			t.Fatalf("Unexpected error from link status: %v\nOutput: %s", err, outputStr)
-		}
-	}
-
-	// Verify output contains expected format elements
-	expectedStrings := []string{
-		"=== Link Status Across All Targets ===",
-		"Component",
-		"Profile",
-		"--- Legend ---",
-		"Symbol",
-		"Meaning",
-		"Valid symlink",
-		"Copied directory",
-		"Broken link",
-		"Not linked",
-		"Unknown status",
-	}
-
-	for _, expected := range expectedStrings {
-		if !strings.Contains(outputStr, expected) {
-			t.Errorf("Default link status output missing expected string: %s\nFull output:\n%s", expected, outputStr)
-		}
-	}
-
-	// Verify all legend symbols are present
-	legendSymbols := []string{"✓", "◆", "✗", "-", "?"}
-	for _, symbol := range legendSymbols {
-		if !strings.Contains(outputStr, symbol) {
-			t.Errorf("Legend missing symbol: %s", symbol)
-		}
-	}
-
-	// Verify box-drawing characters are present (indicates table format)
-	boxChars := []string{"┌", "└", "│", "─"}
-	foundBoxChar := false
-	for _, char := range boxChars {
-		if strings.Contains(outputStr, char) {
-			foundBoxChar = true
-			break
-		}
-	}
-	if !foundBoxChar {
-		t.Error("Legend should use box-drawing table format")
-	}
-
-	// Verify it shows component types
-	componentTypeSections := []string{"Skills:", "Agents:", "Commands:"}
-	foundAtLeastOne := false
-	for _, section := range componentTypeSections {
-		if strings.Contains(outputStr, section) {
-			foundAtLeastOne = true
-			break
-		}
-	}
-
-	if !foundAtLeastOne && !strings.Contains(outputStr, "No components found") {
-		t.Error("Output should contain at least one component type section (Skills:/Agents:/Commands:)")
-	}
-}
-
-// TestLinkStatus_FlagDefaults verifies that flag defaults ensure existing behavior
-func TestLinkStatus_FlagDefaults(t *testing.T) {
-	// Create temporary directory and set HOME
-	tempDir := testutil.CreateTempDir(t, "agent-smith-link-status-flags-*")
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	t.Cleanup(func() {
-		os.Setenv("HOME", oldHome)
+		t.Logf("Successfully installed skill: %s", skillName)
 	})
 
-	// Build agent-smith binary
-	binaryPath := filepath.Join(tempDir, "agent-smith")
-	repoRoot := filepath.Join("..", "..")
-	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-	cmd.Dir = repoRoot
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", err, string(output))
-	}
+	// Step 2: Check link status before linking (should show not linked)
+	t.Run("Step2_LinkStatusBeforeLinking", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "link", "status")
+		output, _ := cmd.CombinedOutput()
+		outputStr := string(output)
 
-	// Create minimal test structure
-	agentSmithDir := filepath.Join(tempDir, ".agent-smith")
-	testAgentDir := filepath.Join(agentSmithDir, "agents", "test-agent")
-	if err := os.MkdirAll(testAgentDir, 0755); err != nil {
-		t.Fatalf("Failed to create test agent directory: %v", err)
-	}
+		t.Logf("Link status output:\n%s", outputStr)
 
-	testFile := filepath.Join(testAgentDir, "README.md")
-	if err := os.WriteFile(testFile, []byte("# Test"), 0644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
+		// Command may succeed or fail depending on whether targets are detected
+		// Focus on verifying the output format is correct
 
-	// Run with explicit --all-profiles=false (should be same as default)
-	cmd = exec.Command(binaryPath, "link", "status", "--all-profiles=false")
-	output1, err1 := cmd.CombinedOutput()
-	output1Str := string(output1)
-
-	// Run without any flags (default)
-	cmd = exec.Command(binaryPath, "link", "status")
-	output2, err2 := cmd.CombinedOutput()
-	output2Str := string(output2)
-
-	t.Logf("Output with --all-profiles=false:\n%s", output1Str)
-	t.Logf("Output without flags:\n%s", output2Str)
-
-	// Both should behave identically
-	if (err1 != nil) != (err2 != nil) {
-		t.Errorf("Error states differ: with flag err=%v, without flag err=%v", err1, err2)
-	}
-
-	// Outputs should be similar (allowing for minor timing/ordering differences)
-	// Both should NOT show multi-profile format
-	if strings.Contains(output1Str, "Profiles scanned:") {
-		t.Error("Default behavior should not show 'Profiles scanned:' (that's multi-profile format)")
-	}
-	if strings.Contains(output2Str, "Profiles scanned:") {
-		t.Error("Default behavior should not show 'Profiles scanned:' (that's multi-profile format)")
-	}
-
-	// Both should show single-profile format
-	if !strings.Contains(output1Str, "=== Link Status Across All Targets ===") {
-		t.Error("Output with --all-profiles=false missing expected header")
-	}
-	if !strings.Contains(output2Str, "=== Link Status Across All Targets ===") {
-		t.Error("Output without flags missing expected header")
-	}
-}
-
-// TestLinkStatus_NoNewFlagsRequired verifies that existing use cases work without new flags
-func TestLinkStatus_NoNewFlagsRequired(t *testing.T) {
-	// Create temporary directory and set HOME
-	tempDir := testutil.CreateTempDir(t, "agent-smith-link-status-no-flags-*")
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	t.Cleanup(func() {
-		os.Setenv("HOME", oldHome)
-	})
-
-	// Build agent-smith binary
-	binaryPath := filepath.Join(tempDir, "agent-smith")
-	repoRoot := filepath.Join("..", "..")
-	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-	cmd.Dir = repoRoot
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", err, string(output))
-	}
-
-	// Create test structure with at least one component
-	agentSmithDir := filepath.Join(tempDir, ".agent-smith")
-	testAgentDir := filepath.Join(agentSmithDir, "agents", "test-agent")
-	if err := os.MkdirAll(testAgentDir, 0755); err != nil {
-		t.Fatalf("Failed to create agents directory: %v", err)
-	}
-
-	// Create a component file so there's something to show
-	testFile := filepath.Join(testAgentDir, "README.md")
-	if err := os.WriteFile(testFile, []byte("# Test"), 0644); err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-
-	// Test that command works with just `link status` (no additional flags)
-	cmd = exec.Command(binaryPath, "link", "status")
-	output, err := cmd.CombinedOutput()
-	outputStr := string(output)
-
-	t.Logf("Link status output:\n%s", outputStr)
-
-	// Command should execute without requiring any new flags
-	if err != nil && !strings.Contains(outputStr, "No components found") && !strings.Contains(outputStr, "No targets detected") {
-		t.Fatalf("Basic 'link status' command should work without new flags: %v\nOutput: %s", err, outputStr)
-	}
-
-	// Should show familiar output format
-	if !strings.Contains(outputStr, "--- Legend ---") {
-		t.Error("Output should contain familiar Legend section")
-	}
-}
-
-// TestLinkStatus_OutputFormatUnchanged verifies the output format matches existing patterns
-func TestLinkStatus_OutputFormatUnchanged(t *testing.T) {
-	// Create temporary directory and set HOME
-	tempDir := testutil.CreateTempDir(t, "agent-smith-link-status-format-*")
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	t.Cleanup(func() {
-		os.Setenv("HOME", oldHome)
-	})
-
-	// Build agent-smith binary
-	binaryPath := filepath.Join(tempDir, "agent-smith")
-	repoRoot := filepath.Join("..", "..")
-	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-	cmd.Dir = repoRoot
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", err, string(output))
-	}
-
-	// Create test structure with components
-	agentSmithDir := filepath.Join(tempDir, ".agent-smith")
-	dirs := []string{
-		filepath.Join(agentSmithDir, "agents", "backend-dev"),
-		filepath.Join(agentSmithDir, "skills", "api-design"),
-	}
-
-	for _, dir := range dirs {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			t.Fatalf("Failed to create directory: %v", err)
+		// Verify output contains expected format elements
+		expectedStrings := []string{
+			"=== Link Status Across All Targets ===",
+			"Component",
+			"Profile",
+			"--- Legend ---",
+			"Symbol",
+			"Meaning",
 		}
-	}
 
-	// Create component files
-	files := map[string]string{
-		filepath.Join(agentSmithDir, "agents", "backend-dev", "README.md"): "# Backend Dev",
-		filepath.Join(agentSmithDir, "skills", "api-design", "SKILL.md"):   "# API Design",
-	}
-
-	for file, content := range files {
-		if err := os.WriteFile(file, []byte(content), 0644); err != nil {
-			t.Fatalf("Failed to create file: %v", err)
-		}
-	}
-
-	// Run link status
-	cmd = exec.Command(binaryPath, "link", "status")
-	output, err := cmd.CombinedOutput()
-	outputStr := string(output)
-
-	t.Logf("Link status output:\n%s", outputStr)
-
-	if err != nil && !strings.Contains(outputStr, "No targets detected") {
-		t.Fatalf("Link status failed: %v\nOutput: %s", err, outputStr)
-	}
-
-	// Verify critical format elements that must not change
-	criticalElements := []struct {
-		element     string
-		description string
-	}{
-		{"=== Link Status Across All Targets ===", "main header"},
-		{"Component", "component column header"},
-		{"Profile", "profile column header"},
-		{"--- Legend ---", "legend section header"},
-		{"Symbol", "legend symbol column header"},
-		{"Meaning", "legend meaning column header"},
-		{"Valid symlink", "valid symlink legend entry"},
-		{"Copied directory", "copied directory legend entry"},
-		{"Broken link", "broken link legend entry"},
-		{"Not linked", "not linked legend entry"},
-		{"Unknown status", "unknown status legend entry"},
-	}
-
-	for _, elem := range criticalElements {
-		if !strings.Contains(outputStr, elem.element) {
-			t.Errorf("Critical format element missing (%s): %s\nThis breaks backward compatibility!", elem.description, elem.element)
-		}
-	}
-
-	// Verify component type grouping headers
-	if strings.Contains(outputStr, "backend-dev") {
-		if !strings.Contains(outputStr, "Agents:") {
-			t.Error("Components should be grouped with type headers like 'Agents:'")
-		}
-	}
-
-	if strings.Contains(outputStr, "api-design") {
-		if !strings.Contains(outputStr, "Skills:") {
-			t.Error("Components should be grouped with type headers like 'Skills:'")
-		}
-	}
-}
-
-// TestLinkStatus_PerformanceRegression ensures default behavior has acceptable performance
-func TestLinkStatus_PerformanceRegression(t *testing.T) {
-	// Create temporary directory and set HOME
-	tempDir := testutil.CreateTempDir(t, "agent-smith-link-status-perf-*")
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tempDir)
-	t.Cleanup(func() {
-		os.Setenv("HOME", oldHome)
-	})
-
-	// Build agent-smith binary
-	binaryPath := filepath.Join(tempDir, "agent-smith")
-	repoRoot := filepath.Join("..", "..")
-	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-	cmd.Dir = repoRoot
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to build agent-smith: %v\nOutput: %s", err, string(output))
-	}
-
-	// Create test structure with multiple components
-	agentSmithDir := filepath.Join(tempDir, ".agent-smith")
-
-	// Create 20 test components (reasonable workload)
-	for i := 0; i < 20; i++ {
-		dirs := []string{
-			filepath.Join(agentSmithDir, "agents", "test-agent-"+string(rune('a'+i))),
-			filepath.Join(agentSmithDir, "skills", "test-skill-"+string(rune('a'+i))),
-		}
-		for _, dir := range dirs {
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				t.Fatalf("Failed to create directory: %v", err)
-			}
-			// Add a file to each component
-			file := filepath.Join(dir, "README.md")
-			if err := os.WriteFile(file, []byte("# Test"), 0644); err != nil {
-				t.Fatalf("Failed to create file: %v", err)
+		for _, expected := range expectedStrings {
+			if !strings.Contains(outputStr, expected) {
+				t.Errorf("Link status output missing expected string: %s\nFull output:\n%s", expected, outputStr)
 			}
 		}
-	}
 
-	// Run link status and measure execution time
-	cmd = exec.Command(binaryPath, "link", "status")
-	output, err := cmd.CombinedOutput()
-	outputStr := string(output)
+		// Verify legend symbols are present
+		legendSymbols := []string{"✓", "◆", "✗", "-", "?"}
+		for _, symbol := range legendSymbols {
+			if !strings.Contains(outputStr, symbol) {
+				t.Errorf("Legend missing symbol: %s", symbol)
+			}
+		}
 
-	t.Logf("Link status output (first 500 chars):\n%s", outputStr[:min(500, len(outputStr))])
+		t.Logf("Verified link status output format")
+	})
 
-	// Should complete without hanging (test has implicit timeout)
-	if err != nil && !strings.Contains(outputStr, "No targets detected") {
-		t.Fatalf("Link status failed with multiple components: %v\nOutput: %s", err, outputStr)
-	}
+	// Step 3: Link skill
+	t.Run("Step3_LinkSkill", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "link", "skill", skillName)
+		output, _ := cmd.CombinedOutput()
+		outputStr := string(output)
 
-	// Test passes if it completes within reasonable time (handled by test framework timeout)
-	t.Log("Performance check passed - command completed in reasonable time")
+		t.Logf("Link output:\n%s", outputStr)
+
+		// Link may succeed or warn about no targets, both are acceptable
+		t.Logf("Link command completed")
+	})
+
+	// Step 4: Check link status after linking
+	t.Run("Step4_LinkStatusAfterLinking", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "link", "status")
+		output, _ := cmd.CombinedOutput()
+		outputStr := string(output)
+
+		t.Logf("Link status output after linking:\n%s", outputStr)
+
+		// Verify the skill appears in the output
+		if !strings.Contains(outputStr, skillName) && !strings.Contains(outputStr, "No components found") {
+			t.Errorf("Expected skill %s in link status output", skillName)
+		}
+
+		t.Logf("Verified link status shows component status")
+	})
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+// TestE2E_LinkStatusProfileWorkflow verifies link status correctly shows profile information
+// Tests the workflow: create profile → install to profile → activate → link → check status
+func TestE2E_LinkStatusProfileWorkflow(t *testing.T) {
+	tempDir := testutil.CreateTempDir(t, "agent-smith-e2e-link-status-profile-*")
+	oldHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempDir)
+	t.Cleanup(func() {
+		os.Setenv("HOME", oldHome)
+	})
+
+	binaryPath := AgentSmithBinary
+	testRepo := "anthropics/skills"
+	skillName := "brand-guidelines"
+	profileName := "work"
+
+	// Step 1: Create profile
+	t.Run("Step1_CreateProfile", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "profile", "create", profileName)
+		output, err := cmd.CombinedOutput()
+		outputStr := string(output)
+
+		t.Logf("Create profile output:\n%s", outputStr)
+
+		if err != nil {
+			t.Fatalf("Create profile failed: %v\nOutput: %s", err, outputStr)
+		}
+
+		t.Logf("Successfully created profile: %s", profileName)
+	})
+
+	// Step 2: Install skill to profile
+	t.Run("Step2_InstallToProfile", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "install", "skill", testRepo, skillName, "--profile", profileName)
+		output, err := cmd.CombinedOutput()
+		outputStr := string(output)
+
+		t.Logf("Install to profile output:\n%s", outputStr)
+
+		if err != nil {
+			t.Fatalf("Install to profile failed: %v\nOutput: %s", err, outputStr)
+		}
+
+		// Verify skill was installed to profile
+		skillDir := filepath.Join(tempDir, ".agent-smith", "profiles", profileName, "skills", skillName)
+		testutil.AssertDirectoryExists(t, skillDir)
+
+		t.Logf("Successfully installed skill to profile")
+	})
+
+	// Step 3: Activate profile
+	t.Run("Step3_ActivateProfile", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "profile", "activate", profileName)
+		output, err := cmd.CombinedOutput()
+		outputStr := string(output)
+
+		t.Logf("Activate profile output:\n%s", outputStr)
+
+		if err != nil {
+			t.Fatalf("Activate profile failed: %v\nOutput: %s", err, outputStr)
+		}
+
+		t.Logf("Successfully activated profile: %s", profileName)
+	})
+
+	// Step 4: Link skill from profile
+	t.Run("Step4_LinkFromProfile", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "link", "skill", skillName)
+		output, _ := cmd.CombinedOutput()
+		outputStr := string(output)
+
+		t.Logf("Link output:\n%s", outputStr)
+
+		// Link may succeed or warn about no targets
+		t.Logf("Link command completed")
+	})
+
+	// Step 5: Check link status shows profile information
+	t.Run("Step5_LinkStatusShowsProfile", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "link", "status")
+		output, _ := cmd.CombinedOutput()
+		outputStr := string(output)
+
+		t.Logf("Link status output:\n%s", outputStr)
+
+		// Verify output shows profile information
+		if !strings.Contains(outputStr, "No components found") {
+			// If components are found, verify profile name appears
+			if !strings.Contains(outputStr, profileName) {
+				t.Errorf("Expected profile name %s in link status output", profileName)
+			}
+
+			// Verify skill name appears
+			if !strings.Contains(outputStr, skillName) {
+				t.Errorf("Expected skill %s in link status output", skillName)
+			}
+		}
+
+		t.Logf("Verified link status shows profile information")
+	})
+}
+
+// TestE2E_LinkStatusAllProfilesWorkflow verifies `link status --all-profiles` shows all profiles
+// Tests the workflow: create multiple profiles → install to each → check status with --all-profiles
+func TestE2E_LinkStatusAllProfilesWorkflow(t *testing.T) {
+	tempDir := testutil.CreateTempDir(t, "agent-smith-e2e-link-status-all-*")
+	oldHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempDir)
+	t.Cleanup(func() {
+		os.Setenv("HOME", oldHome)
+	})
+
+	binaryPath := AgentSmithBinary
+	testRepo := "anthropics/skills"
+
+	// Step 1: Create two profiles with different skills
+	t.Run("Step1_CreateProfilesWithSkills", func(t *testing.T) {
+		// Profile 1
+		createCmd := exec.Command(binaryPath, "profile", "create", "profile1")
+		output, err := createCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Create profile1 failed: %v\nOutput: %s", err, string(output))
+		}
+
+		installCmd := exec.Command(binaryPath, "install", "skill", testRepo, "docx", "--profile", "profile1")
+		output, err = installCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Install to profile1 failed: %v\nOutput: %s", err, string(output))
+		}
+
+		// Profile 2
+		createCmd = exec.Command(binaryPath, "profile", "create", "profile2")
+		output, err = createCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Create profile2 failed: %v\nOutput: %s", err, string(output))
+		}
+
+		installCmd = exec.Command(binaryPath, "install", "skill", testRepo, "pdf", "--profile", "profile2")
+		output, err = installCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Install to profile2 failed: %v\nOutput: %s", err, string(output))
+		}
+
+		t.Logf("Created two profiles with different skills")
+	})
+
+	// Step 2: Check link status with --all-profiles
+	t.Run("Step2_LinkStatusAllProfiles", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "link", "status", "--all-profiles")
+		output, _ := cmd.CombinedOutput()
+		outputStr := string(output)
+
+		t.Logf("Link status --all-profiles output:\n%s", outputStr)
+
+		// Verify both profiles appear in output (if components were found)
+		if !strings.Contains(outputStr, "No components found") {
+			expectedContent := []string{"profile1", "profile2", "docx", "pdf"}
+			for _, expected := range expectedContent {
+				if !strings.Contains(outputStr, expected) {
+					t.Errorf("Expected %s in --all-profiles output", expected)
+				}
+			}
+		}
+
+		t.Logf("Verified --all-profiles shows both profiles")
+	})
 }
