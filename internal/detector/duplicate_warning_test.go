@@ -382,3 +382,130 @@ func TestDuplicateResolutionGuidance(t *testing.T) {
 	t.Logf("Resolution guidance validated successfully")
 	t.Logf("Output:\n%s", stdoutOutput)
 }
+
+// TestIdenticalDuplicatesSuppressed tests that duplicates with identical content don't show warnings
+func TestIdenticalDuplicatesSuppressed(t *testing.T) {
+	// Create temp directory
+	tempDir := t.TempDir()
+
+	// Create duplicate files with IDENTICAL content
+	identicalContent := "# Test Skill\nThis is a test skill with identical content."
+	files := map[string]string{
+		"skills/test-skill/SKILL.md":                   identicalContent,
+		"dist/plugins/test-skill/SKILL.md":             identicalContent,
+		"agents/test-agent.md":                         identicalContent,
+		"dist/plugins/test-agent/agents/test-agent.md": identicalContent,
+	}
+
+	for path, content := range files {
+		fullPath := filepath.Join(tempDir, path)
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Capture output
+	var stdoutBuf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	defer func() {
+		os.Stdout = origStdout
+	}()
+
+	// Create detector and run detection
+	det := detector.NewRepositoryDetector()
+	components, err := det.DetectComponentsInRepo(tempDir)
+
+	// Restore stdout
+	w.Close()
+	stdoutBuf.ReadFrom(r)
+	os.Stdout = origStdout
+	stdoutOutput := stdoutBuf.String()
+
+	if err != nil {
+		t.Fatalf("DetectComponentsInRepo failed: %v", err)
+	}
+
+	// Verify no duplicate warnings appeared
+	if strings.Contains(stdoutOutput, "WARNING: Duplicate Component Names Detected") {
+		t.Errorf("Expected no duplicate warnings for identical content, but got warnings:\n%s", stdoutOutput)
+	}
+
+	if strings.Contains(stdoutOutput, "Resolution Required") {
+		t.Errorf("Expected no resolution required message for identical content, but got:\n%s", stdoutOutput)
+	}
+
+	// Verify components were still detected (only first occurrence)
+	if len(components) != 2 {
+		t.Errorf("Expected 2 components (first occurrences), got %d", len(components))
+	}
+
+	t.Logf("Identical duplicates suppressed successfully - no warnings shown")
+	t.Logf("Output was clean: %v", stdoutOutput == "")
+}
+
+// TestDifferentContentDuplicatesWarned tests that duplicates with different content DO show warnings
+func TestDifferentContentDuplicatesWarned(t *testing.T) {
+	// Create temp directory
+	tempDir := t.TempDir()
+
+	// Create duplicate files with DIFFERENT content
+	files := map[string]string{
+		"skills/test-skill/SKILL.md":       "# Test Skill v1\nVersion 1 content",
+		"dist/plugins/test-skill/SKILL.md": "# Test Skill v2\nVersion 2 content - DIFFERENT!",
+	}
+
+	for path, content := range files {
+		fullPath := filepath.Join(tempDir, path)
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Capture output
+	var stdoutBuf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	defer func() {
+		os.Stdout = origStdout
+	}()
+
+	// Create detector and run detection
+	det := detector.NewRepositoryDetector()
+	components, err := det.DetectComponentsInRepo(tempDir)
+
+	// Restore stdout
+	w.Close()
+	stdoutBuf.ReadFrom(r)
+	os.Stdout = origStdout
+	stdoutOutput := stdoutBuf.String()
+
+	if err != nil {
+		t.Fatalf("DetectComponentsInRepo failed: %v", err)
+	}
+
+	// Verify duplicate warnings APPEARED for different content
+	if !strings.Contains(stdoutOutput, "WARNING: Duplicate Component Names Detected") {
+		t.Errorf("Expected duplicate warnings for different content, but got none. Output:\n%s", stdoutOutput)
+	}
+
+	if !strings.Contains(stdoutOutput, "test-skill") {
+		t.Errorf("Expected 'test-skill' in warnings, but not found. Output:\n%s", stdoutOutput)
+	}
+
+	// Verify only first occurrence was included
+	if len(components) != 1 {
+		t.Errorf("Expected 1 component (first occurrence only), got %d", len(components))
+	}
+
+	t.Logf("Different content duplicates warned correctly")
+	t.Logf("Output:\n%s", stdoutOutput)
+}
