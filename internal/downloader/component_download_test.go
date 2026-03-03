@@ -266,9 +266,9 @@ func TestGroupedComponentDownload(t *testing.T) {
 		t.Fatalf("Failed to download agent from grouped structure: %v", err)
 	}
 
-	// Verify agent directory was created using the parent folder name (ui-design)
-	// Based on the DetermineDestinationFolderName heuristic
-	agentDir := filepath.Join(agentsDir, "ui-design")
+	// Verify agent directory was created using the filename (accessibility-expert)
+	// Single-file components use filename as directory name
+	agentDir := filepath.Join(agentsDir, "accessibility-expert")
 	helper.VerifyDirExists(agentDir, "Agent directory should be created")
 
 	// Verify the agent file was copied
@@ -312,10 +312,11 @@ func TestMultipleComponentsFromSameGroup(t *testing.T) {
 		t.Fatalf("Failed to download first agent: %v", err)
 	}
 
-	agentDir := filepath.Join(agentsDir, "ui-design")
-
-	// Count files before second download
-	filesBefore := helper.CountFilesInDir(agentDir)
+	// Each agent gets its own directory now (accessibility-expert and design-system-architect)
+	// Verify first agent directory
+	agentDir1 := filepath.Join(agentsDir, "accessibility-expert")
+	helper.VerifyDirExists(agentDir1, "First agent directory")
+	helper.VerifyFileExists(filepath.Join(agentDir1, "accessibility-expert.md"), "First agent file")
 
 	// Download second agent from same group
 	err = dl.DownloadAgentWithRepo(
@@ -329,14 +330,13 @@ func TestMultipleComponentsFromSameGroup(t *testing.T) {
 		t.Fatalf("Failed to download second agent: %v", err)
 	}
 
-	// Note: Currently, each download overwrites the directory, so file count may change
-	// This is acceptable behavior - we're just verifying both downloads succeed
-	filesAfter := helper.CountFilesInDir(agentDir)
+	// Verify second agent gets its own directory
+	agentDir2 := filepath.Join(agentsDir, "design-system-architect")
+	helper.VerifyDirExists(agentDir2, "Second agent directory")
+	helper.VerifyFileExists(filepath.Join(agentDir2, "design-system-architect.md"), "Second agent file")
 
-	t.Logf("Files before: %d, after: %d", filesBefore, filesAfter)
-
-	// Verify the second agent file exists
-	helper.VerifyFileExists(filepath.Join(agentDir, "design-system-architect.md"), "Second agent")
+	// Verify first agent still exists (not overwritten)
+	helper.VerifyFileExists(filepath.Join(agentDir1, "accessibility-expert.md"), "First agent file still exists")
 }
 
 // TestBackwardCompatibilityFlatStructure tests that flat repositories work correctly
@@ -371,11 +371,10 @@ func TestBackwardCompatibilityFlatStructure(t *testing.T) {
 		t.Fatalf("Failed to download agent from flat repo: %v", err)
 	}
 
-	// Verify flat structure - DetermineDestinationFolderName skips "agents" component type
-	// and falls back to "root" when no parent directory is found
-	agentDir := filepath.Join(agentsDir, "root")
-	helper.VerifyDirExists(agentDir, "Flat agent directory")
-	helper.VerifyFileExists(filepath.Join(agentDir, "chatbot.md"), "Agent file in flat structure")
+	// Verify single-file component uses filename as directory name
+	agentDir := filepath.Join(agentsDir, "chatbot")
+	helper.VerifyDirExists(agentDir, "Chatbot agent directory")
+	helper.VerifyFileExists(filepath.Join(agentDir, "chatbot.md"), "Agent file in chatbot directory")
 
 	// Verify lock file exists
 	lockFile := filepath.Join(installDir, ".component-lock.json")
@@ -437,7 +436,7 @@ func TestLinkingComponents(t *testing.T) {
 	}
 
 	// Create symlink manually (simulating link command)
-	agentFile := filepath.Join(agentsDir, "ui-design", "accessibility-expert.md")
+	agentFile := filepath.Join(agentsDir, "accessibility-expert", "accessibility-expert.md")
 	symlinkPath := filepath.Join(configDir, "accessibility-expert.md")
 
 	err = os.Symlink(agentFile, symlinkPath)
@@ -495,7 +494,7 @@ func TestCrossPlatformPathHandling(t *testing.T) {
 	}
 
 	// Verify paths use correct separators for the platform
-	agentDir := filepath.Join(agentsDir, "ui-design")
+	agentDir := filepath.Join(agentsDir, "accessibility-expert")
 	helper.VerifyDirExists(agentDir, "Agent directory with platform-specific paths")
 
 	// Read lock file and verify paths use forward slashes (normalized)
@@ -1116,4 +1115,72 @@ func TestCopyComponentFilesRecursive(t *testing.T) {
 	}
 
 	t.Logf("SUCCESS: CopyComponentFiles correctly copied all files and subdirectories recursively")
+}
+
+// TestDetermineDestinationFolderName tests the destination folder name determination
+func TestDetermineDestinationFolderName(t *testing.T) {
+	tests := []struct {
+		name              string
+		componentFilePath string
+		expectedDest      string
+	}{
+		// Single-file components (should use filename without extension)
+		{
+			name:              "Root-level agent file",
+			componentFilePath: "agents/architect.md",
+			expectedDest:      "architect",
+		},
+		{
+			name:              "Root-level command file",
+			componentFilePath: "commands/review-diff.md",
+			expectedDest:      "review-diff",
+		},
+		{
+			name:              "Nested single agent file",
+			componentFilePath: "src/agents/my-agent.md",
+			expectedDest:      "my-agent",
+		},
+		{
+			name:              "Agent with hyphenated name",
+			componentFilePath: "agents/code-reviewer.md",
+			expectedDest:      "code-reviewer",
+		},
+
+		// Directory-based components (should use directory hierarchy)
+		{
+			name:              "Directory-based skill with SKILL.md",
+			componentFilePath: "skills/my-skill/SKILL.md",
+			expectedDest:      "my-skill",
+		},
+		{
+			name:              "Directory-based agent with AGENT.md",
+			componentFilePath: "agents/complex-agent/AGENT.md",
+			expectedDest:      "complex-agent",
+		},
+		{
+			name:              "Directory-based command with COMMAND.md",
+			componentFilePath: "commands/my-command/COMMAND.md",
+			expectedDest:      "my-command",
+		},
+		{
+			name:              "Nested directory-based skill",
+			componentFilePath: "src/skills/nested-skill/SKILL.md",
+			expectedDest:      "nested-skill",
+		},
+		{
+			name:              "Deeply nested directory-based skill",
+			componentFilePath: "foo/bar/baz/skills/deep-skill/SKILL.md",
+			expectedDest:      "deep-skill",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := DetermineDestinationFolderName(tt.componentFilePath)
+			if result != tt.expectedDest {
+				t.Errorf("DetermineDestinationFolderName(%q) = %q, expected %q",
+					tt.componentFilePath, result, tt.expectedDest)
+			}
+		})
+	}
 }
