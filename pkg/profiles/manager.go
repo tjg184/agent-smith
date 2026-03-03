@@ -209,8 +209,20 @@ func GenerateProfileNameFromRepo(repoURL string, existingProfiles []string) stri
 
 	var baseName string
 
-	// Try to extract owner/repo from different URL formats
-	if strings.Contains(repoURL, "github.com") || strings.Contains(repoURL, "gitlab.com") || strings.Contains(repoURL, "bitbucket.org") {
+	// Check for shorthand format first (e.g., "owner/repo" or "org/repo")
+	// This should be a simple format without protocols, domains, or multiple slashes
+	slashCount := strings.Count(repoURL, "/")
+	isShorthand := slashCount == 1 &&
+		!strings.Contains(repoURL, "://") &&
+		!strings.Contains(repoURL, "@") &&
+		!strings.Contains(repoURL, ".") &&
+		!strings.HasPrefix(repoURL, "./") &&
+		!strings.HasPrefix(repoURL, "../")
+
+	if isShorthand {
+		// Handle shorthand format: owner/repo -> owner-repo
+		baseName = sanitizeForProfileName(strings.ReplaceAll(repoURL, "/", "-"))
+	} else if strings.Contains(repoURL, "github.com") || strings.Contains(repoURL, "gitlab.com") || strings.Contains(repoURL, "bitbucket.org") {
 		// Handle URLs like https://github.com/owner/repo or git@github.com:owner/repo
 		parts := strings.Split(repoURL, "/")
 		if len(parts) >= 2 {
@@ -224,9 +236,6 @@ func GenerateProfileNameFromRepo(repoURL string, existingProfiles []string) stri
 
 			baseName = fmt.Sprintf("%s-%s", sanitizeForProfileName(owner), sanitizeForProfileName(repo))
 		}
-	} else if !strings.Contains(repoURL, "/") {
-		// Already in owner/repo shorthand format
-		baseName = sanitizeForProfileName(strings.ReplaceAll(repoURL, "/", "-"))
 	} else if filepath.IsAbs(repoURL) || strings.HasPrefix(repoURL, "./") || strings.HasPrefix(repoURL, "../") {
 		// Local path - use the directory name
 		baseName = sanitizeForProfileName(filepath.Base(repoURL))
