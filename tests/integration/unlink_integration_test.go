@@ -25,6 +25,7 @@ func TestE2E_InstallLinkUnlinkWorkflow(t *testing.T) {
 	binaryPath := AgentSmithBinary
 	testRepo := "anthropics/skills"
 	skillName := "web-artifacts-builder"
+	profileName := "anthropics-skills"
 
 	// Step 1: Install a single skill
 	t.Run("Step1_InstallSkill", func(t *testing.T) {
@@ -38,8 +39,8 @@ func TestE2E_InstallLinkUnlinkWorkflow(t *testing.T) {
 			t.Fatalf("Install skill failed: %v\nOutput: %s", err, outputStr)
 		}
 
-		// Verify skill was installed
-		skillDir := filepath.Join(tempDir, ".agent-smith", "skills", skillName)
+		// Verify skill was installed to profile
+		skillDir := filepath.Join(tempDir, ".agent-smith", "profiles", profileName, "skills", skillName)
 		testutil.AssertDirectoryExists(t, skillDir)
 
 		t.Logf("Successfully installed skill: %s", skillName)
@@ -88,7 +89,7 @@ func TestE2E_InstallLinkUnlinkWorkflow(t *testing.T) {
 
 	// Step 4: Verify source files still exist
 	t.Run("Step4_VerifySourcePreserved", func(t *testing.T) {
-		skillDir := filepath.Join(tempDir, ".agent-smith", "skills", skillName)
+		skillDir := filepath.Join(tempDir, ".agent-smith", "profiles", profileName, "skills", skillName)
 		testutil.AssertDirectoryExists(t, skillDir)
 
 		t.Logf("Verified source directory preserved: %s", skillDir)
@@ -106,6 +107,7 @@ func TestE2E_InstallAllLinkAllUnlinkAllWorkflow(t *testing.T) {
 
 	binaryPath := AgentSmithBinary
 	testRepo := "anthropics/skills"
+	profileName := "anthropics-skills"
 
 	// Step 1: Install all components
 	t.Run("Step1_InstallAll", func(t *testing.T) {
@@ -185,7 +187,6 @@ func TestE2E_InstallAllLinkAllUnlinkAllWorkflow(t *testing.T) {
 		}
 
 		// Verify at least one skill directory still exists
-		profileName := entries[0].Name()
 		skillsDir := filepath.Join(profilesDir, profileName, "skills")
 		skills, err := os.ReadDir(skillsDir)
 		testutil.AssertNoError(t, err, "Failed to read skills directory")
@@ -209,6 +210,7 @@ func TestE2E_UnlinkTypeWorkflow(t *testing.T) {
 
 	binaryPath := AgentSmithBinary
 	testRepo := "anthropics/skills"
+	profileName := "anthropics-skills"
 
 	// Step 1: Install all components (creates profile with skills)
 	t.Run("Step1_InstallAll", func(t *testing.T) {
@@ -276,7 +278,6 @@ func TestE2E_UnlinkTypeWorkflow(t *testing.T) {
 			t.Fatal("Profile should exist")
 		}
 
-		profileName := entries[0].Name()
 		skillsDir := filepath.Join(profilesDir, profileName, "skills")
 		skills, err := os.ReadDir(skillsDir)
 		testutil.AssertNoError(t, err, "Failed to read skills directory")
@@ -301,6 +302,7 @@ func TestE2E_UnlinkWithTargetFilterWorkflow(t *testing.T) {
 	binaryPath := AgentSmithBinary
 	testRepo := "anthropics/skills"
 	skillName := "web-artifacts-builder"
+	profileName := "anthropics-skills"
 
 	// Step 1: Install a skill
 	t.Run("Step1_InstallSkill", func(t *testing.T) {
@@ -361,7 +363,7 @@ func TestE2E_UnlinkWithTargetFilterWorkflow(t *testing.T) {
 
 	// Step 4: Verify source still exists
 	t.Run("Step4_VerifySourcePreserved", func(t *testing.T) {
-		skillDir := filepath.Join(tempDir, ".agent-smith", "skills", skillName)
+		skillDir := filepath.Join(tempDir, ".agent-smith", "profiles", profileName, "skills", skillName)
 		testutil.AssertDirectoryExists(t, skillDir)
 
 		t.Logf("Verified source directory preserved")
@@ -413,6 +415,7 @@ func TestE2E_UnlinkAfterUpdateWorkflow(t *testing.T) {
 	binaryPath := AgentSmithBinary
 	testRepo := "anthropics/skills"
 	skillName := "web-artifacts-builder"
+	profileName := "anthropics-skills"
 
 	// Step 1: Install a skill
 	t.Run("Step1_InstallSkill", func(t *testing.T) {
@@ -487,7 +490,7 @@ func TestE2E_UnlinkAfterUpdateWorkflow(t *testing.T) {
 
 	// Step 5: Verify source still exists
 	t.Run("Step5_VerifySourcePreserved", func(t *testing.T) {
-		skillDir := filepath.Join(tempDir, ".agent-smith", "skills", skillName)
+		skillDir := filepath.Join(tempDir, ".agent-smith", "profiles", profileName, "skills", skillName)
 		testutil.AssertDirectoryExists(t, skillDir)
 
 		t.Logf("Verified source directory preserved after unlink")

@@ -29,9 +29,13 @@ func TestE2E_ProfileAddWorkflow(t *testing.T) {
 	skillName := "frontend-design"
 	profileName := "test-profile"
 
-	// Step 1: Install skill to base directory
+	// Step 1: Install skill to base directory using --install-dir
+	// (The profile add command expects components to be in base directory)
 	t.Run("Step1_InstallSkillToBase", func(t *testing.T) {
-		cmd := exec.Command(binaryPath, "install", "skill", testRepo, skillName)
+		// Use --install-dir to force installation to base directory structure
+		// This is the old behavior needed for the "profile add" command
+		baseDir := filepath.Join(tempDir, ".agent-smith")
+		cmd := exec.Command(binaryPath, "install", "skill", testRepo, skillName, "--install-dir", baseDir)
 		output, err := cmd.CombinedOutput()
 		outputStr := string(output)
 
@@ -41,11 +45,11 @@ func TestE2E_ProfileAddWorkflow(t *testing.T) {
 			t.Fatalf("Install failed: %v\nOutput: %s", err, outputStr)
 		}
 
-		// Verify skill was installed
-		skillDir := filepath.Join(tempDir, ".agent-smith", "skills", skillName)
+		// Verify skill was installed to base directory structure
+		skillDir := filepath.Join(baseDir, "skills", skillName)
 		testutil.AssertDirectoryExists(t, skillDir)
 
-		t.Logf("Successfully installed skill: %s", skillName)
+		t.Logf("Successfully installed skill: %s to base directory", skillName)
 	})
 
 	// Step 2: Create profile
