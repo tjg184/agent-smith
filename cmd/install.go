@@ -5,7 +5,6 @@ import (
 )
 
 func init() {
-	// Create 'install' parent command with subcommands
 	installCmd := &cobra.Command{
 		Use:   "install",
 		Short: "Install components from git repositories",
@@ -42,7 +41,6 @@ EXAMPLES:
   agent-smith install all openai/cookbook`,
 	}
 
-	// Add subcommands to 'install' command
 	installSkillCmd := &cobra.Command{
 		Use:   "skill <repository-url> <skill-name>",
 		Short: "Download a skill from a git repository",

@@ -80,7 +80,6 @@ func NewComponentLinker(agentsDir string, targets []config.Target, det *detector
 		return nil, fmt.Errorf("detector cannot be nil")
 	}
 
-	// Create target base directories if they don't exist
 	for _, target := range targets {
 		targetDir, err := target.GetGlobalBaseDir()
 		if err != nil {
@@ -132,13 +131,11 @@ func (cl *ComponentLinker) createSymlink(src, dst string) error {
 		os.Remove(dst)
 	}
 
-	// Create relative path for the symlink
 	relPath, err := filepath.Rel(filepath.Dir(dst), src)
 	if err != nil {
 		return fmt.Errorf("failed to create relative path: %w", err)
 	}
 
-	// Create the symbolic link
 	if err := os.Symlink(relPath, dst); err != nil {
 		// Try fallback to junction on Windows
 		if runtime.GOOS == "windows" {
@@ -211,10 +208,8 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 
 	// All components are now stored type-based, no special plugin handling needed
 	metadata := cl.loadComponentMetadata(componentType, componentName)
-	_ = metadata // Keep metadata loading for potential future use
+	_ = metadata
 
-	// Link to all configured targets
-	// Track results for inline display
 	type linkResult struct {
 		name    string
 		path    string
@@ -267,7 +262,6 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 		})
 	}
 
-	// Display results with modern inline progress format
 	if len(linkResults) > 0 && verbose {
 		hasSuccess := false
 		for _, result := range linkResults {
@@ -277,12 +271,10 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 			}
 		}
 
-		// Display inline progress: "Linking {type}: {name}... ✓ Done" or "✗ Failed"
 		if hasSuccess {
 			profileNote := styles.ProfileNoteFormat(selectedProfileName)
 			fmt.Printf("%s%s\n", styles.InlineSuccessFormat("Linking", componentType, componentName), profileNote)
 
-			// Show target details
 			for _, result := range linkResults {
 				if result.success {
 					fmt.Printf("%s\n", styles.IndentedDetailFormat(result.name, result.path))
@@ -291,7 +283,6 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 		} else {
 			fmt.Printf("%s\n", styles.InlineFailedFormat("Linking", componentType, componentName))
 
-			// Show errors indented
 			for _, result := range linkResults {
 				if !result.success {
 					fmt.Printf("%s\n", styles.IndentedDetailFormat(result.name, result.errMsg))
@@ -301,7 +292,6 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 		}
 	}
 
-	// Return error for failed links even in quiet mode
 	if len(linkResults) > 0 {
 		hasSuccess := false
 		for _, result := range linkResults {
@@ -346,11 +336,9 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 		return fmt.Errorf("failed to read %s directory: %w", componentType, err)
 	}
 
-	// Track results for summary
 	var successCount, failedCount, skippedCount int
 	var failedComponents []string
 
-	// Display header with target info
 	targetNames := make([]string, len(cl.targets))
 	for i, target := range cl.targets {
 		targetNames[i] = target.GetName()
@@ -365,16 +353,13 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 		if entry.IsDir() {
 			componentName := entry.Name()
 
-			// Skip monorepo containers - they shouldn't be linked as individual components
 			if cl.isMonorepoContainer(componentType, componentName) {
 				skippedCount++
 				continue
 			}
 
-			// Show inline progress: "Linking {type}: {name}... ✓ Done"
 			fmt.Printf("Linking %s: %s... ", componentType, componentName)
 
-			// Link as a regular single component (quiet mode for bulk operations)
 			if err := cl.linkComponentInternal(componentType, componentName, false); err != nil {
 				fmt.Printf("%s\n", colors.Error(formatter.SymbolError+" Failed"))
 				fmt.Printf("  %s %v\n", colors.Muted("→"), err)
@@ -387,10 +372,8 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 		}
 	}
 
-	// Display summary table with box-drawing
 	cl.formatter.EmptyLine()
 
-	// Create summary table
 	table := formatter.NewBoxTable(cl.formatter.Writer(), []string{"Status", "Count"})
 	table.AddRow([]string{colors.Success(formatter.SymbolSuccess + " Success"), fmt.Sprintf("%d", successCount)})
 	if skippedCount > 0 {
@@ -401,7 +384,6 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 	}
 	table.Render()
 
-	// List failed components below table if any
 	if failedCount > 0 {
 		cl.formatter.EmptyLine()
 		fmt.Println("Failed components:")
@@ -410,7 +392,6 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 		}
 	}
 
-	// Skipped components explanation
 	if skippedCount > 0 {
 		cl.formatter.EmptyLine()
 		fmt.Printf("%s Monorepo containers were skipped - their individual components should be linked separately\n",
@@ -424,11 +405,9 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 func (cl *ComponentLinker) LinkAllComponents() error {
 	componentTypes := paths.GetComponentTypes()
 
-	// Track results for summary
 	var successCount, failedCount, skippedCount int
 	var failedComponents []string
 
-	// Display header with target info
 	targetNames := make([]string, len(cl.targets))
 	for i, target := range cl.targets {
 		targetNames[i] = target.GetName()
@@ -478,10 +457,8 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 		}
 	}
 
-	// Display summary table with box-drawing
 	cl.formatter.EmptyLine()
 
-	// Create summary table
 	table := formatter.NewBoxTable(cl.formatter.Writer(), []string{"Status", "Count"})
 	table.AddRow([]string{colors.Success(formatter.SymbolSuccess + " Success"), fmt.Sprintf("%d", successCount)})
 	if skippedCount > 0 {
@@ -492,7 +469,6 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 	}
 	table.Render()
 
-	// List failed components below table if any
 	if failedCount > 0 {
 		cl.formatter.EmptyLine()
 		fmt.Println("Failed components:")
@@ -501,7 +477,6 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 		}
 	}
 
-	// Skipped components explanation
 	if skippedCount > 0 {
 		cl.formatter.EmptyLine()
 		fmt.Printf("%s Monorepo containers were skipped - their individual components should be linked separately\n",
@@ -988,7 +963,6 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 		statuses = append(statuses, status)
 	}
 
-	// Display header
 	cl.formatter.EmptyLine()
 	cl.formatter.SectionHeader("Link Status Across All Targets")
 	cl.formatter.InfoMsg(cl.getSourceDescription())
@@ -1015,7 +989,6 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 		byType[status.Component.Type] = append(byType[status.Component.Type], status)
 	}
 
-	// Display each component type
 	for _, componentType := range componentTypes {
 		components := byType[componentType]
 		if len(components) == 0 {
@@ -1059,7 +1032,6 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 	// Render the table
 	table.Render()
 
-	// Print legend
 	cl.formatter.EmptyLine()
 	cl.formatter.SubsectionHeader("Legend")
 	legendItems := []formatter.LegendItem{
@@ -1071,7 +1043,6 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 	}
 	cl.formatter.DisplayLegendTable(legendItems)
 
-	// Print summary
 	cl.formatter.EmptyLine()
 	cl.formatter.SubsectionHeader("Summary")
 	for _, targetName := range targetNames {
@@ -1342,7 +1313,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 		statuses = append(statuses, status)
 	}
 
-	// Display header
 	cl.formatter.EmptyLine()
 	cl.formatter.SectionHeader("Link Status Across All Profiles")
 	cl.formatter.EmptyLine()
@@ -1368,7 +1338,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 		byType[status.Component.Type] = append(byType[status.Component.Type], status)
 	}
 
-	// Display each component type
 	for _, componentType := range componentTypes {
 		components := byType[componentType]
 		if len(components) == 0 {
@@ -1413,7 +1382,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 	// Render the table
 	table.Render()
 
-	// Print legend
 	cl.formatter.EmptyLine()
 	cl.formatter.SubsectionHeader("Legend")
 	legendItems := []formatter.LegendItem{
@@ -1425,7 +1393,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 	}
 	cl.formatter.DisplayLegendTable(legendItems)
 
-	// Print summary
 	cl.formatter.EmptyLine()
 	cl.formatter.SubsectionHeader("Summary")
 
@@ -1461,7 +1428,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 		cl.formatter.ListItem("%s: %d/%d linked (%d%%)", displayName(targetName), linkedCount, len(statuses), percentage)
 	}
 
-	// Show active profile
 	activeProfile, err := cl.profileManager.GetActiveProfile()
 	if err == nil && activeProfile != "" {
 		cl.formatter.EmptyLine()
@@ -1511,7 +1477,6 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 	var errors []string
 	var unlinkedTargets []string
 
-	// Print header showing what we're unlinking from
 	if targetFilter != "" && targetFilter != "all" {
 		cl.formatter.SectionHeader(fmt.Sprintf("Unlinking %s '%s' from: %s", componentType, componentName, targetFilter))
 	} else {
@@ -1588,7 +1553,6 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 		successCount++
 	}
 
-	// Display warnings for any errors
 	if len(errors) > 0 {
 		for _, errMsg := range errors {
 			cl.formatter.WarningMsg(errMsg)
@@ -1602,7 +1566,6 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 		return fmt.Errorf("component %s/%s is not linked to any target", componentType, componentName)
 	}
 
-	// Display summary
 	cl.formatter.EmptyLine()
 	cl.formatter.CounterSummary(successCount+failedCount, successCount, failedCount, 0)
 
@@ -1713,11 +1676,9 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 		}
 	}
 
-	// Print header showing what we're unlinking
 	if targetFilter != "" && targetFilter != "all" {
 		cl.formatter.SectionHeader(fmt.Sprintf("Unlinking all %s from: %s", componentType, targetFilter))
 	} else {
-		// Build list of target names
 		targetNames := make([]string, 0, len(targetsToUnlink))
 		for _, target := range targetsToUnlink {
 			targetNames = append(targetNames, target.GetName())
@@ -1725,7 +1686,6 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 		cl.formatter.SectionHeader(fmt.Sprintf("Unlinking all %s from: %s", componentType, strings.Join(targetNames, ", ")))
 	}
 
-	// Remove all symlinks (skip copied directories)
 	removedCount := 0
 	skippedCount := 0
 	errorCount := 0
@@ -1777,7 +1737,6 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 		}
 	}
 
-	// Display summary
 	cl.formatter.EmptyLine()
 	cl.formatter.CounterSummary(removedCount+errorCount, removedCount, errorCount, skippedCount)
 
@@ -2073,7 +2032,6 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 		}
 	}
 
-	// Print header showing what we're unlinking with profile context
 	headerMsg := ""
 	if targetFilter != "" && targetFilter != "all" {
 		if allProfiles {
@@ -2090,7 +2048,6 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 			headerMsg = fmt.Sprintf("Unlinking components from: %s", targetFilter)
 		}
 	} else {
-		// Build list of target names
 		targetNames := make([]string, 0, len(targetsToUnlink))
 		for _, target := range targetsToUnlink {
 			targetNames = append(targetNames, target.GetName())
@@ -2208,7 +2165,6 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 	cl.formatter.EmptyLine()
 	cl.formatter.CounterSummary(removedCount+errorCount, removedCount, errorCount, skippedCount)
 
-	// Show detailed breakdown of skipped items by profile if any
 	if len(skippedByProfile) > 0 && !allProfiles {
 		cl.formatter.EmptyLine()
 		fmt.Println("Skipped components from other profiles:")

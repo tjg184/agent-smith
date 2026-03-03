@@ -95,7 +95,6 @@ func (s *Service) createLinker() (*linker.ComponentLinker, error) {
 		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
-	// Check if a profile is active and use its path instead
 	activeProfile, err := s.profileManager.GetActiveProfile()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active profile: %w", err)
@@ -132,7 +131,6 @@ func (s *Service) createLinkerWithFilter(targetFilter string) (*linker.Component
 		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
-	// Check if a profile is active
 	activeProfile, err := s.profileManager.GetActiveProfile()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active profile: %w", err)
@@ -169,7 +167,6 @@ func (s *Service) createLinkerWithFilterAndProfile(targetFilter string, profile 
 		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
-	// Check if an explicit profile was specified
 	if profile != "" {
 		profilesDir, err := paths.GetProfilesDir()
 		if err != nil {

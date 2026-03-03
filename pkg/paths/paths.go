@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 )
 
-// Base directory constants
 const (
 	AgentsDir     = "~/.agent-smith"
 	OpencodeDir   = "~/.config/opencode"
@@ -14,7 +13,6 @@ const (
 	CopilotDir    = "~/.copilot"
 )
 
-// Component subdirectory names
 const (
 	SkillsSubDir   = "skills"
 	AgentsSubDir   = "agents"
@@ -22,30 +20,24 @@ const (
 	ProfilesSubDir = "profiles"
 )
 
-// Lock file patterns
 const (
 	ComponentLockFile = ".component-lock.json"
 )
 
-// Special files
 const (
 	SkillMarkdownFile   = "SKILL.md"
 	DetectionConfigFile = "detection-config.json"
 )
 
-// Profile name constants
 const (
-	// BaseProfileName is the label used for base installation (not in a profile)
 	BaseProfileName = "(no profile)"
 )
 
-// Path patterns for detection
 const (
 	AgentsPathPattern   = "/agents/"
 	CommandsPathPattern = "/commands/"
 )
 
-// Ignored paths
 var IgnoredPaths = []string{
 	".git",
 	"node_modules",

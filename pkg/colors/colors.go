@@ -10,39 +10,30 @@ import (
 )
 
 var (
-	// Success colors (green)
 	Success     func(a ...interface{}) string
 	SuccessBold func(a ...interface{}) string
 
-	// Error colors (red)
 	Error     func(a ...interface{}) string
 	ErrorBold func(a ...interface{}) string
 
-	// Warning colors (yellow)
 	Warning     func(a ...interface{}) string
 	WarningBold func(a ...interface{}) string
 
-	// Info colors (cyan)
 	Info     func(a ...interface{}) string
 	InfoBold func(a ...interface{}) string
 
-	// Highlight colors (blue)
 	Highlight     func(a ...interface{}) string
 	HighlightBold func(a ...interface{}) string
 
-	// Secondary/muted colors (gray/dim)
 	Muted func(a ...interface{}) string
 	Dim   func(a ...interface{}) string
 
-	// Code/path styling (white bold)
 	Code func(a ...interface{}) string
 
-	// enabled tracks whether colors are enabled
 	enabled bool
 )
 
 func init() {
-	// Initialize with auto-detection
 	Init(true)
 }
 
@@ -56,10 +47,7 @@ func Init(autoDetect bool) {
 		enabled = true
 	}
 
-	// Configure fatih/color library
 	color.NoColor = !enabled
-
-	// Initialize all color functions
 	initColorFunctions()
 }
 
@@ -106,34 +94,26 @@ func shouldEnableColors() bool {
 // When colors are disabled, these functions return the input unchanged.
 func initColorFunctions() {
 	if enabled {
-		// Success (green)
 		Success = color.New(color.FgGreen).SprintFunc()
 		SuccessBold = color.New(color.FgGreen, color.Bold).SprintFunc()
 
-		// Error (red)
 		Error = color.New(color.FgRed).SprintFunc()
 		ErrorBold = color.New(color.FgRed, color.Bold).SprintFunc()
 
-		// Warning (yellow)
 		Warning = color.New(color.FgYellow).SprintFunc()
 		WarningBold = color.New(color.FgYellow, color.Bold).SprintFunc()
 
-		// Info (cyan)
 		Info = color.New(color.FgCyan).SprintFunc()
 		InfoBold = color.New(color.FgCyan, color.Bold).SprintFunc()
 
-		// Highlight (blue)
 		Highlight = color.New(color.FgBlue).SprintFunc()
 		HighlightBold = color.New(color.FgBlue, color.Bold).SprintFunc()
 
-		// Muted/Dim (gray/faint)
 		Muted = color.New(color.FgHiBlack).SprintFunc()
 		Dim = color.New(color.Faint).SprintFunc()
 
-		// Code (white bold)
 		Code = color.New(color.FgWhite, color.Bold).SprintFunc()
 	} else {
-		// When disabled, all functions return input unchanged
 		noop := func(a ...interface{}) string {
 			return color.New().SprintFunc()(a...)
 		}

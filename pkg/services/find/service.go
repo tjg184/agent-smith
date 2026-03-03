@@ -92,23 +92,19 @@ func (s *Service) FindSkills(query string, opts services.FindOptions) error {
 		return fmt.Errorf("Query must be at least 2 characters")
 	}
 
-	// Set default limit
 	if opts.Limit == 0 {
 		opts.Limit = defaultLimit
 	}
 
-	// Make API request
 	results, err := s.queryAPI(query)
 	if err != nil {
 		return err
 	}
 
-	// Check for API error response
 	if results.Error != "" {
 		return fmt.Errorf("skills.sh API returned an error\nPlease try again later or visit https://skills.sh")
 	}
 
-	// Check for empty results
 	if len(results.Skills) == 0 {
 		if opts.JSON {
 			return s.outputJSON(query, []FormattedResult{})

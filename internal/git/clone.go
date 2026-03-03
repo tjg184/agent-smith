@@ -23,8 +23,6 @@ func (opts *CloneOptions) ToGoGitCloneOptions() *git.CloneOptions {
 		SingleBranch:  opts.SingleBranch,
 	}
 
-	// Attempt to get auth method for the URL
-	// Errors are ignored as some repos are public and don't need auth
 	if auth, _ := GetAuthMethod(opts.URL); auth != nil {
 		cloneOpts.Auth = auth
 	}

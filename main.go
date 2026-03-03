@@ -28,10 +28,7 @@ import (
 	updatesvc "github.com/tjg184/agent-smith/pkg/services/update"
 )
 
-// appLogger is the global logger instance used throughout the application
 var appLogger *logger.Logger
-
-// appFormatter is the global formatter instance used for consistent output formatting
 var appFormatter *formatter.Formatter
 
 // SetVerboseMode enables informational output
@@ -91,20 +88,17 @@ func debugPrintln(a ...interface{}) {
 	}
 }
 
-// determineDestinationFolderName determines the destination folder name using hierarchy heuristic
-// Walks up from component file directory, skipping component-type names (agents/commands/skills)
-// Returns first non-component-type directory name for preserving optional hierarchy
+// determineDestinationFolderName uses a hierarchy heuristic to preserve
+// optional directory structure. It walks up from the component file,
+// skipping component-type names (agents/commands/skills), and returns
+// the first non-component-type directory name found.
 func determineDestinationFolderName(componentFilePath string) string {
 	componentTypeNames := paths.GetComponentTypeNames()
-
-	// Get directory containing the component file
 	currentDir := filepath.Dir(componentFilePath)
 
-	// Walk up the directory tree
 	for {
 		dirName := filepath.Base(currentDir)
 
-		// Check if current directory name is a component type
 		isComponentType := false
 		for _, typeName := range componentTypeNames {
 			if dirName == typeName {
@@ -113,17 +107,13 @@ func determineDestinationFolderName(componentFilePath string) string {
 			}
 		}
 
-		// If not a component type name, use it
 		if !isComponentType && dirName != "." && dirName != "" {
 			return dirName
 		}
 
-		// Go up one directory
 		parentDir := filepath.Dir(currentDir)
 
-		// Check if we've reached the root
 		if parentDir == currentDir || parentDir == "." || parentDir == "/" || dirName == "" {
-			// Reached root, fall back to "root"
 			return "root"
 		}
 
@@ -131,12 +121,10 @@ func determineDestinationFolderName(componentFilePath string) string {
 	}
 }
 
-// NewLockService creates a new ComponentLockService
 func NewLockService() services.ComponentLockService {
 	return locksvc.NewService(appLogger)
 }
 
-// NewComponentLinker creates a new ComponentLinker with dependencies injected
 func NewComponentLinker() (*linker.ComponentLinker, error) {
 	debugPrintln("[DEBUG] NewComponentLinker: Creating component linker")
 	agentsDir, err := paths.GetAgentsDir()
@@ -145,7 +133,6 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 	}
 	debugPrintf("[DEBUG] NewComponentLinker: Base agents directory: %s\n", agentsDir)
 
-	// Check if a profile is active and use its path instead
 	profileManager, err := profiles.NewProfileManager(nil, NewLockService())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create profile manager: %w", err)
@@ -156,7 +143,6 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 		return nil, fmt.Errorf("failed to get active profile: %w", err)
 	}
 
-	// If a profile is active, use the profile's base path instead
 	if activeProfile != "" {
 		debugPrintf("[DEBUG] NewComponentLinker: Active profile detected: %s\n", activeProfile)
 		profilesDir, err := paths.GetProfilesDir()
@@ -170,7 +156,6 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 		debugPrintln("[DEBUG] NewComponentLinker: No active profile")
 	}
 
-	// Detect all available targets
 	debugPrintln("[DEBUG] NewComponentLinker: Detecting available targets")
 	targets, err := config.DetectAllTargets()
 	if err != nil {
@@ -182,7 +167,6 @@ func NewComponentLinker() (*linker.ComponentLinker, error) {
 	}
 
 	det := detector.NewRepositoryDetector()
-	// Pass the logger to the detector so it uses consistent logging
 	if appLogger != nil {
 		det.SetLogger(appLogger)
 	}
@@ -201,7 +185,6 @@ func (pma *profileManagerAdapter) ScanProfiles() ([]*linker.Profile, error) {
 		return nil, err
 	}
 
-	// Convert profiles.Profile to linker.Profile
 	result := make([]*linker.Profile, len(profiles))
 	for i, p := range profiles {
 		result[i] = &linker.Profile{
@@ -219,18 +202,15 @@ func (pma *profileManagerAdapter) GetActiveProfile() (string, error) {
 	return pma.pm.GetActiveProfile()
 }
 
-// NewComponentLinkerWithProfileManager creates a new ComponentLinker with ProfileManager for multi-profile operations
 func NewComponentLinkerWithProfileManager(pm *profiles.ProfileManager) (*linker.ComponentLinker, error) {
 	debugPrintln("[DEBUG] NewComponentLinkerWithProfileManager: Creating component linker with profile manager")
 
-	// For multi-profile view, use base directory as the starting point
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
 	debugPrintf("[DEBUG] NewComponentLinkerWithProfileManager: Base agents directory: %s\n", agentsDir)
 
-	// Detect all available targets
 	debugPrintln("[DEBUG] NewComponentLinkerWithProfileManager: Detecting available targets")
 	targets, err := config.DetectAllTargets()
 	if err != nil {
@@ -243,7 +223,6 @@ func NewComponentLinkerWithProfileManager(pm *profiles.ProfileManager) (*linker.
 		det.SetLogger(appLogger)
 	}
 
-	// Wrap the ProfileManager in an adapter
 	adapter := &profileManagerAdapter{pm: pm}
 
 	return linker.NewComponentLinker(agentsDir, targets, det, adapter)
@@ -260,19 +239,15 @@ func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string)
 	}
 	debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Base agents directory: %s\n", agentsDir)
 
-	// Check if an explicit profile was specified
 	if profile != "" {
-		// Use the explicitly specified profile (bypass active profile logic)
 		debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Explicit profile specified: %s\n", profile)
 		profilesDir, err := paths.GetProfilesDir()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
 		}
 
-		// Validate that the profile exists and is valid
 		profilePath := filepath.Join(profilesDir, profile)
 		if _, err := os.Stat(profilePath); os.IsNotExist(err) {
-			// Profile directory doesn't exist - provide helpful error with available profiles
 			pm, pmErr := profiles.NewProfileManager(nil, NewLockService())
 			if pmErr == nil {
 				availableProfiles, scanErr := pm.ScanProfiles()
@@ -285,11 +260,9 @@ func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string)
 						profile, strings.Join(profileNames, "\n  - "), profile)
 				}
 			}
-			// Fallback if we can't list profiles
 			return nil, fmt.Errorf("profile '%s' does not exist\n\nTo create this profile:\n  agent-smith profile create %s\n\nTo list available profiles:\n  agent-smith profile list", profile, profile)
 		}
 
-		// Verify the profile is valid (has at least one component directory)
 		profileObj := &profiles.Profile{
 			Name:        profile,
 			BasePath:    profilePath,
@@ -298,7 +271,6 @@ func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string)
 			HasCommands: false,
 		}
 
-		// Check which component directories exist
 		if _, err := os.Stat(filepath.Join(profilePath, paths.AgentsSubDir)); err == nil {
 			profileObj.HasAgents = true
 		}
@@ -318,7 +290,6 @@ func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string)
 		debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Using explicit profile directory: %s\n", agentsDir)
 		infoPrintf("Using explicit profile: %s\n", profile)
 	} else {
-		// No explicit profile, use active profile logic
 		profileManager, err := profiles.NewProfileManager(nil, NewLockService())
 		if err != nil {
 			return nil, fmt.Errorf("failed to create profile manager: %w", err)
@@ -329,7 +300,6 @@ func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string)
 			return nil, fmt.Errorf("failed to get active profile: %w", err)
 		}
 
-		// If a profile is active, use the profile's base path instead
 		if activeProfile != "" {
 			debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Active profile detected: %s\n", activeProfile)
 			profilesDir, err := paths.GetProfilesDir()
@@ -346,7 +316,6 @@ func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string)
 
 	var targets []config.Target
 
-	// Detect all targets first
 	debugPrintln("[DEBUG] NewComponentLinkerWithFilterAndProfile: Detecting all targets")
 	allTargets, err := config.DetectAllTargets()
 	if err != nil {
@@ -354,13 +323,10 @@ func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string)
 	}
 	debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Detected %d target(s)\n", len(allTargets))
 
-	// Filter targets based on targetFilter parameter
 	if targetFilter == "" || targetFilter == "all" {
-		// No filter or "all" - use all detected targets
 		debugPrintln("[DEBUG] NewComponentLinkerWithFilterAndProfile: Using all detected targets")
 		targets = allTargets
 	} else {
-		// Filter for specific target
 		debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Filtering for target: %s\n", targetFilter)
 		for _, target := range allTargets {
 			if target.GetName() == targetFilter {
@@ -369,7 +335,6 @@ func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string)
 				break
 			}
 		}
-		// If no matching target found, return error
 		if len(targets) == 0 {
 			debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Target '%s' not found\n", targetFilter)
 			return nil, fmt.Errorf("target '%s' not found. Available targets: %v", targetFilter, getTargetNames(allTargets))
@@ -378,7 +343,6 @@ func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string)
 	debugPrintf("[DEBUG] NewComponentLinkerWithFilterAndProfile: Using %d target(s)\n", len(targets))
 
 	det := detector.NewRepositoryDetector()
-	// Pass the logger to the detector so it uses consistent logging
 	if appLogger != nil {
 		det.SetLogger(appLogger)
 	}
@@ -386,8 +350,6 @@ func NewComponentLinkerWithFilterAndProfile(targetFilter string, profile string)
 	return linker.NewComponentLinker(agentsDir, targets, det, nil)
 }
 
-// NewComponentLinkerWithFilter creates a new ComponentLinker with filtered targets
-// targetFilter can be: "opencode", "claudecode", "all", or "" (defaults to all)
 func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker, error) {
 	debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Creating component linker with filter=%s\n", targetFilter)
 	agentsDir, err := paths.GetAgentsDir()
@@ -396,7 +358,6 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 	}
 	debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Base agents directory: %s\n", agentsDir)
 
-	// Check if a profile is active and use its path instead
 	profileManager, err := profiles.NewProfileManager(nil, NewLockService())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create profile manager: %w", err)
@@ -407,7 +368,6 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 		return nil, fmt.Errorf("failed to get active profile: %w", err)
 	}
 
-	// If a profile is active, use the profile's base path instead
 	if activeProfile != "" {
 		debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Active profile detected: %s\n", activeProfile)
 		profilesDir, err := paths.GetProfilesDir()
@@ -423,7 +383,6 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 
 	var targets []config.Target
 
-	// Detect all targets first
 	debugPrintln("[DEBUG] NewComponentLinkerWithFilter: Detecting all targets")
 	allTargets, err := config.DetectAllTargets()
 	if err != nil {
@@ -431,13 +390,10 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 	}
 	debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Detected %d target(s)\n", len(allTargets))
 
-	// Filter targets based on targetFilter parameter
 	if targetFilter == "" || targetFilter == "all" {
-		// No filter or "all" - use all detected targets
 		debugPrintln("[DEBUG] NewComponentLinkerWithFilter: Using all detected targets")
 		targets = allTargets
 	} else {
-		// Filter for specific target
 		debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Filtering for target: %s\n", targetFilter)
 		for _, target := range allTargets {
 			if target.GetName() == targetFilter {
@@ -446,7 +402,6 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 				break
 			}
 		}
-		// If no matching target found, return error
 		if len(targets) == 0 {
 			debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Target '%s' not found\n", targetFilter)
 			return nil, fmt.Errorf("target '%s' not found. Available targets: %v", targetFilter, getTargetNames(allTargets))
@@ -455,12 +410,10 @@ func NewComponentLinkerWithFilter(targetFilter string) (*linker.ComponentLinker,
 	debugPrintf("[DEBUG] NewComponentLinkerWithFilter: Using %d target(s)\n", len(targets))
 
 	det := detector.NewRepositoryDetector()
-	// Pass the logger to the detector so it uses consistent logging
 	if appLogger != nil {
 		det.SetLogger(appLogger)
 	}
 
-	// Create a wrapper to adapt profiles.ProfileManager to linker.ProfileManager
 	var linkerPM linker.ProfileManager
 	if profileManager != nil {
 		linkerPM = &profileManagerAdapter{pm: profileManager}
@@ -491,8 +444,6 @@ func joinStrings(strings []string, separator string) string {
 }
 
 func main() {
-	// Check for --debug flag before setting up handlers
-	// Debug mode takes precedence and enables verbose mode automatically
 	debugMode := false
 	verboseMode := false
 	for _, arg := range os.Args {
@@ -505,12 +456,9 @@ func main() {
 		}
 	}
 
-	// Initialize the global logger with appropriate level
 	appLogger = logger.Default(debugMode, verboseMode)
-	// Disable log level tags to maintain clean output format
 	appLogger.SetShowTags(false)
 
-	// Initialize the global formatter
 	appFormatter = formatter.New()
 
 	if debugMode {
@@ -519,19 +467,16 @@ func main() {
 		SetVerboseMode(true)
 	}
 
-	// Initialize services with dependency injection
 	profileManager, err := profiles.NewProfileManager(nil, NewLockService())
 	if err != nil {
 		log.Fatal("Failed to initialize profile manager:", err)
 	}
 
-	// Create component linker for services that need it
 	componentLinker, err := NewComponentLinker()
 	if err != nil {
 		log.Fatal("Failed to initialize component linker:", err)
 	}
 
-	// Initialize all services
 	installService := installsvc.NewService(profileManager, appLogger, appFormatter)
 	updateService := updatesvc.NewService(appLogger, appFormatter)
 	uninstallService := uninstallsvc.NewService(componentLinker, appLogger, appFormatter)

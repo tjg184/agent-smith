@@ -5,7 +5,6 @@ import (
 )
 
 func init() {
-	// Create 'target' parent command with subcommands
 	targetCmd := &cobra.Command{
 		Use:   "target",
 		Short: "Manage custom targets",

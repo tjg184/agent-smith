@@ -31,36 +31,30 @@ func NewRepositoryDetector() *RepositoryDetector {
 func NewRepositoryDetectorWithConfig(configPath string) *RepositoryDetector {
 	rd := &RepositoryDetector{
 		patterns: map[string]string{
-			// GitHub patterns (most specific first)
 			"github":     `^https?://(?:www\.)?github\.com/[^/]+/[^/]+$`,
 			"github_git": `^(git@|ssh://)git@github\.com:[^/]+/[^/]+\.git$`,
 			"github_api": `^https?://api\.github\.com/repos/[^/]+/[^/]+$`,
 
-			// GitLab patterns
 			"gitlab":     `^https?://(?:www\.)?gitlab\.com/[^/]+/[^/]+$`,
 			"gitlab_git": `^(git@|ssh://)git@gitlab\.com:[^/]+/[^/]+\.git$`,
 			"gitlab_api": `^https?://gitlab\.com/api/v4/projects/[^/]+$`,
 
-			// Bitbucket patterns
 			"bitbucket":     `^https?://(?:www\.)?bitbucket\.org/[^/]+/[^/]+$`,
 			"bitbucket_git": `^(git@|ssh://)git@bitbucket\.org:[^/]+/[^/]+\.git$`,
 			"bitbucket_api": `^https?://api\.bitbucket\.org/2\.0/repositories/[^/]+/[^/]+$`,
 
-			// Generic git patterns (most generic last)
 			"git_http": `^https?://(?!.*(?:github\.com|gitlab\.com|bitbucket\.org)).+$`,
 			"git_ssh":  `^(ssh://|git@).+$`,
 			"git":      `^(https?://|git@|ssh://).+\.git$`,
 		},
-		logger: nil, // Logger is optional, will use default logging if not set
+		logger: nil,
 	}
 
-	// Load detection configuration
 	if configPath == "" {
 		configPath = getDetectionConfigPath()
 	}
 
 	if err := rd.loadDetectionConfig(configPath); err != nil {
-		// If loading fails, use default config
 		rd.detectionConfig = createDefaultDetectionConfig()
 	}
 
@@ -100,7 +94,6 @@ func createDefaultDetectionConfig() *models.DetectionConfig {
 // loadDetectionConfig loads detection configuration from a JSON file
 func (rd *RepositoryDetector) loadDetectionConfig(configPath string) error {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		// Config file doesn't exist, use defaults
 		rd.detectionConfig = createDefaultDetectionConfig()
 		return nil
 	}
@@ -130,7 +123,6 @@ func (rd *RepositoryDetector) SaveDetectionConfig(configPath string) error {
 		return fmt.Errorf("failed to marshal detection config: %v", err)
 	}
 
-	// Ensure directory exists
 	dir := filepath.Dir(configPath)
 	if err := os.MkdirAll(dir, fileutil.GetCrossPlatformPermissions()); err != nil {
 		return fmt.Errorf("failed to create config directory: %v", err)

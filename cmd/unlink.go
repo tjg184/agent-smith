@@ -5,7 +5,6 @@ import (
 )
 
 func init() {
-	// Create 'unlink' parent command with subcommands
 	unlinkCmd := &cobra.Command{
 		Use:   "unlink",
 		Short: "Remove linked components from targets",
@@ -21,7 +20,6 @@ SAFETY:
   - Bulk operations (skills, agents, commands, all) prompt for confirmation unless --force is used`,
 	}
 
-	// Singular commands - operate on ONE component
 	unlinkSkillCmd := &cobra.Command{
 		Use:   "skill <name>",
 		Short: "Unlink a specific skill from targets",
@@ -106,7 +104,6 @@ EXAMPLES:
 	unlinkCommandCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
 	unlinkCmd.AddCommand(unlinkCommandCmd)
 
-	// Plural commands - operate on ALL components of a type
 	unlinkSkillsCmd := &cobra.Command{
 		Use:   "skills [name]",
 		Short: "Unlink all skills from targets, or a specific skill if name provided",

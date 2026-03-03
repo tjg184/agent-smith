@@ -193,19 +193,16 @@ func LoadConfig() (*Config, error) {
 		}, nil
 	}
 
-	// Read config file
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	// Parse JSON
 	var config Config
 	if err := json.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	// Validate config
 	if err := validateConfig(&config); err != nil {
 		return nil, fmt.Errorf("invalid config file: %w", err)
 	}
@@ -305,7 +302,6 @@ func validateConfig(config *Config) error {
 		return fmt.Errorf("display settings: %w", err)
 	}
 
-	// Track target names to check for duplicates
 	seenNames := make(map[string]bool)
 
 	for i, target := range config.CustomTargets {
@@ -313,14 +309,12 @@ func validateConfig(config *Config) error {
 			return fmt.Errorf("custom target at index %d: %w", i, err)
 		}
 
-		// Check for duplicate names (case-insensitive)
 		nameLower := strings.ToLower(target.Name)
 		if seenNames[nameLower] {
 			return fmt.Errorf("duplicate target name: %s (names are case-insensitive)", target.Name)
 		}
 		seenNames[nameLower] = true
 
-		// Check for conflict with built-in target names
 		if nameLower == "opencode" || nameLower == "claudecode" {
 			return fmt.Errorf("target name %s conflicts with built-in target", target.Name)
 		}

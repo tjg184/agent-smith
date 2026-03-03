@@ -16,12 +16,10 @@ func CopyDirectory(src, dst string) error {
 		return fmt.Errorf("failed to stat source directory: %w", err)
 	}
 
-	// Create destination directory
 	if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
-	// Read source directory entries
 	entries, err := os.ReadDir(src)
 	if err != nil {
 		return fmt.Errorf("failed to read source directory: %w", err)
@@ -63,7 +61,6 @@ func copyFile(src, dst string) error {
 		return fmt.Errorf("failed to stat source file: %w", err)
 	}
 
-	// Create destination file
 	dstFile, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcInfo.Mode())
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)

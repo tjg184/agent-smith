@@ -89,7 +89,6 @@ func AddMaterializationEntry(metadata *MaterializationMetadata, componentType, c
 		Version:        5,
 	}
 
-	// Get or create the nested map for this component type
 	var targetMap map[string]map[string]models.ComponentEntry
 	switch componentType {
 	case "skills":
@@ -102,12 +101,10 @@ func AddMaterializationEntry(metadata *MaterializationMetadata, componentType, c
 		return
 	}
 
-	// Initialize source map if it doesn't exist
 	if targetMap[source] == nil {
 		targetMap[source] = make(map[string]models.ComponentEntry)
 	}
 
-	// Add or update the entry
 	targetMap[source][componentName] = entry
 }
 
@@ -138,7 +135,6 @@ func ResolveFilesystemName(targetDir, componentType, componentName, sourceUrl st
 		}
 	}
 
-	// Check both filesystem and metadata for conflicts
 	baseComponentDir := filepath.Join(targetDir, componentName)
 
 	// If the base name doesn't exist on disk or in metadata, use it
@@ -187,7 +183,6 @@ func metadataFilesystemNameExists(filesystemName string, componentType string, m
 		return false
 	}
 
-	// Check only the specified component type
 	for _, sourceComponents := range componentMap {
 		for _, entry := range sourceComponents {
 			if entry.FilesystemName == filesystemName {
@@ -215,13 +210,11 @@ func findExistingFilesystemName(componentType, componentName, sourceUrl string, 
 		return ""
 	}
 
-	// Check if this source has components
 	sourceComponents, exists := componentMap[sourceUrl]
 	if !exists {
 		return ""
 	}
 
-	// Check if this specific component is materialized from this source
 	if entry, exists := sourceComponents[componentName]; exists {
 		return entry.FilesystemName
 	}

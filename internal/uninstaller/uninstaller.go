@@ -34,32 +34,26 @@ func NewUninstaller(baseDir string, componentLinker *linker.ComponentLinker) *Un
 
 // UninstallComponent removes a single component
 func (u *Uninstaller) UninstallComponent(componentType, name string) error {
-	// Validate component type
 	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
 		return fmt.Errorf("invalid component type: %s (must be skills, agents, or commands)", componentType)
 	}
 
-	// Check if component exists in lock file
 	entry, err := metadata.LoadLockFileEntry(u.baseDir, componentType, name)
 	if err != nil {
 		return fmt.Errorf("component '%s' not installed", name)
 	}
 
-	// Get component directory path - use FilesystemName if available (for conflict resolution)
 	dirName := name
 	if entry.FilesystemName != "" {
 		dirName = entry.FilesystemName
 	}
 	componentDir := filepath.Join(u.baseDir, componentType, dirName)
 
-	// Display section header
 	u.formatter.SectionHeader(fmt.Sprintf("Uninstalling %s: %s", componentType, name))
 
-	// Show what will be removed
 	u.formatter.InfoMsg("The following will be removed:")
 	u.formatter.EmptyLine()
 
-	// Show source information if available
 	if entry != nil {
 		if entry.SourceUrl != "" {
 			u.formatter.DetailItem("Source", entry.SourceUrl)
@@ -73,7 +67,6 @@ func (u *Uninstaller) UninstallComponent(componentType, name string) error {
 
 	u.formatter.DetailItem("Directory", componentDir)
 
-	// Find and display linked targets
 	linkedTargets := u.findLinkedTargets(componentType, name)
 	if len(linkedTargets) > 0 {
 		u.formatter.DetailItem("Linked to", strings.Join(linkedTargets, ", "))
@@ -83,16 +76,12 @@ func (u *Uninstaller) UninstallComponent(componentType, name string) error {
 
 	u.formatter.EmptyLine()
 
-	// Auto-unlink component from all targets (silent if not linked)
 	if u.linker != nil && len(linkedTargets) > 0 {
 		u.formatter.ProgressMsg("Unlinking from targets", name)
-		// Try to unlink, but don't fail if it's not linked
-		// Pass empty targetFilter to unlink from all targets
 		_ = u.linker.UnlinkComponent(componentType, name, "")
 		u.formatter.ProgressComplete()
 	}
 
-	// Remove component directory from filesystem
 	u.formatter.ProgressMsg("Removing directory", componentDir)
 	if err := os.RemoveAll(componentDir); err != nil {
 		u.formatter.ProgressFailed()
@@ -100,17 +89,14 @@ func (u *Uninstaller) UninstallComponent(componentType, name string) error {
 	}
 	u.formatter.ProgressComplete()
 
-	// Remove entry from lock file
 	u.formatter.ProgressMsg("Updating lock file", "")
 	if err := metadata.RemoveLockFileEntry(u.baseDir, componentType, name); err != nil {
 		u.formatter.ProgressFailed()
-		// Log warning but continue - directory is already removed
 		u.formatter.WarningMsg("Could not update lock file: %v", err)
 	} else {
 		u.formatter.ProgressComplete()
 	}
 
-	// Display success message
 	u.formatter.EmptyLine()
 	u.formatter.SuccessMsg("Removed %s: %s", componentType, name)
 
@@ -119,48 +105,40 @@ func (u *Uninstaller) UninstallComponent(componentType, name string) error {
 
 // UninstallAllFromSource removes all components from a specified repository URL
 func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
-	// Normalize repository URL
 	detector := detector.NewRepositoryDetector()
 	normalizedURL, err := detector.NormalizeURL(repoURL)
 	if err != nil {
 		return fmt.Errorf("invalid repository URL: %w", err)
 	}
 
-	// Find all components from this source
 	componentsByType, err := u.findComponentsBySource(normalizedURL)
 	if err != nil {
 		return fmt.Errorf("failed to find components: %w", err)
 	}
 
-	// Check if any components found
 	totalComponents := 0
 	for _, names := range componentsByType {
 		totalComponents += len(names)
 	}
 
 	if totalComponents == 0 {
-		u.formatter.InfoMsg("No components found from %s", repoURL)
+		u.formatter.InfoMsg("No components found from repository: %s", repoURL)
 		return nil
 	}
 
-	// Display section header
 	u.formatter.SectionHeader("Uninstall Preview")
 
-	// Display repository and total count
 	u.formatter.DetailItem("Repository", repoURL)
 	u.formatter.DetailItem("Total components", fmt.Sprintf("%d", totalComponents))
 	u.formatter.EmptyLine()
 
-	// Show breakdown by type with more details
 	u.formatter.InfoMsg("Components to be removed:")
 	u.formatter.EmptyLine()
 
 	for componentType, names := range componentsByType {
 		if len(names) > 0 {
-			// Component type header
 			u.formatter.Info("%s (%d):", strings.Title(componentType), len(names))
 			for _, name := range names {
-				// Find linked targets for this component
 				linkedTargets := u.findLinkedTargets(componentType, name)
 
 				if len(linkedTargets) > 0 {
@@ -173,13 +151,11 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 		}
 	}
 
-	// Show what directories will be deleted
 	u.formatter.InfoMsg("Directories to be deleted:")
 	u.formatter.EmptyLine()
 	for componentType, names := range componentsByType {
 		if len(names) > 0 {
 			for _, name := range names {
-				// Load lock entry to get filesystem name
 				entry, err := metadata.LoadLockFileEntry(u.baseDir, componentType, name)
 				dirName := name
 				if err == nil && entry.FilesystemName != "" {
@@ -192,7 +168,6 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 	}
 	u.formatter.EmptyLine()
 
-	// Prompt for confirmation unless --force is set
 	if !force {
 		fmt.Print("Remove these components? (y/N): ")
 		reader := bufio.NewReader(os.Stdin)
@@ -209,15 +184,12 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 		u.formatter.EmptyLine()
 	}
 
-	// Display removal header
 	u.formatter.SectionHeader("Removing Components")
 
-	// Remove all components
 	removed := 0
 	failed := 0
 	var failedComponents []string
 
-	// Process in order: skills, agents, commands
 	for _, componentType := range []string{"skills", "agents", "commands"} {
 		names, exists := componentsByType[componentType]
 		if !exists || len(names) == 0 {
@@ -276,24 +248,20 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 func (u *Uninstaller) findComponentsBySource(normalizedURL string) (map[string][]string, error) {
 	componentsByType := make(map[string][]string)
 
-	// Component types to check
 	componentTypes := []string{"skills", "agents", "commands"}
 
 	for _, componentType := range componentTypes {
 		lockFilePath := paths.GetComponentLockPath(u.baseDir, componentType)
 
-		// Check if lock file exists
 		if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
 			continue
 		}
 
-		// Read lock file
 		lockData, err := os.ReadFile(lockFilePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read lock file for %s: %w", componentType, err)
 		}
 
-		// Parse lock file
 		var lockFile models.ComponentLockFile
 		if err := json.Unmarshal(lockData, &lockFile); err != nil {
 			return nil, fmt.Errorf("failed to parse lock file for %s: %w", componentType, err)

@@ -117,7 +117,6 @@ func EnsureTargetStructure(targetDir string) (bool, error) {
 		created = true
 	}
 
-	// Create target directory
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return false, fmt.Errorf("failed to create target directory: %w", err)
 	}
@@ -148,7 +147,6 @@ func EnsureComponentDirectory(targetDir, componentType string) (bool, error) {
 		created = true
 	}
 
-	// Create target directory
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return false, fmt.Errorf("failed to create target directory: %w", err)
 	}
