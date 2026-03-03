@@ -590,6 +590,24 @@ func TestGenerateProfileNameFromRepo(t *testing.T) {
 			expected:         "my-repo",
 		},
 		{
+			name:             "Shorthand format - GitHub",
+			repoURL:          "owner/repo",
+			existingProfiles: []string{},
+			expected:         "owner-repo",
+		},
+		{
+			name:             "Shorthand format - with underscores",
+			repoURL:          "softaworks/agent-toolkit",
+			existingProfiles: []string{},
+			expected:         "softaworks-agent-toolkit",
+		},
+		{
+			name:             "Shorthand format - with numbers",
+			repoURL:          "org123/repo456",
+			existingProfiles: []string{},
+			expected:         "org123-repo456",
+		},
+		{
 			name:             "Profile name collision - adds hash",
 			repoURL:          "https://github.com/owner/repo",
 			existingProfiles: []string{"owner-repo"},

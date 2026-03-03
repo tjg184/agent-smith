@@ -39,8 +39,10 @@ func TestE2E_LinkStatusWorkflow(t *testing.T) {
 			t.Fatalf("Install failed: %v\nOutput: %s", err, outputStr)
 		}
 
-		// Verify skill was installed
-		skillDir := filepath.Join(tempDir, ".agent-smith", "skills", skillName)
+		// Verify skill was installed to auto-derived profile
+		expectedProfileName := "anthropics-skills"
+		profileDir := filepath.Join(tempDir, ".agent-smith", "profiles", expectedProfileName)
+		skillDir := filepath.Join(profileDir, "skills", skillName)
 		testutil.AssertDirectoryExists(t, skillDir)
 
 		t.Logf("Successfully installed skill: %s", skillName)

@@ -196,7 +196,7 @@ func TestE2E_SingleComponentWorkflow(t *testing.T) {
 	// We'll use a skill that's likely to exist in the repo
 	skillName := "web-artifacts-builder"
 
-	// Step 1: Install single skill (installs to base directory ~/.agent-smith/skills/)
+	// Step 1: Install single skill (installs to auto-derived profile from repository)
 	t.Run("Step1_InstallSingle", func(t *testing.T) {
 		cmd := exec.Command(binaryPath, "install", "skill", testRepo, skillName)
 		output, err := cmd.CombinedOutput()
@@ -208,24 +208,29 @@ func TestE2E_SingleComponentWorkflow(t *testing.T) {
 			t.Fatalf("Install single skill failed: %v\nOutput: %s", err, outputStr)
 		}
 
-		// Verify skill was installed to base directory (not a profile)
-		baseSkillsDir := filepath.Join(tempDir, ".agent-smith", "skills")
-		testutil.AssertDirectoryExists(t, baseSkillsDir)
+		// Verify profile was created based on repository name
+		profilesDir := filepath.Join(tempDir, ".agent-smith", "profiles")
+		testutil.AssertDirectoryExists(t, profilesDir)
 
-		// Verify the specific skill directory exists
-		skillDir := filepath.Join(baseSkillsDir, skillName)
+		// Profile should be named after the repository (anthropics-skills)
+		expectedProfileName := "anthropics-skills"
+		profileDir := filepath.Join(profilesDir, expectedProfileName)
+		testutil.AssertDirectoryExists(t, profileDir)
+
+		// Verify the specific skill directory exists in the profile
+		skillDir := filepath.Join(profileDir, "skills", skillName)
 		testutil.AssertDirectoryExists(t, skillDir)
 
-		// Verify lock file was created
-		lockFile := filepath.Join(tempDir, ".agent-smith", ".component-lock.json")
+		// Verify profile lock file was created
+		lockFile := filepath.Join(profileDir, ".component-lock.json")
 		testutil.AssertFileExists(t, lockFile)
 
-		t.Logf("Successfully installed skill: %s to base directory", skillName)
+		t.Logf("Successfully installed skill: %s to profile: %s", skillName, expectedProfileName)
 	})
 
-	// Step 2: Link single component (from base directory)
+	// Step 2: Link single component (from auto-derived profile)
 	t.Run("Step2_LinkSingle", func(t *testing.T) {
-		// Link single skill (should work from base directory without active profile)
+		// Link single skill (should work from the auto-created profile which is now active)
 		cmd := exec.Command(binaryPath, "link", "skill", skillName)
 		output, err := cmd.CombinedOutput()
 		outputStr := string(output)
@@ -242,7 +247,7 @@ func TestE2E_SingleComponentWorkflow(t *testing.T) {
 		}
 	})
 
-	// Step 3: Update single component (in base directory)
+	// Step 3: Update single component (in profile)
 	t.Run("Step3_UpdateSingle", func(t *testing.T) {
 		cmd := exec.Command(binaryPath, "update", "skills", skillName)
 		output, err := cmd.CombinedOutput()
@@ -253,9 +258,10 @@ func TestE2E_SingleComponentWorkflow(t *testing.T) {
 		// Update should succeed even if no updates available
 		testutil.AssertNoError(t, err, "Update single skill failed")
 
-		// Verify skill directory still exists in base directory
-		baseSkillsDir := filepath.Join(tempDir, ".agent-smith", "skills")
-		skillDir := filepath.Join(baseSkillsDir, skillName)
+		// Verify skill directory still exists in profile
+		expectedProfileName := "anthropics-skills"
+		profilesDir := filepath.Join(tempDir, ".agent-smith", "profiles")
+		skillDir := filepath.Join(profilesDir, expectedProfileName, "skills", skillName)
 		testutil.AssertDirectoryExists(t, skillDir)
 	})
 }
@@ -311,21 +317,21 @@ func TestE2E_ProfileWorkflow(t *testing.T) {
 			t.Fatalf("Install all failed: %v\nOutput: %s", err, outputStr)
 		}
 
-		// The install all command creates a profile based on repo name ("skills")
-		// So we now have two profiles: work-profile (empty) and skills (with components)
+		// The install all command creates a profile based on repo name ("anthropics-skills")
+		// So we now have two profiles: work-profile (empty) and anthropics-skills (with components)
 		profilesDir := filepath.Join(tempDir, ".agent-smith", "profiles")
 		entries, err := os.ReadDir(profilesDir)
 		testutil.AssertNoError(t, err, "Failed to read profiles directory")
 
 		if len(entries) < 2 {
-			t.Errorf("Expected at least 2 profiles (work-profile + skills), got %d", len(entries))
+			t.Errorf("Expected at least 2 profiles (work-profile + anthropics-skills), got %d", len(entries))
 		}
 
-		// Verify the skills profile has components
-		skillsProfileDir := filepath.Join(profilesDir, "skills")
-		testutil.AssertDirectoryExists(t, skillsProfileDir)
+		// Verify the anthropics-skills profile has components
+		anthropicsProfileDir := filepath.Join(profilesDir, "anthropics-skills")
+		testutil.AssertDirectoryExists(t, anthropicsProfileDir)
 
-		skillsDir := filepath.Join(skillsProfileDir, "skills")
+		skillsDir := filepath.Join(anthropicsProfileDir, "skills")
 		skills, err := os.ReadDir(skillsDir)
 		testutil.AssertNoError(t, err, "Failed to read skills directory")
 
@@ -333,7 +339,7 @@ func TestE2E_ProfileWorkflow(t *testing.T) {
 			t.Error("Expected at least one skill to be installed")
 		}
 
-		t.Logf("Successfully installed %d components to 'skills' profile", len(skills))
+		t.Logf("Successfully installed %d components to 'anthropics-skills' profile", len(skills))
 	})
 
 	// Step 3: Deactivate currently active profile (work-profile)
@@ -379,15 +385,15 @@ func TestE2E_ProfileWorkflow(t *testing.T) {
 		testutil.AssertEqual(t, 0, activeCount, "No profiles should be active")
 	})
 
-	// Step 5: Activate the skills profile
+	// Step 5: Activate the anthropics-skills profile
 	t.Run("Step5_ActivateSkillsProfile", func(t *testing.T) {
-		cmd := exec.Command(binaryPath, "profile", "activate", "skills")
+		cmd := exec.Command(binaryPath, "profile", "activate", "anthropics-skills")
 		output, err := cmd.CombinedOutput()
 		outputStr := string(output)
 
-		t.Logf("Activate skills profile output:\n%s", outputStr)
+		t.Logf("Activate anthropics-skills profile output:\n%s", outputStr)
 
-		testutil.AssertNoError(t, err, "Failed to activate skills profile")
+		testutil.AssertNoError(t, err, "Failed to activate anthropics-skills profile")
 
 		// Verify it's active
 		cmd = exec.Command(binaryPath, "profile", "list")
@@ -396,19 +402,19 @@ func TestE2E_ProfileWorkflow(t *testing.T) {
 
 		testutil.AssertNoError(t, err, "Failed to list profiles")
 
-		// Check if skills profile is active (line should start with "│ ✓" and contain "skills")
+		// Check if anthropics-skills profile is active (line should start with "│ ✓" and contain "anthropics-skills")
 		isActive := false
 		lines := strings.Split(outputStr, "\n")
 		for _, line := range lines {
 			trimmed := strings.TrimSpace(line)
-			if strings.HasPrefix(trimmed, "│ ✓") && strings.Contains(line, "skills") {
+			if strings.HasPrefix(trimmed, "│ ✓") && strings.Contains(line, "anthropics-skills") {
 				isActive = true
 				break
 			}
 		}
-		testutil.AssertTrue(t, isActive, "Skills profile should be active")
+		testutil.AssertTrue(t, isActive, "anthropics-skills profile should be active")
 
-		t.Logf("Successfully activated skills profile")
+		t.Logf("Successfully activated anthropics-skills profile")
 	})
 
 	// Step 6: Switch back to work-profile

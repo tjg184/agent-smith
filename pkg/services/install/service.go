@@ -49,7 +49,18 @@ func (s *Service) InstallSkill(repoURL, name string, opts services.InstallOption
 		return s.installSkillToProfile(repoURL, name, opts.Profile)
 	}
 
-	// Standard installation to ~/.agent-smith/
+	// Auto-derive profile from repository URL (like install all does)
+	profile, err := s.getOrCreateRepoProfile(repoURL)
+	if err != nil {
+		return fmt.Errorf("failed to determine profile for repository: %w", err)
+	}
+
+	if profile != "" {
+		// Install to derived repo-sourced profile
+		return s.installSkillToProfile(repoURL, name, profile)
+	}
+
+	// Fallback: Standard installation to ~/.agent-smith/ (should rarely happen)
 	return s.installSkillToBase(repoURL, name)
 }
 
@@ -69,7 +80,18 @@ func (s *Service) InstallAgent(repoURL, name string, opts services.InstallOption
 		return s.installAgentToProfile(repoURL, name, opts.Profile)
 	}
 
-	// Standard installation to ~/.agent-smith/
+	// Auto-derive profile from repository URL (like install all does)
+	profile, err := s.getOrCreateRepoProfile(repoURL)
+	if err != nil {
+		return fmt.Errorf("failed to determine profile for repository: %w", err)
+	}
+
+	if profile != "" {
+		// Install to derived repo-sourced profile
+		return s.installAgentToProfile(repoURL, name, profile)
+	}
+
+	// Fallback: Standard installation to ~/.agent-smith/ (should rarely happen)
 	return s.installAgentToBase(repoURL, name)
 }
 
@@ -89,7 +111,18 @@ func (s *Service) InstallCommand(repoURL, name string, opts services.InstallOpti
 		return s.installCommandToProfile(repoURL, name, opts.Profile)
 	}
 
-	// Standard installation to ~/.agent-smith/
+	// Auto-derive profile from repository URL (like install all does)
+	profile, err := s.getOrCreateRepoProfile(repoURL)
+	if err != nil {
+		return fmt.Errorf("failed to determine profile for repository: %w", err)
+	}
+
+	if profile != "" {
+		// Install to derived repo-sourced profile
+		return s.installCommandToProfile(repoURL, name, profile)
+	}
+
+	// Fallback: Standard installation to ~/.agent-smith/ (should rarely happen)
 	return s.installCommandToBase(repoURL, name)
 }
 
@@ -457,4 +490,44 @@ func (s *Service) maybeAutoActivateProfile(profile string) error {
 	}
 
 	return nil
+}
+
+// getOrCreateRepoProfile determines or creates the appropriate profile for a repository.
+// This implements the same logic as install all: derive profile name from repo URL,
+// reuse existing profile if found, or create a new repo-sourced profile.
+// Returns empty string only if there's no active profile (fallback to base install).
+func (s *Service) getOrCreateRepoProfile(repoURL string) (string, error) {
+	// Check if a profile already exists for this repository
+	existingProfileName, err := s.profileManager.FindProfileBySourceURL(repoURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to search for existing profile: %w", err)
+	}
+
+	if existingProfileName != "" {
+		// Profile already exists, reuse it
+		s.logger.Debug("[DEBUG] Found existing profile for repository: %s", existingProfileName)
+		return existingProfileName, nil
+	}
+
+	// No existing profile - generate a new unique profile name
+	existingProfiles, err := s.profileManager.ScanProfiles()
+	if err != nil {
+		return "", fmt.Errorf("failed to scan profiles: %w", err)
+	}
+
+	existingProfileNames := make([]string, len(existingProfiles))
+	for i, p := range existingProfiles {
+		existingProfileNames[i] = p.Name
+	}
+
+	// Generate a unique profile name from the repo URL
+	profileName := profiles.GenerateProfileNameFromRepo(repoURL, existingProfileNames)
+
+	// Create the new repo-sourced profile
+	s.logger.Info("Creating profile: %s", profileName)
+	if err := s.profileManager.CreateProfileWithMetadata(profileName, repoURL); err != nil {
+		return "", fmt.Errorf("failed to create profile: %w", err)
+	}
+
+	return profileName, nil
 }
