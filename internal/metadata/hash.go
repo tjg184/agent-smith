@@ -52,3 +52,31 @@ func ComputeLocalFolderHash(folderPath string) (string, error) {
 
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
+
+// ComputeComponentHash computes a SHA256 hash for a component (file or directory).
+// For directories (like skills), it hashes all files recursively.
+// For single files (like agents/commands), it hashes just that file.
+// This is used for detecting identical duplicates vs. actual conflicts.
+func ComputeComponentHash(repoPath, componentPath string) (string, error) {
+	fullPath := filepath.Join(repoPath, componentPath)
+
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to stat component path %s: %w", fullPath, err)
+	}
+
+	// For directories, use the folder hash
+	if info.IsDir() {
+		return ComputeLocalFolderHash(fullPath)
+	}
+
+	// For single files, compute hash of the file content
+	hasher := sha256.New()
+	data, err := os.ReadFile(fullPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file %s: %w", fullPath, err)
+	}
+
+	hasher.Write(data)
+	return hex.EncodeToString(hasher.Sum(nil)), nil
+}

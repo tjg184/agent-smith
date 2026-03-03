@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/tjg184/agent-smith/internal/fileutil"
+	"github.com/tjg184/agent-smith/internal/metadata"
 	"github.com/tjg184/agent-smith/internal/models"
 )
 
@@ -134,9 +135,10 @@ func (rd *RepositoryDetector) DetectComponentsInRepo(repoPath string) ([]models.
 	type ComponentOccurrence struct {
 		component models.DetectedComponent
 		path      string
+		hash      string // Content hash for detecting identical duplicates
 	}
 	seenComponents := make(map[string][]ComponentOccurrence) // Track all occurrences
-	duplicatesFound := false
+	hasConflicts := false                                    // Track if any duplicates have different content
 
 	// Walk the repository to detect components
 	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
@@ -184,13 +186,58 @@ func (rd *RepositoryDetector) DetectComponentsInRepo(repoPath string) ([]models.
 				}
 
 				if existing, exists := seenComponents[componentKey]; exists {
-					// Duplicate detected - log warning immediately
-					duplicatesFound = true
-					if rd.logger != nil {
-						rd.logger.Warn("⚠️  WARNING: Duplicate component name detected!")
-						rd.logger.Warn("    Component: %s (%s)", componentName, pattern.Name)
-						rd.logger.Warn("    First occurrence: %s", existing[0].path)
-						rd.logger.Warn("    Duplicate at: %s (WILL BE SKIPPED)", fullRelPath)
+					// Duplicate detected - compute hashes to compare content
+
+					// Compute hash for the new duplicate
+					duplicateHash, err := metadata.ComputeComponentHash(repoPath, componentPath)
+					if err != nil {
+						if rd.logger != nil {
+							rd.logger.Debug("Failed to compute hash for duplicate component %s: %v", componentPath, err)
+						}
+						duplicateHash = ""
+					}
+
+					// Get hash of first occurrence (compute if not already cached)
+					if existing[0].hash == "" {
+						firstHash, err := metadata.ComputeComponentHash(repoPath, existing[0].component.Path)
+						if err != nil {
+							if rd.logger != nil {
+								rd.logger.Debug("Failed to compute hash for first occurrence %s: %v", existing[0].component.Path, err)
+							}
+							firstHash = ""
+						}
+						existing[0].hash = firstHash
+						seenComponents[componentKey][0] = existing[0]
+					}
+
+					// Compare hashes to determine if this is a real conflict
+					// Only treat as different if both hashes computed successfully and don't match
+					contentDiffers := false
+					if duplicateHash != "" && existing[0].hash != "" {
+						// Both hashes computed successfully - compare them
+						contentDiffers = (duplicateHash != existing[0].hash)
+					} else {
+						// Hash computation failed for at least one - treat conservatively as different
+						contentDiffers = true
+					}
+
+					if contentDiffers {
+						hasConflicts = true
+						// Only log warning for actual conflicts (different content)
+						if rd.logger != nil {
+							rd.logger.Warn("⚠️  WARNING: Duplicate component name detected!")
+							rd.logger.Warn("    Component: %s (%s)", componentName, pattern.Name)
+							rd.logger.Warn("    First occurrence: %s", existing[0].path)
+							rd.logger.Warn("    Duplicate at: %s (WILL BE SKIPPED)", fullRelPath)
+							rd.logger.Warn("    Content differs - this may cause conflicts")
+						}
+					} else {
+						// Identical content - suppress warning (log only in debug mode)
+						if rd.logger != nil {
+							rd.logger.Debug("Duplicate component '%s' has identical content, suppressing warning", componentName)
+							rd.logger.Debug("    First occurrence: %s", existing[0].path)
+							rd.logger.Debug("    Duplicate at: %s (WILL BE SKIPPED)", fullRelPath)
+						}
 					}
 
 					// Track this duplicate occurrence
@@ -203,6 +250,7 @@ func (rd *RepositoryDetector) DetectComponentsInRepo(repoPath string) ([]models.
 							FilePath:   fullRelPath, // Track full path from repo root
 						},
 						path: fullRelPath,
+						hash: duplicateHash,
 					})
 				} else {
 					// First occurrence - add to components list
@@ -217,6 +265,7 @@ func (rd *RepositoryDetector) DetectComponentsInRepo(repoPath string) ([]models.
 					seenComponents[componentKey] = []ComponentOccurrence{{
 						component: component,
 						path:      fullRelPath,
+						hash:      "", // Hash computed lazily when needed
 					}}
 					if rd.logger != nil {
 						rd.logger.Debug("Added component: %s (key: %s)", componentName, componentKey)
@@ -250,8 +299,9 @@ func (rd *RepositoryDetector) DetectComponentsInRepo(repoPath string) ([]models.
 		rd.logger.Debug("Component breakdown - Skills: %d, Agents: %d, Commands: %d", skillCount, agentCount, commandCount)
 	}
 
-	// Display duplicate warnings summary if any duplicates were found
-	if duplicatesFound {
+	// Display duplicate warnings summary only if there are actual conflicts
+	// (duplicates with different content)
+	if hasConflicts {
 		fmt.Printf("\n")
 		fmt.Printf("╔════════════════════════════════════════════════════════════════════╗\n")
 		fmt.Printf("║  ⚠️  WARNING: Duplicate Component Names Detected                  ║\n")
@@ -260,32 +310,66 @@ func (rd *RepositoryDetector) DetectComponentsInRepo(repoPath string) ([]models.
 		duplicateCount := 0
 		for _, occurrences := range seenComponents {
 			if len(occurrences) > 1 {
-				duplicateCount++
-				// Parse component type from key
-				componentType := "component"
-				if len(occurrences) > 0 {
-					componentType = string(occurrences[0].component.Type)
-				}
-
-				fmt.Printf("  [%d] %s '%s' found in %d locations:\n", duplicateCount, componentType, occurrences[0].component.Name, len(occurrences))
-				for i, occ := range occurrences {
-					if i == 0 {
-						fmt.Printf("      ✓ %s (USED - first occurrence)\n", occ.path)
-					} else {
-						fmt.Printf("      ✗ %s (SKIPPED - duplicate #%d)\n", occ.path, i)
+				// Check if any occurrence has different content
+				hasConflict := false
+				firstHash := occurrences[0].hash
+				if firstHash == "" {
+					// Compute first hash if not already done
+					var err error
+					firstHash, err = metadata.ComputeComponentHash(repoPath, occurrences[0].component.Path)
+					if err != nil {
+						hasConflict = true // Treat hash failure as potential conflict
 					}
 				}
-				fmt.Printf("\n")
+
+				for i := 1; i < len(occurrences); i++ {
+					hash := occurrences[i].hash
+					if hash == "" {
+						// Compute hash if not already done
+						var err error
+						hash, err = metadata.ComputeComponentHash(repoPath, occurrences[i].component.Path)
+						if err != nil {
+							hasConflict = true
+							break
+						}
+					}
+					if hash != firstHash {
+						hasConflict = true
+						break
+					}
+				}
+
+				// Only show duplicates with different content
+				if hasConflict {
+					duplicateCount++
+					// Parse component type from key
+					componentType := "component"
+					if len(occurrences) > 0 {
+						componentType = string(occurrences[0].component.Type)
+					}
+
+					fmt.Printf("  [%d] %s '%s' found in %d locations:\n", duplicateCount, componentType, occurrences[0].component.Name, len(occurrences))
+					for i, occ := range occurrences {
+						if i == 0 {
+							fmt.Printf("      ✓ %s (USED - first occurrence)\n", occ.path)
+						} else {
+							fmt.Printf("      ✗ %s (SKIPPED - duplicate #%d)\n", occ.path, i)
+						}
+					}
+					fmt.Printf("\n")
+				}
 			}
 		}
 
-		fmt.Printf("  Resolution Required:\n")
-		fmt.Printf("  • Only the FIRST occurrence of each component will be used\n")
-		fmt.Printf("  • Subsequent duplicates have been SKIPPED\n")
-		fmt.Printf("  • To resolve: Rename or remove duplicate components\n")
-		fmt.Printf("\n")
-		fmt.Printf("  Total duplicates found: %d\n", duplicateCount)
-		fmt.Printf("════════════════════════════════════════════════════════════════════\n\n")
+		if duplicateCount > 0 {
+			fmt.Printf("  Resolution Required:\n")
+			fmt.Printf("  • Only the FIRST occurrence of each component will be used\n")
+			fmt.Printf("  • Subsequent duplicates have been SKIPPED\n")
+			fmt.Printf("  • To resolve: Rename or remove duplicate components\n")
+			fmt.Printf("\n")
+			fmt.Printf("  Total conflicts found: %d\n", duplicateCount)
+			fmt.Printf("════════════════════════════════════════════════════════════════════\n\n")
+		}
 	}
 
 	return components, err
