@@ -5,7 +5,6 @@ import (
 )
 
 func init() {
-	// Create 'profiles' parent command with subcommands
 	profilesCmd := &cobra.Command{
 		Use:   "profile",
 		Short: "Manage profiles for context switching",

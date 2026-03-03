@@ -5,7 +5,6 @@ import (
 )
 
 func init() {
-	// Create 'uninstall' parent command with subcommands
 	uninstallCmd := &cobra.Command{
 		Use:   "uninstall",
 		Short: "Remove installed components from the system",

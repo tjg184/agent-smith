@@ -33,7 +33,6 @@ func NewAgentDownloader() *AgentDownloader {
 		log.Fatal("Failed to get agents directory:", err)
 	}
 
-	// Create base directory if it doesn't exist
 	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
 		log.Fatal("Failed to create agents directory:", err)
 	}
@@ -48,16 +47,13 @@ func NewAgentDownloader() *AgentDownloader {
 
 // NewAgentDownloaderForProfile creates a new AgentDownloader instance that installs to a profile
 func NewAgentDownloaderForProfile(profileName string) *AgentDownloader {
-	// Get profiles directory
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
 		log.Fatal("Failed to get profiles directory:", err)
 	}
 
-	// Build path to profile's agents directory
 	baseDir := filepath.Join(profilesDir, profileName, "agents")
 
-	// Create base directory if it doesn't exist
 	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
 		log.Fatal("Failed to create profile agents directory:", err)
 	}
@@ -72,10 +68,8 @@ func NewAgentDownloaderForProfile(profileName string) *AgentDownloader {
 
 // NewAgentDownloaderWithTargetDir creates a new AgentDownloader instance that installs to a custom target directory
 func NewAgentDownloaderWithTargetDir(targetDir string) *AgentDownloader {
-	// Build path to target directory's agents subdirectory
 	baseDir := filepath.Join(targetDir, "agents")
 
-	// Create base directory if it doesn't exist
 	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
 		log.Fatal("Failed to create target agents directory:", err)
 	}
@@ -105,7 +99,6 @@ func (ad *AgentDownloader) parseRepoURL(repoURL string) (string, error) {
 		return "", err
 	}
 
-	// Validate normalized repository
 	if err := ad.detector.ValidateRepository(normalizedURL); err != nil {
 		return "", fmt.Errorf("repository validation failed: %w", err)
 	}

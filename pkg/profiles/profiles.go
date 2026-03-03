@@ -46,7 +46,6 @@ func (p *Profile) GetCommandsDir() string {
 // This method provides shared logic for profile-aware operations that need to
 // identify which profile a component belongs to based on its symlink target.
 func GetProfileNameFromSymlink(symlinkPath string) (string, error) {
-	// Check if the path is a symlink
 	info, err := os.Lstat(symlinkPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to stat path: %w", err)
@@ -56,21 +55,17 @@ func GetProfileNameFromSymlink(symlinkPath string) (string, error) {
 		return "", fmt.Errorf("path is not a symlink: %s", symlinkPath)
 	}
 
-	// Read the symlink target
 	target, err := os.Readlink(symlinkPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read symlink: %w", err)
 	}
 
-	// Resolve relative paths to absolute
 	if !filepath.IsAbs(target) {
 		target = filepath.Join(filepath.Dir(symlinkPath), target)
 	}
 
-	// Clean the path for consistent comparison
 	target = filepath.Clean(target)
 
-	// Walk up the directory tree to find "profiles" directory
 	dir := filepath.Dir(target)
 	for {
 		parent := filepath.Dir(dir)

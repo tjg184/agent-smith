@@ -27,7 +27,6 @@ func (rd *RepositoryDetector) DetectComponentForPattern(fileName, relPath, fullR
 		return "", "", false
 	}
 
-	// Parse frontmatter if the file is markdown
 	var frontmatter *models.ComponentFrontmatter
 	if strings.HasSuffix(fileName, ".md") {
 		fullFilePath := filepath.Join(repoPath, fullRelPath)
@@ -44,7 +43,6 @@ func (rd *RepositoryDetector) DetectComponentForPattern(fileName, relPath, fullR
 		}
 	}
 
-	// Check exact file matches first (highest priority)
 	if rd.MatchesExactFile(fileName, pattern.ExactFiles) {
 		// Use fullRelPath to get the correct directory containing the component file
 		componentDir := filepath.Dir(fullRelPath)
@@ -75,7 +73,6 @@ func (rd *RepositoryDetector) DetectComponentForPattern(fileName, relPath, fullR
 		return componentName, componentDir, true
 	}
 
-	// Check path patterns with file extensions (medium priority)
 	if len(pattern.PathPatterns) > 0 && len(pattern.FileExtensions) > 0 {
 		if rd.MatchesPathPattern(relPath, pattern.PathPatterns) && rd.MatchesFileExtension(fileName, pattern.FileExtensions) {
 			// Use determineComponentName with frontmatter priority
@@ -99,7 +96,6 @@ func (rd *RepositoryDetector) DetectComponentForPattern(fileName, relPath, fullR
 		}
 	}
 
-	// Check just path patterns (lower priority)
 	if len(pattern.PathPatterns) > 0 && rd.MatchesPathPattern(relPath, pattern.PathPatterns) {
 		// Use determineComponentName with frontmatter priority
 		componentName := fileutil.DetermineComponentName(frontmatter, fileName)
@@ -137,10 +133,9 @@ func (rd *RepositoryDetector) DetectComponentsInRepo(repoPath string) ([]models.
 		path      string
 		hash      string // Content hash for detecting identical duplicates
 	}
-	seenComponents := make(map[string][]ComponentOccurrence) // Track all occurrences
-	hasConflicts := false                                    // Track if any duplicates have different content
+	seenComponents := make(map[string][]ComponentOccurrence)
+	hasConflicts := false
 
-	// Walk the repository to detect components
 	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

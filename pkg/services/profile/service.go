@@ -42,7 +42,6 @@ func (s *Service) ListProfiles(opts services.ListProfileOptions) error {
 		return fmt.Errorf("failed to scan profiles: %w", err)
 	}
 
-	// Scan base installation for components
 	baseAgentsDir, err := paths.GetAgentsDir()
 	if err != nil {
 		return fmt.Errorf("failed to get base agents directory: %w", err)

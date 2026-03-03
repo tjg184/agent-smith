@@ -39,12 +39,10 @@ func NewUpdateDetector() *UpdateDetector {
 
 	var profileName string
 
-	// Check if a profile is active
 	pm, err := profiles.NewProfileManager(nil, locksvc.NewService(logger.New(logger.LevelError)))
 	if err == nil {
 		activeProfile, err := pm.GetActiveProfile()
 		if err == nil && activeProfile != "" {
-			// Use the active profile directory instead
 			profilesDir, err := paths.GetProfilesDir()
 			if err == nil {
 				baseDir = filepath.Join(profilesDir, activeProfile)
@@ -81,7 +79,6 @@ func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
 		profileName = profile
 		fmt.Printf("Using specified profile for updates: %s\n", profile)
 	} else {
-		// Check if a profile is active
 		pm, err := profiles.NewProfileManager(nil, locksvc.NewService(logger.New(logger.LevelError)))
 		if err == nil {
 			activeProfile, err := pm.GetActiveProfile()
@@ -128,7 +125,6 @@ func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*mo
 		return nil, fmt.Errorf("failed to load lock file entry: %w", err)
 	}
 
-	// Convert to legacy format for compatibility
 	return &models.ComponentMetadata{
 		Name:   componentName,
 		Source: entry.SourceUrl,
@@ -149,14 +145,12 @@ func (ud *UpdateDetector) GetCurrentRepoSHA(repoURL string) (string, error) {
 		return "", fmt.Errorf("failed to normalize URL: %w", err)
 	}
 
-	// Create temporary directory for checking current state
 	tempDir, err := os.MkdirTemp("", "agent-smith-check-*")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temporary directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Clone repository to get current HEAD
 	cloneOpts := &git.CloneOptions{
 		URL:           fullURL,
 		Depth:         1,
@@ -164,7 +158,6 @@ func (ud *UpdateDetector) GetCurrentRepoSHA(repoURL string) (string, error) {
 		SingleBranch:  true,
 	}
 
-	// Add authentication if needed
 	if auth, _ := gitpkg.GetAuthMethod(fullURL); auth != nil {
 		cloneOpts.Auth = auth
 	}
@@ -174,7 +167,6 @@ func (ud *UpdateDetector) GetCurrentRepoSHA(repoURL string) (string, error) {
 		return "", fmt.Errorf("failed to clone repository: %w", err)
 	}
 
-	// Get HEAD commit hash
 	ref, err := repo.Head()
 	if err != nil {
 		return "", fmt.Errorf("failed to get HEAD reference: %w", err)
@@ -185,38 +177,32 @@ func (ud *UpdateDetector) GetCurrentRepoSHA(repoURL string) (string, error) {
 
 // HasUpdates checks if a component has updates available
 func (ud *UpdateDetector) HasUpdates(componentType, componentName, repoURL string) (bool, error) {
-	// Load existing metadata
 	metadata, err := ud.loadMetadata(componentType, componentName)
 	if err != nil {
 		return false, fmt.Errorf("failed to load metadata: %w", err)
 	}
 
-	// If no commit hash is stored (old lock file format), assume update is needed
 	if metadata.Commit == "" {
 		fmt.Printf("Warning: %s/%s has no commit hash stored, will re-download to update lock file\n", componentType, componentName)
 		return true, nil
 	}
 
-	// Get current repository SHA
 	currentSHA, err := ud.GetCurrentRepoSHA(repoURL)
 	if err != nil {
 		return false, fmt.Errorf("failed to get current repository SHA: %w", err)
 	}
 
-	// Compare stored SHA with current SHA
 	return metadata.Commit != currentSHA, nil
 }
 
 // UpdateComponent updates a single component if updates are detected
 func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL string) error {
-	// Show location header
 	if ud.profileName != "" {
 		fmt.Printf("%s\n\n", styles.InfoArrowFormat(fmt.Sprintf("Updating components in: %s", ud.baseDir)))
 	} else {
 		fmt.Printf("%s\n\n", styles.InfoArrowFormat("Checking for updates..."))
 	}
 
-	// Check for updates
 	fmt.Print(styles.ProgressCheckingFormat(componentType, componentName))
 
 	hasUpdates, err := ud.HasUpdates(componentType, componentName, repoURL)
@@ -231,10 +217,8 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 		return nil
 	}
 
-	// Component needs updating
 	fmt.Printf("%s\n", styles.StatusUpdatingFormat())
 
-	// Remove old component directory to ensure clean re-clone
 	componentDir := filepath.Join(ud.baseDir, componentType, componentName)
 	if _, err := os.Stat(componentDir); err == nil {
 		if err := os.RemoveAll(componentDir); err != nil {
@@ -243,10 +227,8 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 		}
 	}
 
-	// Re-download the component with the latest changes
 	var downloadErr error
 	if ud.profileName != "" {
-		// Use profile-aware downloaders
 		switch componentType {
 		case "skills":
 			dl := downloader.NewSkillDownloaderForProfile(ud.profileName)
@@ -261,7 +243,6 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 			return fmt.Errorf("unknown component type: %s", componentType)
 		}
 	} else {
-		// Use standard downloaders
 		switch componentType {
 		case "skills":
 			dl := downloader.NewSkillDownloader()
@@ -314,12 +295,9 @@ func (ud *UpdateDetector) UpdateAll() error {
 		return nil
 	}
 
-	// Track update statistics
 	var totalChecked, upToDate, updated, failed int
 
-	// Step 2: Process each repository batch
 	for repoURL, components := range componentsByRepo {
-		// Create temporary directory for this repository
 		tempDir, err := os.MkdirTemp("", "agent-smith-update-batch-*")
 		if err != nil {
 			// If we can't create temp dir, mark all components as failed
@@ -333,11 +311,9 @@ func (ud *UpdateDetector) UpdateAll() error {
 			continue
 		}
 
-		// Clone repository once for this batch
 		fullURL, normalizeErr := ud.detector.NormalizeURL(repoURL)
 		if normalizeErr != nil {
 			os.RemoveAll(tempDir)
-			// Mark all components from this repo as failed
 			for _, comp := range components {
 				totalChecked++
 				fmt.Print(styles.ComponentProgressFormat(totalChecked, totalComponents, comp.Type, comp.Name))
@@ -348,7 +324,6 @@ func (ud *UpdateDetector) UpdateAll() error {
 			continue
 		}
 
-		// Clone repository (shallow clone)
 		cloneOpts := &git.CloneOptions{
 			URL:           fullURL,
 			Depth:         1,
@@ -452,7 +427,6 @@ func (ud *UpdateDetector) UpdateAll() error {
 		os.RemoveAll(tempDir)
 	}
 
-	// Print summary with box drawing using styles package
 	fmt.Println()
 	table := styles.SummaryTableFormat("Update Summary", 80)
 	table.AddRow("Total components checked:", totalChecked)

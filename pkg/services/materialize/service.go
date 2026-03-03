@@ -108,9 +108,7 @@ type componentInfo struct {
 func (s *Service) buildFilesystemNameMap(baseDir string) (map[string]componentInfo, error) {
 	lockFilePath := filepath.Join(baseDir, ".component-lock.json")
 
-	// Check if lock file exists
 	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
-		// No lock file, return empty map
 		return make(map[string]componentInfo), nil
 	}
 

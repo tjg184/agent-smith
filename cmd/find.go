@@ -5,7 +5,6 @@ import (
 )
 
 func init() {
-	// Create 'find' parent command with subcommands
 	findCmd := &cobra.Command{
 		Use:   "find",
 		Short: "Search for components in remote registries",

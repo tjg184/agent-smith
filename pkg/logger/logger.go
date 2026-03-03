@@ -15,13 +15,9 @@ import (
 type Level int
 
 const (
-	// LevelError represents error messages that should always be shown.
 	LevelError Level = iota
-	// LevelWarn represents warning messages.
 	LevelWarn
-	// LevelInfo represents informational messages (enabled with --verbose).
 	LevelInfo
-	// LevelDebug represents debug messages (enabled with --debug).
 	LevelDebug
 )
 
@@ -129,22 +125,18 @@ func (l *Logger) log(level Level, format string, args ...interface{}) {
 	colorize := l.colorize
 	l.mu.RUnlock()
 
-	// Filter messages below the current level
 	if level > currentLevel {
 		return
 	}
 
-	// Determine output destination
 	writer := output
 	if level <= LevelWarn {
 		writer = errOut
 	}
 
-	// Build the message
 	var msg string
 	if showTags {
 		tag := fmt.Sprintf("[%s]", level)
-		// Apply color to the tag if enabled
 		if colorize {
 			switch level {
 			case LevelError:
@@ -160,7 +152,6 @@ func (l *Logger) log(level Level, format string, args ...interface{}) {
 		msg = tag + " " + prefix + fmt.Sprintf(format, args...)
 	} else {
 		msg = prefix + fmt.Sprintf(format, args...)
-		// Apply color formatting if enabled and tags are disabled
 		if colorize {
 			switch level {
 			case LevelError:
@@ -171,7 +162,6 @@ func (l *Logger) log(level Level, format string, args ...interface{}) {
 		}
 	}
 
-	// Ensure newline at end
 	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
 		msg += "\n"
 	}

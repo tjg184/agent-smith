@@ -22,12 +22,9 @@ var ComputeLocalFolderHash = metadata.ComputeLocalFolderHash
 func DetermineDestinationFolderName(componentFilePath string) string {
 	componentTypeNames := []string{"skills", "agents", "commands"}
 
-	// Handle single-file components first
 	fileName := filepath.Base(componentFilePath)
 	fileExt := filepath.Ext(fileName)
 
-	// If this is a single-file .md component (not SKILL.md, AGENT.md, COMMAND.md)
-	// use the filename without extension as the destination folder name
 	if fileExt == ".md" &&
 		fileName != "SKILL.md" &&
 		fileName != "AGENT.md" &&
@@ -35,15 +32,11 @@ func DetermineDestinationFolderName(componentFilePath string) string {
 		return strings.TrimSuffix(fileName, fileExt)
 	}
 
-	// Directory-based component: use existing hierarchy heuristic
-	// Get directory containing the component file
 	currentDir := filepath.Dir(componentFilePath)
 
-	// Walk up the directory tree
 	for {
 		dirName := filepath.Base(currentDir)
 
-		// Check if current directory name is a component type
 		isComponentType := false
 		for _, typeName := range componentTypeNames {
 			if dirName == typeName {
@@ -52,17 +45,13 @@ func DetermineDestinationFolderName(componentFilePath string) string {
 			}
 		}
 
-		// If not a component type name, use it
 		if !isComponentType && dirName != "." && dirName != "" {
 			return dirName
 		}
 
-		// Go up one directory
 		parentDir := filepath.Dir(currentDir)
 
-		// Check if we've reached the root
 		if parentDir == currentDir || parentDir == "." || parentDir == "/" || dirName == "" {
-			// Reached root, fall back to "root"
 			return "root"
 		}
 
@@ -73,15 +62,8 @@ func DetermineDestinationFolderName(componentFilePath string) string {
 // extractGitHubOwnerRepo extracts "owner/repo" from a GitHub URL
 // Returns empty string if not a GitHub URL or parsing fails
 func extractGitHubOwnerRepo(url string) string {
-	// Handle various GitHub URL formats:
-	// https://github.com/owner/repo
-	// https://github.com/owner/repo.git
-	// git@github.com:owner/repo.git
-	// ssh://git@github.com/owner/repo.git
-
 	url = strings.TrimSpace(url)
 
-	// Handle SSH format: git@github.com:owner/repo.git
 	if strings.HasPrefix(url, "git@github.com:") {
 		path := strings.TrimPrefix(url, "git@github.com:")
 		path = strings.TrimSuffix(path, ".git")
@@ -92,7 +74,6 @@ func extractGitHubOwnerRepo(url string) string {
 		return ""
 	}
 
-	// Handle HTTPS format: https://github.com/owner/repo or ssh://git@github.com/owner/repo
 	if strings.Contains(url, "github.com/") {
 		idx := strings.Index(url, "github.com/")
 		path := url[idx+len("github.com/"):]

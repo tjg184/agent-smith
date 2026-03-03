@@ -5,8 +5,6 @@ import (
 	"fmt"
 )
 
-// Common error scenarios with helpful context and suggestions
-
 // NewProfileNotFoundError creates an error for when a profile doesn't exist.
 func NewProfileNotFoundError(profileName string) *ErrorMessage {
 	return New(fmt.Sprintf("Profile '%s' does not exist", profileName)).

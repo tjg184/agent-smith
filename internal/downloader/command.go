@@ -33,7 +33,6 @@ func NewCommandDownloader() *CommandDownloader {
 		log.Fatal("Failed to get commands directory:", err)
 	}
 
-	// Create base directory if it doesn't exist
 	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
 		log.Fatal("Failed to create commands directory:", err)
 	}
@@ -48,16 +47,13 @@ func NewCommandDownloader() *CommandDownloader {
 
 // NewCommandDownloaderForProfile creates a new CommandDownloader instance that installs to a profile
 func NewCommandDownloaderForProfile(profileName string) *CommandDownloader {
-	// Get profiles directory
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
 		log.Fatal("Failed to get profiles directory:", err)
 	}
 
-	// Build path to profile's commands directory
 	baseDir := filepath.Join(profilesDir, profileName, "commands")
 
-	// Create base directory if it doesn't exist
 	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
 		log.Fatal("Failed to create profile commands directory:", err)
 	}
@@ -72,10 +68,8 @@ func NewCommandDownloaderForProfile(profileName string) *CommandDownloader {
 
 // NewCommandDownloaderWithTargetDir creates a new CommandDownloader instance that installs to a custom target directory
 func NewCommandDownloaderWithTargetDir(targetDir string) *CommandDownloader {
-	// Build path to target directory's commands subdirectory
 	baseDir := filepath.Join(targetDir, "commands")
 
-	// Create base directory if it doesn't exist
 	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
 		log.Fatal("Failed to create target commands directory:", err)
 	}
@@ -95,7 +89,6 @@ func (cd *CommandDownloader) parseRepoURL(repoURL string) (string, error) {
 		return "", err
 	}
 
-	// Validate normalized repository
 	if err := cd.detector.ValidateRepository(normalizedURL); err != nil {
 		return "", fmt.Errorf("repository validation failed: %w", err)
 	}

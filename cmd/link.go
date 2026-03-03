@@ -5,7 +5,6 @@ import (
 )
 
 func init() {
-	// Create 'link' parent command with subcommands
 	linkCmd := &cobra.Command{
 		Use:   "link",
 		Short: "Link components to AI editor targets",
@@ -49,8 +48,6 @@ Activate a profile first, then run link commands to apply it to your editors.
 See 'agent-smith profile --help' for profile management.`,
 	}
 
-	// Add subcommands to 'link' command
-	// Singular commands - operate on ONE component
 	linkSkillCmd := &cobra.Command{
 		Use:   "skill <name>",
 		Short: "Link one skill to editors",
@@ -69,8 +66,6 @@ EXAMPLES:
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("to")
 			profile, _ := cmd.Flags().GetString("profile")
-
-			// Link specific skill
 			handleLink("skills", args[0], targetFilter, profile)
 		},
 	}
@@ -78,7 +73,6 @@ EXAMPLES:
 	linkSkillCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkSkillCmd)
 
-	// Plural command - operate on ALL skills
 	linkSkillsCmd := &cobra.Command{
 		Use:   "skills",
 		Short: "Link all skills to editors",
@@ -97,8 +91,6 @@ EXAMPLES:
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("to")
 			profile, _ := cmd.Flags().GetString("profile")
-
-			// Link all skills
 			handleLinkType("skills", targetFilter, profile)
 		},
 	}
@@ -124,8 +116,6 @@ EXAMPLES:
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("to")
 			profile, _ := cmd.Flags().GetString("profile")
-
-			// Link specific agent
 			handleLink("agents", args[0], targetFilter, profile)
 		},
 	}
@@ -133,7 +123,6 @@ EXAMPLES:
 	linkAgentCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkAgentCmd)
 
-	// Plural command - operate on ALL agents
 	linkAgentsCmd := &cobra.Command{
 		Use:   "agents",
 		Short: "Link all agents to editors",
@@ -152,8 +141,6 @@ EXAMPLES:
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("to")
 			profile, _ := cmd.Flags().GetString("profile")
-
-			// Link all agents
 			handleLinkType("agents", targetFilter, profile)
 		},
 	}
@@ -179,8 +166,6 @@ EXAMPLES:
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("to")
 			profile, _ := cmd.Flags().GetString("profile")
-
-			// Link specific command
 			handleLink("commands", args[0], targetFilter, profile)
 		},
 	}
@@ -188,7 +173,6 @@ EXAMPLES:
 	linkCommandCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
 	linkCmd.AddCommand(linkCommandCmd)
 
-	// Plural command - operate on ALL commands
 	linkCommandsCmd := &cobra.Command{
 		Use:   "commands",
 		Short: "Link all commands to editors",
@@ -207,8 +191,6 @@ EXAMPLES:
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("to")
 			profile, _ := cmd.Flags().GetString("profile")
-
-			// Link all commands
 			handleLinkType("commands", targetFilter, profile)
 		},
 	}

@@ -24,7 +24,6 @@ var rootCmd = &cobra.Command{
 	Long:    getBanner(),
 	Version: Version,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Show enhanced welcome screen when no subcommand is provided
 		showWelcomeScreen()
 	},
 }
@@ -44,7 +43,6 @@ A CLI tool for managing AI agents, skills, and commands from git repositories.
 `
 }
 
-// Execute runs the root command
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -54,7 +52,6 @@ func Execute() {
 
 // showWelcomeScreen displays an enhanced welcome screen with status and quick actions
 func showWelcomeScreen() {
-	// Color definitions
 	cyan := color.New(color.FgCyan).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
 	green := color.New(color.FgGreen).SprintFunc()
@@ -62,15 +59,12 @@ func showWelcomeScreen() {
 	highlight := color.New(color.FgHiWhite, color.Bold).SprintFunc()
 	gray := color.New(color.FgHiBlack).SprintFunc()
 
-	// Banner
 	fmt.Print(getBanner())
 	fmt.Println()
 
-	// Status Section
 	showSystemStatus(bold, cyan, gray)
 	fmt.Println()
 
-	// Quick Start Section
 	fmt.Println(bold("QUICK START"))
 	fmt.Printf("  %s %s\n", highlight("→"), cyan("agent-smith install all owner/repo"))
 	fmt.Printf("    %s\n", yellow("Install components from a repository"))
@@ -82,7 +76,6 @@ func showWelcomeScreen() {
 	fmt.Printf("    %s\n", yellow("Check your current setup"))
 	fmt.Println()
 
-	// Core Commands Section
 	fmt.Println(bold("CORE COMMANDS"))
 	fmt.Printf("  %s Install components from git repositories\n", green("install "))
 	fmt.Printf("  %s Link components to AI editor targets\n", green("link    "))
@@ -90,7 +83,6 @@ func showWelcomeScreen() {
 	fmt.Printf("  %s Manage profiles for context switching\n", green("profile "))
 	fmt.Println()
 
-	// Help hint
 	fmt.Printf("Run %s for all commands or %s for details.\n",
 		cyan("agent-smith --help"),
 		cyan("agent-smith <command> --help"))

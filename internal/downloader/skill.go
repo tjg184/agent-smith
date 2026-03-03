@@ -31,7 +31,6 @@ func NewSkillDownloader() *SkillDownloader {
 		log.Fatal("Failed to get skills directory:", err)
 	}
 
-	// Create base directory if it doesn't exist
 	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
 		log.Fatal("Failed to create skills directory:", err)
 	}
@@ -52,10 +51,8 @@ func NewSkillDownloaderForProfile(profileName string) *SkillDownloader {
 		log.Fatal("Failed to get profiles directory:", err)
 	}
 
-	// Build path to profile's skills directory
 	baseDir := filepath.Join(profilesDir, profileName, "skills")
 
-	// Create base directory if it doesn't exist
 	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
 		log.Fatal("Failed to create profile skills directory:", err)
 	}
@@ -70,10 +67,8 @@ func NewSkillDownloaderForProfile(profileName string) *SkillDownloader {
 
 // NewSkillDownloaderWithTargetDir creates a new SkillDownloader instance that installs to a custom target directory
 func NewSkillDownloaderWithTargetDir(targetDir string) *SkillDownloader {
-	// Build path to target directory's skills subdirectory
 	baseDir := filepath.Join(targetDir, "skills")
 
-	// Create base directory if it doesn't exist
 	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
 		log.Fatal("Failed to create target skills directory:", err)
 	}

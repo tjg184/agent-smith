@@ -81,7 +81,6 @@ func CopyFile(src, dst string) error {
 // CopyDirectoryContents recursively copies all contents from src directory to dst directory.
 // Maintains the relative directory structure and copies all files with appropriate permissions.
 func CopyDirectoryContents(src, dst string) error {
-	// Validate source directory exists
 	srcInfo, err := os.Stat(src)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -218,21 +217,17 @@ func ParseFrontmatter(filePath string) (*models.ComponentFrontmatter, error) {
 // Priority: frontmatter.name > filename (without extension)
 // Special files (README.md, index.md, main.md) return empty string.
 func DetermineComponentName(frontmatter *models.ComponentFrontmatter, fileName string) string {
-	// Skip special files
 	lowerFileName := strings.ToLower(fileName)
 	if lowerFileName == "readme.md" || lowerFileName == "index.md" || lowerFileName == "main.md" {
 		return ""
 	}
 
-	// Use frontmatter name if available
 	if frontmatter != nil && strings.TrimSpace(frontmatter.Name) != "" {
 		return strings.TrimSpace(frontmatter.Name)
 	}
 
-	// Fall back to filename without extension
 	name := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 
-	// Handle edge case: no extension or empty name
 	if name == "" || name == "." {
 		return ""
 	}

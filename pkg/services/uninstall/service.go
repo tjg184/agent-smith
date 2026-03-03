@@ -55,7 +55,6 @@ func (s *Service) UninstallComponent(componentType, componentName string, opts s
 		}
 	}
 
-	// Create uninstaller
 	uninstallerService := uninstaller.NewUninstaller(baseDir, s.linker)
 
 	// Uninstall component
@@ -74,7 +73,6 @@ func (s *Service) UninstallAllFromSource(repoURL string, opts services.Uninstall
 		return fmt.Errorf("failed to get base directory: %w", err)
 	}
 
-	// Create uninstaller
 	uninstallerService := uninstaller.NewUninstaller(baseDir, s.linker)
 
 	// Uninstall all components from source

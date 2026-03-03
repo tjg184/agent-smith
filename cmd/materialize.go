@@ -5,7 +5,6 @@ import (
 )
 
 func init() {
-	// Create 'materialize' parent command with subcommands
 	materializeCmd := &cobra.Command{
 		Use:   "materialize",
 		Short: "Materialize components to project directories",
@@ -175,7 +174,6 @@ EXAMPLES:
 	materializeCommandCmd.Flags().StringP("source", "s", "", "Source URL to disambiguate when component exists in multiple sources")
 	materializeCmd.AddCommand(materializeCommandCmd)
 
-	// Plural command - operate on ALL skills
 	materializeSkillsCmd := &cobra.Command{
 		Use:   "skills",
 		Short: "Materialize all skills to project directories",
@@ -216,7 +214,6 @@ EXAMPLES:
 	materializeSkillsCmd.Flags().StringP("profile", "p", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
 	materializeCmd.AddCommand(materializeSkillsCmd)
 
-	// Plural command - operate on ALL agents
 	materializeAgentsCmd := &cobra.Command{
 		Use:   "agents",
 		Short: "Materialize all agents to project directories",
@@ -257,7 +254,6 @@ EXAMPLES:
 	materializeAgentsCmd.Flags().StringP("profile", "p", "", "Materialize from specific profile (use 'base' for ~/.agent-smith/)")
 	materializeCmd.AddCommand(materializeAgentsCmd)
 
-	// Plural command - operate on ALL commands
 	materializeCommandsCmd := &cobra.Command{
 		Use:   "commands",
 		Short: "Materialize all commands to project directories",

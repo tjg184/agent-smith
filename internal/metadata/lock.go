@@ -34,7 +34,6 @@ type ComponentEntryOptions struct {
 func SaveComponentEntry(baseDir, componentType, componentName, source, sourceType, sourceUrl, commitHash, originalPath string, opts ComponentEntryOptions) error {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
-	// Read existing lock file or create new one
 	lockFile, err := loadOrCreateLockFile(lockFilePath)
 	if err != nil {
 		return err
@@ -42,18 +41,15 @@ func SaveComponentEntry(baseDir, componentType, componentName, source, sourceTyp
 
 	now := time.Now().Format(time.RFC3339)
 
-	// Get the appropriate nested map for this component type
 	targetMap, err := getTargetMap(&lockFile, componentType)
 	if err != nil {
 		return err
 	}
 
-	// Initialize source map if it doesn't exist
 	if targetMap[sourceUrl] == nil {
 		targetMap[sourceUrl] = make(map[string]models.ComponentEntry)
 	}
 
-	// Check if entry exists to preserve certain timestamps
 	existingEntry, exists := targetMap[sourceUrl][componentName]
 
 	// Preserve installedAt if this is an update to an existing install
@@ -65,7 +61,6 @@ func SaveComponentEntry(baseDir, componentType, componentName, source, sourceTyp
 		installedAt = now
 	}
 
-	// Update or add the component entry
 	entry := models.ComponentEntry{
 		Source:       source,
 		SourceType:   sourceType,
@@ -94,7 +89,6 @@ func SaveComponentEntry(baseDir, componentType, componentName, source, sourceTyp
 
 	targetMap[sourceUrl][componentName] = entry
 
-	// Write back to file
 	return writeLockFile(lockFilePath, lockFile)
 }
 
@@ -115,7 +109,6 @@ func LoadFromLockFile(baseDir, componentType, componentName string) (*models.Com
 		return nil, err
 	}
 
-	// Convert lock entry to metadata
 	return &models.ComponentMetadata{
 		Name:         componentName,
 		Source:       entry.SourceUrl,
@@ -142,13 +135,11 @@ func LoadLockFileEntry(baseDir, componentType, componentName string) (*models.Co
 		return nil, fmt.Errorf("failed to unmarshal lock file: %w", err)
 	}
 
-	// Get the appropriate nested map for this component type
 	targetMap, err := getTargetMap(&lockFile, componentType)
 	if err != nil {
 		return nil, err
 	}
 
-	// Search across all sources
 	var foundEntry *models.ComponentEntry
 	var foundSources []string
 
@@ -193,13 +184,11 @@ func LoadLockFileEntryBySource(baseDir, componentType, componentName, sourceUrl 
 		return nil, err
 	}
 
-	// Check if source exists
 	components, sourceExists := targetMap[sourceUrl]
 	if !sourceExists {
 		return nil, fmt.Errorf("source %s not found in lock file", sourceUrl)
 	}
 
-	// Check if component exists in this source
 	entry, exists := components[componentName]
 	if !exists {
 		return nil, fmt.Errorf("component %s not found in source %s", componentName, sourceUrl)
@@ -213,7 +202,6 @@ func LoadLockFileEntryBySource(baseDir, componentType, componentName, sourceUrl 
 func RemoveLockFileEntry(baseDir, componentType, componentName string) error {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
-	// Read existing lock file
 	lockFile, err := loadOrCreateLockFile(lockFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -248,7 +236,6 @@ func RemoveLockFileEntry(baseDir, componentType, componentName string) error {
 		return nil
 	}
 
-	// Write back to file
 	return writeLockFile(lockFilePath, lockFile)
 }
 
@@ -256,7 +243,6 @@ func RemoveLockFileEntry(baseDir, componentType, componentName string) error {
 func RemoveLockFileEntryBySource(baseDir, componentType, componentName, sourceUrl string) error {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
-	// Read existing lock file
 	lockFile, err := loadOrCreateLockFile(lockFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -272,7 +258,6 @@ func RemoveLockFileEntryBySource(baseDir, componentType, componentName, sourceUr
 		return err
 	}
 
-	// Check if source exists
 	components, sourceExists := targetMap[sourceUrl]
 	if !sourceExists {
 		// Source doesn't exist, nothing to remove
@@ -287,7 +272,6 @@ func RemoveLockFileEntryBySource(baseDir, componentType, componentName, sourceUr
 		delete(targetMap, sourceUrl)
 	}
 
-	// Write back to file
 	return writeLockFile(lockFilePath, lockFile)
 }
 
@@ -296,7 +280,6 @@ func RemoveLockFileEntryBySource(baseDir, componentType, componentName, sourceUr
 func GetAllComponentNames(baseDir, componentType string) ([]string, error) {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
-	// Read lock file
 	lockData, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -338,7 +321,6 @@ func GetAllComponentNames(baseDir, componentType string) ([]string, error) {
 func FindComponentSources(baseDir, componentType, componentName string) ([]string, error) {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
-	// Read lock file
 	lockData, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -380,7 +362,6 @@ type ComponentSource struct {
 func FindAllComponentInstances(baseDir, componentType, componentName string) ([]ComponentSource, error) {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
-	// Read lock file
 	lockData, err := os.ReadFile(lockFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -401,7 +382,6 @@ func FindAllComponentInstances(baseDir, componentType, componentName string) ([]
 		return nil, err
 	}
 
-	// Find all instances
 	var instances []ComponentSource
 	for sourceUrl, components := range targetMap {
 		if entry, exists := components[componentName]; exists {
@@ -530,7 +510,6 @@ func ResolveInstallFilesystemName(baseDir, componentType, componentName, sourceU
 		return componentName, nil
 	}
 
-	// Find the next available suffix
 	suffix := 2
 	for {
 		candidateName := fmt.Sprintf("%s-%d", componentName, suffix)

@@ -5,7 +5,6 @@ import (
 )
 
 func init() {
-	// Add status command
 	statusCmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show current status and active profile",

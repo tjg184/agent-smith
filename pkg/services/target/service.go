@@ -43,7 +43,6 @@ func (s *Service) AddCustomTarget(name, path string) error {
 		}
 	}
 
-	// Create new custom target config
 	newTarget := config.CustomTargetConfig{
 		Name:        name,
 		BaseDir:     path,
@@ -80,7 +79,6 @@ func (s *Service) RemoveCustomTarget(name string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Check if target exists and is a custom target
 	found := false
 	targetIndex := -1
 	for i, target := range cfg.CustomTargets {
@@ -118,10 +116,8 @@ func (s *Service) ListTargets() error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Get all built-in targets (even if not detected)
 	builtInNames := []string{"opencode", "claudecode"}
 
-	// Create formatter instance
 	f := formatter.New()
 	green := color.New(color.FgGreen).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()

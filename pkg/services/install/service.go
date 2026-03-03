@@ -37,30 +37,25 @@ func NewService(
 func (s *Service) InstallSkill(repoURL, name string, opts services.InstallOptions) error {
 	s.logger.Debug("[DEBUG] InstallSkill called with repoURL=%s, name=%s, profile=%s, installDir=%s", repoURL, name, opts.Profile, opts.InstallDir)
 
-	// Validate options
 	if err := s.validateInstallOptions(opts); err != nil {
 		return err
 	}
 
-	// Handle different installation modes
 	if opts.InstallDir != "" {
 		return s.installSkillToTargetDir(repoURL, name, opts.InstallDir)
 	} else if opts.Profile != "" {
 		return s.installSkillToProfile(repoURL, name, opts.Profile)
 	}
 
-	// Auto-derive profile from repository URL (like install all does)
 	profile, err := s.getOrCreateRepoProfile(repoURL)
 	if err != nil {
 		return fmt.Errorf("failed to determine profile for repository: %w", err)
 	}
 
 	if profile != "" {
-		// Install to derived repo-sourced profile
 		return s.installSkillToProfile(repoURL, name, profile)
 	}
 
-	// Fallback: Standard installation to ~/.agent-smith/ (should rarely happen)
 	return s.installSkillToBase(repoURL, name)
 }
 
@@ -68,30 +63,25 @@ func (s *Service) InstallSkill(repoURL, name string, opts services.InstallOption
 func (s *Service) InstallAgent(repoURL, name string, opts services.InstallOptions) error {
 	s.logger.Debug("[DEBUG] InstallAgent called with repoURL=%s, name=%s, profile=%s, installDir=%s", repoURL, name, opts.Profile, opts.InstallDir)
 
-	// Validate options
 	if err := s.validateInstallOptions(opts); err != nil {
 		return err
 	}
 
-	// Handle different installation modes
 	if opts.InstallDir != "" {
 		return s.installAgentToTargetDir(repoURL, name, opts.InstallDir)
 	} else if opts.Profile != "" {
 		return s.installAgentToProfile(repoURL, name, opts.Profile)
 	}
 
-	// Auto-derive profile from repository URL (like install all does)
 	profile, err := s.getOrCreateRepoProfile(repoURL)
 	if err != nil {
 		return fmt.Errorf("failed to determine profile for repository: %w", err)
 	}
 
 	if profile != "" {
-		// Install to derived repo-sourced profile
 		return s.installAgentToProfile(repoURL, name, profile)
 	}
 
-	// Fallback: Standard installation to ~/.agent-smith/ (should rarely happen)
 	return s.installAgentToBase(repoURL, name)
 }
 
@@ -99,12 +89,10 @@ func (s *Service) InstallAgent(repoURL, name string, opts services.InstallOption
 func (s *Service) InstallCommand(repoURL, name string, opts services.InstallOptions) error {
 	s.logger.Debug("[DEBUG] InstallCommand called with repoURL=%s, name=%s, profile=%s, installDir=%s", repoURL, name, opts.Profile, opts.InstallDir)
 
-	// Validate options
 	if err := s.validateInstallOptions(opts); err != nil {
 		return err
 	}
 
-	// Handle different installation modes
 	if opts.InstallDir != "" {
 		return s.installCommandToTargetDir(repoURL, name, opts.InstallDir)
 	} else if opts.Profile != "" {
@@ -118,11 +106,9 @@ func (s *Service) InstallCommand(repoURL, name string, opts services.InstallOpti
 	}
 
 	if profile != "" {
-		// Install to derived repo-sourced profile
 		return s.installCommandToProfile(repoURL, name, profile)
 	}
 
-	// Fallback: Standard installation to ~/.agent-smith/ (should rarely happen)
 	return s.installCommandToBase(repoURL, name)
 }
 
@@ -130,17 +116,14 @@ func (s *Service) InstallCommand(repoURL, name string, opts services.InstallOpti
 func (s *Service) InstallBulk(repoURL string, opts services.InstallOptions) error {
 	s.logger.Debug("[DEBUG] InstallBulk called with repoURL=%s, profile=%s, installDir=%s", repoURL, opts.Profile, opts.InstallDir)
 
-	// Validate options
 	if err := s.validateInstallOptions(opts); err != nil {
 		return err
 	}
 
-	// Handle different installation modes
 	if opts.InstallDir != "" {
 		return s.installBulkToTargetDir(repoURL, opts.InstallDir)
 	}
 
-	// Profile-based bulk installation (with auto-creation and reuse)
 	return s.installBulkToProfile(repoURL, opts.Profile)
 }
 
