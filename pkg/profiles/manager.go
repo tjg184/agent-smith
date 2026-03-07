@@ -345,7 +345,17 @@ func (pm *ProfileManager) ScanProfiles() ([]*Profile, error) {
 
 	var profiles []*Profile
 	for _, entry := range entries {
-		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+
+		fullPath := filepath.Join(pm.profilesDir, entry.Name())
+		info, err := os.Stat(fullPath)
+		if err != nil {
+			continue
+		}
+
+		if !info.IsDir() {
 			continue
 		}
 
