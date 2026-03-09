@@ -13,6 +13,7 @@ import (
 
 	"github.com/tjg184/agent-smith/internal/detector"
 	"github.com/tjg184/agent-smith/internal/linker"
+	"github.com/tjg184/agent-smith/internal/metadata"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/services"
 )
@@ -800,6 +801,10 @@ func (pm *ProfileManager) RemoveComponentFromProfile(profileName, componentType,
 
 	if err := os.RemoveAll(componentPath); err != nil {
 		return fmt.Errorf("failed to remove component: %w", err)
+	}
+
+	if err := metadata.RemoveComponentEntry(profile.BasePath, componentType, componentName); err != nil {
+		fmt.Printf("Warning: Could not update lock file: %v\n", err)
 	}
 
 	fmt.Printf("✓ Successfully removed %s '%s' from profile '%s'\n", componentType, componentName, profileName)

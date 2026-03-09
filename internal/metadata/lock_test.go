@@ -189,9 +189,9 @@ func TestUnifiedComponentEntry(t *testing.T) {
 		}
 	})
 
-	// Test RemoveLockFileEntryBySource
+	// Test RemoveComponentEntryBySource
 	t.Run("RemoveBySource", func(t *testing.T) {
-		err := RemoveLockFileEntryBySource(tempDir, "skills", "test-skill", "https://github.com/other/repo")
+		err := RemoveComponentEntryBySource(tempDir, "skills", "test-skill", "https://github.com/other/repo")
 		if err != nil {
 			t.Fatalf("Failed to remove by source: %v", err)
 		}
