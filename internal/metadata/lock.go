@@ -197,9 +197,8 @@ func LoadLockFileEntryBySource(baseDir, componentType, componentName, sourceUrl 
 	return &entry, nil
 }
 
-// RemoveLockFileEntry removes a component entry from the lock file
-// Searches across all sources and removes all matches
-func RemoveLockFileEntry(baseDir, componentType, componentName string) error {
+// RemoveComponentEntry removes component from lock file across all sources
+func RemoveComponentEntry(baseDir, componentType, componentName string) error {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
 	lockFile, err := loadOrCreateLockFile(lockFilePath)
@@ -239,8 +238,8 @@ func RemoveLockFileEntry(baseDir, componentType, componentName string) error {
 	return writeLockFile(lockFilePath, lockFile)
 }
 
-// RemoveLockFileEntryBySource removes a component entry from a specific source
-func RemoveLockFileEntryBySource(baseDir, componentType, componentName, sourceUrl string) error {
+// RemoveComponentEntryBySource removes component from lock file for specific source only
+func RemoveComponentEntryBySource(baseDir, componentType, componentName, sourceUrl string) error {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
 	lockFile, err := loadOrCreateLockFile(lockFilePath)

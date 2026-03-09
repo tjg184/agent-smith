@@ -90,7 +90,7 @@ func (u *Uninstaller) UninstallComponent(componentType, name string) error {
 	u.formatter.ProgressComplete()
 
 	u.formatter.ProgressMsg("Updating lock file", "")
-	if err := metadata.RemoveLockFileEntry(u.baseDir, componentType, name); err != nil {
+	if err := metadata.RemoveComponentEntry(u.baseDir, componentType, name); err != nil {
 		u.formatter.ProgressFailed()
 		u.formatter.WarningMsg("Could not update lock file: %v", err)
 	} else {
@@ -224,7 +224,7 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 			}
 
 			// Remove entry from lock file
-			if err := metadata.RemoveLockFileEntry(u.baseDir, componentType, name); err != nil {
+			if err := metadata.RemoveComponentEntry(u.baseDir, componentType, name); err != nil {
 				u.formatter.WarningMsg("Could not update lock file for %s: %s", name, err)
 			}
 

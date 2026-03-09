@@ -216,7 +216,7 @@ func (s *Service) RemoveEntry(baseDir, componentType, componentName string) erro
 		return fmt.Errorf("componentName is required")
 	}
 
-	err := metadata.RemoveLockFileEntry(baseDir, componentType, componentName)
+	err := metadata.RemoveComponentEntry(baseDir, componentType, componentName)
 	if err != nil {
 		return fmt.Errorf("failed to remove entry: %w", err)
 	}
@@ -243,7 +243,7 @@ func (s *Service) RemoveEntryBySource(baseDir, componentType, componentName, sou
 		return fmt.Errorf("sourceURL is required")
 	}
 
-	err := metadata.RemoveLockFileEntryBySource(baseDir, componentType, componentName, sourceURL)
+	err := metadata.RemoveComponentEntryBySource(baseDir, componentType, componentName, sourceURL)
 	if err != nil {
 		return fmt.Errorf("failed to remove entry by source: %w", err)
 	}
