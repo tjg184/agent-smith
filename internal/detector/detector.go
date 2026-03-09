@@ -77,13 +77,13 @@ func createDefaultDetectionConfig() *models.DetectionConfig {
 			},
 			string(models.ComponentAgent): {
 				Name:           "agent",
-				PathPatterns:   []string{paths.AgentsPathPattern, paths.AgentsSubDir},
+				PathPatterns:   []string{paths.AgentsPathPattern},
 				FileExtensions: []string{".md"},
 				IgnorePaths:    paths.IgnoredPaths,
 			},
 			string(models.ComponentCommand): {
 				Name:           "command",
-				PathPatterns:   []string{paths.CommandsPathPattern, paths.CommandsSubDir},
+				PathPatterns:   []string{paths.CommandsPathPattern},
 				FileExtensions: []string{".md"},
 				IgnorePaths:    paths.IgnoredPaths,
 			},

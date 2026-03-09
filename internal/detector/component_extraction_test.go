@@ -148,6 +148,17 @@ func TestComponentNameExtraction(t *testing.T) {
 			expectedNames: []string{"skills"}, // Only skills/SKILL.md should be detected
 			description:   "Paths that should be ignored during detection",
 		},
+		{
+			name:          "skill-names-ending-with-agents-or-commands",
+			componentType: models.ComponentSkill,
+			filesToCreate: map[string]string{
+				"skills/dispatching-parallel-agents/SKILL.md": "---\nname: dispatching-parallel-agents\n---\n# Dispatching Parallel Agents",
+				"skills/managing-commands/SKILL.md":           "---\nname: managing-commands\n---\n# Managing Commands",
+				"skills/parallel-agents/SKILL.md":             "---\nname: parallel-agents\n---\n# Parallel Agents",
+			},
+			expectedNames: []string{"dispatching-parallel-agents", "managing-commands", "parallel-agents"},
+			description:   "Skills with names ending in -agents or -commands should not be misclassified as agents/commands",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1133,5 +1144,117 @@ func TestDetermineComponentName(t *testing.T) {
 				t.Errorf("Expected name '%s', got '%s'", tt.expectedName, result)
 			}
 		})
+	}
+}
+
+// TestSkillNamesEndingWithAgentsOrCommands tests that skills with names ending in
+// -agents or -commands are not misclassified as agents or commands due to loose
+// path pattern matching.
+func TestSkillNamesEndingWithAgentsOrCommands(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a skill with a name ending in "-agents"
+	skillDir := filepath.Join(tempDir, "skills", "dispatching-parallel-agents")
+	if err := os.MkdirAll(skillDir, 0755); err != nil {
+		t.Fatalf("failed to create skill directory: %v", err)
+	}
+
+	skillContent := `---
+name: dispatching-parallel-agents
+description: Use when facing 2+ independent tasks
+---
+# Dispatching Parallel Agents`
+
+	skillFile := filepath.Join(skillDir, "SKILL.md")
+	if err := os.WriteFile(skillFile, []byte(skillContent), 0644); err != nil {
+		t.Fatalf("failed to write skill file: %v", err)
+	}
+
+	// Create another skill with a name ending in "-commands"
+	commandSkillDir := filepath.Join(tempDir, "skills", "managing-commands")
+	if err := os.MkdirAll(commandSkillDir, 0755); err != nil {
+		t.Fatalf("failed to create command skill directory: %v", err)
+	}
+
+	commandSkillContent := `---
+name: managing-commands
+description: Managing commands skill
+---
+# Managing Commands`
+
+	commandSkillFile := filepath.Join(commandSkillDir, "SKILL.md")
+	if err := os.WriteFile(commandSkillFile, []byte(commandSkillContent), 0644); err != nil {
+		t.Fatalf("failed to write command skill file: %v", err)
+	}
+
+	// Create a real agent in agents/ directory
+	agentDir := filepath.Join(tempDir, "agents")
+	if err := os.MkdirAll(agentDir, 0755); err != nil {
+		t.Fatalf("failed to create agents directory: %v", err)
+	}
+
+	agentFile := filepath.Join(agentDir, "code-reviewer.md")
+	if err := os.WriteFile(agentFile, []byte("# Code Reviewer Agent"), 0644); err != nil {
+		t.Fatalf("failed to write agent file: %v", err)
+	}
+
+	// Detect components
+	rd := detector.NewRepositoryDetector()
+	components, err := rd.DetectComponentsInRepo(tempDir)
+	if err != nil {
+		t.Fatalf("failed to detect components: %v", err)
+	}
+
+	// Count components by type
+	skillCount := 0
+	agentCount := 0
+	var skillNames []string
+	var agentNames []string
+
+	for _, comp := range components {
+		switch comp.Type {
+		case models.ComponentSkill:
+			skillCount++
+			skillNames = append(skillNames, comp.Name)
+		case models.ComponentAgent:
+			agentCount++
+			agentNames = append(agentNames, comp.Name)
+		}
+	}
+
+	// Verify we detected exactly 2 skills and 1 agent
+	if skillCount != 2 {
+		t.Errorf("Expected 2 skills, got %d. Skills found: %v", skillCount, skillNames)
+	}
+
+	if agentCount != 1 {
+		t.Errorf("Expected 1 agent, got %d. Agents found: %v", agentCount, agentNames)
+	}
+
+	// Verify skill names are correct
+	expectedSkills := []string{"dispatching-parallel-agents", "managing-commands"}
+	for _, expected := range expectedSkills {
+		found := false
+		for _, name := range skillNames {
+			if name == expected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected to find skill '%s', but it was not detected. Found skills: %v", expected, skillNames)
+		}
+	}
+
+	// Verify agent name is correct
+	if len(agentNames) > 0 && agentNames[0] != "code-reviewer" {
+		t.Errorf("Expected agent 'code-reviewer', got '%s'", agentNames[0])
+	}
+
+	// Verify that skills ending in -agents/-commands are NOT in agent list
+	for _, agentName := range agentNames {
+		if strings.HasSuffix(agentName, "-agents") || strings.HasSuffix(agentName, "-commands") {
+			t.Errorf("Skill '%s' was incorrectly classified as an agent", agentName)
+		}
 	}
 }

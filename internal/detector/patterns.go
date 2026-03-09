@@ -47,11 +47,37 @@ func (rd *RepositoryDetector) MatchesExactFile(fileName string, exactFiles []str
 	return false
 }
 
-// MatchesPathPattern checks if the relative path matches any path patterns
+// MatchesPathPattern checks if the relative path matches any path patterns.
+// For patterns with surrounding slashes (e.g., "/agents/"), matches directory boundaries:
+// - containing the directory (e.g., "plugins/agents/test")
+// - starting with the directory (e.g., "agents/test")
+// - ending with the directory (e.g., ".opencode/agents")
+// - equaling the directory exactly (e.g., "agents")
+// This prevents false matches on names ending with the directory name (e.g., "dispatching-parallel-agents").
 func (rd *RepositoryDetector) MatchesPathPattern(relPath string, pathPatterns []string) bool {
 	for _, pattern := range pathPatterns {
-		if strings.Contains(relPath, pattern) || strings.HasSuffix(relPath, pattern) {
-			return true
+		if strings.HasPrefix(pattern, "/") && strings.HasSuffix(pattern, "/") {
+			dirName := strings.Trim(pattern, "/")
+
+			if strings.Contains(relPath, pattern) {
+				return true
+			}
+
+			if strings.HasPrefix(relPath, dirName+"/") {
+				return true
+			}
+
+			if strings.HasSuffix(relPath, "/"+dirName) {
+				return true
+			}
+
+			if relPath == dirName {
+				return true
+			}
+		} else {
+			if strings.Contains(relPath, pattern) || strings.HasSuffix(relPath, pattern) {
+				return true
+			}
 		}
 	}
 	return false
