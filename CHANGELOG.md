@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.5](https://github.com/tjg184/agent-smith/compare/v1.3.4...v1.3.5) (2026-03-11)
+
+
+### Bug Fixes
+
+* **linker:** link commands/agents as flat .md symlinks ([#51](https://github.com/tjg184/agent-smith/issues/51)) ([0cf4a0e](https://github.com/tjg184/agent-smith/commit/0cf4a0eb8ee5b36b9566d825d02cf608746829c7))
+
 ## [1.3.4](https://github.com/tjg184/agent-smith/compare/v1.3.3...v1.3.4) (2026-03-09)
 
 
