@@ -343,8 +343,8 @@ EXAMPLES:
 The new name must follow the same rules as profile creation: only letters,
 numbers, and hyphens are allowed.
 
-If the profile is currently active, you will be prompted to confirm. After
-renaming an active profile, run 'agent-smith link all' to restore symlinks.
+If the profile is currently active, you will be prompted to confirm. Existing
+symlinks are removed and automatically restored under the new name.
 
 Only user-created profiles can be renamed. Repository-sourced profiles (📦)
 cannot be renamed.

@@ -822,7 +822,7 @@ func (s *Service) RenameProfile(oldName, newName string) error {
 	s.formatter.Info("%s Renamed profile: %s → %s", formatter.ColoredSuccess(), oldName, newName)
 
 	if wasActive {
-		s.formatter.InfoMsg("Profile '%s' is now active. Run 'agent-smith link all' to restore links.", newName)
+		s.formatter.InfoMsg("Profile '%s' is now active and links have been restored.", newName)
 	}
 
 	return nil

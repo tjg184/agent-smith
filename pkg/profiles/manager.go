@@ -1060,6 +1060,12 @@ func (pm *ProfileManager) RenameProfile(oldName, newName string) error {
 		if err := os.WriteFile(activeProfilePath, []byte(newName), 0644); err != nil {
 			return fmt.Errorf("failed to update active profile state: %w", err)
 		}
+
+		if pm.linker != nil {
+			if err := pm.linker.LinkAllComponents(); err != nil {
+				return fmt.Errorf("failed to re-link components after rename: %w", err)
+			}
+		}
 	}
 
 	return nil
