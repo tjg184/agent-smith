@@ -335,6 +335,32 @@ EXAMPLES:
 	}
 	profilesShareCmd.Flags().StringP("output", "o", "", "Save commands to file instead of stdout")
 
+	profilesRenameCmd := &cobra.Command{
+		Use:   "rename <old-name> <new-name>",
+		Short: "Rename a user-created profile",
+		Long: `Rename a user-created profile (👤) to a new name.
+
+The new name must follow the same rules as profile creation: only letters,
+numbers, and hyphens are allowed.
+
+If the profile is currently active, you will be prompted to confirm. After
+renaming an active profile, run 'agent-smith link all' to restore symlinks.
+
+Only user-created profiles can be renamed. Repository-sourced profiles (📦)
+cannot be renamed.
+
+EXAMPLES:
+  # Rename an inactive profile
+  agent-smith profile rename old-name new-name
+
+  # Rename the active profile (will prompt for confirmation)
+  agent-smith profile rename my-profile my-new-profile`,
+		Args: exactArgsWithHelp(2, "agent-smith profile rename <old-name> <new-name>"),
+		Run: func(cmd *cobra.Command, args []string) {
+			handleProfilesRename(args[0], args[1])
+		},
+	}
+
 	profilesCmd.AddCommand(profilesListCmd)
 	profilesCmd.AddCommand(profilesStatusCmd)
 	profilesCmd.AddCommand(profilesCreateCmd)
@@ -346,5 +372,6 @@ EXAMPLES:
 	profilesCmd.AddCommand(profilesRemoveCmd)
 	profilesCmd.AddCommand(profilesCherryPickCmd)
 	profilesCmd.AddCommand(profilesShareCmd)
+	profilesCmd.AddCommand(profilesRenameCmd)
 	rootCmd.AddCommand(profilesCmd)
 }

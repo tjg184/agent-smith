@@ -33,6 +33,7 @@ var (
 	handleProfilesRemove        func(componentType, profileName, componentName string)
 	handleProfilesCherryPick    func(targetProfile string, sourceProfiles []string)
 	handleProfilesShare         func(profileName, outputFile string)
+	handleProfilesRename        func(oldName, newName string)
 	handleStatus                func()
 	handleTargetAdd             func(name, path string)
 	handleTargetRemove          func(name string)
@@ -80,6 +81,7 @@ func SetHandlers(
 	profilesRemove func(componentType, profileName, componentName string),
 	profilesCherryPick func(targetProfile string, sourceProfiles []string),
 	profilesShare func(profileName, outputFile string),
+	profilesRename func(oldName, newName string),
 	status func(),
 	targetAdd func(name, path string),
 	targetRemove func(name string),
@@ -124,6 +126,7 @@ func SetHandlers(
 	handleProfilesRemove = profilesRemove
 	handleProfilesCherryPick = profilesCherryPick
 	handleProfilesShare = profilesShare
+	handleProfilesRename = profilesRename
 	handleStatus = status
 	handleTargetAdd = targetAdd
 	handleTargetRemove = targetRemove

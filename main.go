@@ -742,6 +742,11 @@ func main() {
 				log.Fatal("Failed to share profile:", err)
 			}
 		},
+		func(oldName, newName string) {
+			if err := profileService.RenameProfile(oldName, newName); err != nil {
+				log.Fatal("Failed to rename profile:", err)
+			}
+		},
 		func() {
 			if err := statusService.ShowSystemStatus(); err != nil {
 				log.Fatal("Failed to show system status:", err)

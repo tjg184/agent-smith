@@ -64,6 +64,7 @@ type ProfileService interface {
 	RemoveComponent(profileName, componentType, componentName string) error
 	CherryPickComponents(targetProfile string, sourceProfiles []string) error
 	ShareProfile(name, outputPath string) error
+	RenameProfile(oldName, newName string) error
 }
 
 // ListProfileOptions configures profile listing
