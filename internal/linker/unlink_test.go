@@ -123,7 +123,7 @@ func setupTestEnvironment(t *testing.T) (string, string, string, []config.Target
 	return sourceDir, target1Dir, target2Dir, targets, cleanup
 }
 
-// createSymlink creates a symlink from src to dst
+// createSymlink creates a symlink from src to dst (used for skills which use dir symlinks).
 func createSymlink(t *testing.T, src, dst string) {
 	t.Helper()
 
@@ -141,6 +141,17 @@ func createSymlink(t *testing.T, src, dst string) {
 	}
 }
 
+// createFlatMdSymlinks sets up flat .md symlinks in targetComponentDir for all .md files
+// under srcComponentDir (the component container, e.g. source/agents/test-agent).
+// This mirrors what linkFlatMdFiles does and is required for agents and commands in tests.
+func createFlatMdSymlinks(t *testing.T, srcComponentDir, targetComponentDir string) {
+	t.Helper()
+	_, err := linkFlatMdFiles(srcComponentDir, targetComponentDir)
+	if err != nil {
+		t.Fatalf("createFlatMdSymlinks: %v", err)
+	}
+}
+
 func TestUnlinkComponent_SingleTarget(t *testing.T) {
 	sourceDir, target1Dir, _, targets, cleanup := setupTestEnvironment(t)
 	defer cleanup()
@@ -151,12 +162,12 @@ func TestUnlinkComponent_SingleTarget(t *testing.T) {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
 
-	// Create symlinks in both targets
-	createSymlink(t, filepath.Join(sourceDir, "agents", "test-agent"),
-		filepath.Join(target1Dir, "agents", "test-agent"))
+	// Create flat .md symlinks for agent in target1
+	createFlatMdSymlinks(t, filepath.Join(sourceDir, "agents", "test-agent"),
+		filepath.Join(target1Dir, "agents"))
 
-	// Verify symlink exists
-	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "test-agent")); err != nil {
+	// Verify a symlink exists (README.md)
+	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "README.md")); err != nil {
 		t.Fatalf("Symlink should exist before unlinking: %v", err)
 	}
 
@@ -167,7 +178,7 @@ func TestUnlinkComponent_SingleTarget(t *testing.T) {
 	}
 
 	// Verify symlink is removed from target1
-	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "test-agent")); !os.IsNotExist(err) {
+	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "README.md")); !os.IsNotExist(err) {
 		t.Errorf("Symlink should be removed from target1")
 	}
 
@@ -187,17 +198,17 @@ func TestUnlinkComponent_AllTargets(t *testing.T) {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
 
-	// Create symlinks in both targets
-	createSymlink(t, filepath.Join(sourceDir, "agents", "test-agent"),
-		filepath.Join(target1Dir, "agents", "test-agent"))
-	createSymlink(t, filepath.Join(sourceDir, "agents", "test-agent"),
-		filepath.Join(target2Dir, "agents", "test-agent"))
+	// Create flat .md symlinks for agent in both targets
+	createFlatMdSymlinks(t, filepath.Join(sourceDir, "agents", "test-agent"),
+		filepath.Join(target1Dir, "agents"))
+	createFlatMdSymlinks(t, filepath.Join(sourceDir, "agents", "test-agent"),
+		filepath.Join(target2Dir, "agents"))
 
 	// Verify symlinks exist
-	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "test-agent")); err != nil {
+	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "README.md")); err != nil {
 		t.Fatalf("Symlink should exist in target1 before unlinking: %v", err)
 	}
-	if _, err := os.Lstat(filepath.Join(target2Dir, "agents", "test-agent")); err != nil {
+	if _, err := os.Lstat(filepath.Join(target2Dir, "agents", "README.md")); err != nil {
 		t.Fatalf("Symlink should exist in target2 before unlinking: %v", err)
 	}
 
@@ -208,10 +219,10 @@ func TestUnlinkComponent_AllTargets(t *testing.T) {
 	}
 
 	// Verify symlinks are removed from both targets
-	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "test-agent")); !os.IsNotExist(err) {
+	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "README.md")); !os.IsNotExist(err) {
 		t.Errorf("Symlink should be removed from target1")
 	}
-	if _, err := os.Lstat(filepath.Join(target2Dir, "agents", "test-agent")); !os.IsNotExist(err) {
+	if _, err := os.Lstat(filepath.Join(target2Dir, "agents", "README.md")); !os.IsNotExist(err) {
 		t.Errorf("Symlink should be removed from target2")
 	}
 
@@ -231,9 +242,9 @@ func TestUnlinkComponent_NonExistentTarget(t *testing.T) {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
 
-	// Create symlink in target1
-	createSymlink(t, filepath.Join(sourceDir, "agents", "test-agent"),
-		filepath.Join(target1Dir, "agents", "test-agent"))
+	// Create flat .md symlinks for agent in target1
+	createFlatMdSymlinks(t, filepath.Join(sourceDir, "agents", "test-agent"),
+		filepath.Join(target1Dir, "agents"))
 
 	// Try to unlink from non-existent target
 	err = linker.UnlinkComponent("agents", "test-agent", "nonexistent")
@@ -242,7 +253,7 @@ func TestUnlinkComponent_NonExistentTarget(t *testing.T) {
 	}
 
 	// Verify symlink still exists in target1 (should not be affected)
-	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "test-agent")); err != nil {
+	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "README.md")); err != nil {
 		t.Errorf("Symlink should still exist in target1: %v", err)
 	}
 }
@@ -294,8 +305,8 @@ func TestUnlinkComponent_SkillsAndCommands(t *testing.T) {
 	// Create symlinks for skills and commands
 	createSymlink(t, filepath.Join(sourceDir, "skills", "test-skill"),
 		filepath.Join(target1Dir, "skills", "test-skill"))
-	createSymlink(t, filepath.Join(sourceDir, "commands", "test-command"),
-		filepath.Join(target1Dir, "commands", "test-command"))
+	createFlatMdSymlinks(t, filepath.Join(sourceDir, "commands", "test-command"),
+		filepath.Join(target1Dir, "commands"))
 
 	// Unlink skill
 	err = linker.UnlinkComponent("skills", "test-skill", "target1")
@@ -314,8 +325,8 @@ func TestUnlinkComponent_SkillsAndCommands(t *testing.T) {
 		t.Fatalf("Failed to unlink command: %v", err)
 	}
 
-	// Verify command symlink is removed
-	if _, err := os.Lstat(filepath.Join(target1Dir, "commands", "test-command")); !os.IsNotExist(err) {
+	// Verify command .md symlink is removed
+	if _, err := os.Lstat(filepath.Join(target1Dir, "commands", "README.md")); !os.IsNotExist(err) {
 		t.Errorf("Command symlink should be removed")
 	}
 }
@@ -608,17 +619,17 @@ func TestUnlinkComponent_PartialTargetLinking(t *testing.T) {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
 
-	// Create symlinks in both targets
-	createSymlink(t, filepath.Join(sourceDir, "agents", "test-agent"),
-		filepath.Join(target1Dir, "agents", "test-agent"))
-	createSymlink(t, filepath.Join(sourceDir, "agents", "test-agent"),
-		filepath.Join(target2Dir, "agents", "test-agent"))
+	// Create flat .md symlinks for agent in both targets
+	createFlatMdSymlinks(t, filepath.Join(sourceDir, "agents", "test-agent"),
+		filepath.Join(target1Dir, "agents"))
+	createFlatMdSymlinks(t, filepath.Join(sourceDir, "agents", "test-agent"),
+		filepath.Join(target2Dir, "agents"))
 
 	// Verify both symlinks exist
-	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "test-agent")); err != nil {
+	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "README.md")); err != nil {
 		t.Fatalf("Symlink should exist in target1 before unlinking: %v", err)
 	}
-	if _, err := os.Lstat(filepath.Join(target2Dir, "agents", "test-agent")); err != nil {
+	if _, err := os.Lstat(filepath.Join(target2Dir, "agents", "README.md")); err != nil {
 		t.Fatalf("Symlink should exist in target2 before unlinking: %v", err)
 	}
 
@@ -629,12 +640,12 @@ func TestUnlinkComponent_PartialTargetLinking(t *testing.T) {
 	}
 
 	// Verify symlink is removed from target1
-	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "test-agent")); !os.IsNotExist(err) {
+	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "README.md")); !os.IsNotExist(err) {
 		t.Errorf("Symlink should be removed from target1")
 	}
 
 	// Verify symlink still exists in target2
-	if _, err := os.Lstat(filepath.Join(target2Dir, "agents", "test-agent")); err != nil {
+	if _, err := os.Lstat(filepath.Join(target2Dir, "agents", "README.md")); err != nil {
 		t.Errorf("Symlink should still exist in target2: %v", err)
 	}
 
@@ -655,11 +666,11 @@ func TestUnlinkComponent_BrokenSymlinkWithTarget(t *testing.T) {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
 
-	// Create symlinks in both targets
-	createSymlink(t, filepath.Join(sourceDir, "agents", "test-agent"),
-		filepath.Join(target1Dir, "agents", "test-agent"))
-	createSymlink(t, filepath.Join(sourceDir, "agents", "test-agent"),
-		filepath.Join(target2Dir, "agents", "test-agent"))
+	// Create flat .md symlinks for agent in both targets
+	createFlatMdSymlinks(t, filepath.Join(sourceDir, "agents", "test-agent"),
+		filepath.Join(target1Dir, "agents"))
+	createFlatMdSymlinks(t, filepath.Join(sourceDir, "agents", "test-agent"),
+		filepath.Join(target2Dir, "agents"))
 
 	// Remove source to create broken symlinks
 	if err := os.RemoveAll(filepath.Join(sourceDir, "agents", "test-agent")); err != nil {
@@ -673,12 +684,12 @@ func TestUnlinkComponent_BrokenSymlinkWithTarget(t *testing.T) {
 	}
 
 	// Verify symlink is removed from target1
-	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "test-agent")); !os.IsNotExist(err) {
+	if _, err := os.Lstat(filepath.Join(target1Dir, "agents", "README.md")); !os.IsNotExist(err) {
 		t.Errorf("Broken symlink should be removed from target1")
 	}
 
 	// Verify broken symlink still exists in target2
-	if _, err := os.Lstat(filepath.Join(target2Dir, "agents", "test-agent")); err != nil {
+	if _, err := os.Lstat(filepath.Join(target2Dir, "agents", "README.md")); err != nil {
 		t.Errorf("Broken symlink should still exist in target2: %v", err)
 	}
 }
@@ -726,15 +737,15 @@ func TestUnlinkComponent_OnlyInOneTarget(t *testing.T) {
 		t.Fatalf("Failed to create linker: %v", err)
 	}
 
-	// Create symlink only in target2
-	createSymlink(t, filepath.Join(sourceDir, "commands", "test-command"),
-		filepath.Join(target2Dir, "commands", "test-command"))
+	// Create flat .md symlinks only in target2
+	createFlatMdSymlinks(t, filepath.Join(sourceDir, "commands", "test-command"),
+		filepath.Join(target2Dir, "commands"))
 
 	// Verify symlink exists only in target2
-	if _, err := os.Lstat(filepath.Join(target1Dir, "commands", "test-command")); !os.IsNotExist(err) {
+	if _, err := os.Lstat(filepath.Join(target1Dir, "commands", "README.md")); !os.IsNotExist(err) {
 		t.Fatalf("Symlink should not exist in target1")
 	}
-	if _, err := os.Lstat(filepath.Join(target2Dir, "commands", "test-command")); err != nil {
+	if _, err := os.Lstat(filepath.Join(target2Dir, "commands", "README.md")); err != nil {
 		t.Fatalf("Symlink should exist in target2: %v", err)
 	}
 
@@ -745,7 +756,7 @@ func TestUnlinkComponent_OnlyInOneTarget(t *testing.T) {
 	}
 
 	// Verify symlink still exists in target2
-	if _, err := os.Lstat(filepath.Join(target2Dir, "commands", "test-command")); err != nil {
+	if _, err := os.Lstat(filepath.Join(target2Dir, "commands", "README.md")); err != nil {
 		t.Errorf("Symlink should still exist in target2: %v", err)
 	}
 
@@ -756,7 +767,7 @@ func TestUnlinkComponent_OnlyInOneTarget(t *testing.T) {
 	}
 
 	// Verify symlink is removed from target2
-	if _, err := os.Lstat(filepath.Join(target2Dir, "commands", "test-command")); !os.IsNotExist(err) {
+	if _, err := os.Lstat(filepath.Join(target2Dir, "commands", "README.md")); !os.IsNotExist(err) {
 		t.Errorf("Symlink should be removed from target2")
 	}
 }
