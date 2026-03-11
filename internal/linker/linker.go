@@ -231,6 +231,38 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 			})
 			continue
 		}
+		if componentType == "commands" || componentType == "agents" {
+			if err := fileutil.CreateDirectoryWithPermissions(componentDir); err != nil {
+				linkResults = append(linkResults, linkResult{
+					name:    targetName,
+					success: false,
+					errMsg:  fmt.Sprintf("failed to create destination directory: %v", err),
+				})
+				continue
+			}
+
+			linked, err := linkFlatMdFiles(srcDir, componentDir)
+			if err != nil || len(linked) == 0 {
+				msg := fmt.Sprintf("failed to link: %v", err)
+				if err == nil {
+					msg = "no .md files found to link"
+				}
+				linkResults = append(linkResults, linkResult{
+					name:    targetName,
+					success: false,
+					errMsg:  msg,
+				})
+				continue
+			}
+
+			linkResults = append(linkResults, linkResult{
+				name:    targetName,
+				path:    componentDir,
+				success: true,
+			})
+			continue
+		}
+
 		dstDir := filepath.Join(componentDir, componentName)
 
 		// Create destination directory
@@ -914,6 +946,16 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 				continue
 			}
 
+			if comp.Type == "commands" || comp.Type == "agents" {
+				componentTypeDir := filepath.Join(comp.BasePath, comp.Type)
+				if isFlatMdLinked(comp.Name, componentTypeDir, componentDir) {
+					status.Targets[target.GetName()] = colors.Success("✓")
+				} else {
+					status.Targets[target.GetName()] = colors.Muted("-")
+				}
+				continue
+			}
+
 			linkPath := filepath.Join(componentDir, comp.Name)
 
 			// Check if link exists
@@ -1259,6 +1301,16 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 				continue
 			}
 
+			if comp.Type == "commands" || comp.Type == "agents" {
+				componentTypeDir := filepath.Join(comp.BasePath, comp.Type)
+				if isFlatMdLinked(comp.Name, componentTypeDir, componentDir) {
+					status.Targets[target.GetName()] = colors.Success("✓")
+				} else {
+					status.Targets[target.GetName()] = colors.Muted("-")
+				}
+				continue
+			}
+
 			linkPath := filepath.Join(componentDir, comp.Name)
 
 			// Check if link exists
@@ -1495,9 +1547,31 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 			failedCount++
 			continue
 		}
-		linkPath := filepath.Join(componentDir, componentName)
 
 		targetName := target.GetName()
+
+		if componentType == "commands" || componentType == "agents" {
+			srcComponentTypeDir := filepath.Join(cl.agentsDir, componentType)
+			if !isFlatMdLinked(componentName, srcComponentTypeDir, componentDir) {
+				continue
+			}
+
+			cl.formatter.ProgressMsg(fmt.Sprintf("Unlinking from %s", targetName), componentName)
+
+			if err := unlinkFlatMdFiles(componentName, srcComponentTypeDir, componentDir); err != nil {
+				cl.formatter.ProgressFailed()
+				errors = append(errors, fmt.Sprintf("failed to unlink from %s: %v", targetName, err))
+				failedCount++
+				continue
+			}
+
+			cl.formatter.ProgressComplete()
+			unlinkedTargets = append(unlinkedTargets, targetName)
+			successCount++
+			continue
+		}
+
+		linkPath := filepath.Join(componentDir, componentName)
 
 		// Check if link exists
 		if _, err := os.Lstat(linkPath); os.IsNotExist(err) {

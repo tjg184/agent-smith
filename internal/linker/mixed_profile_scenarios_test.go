@@ -519,7 +519,7 @@ func TestMixedProfiles_PartialProfile(t *testing.T) {
 
 	// Verify both components are linked
 	skillPath := filepath.Join(tempTargetDir, "skills", "only-skill")
-	agentPath := filepath.Join(tempTargetDir, "agents", "only-agent")
+	agentPath := filepath.Join(tempTargetDir, "agents", "AGENT.md")
 
 	if _, err := os.Lstat(skillPath); os.IsNotExist(err) {
 		t.Error("Skill should be linked")
