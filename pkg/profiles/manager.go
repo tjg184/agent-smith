@@ -992,6 +992,85 @@ func (pm *ProfileManager) DeleteProfile(profileName string) error {
 	return nil
 }
 
+// RenameProfile renames a user-created profile.
+// If the profile is active, existing symlinks are removed, the directory is renamed,
+// the active-profile state file is updated to the new name, and the caller is expected
+// to re-run `link all` to restore symlinks pointing at the new path.
+func (pm *ProfileManager) RenameProfile(oldName, newName string) error {
+	if err := validateProfileName(newName); err != nil {
+		return err
+	}
+
+	if newName == paths.BaseProfileName {
+		return fmt.Errorf("'%s' is a reserved name", paths.BaseProfileName)
+	}
+
+	oldProfile := pm.loadProfile(oldName)
+	if !oldProfile.IsValid() {
+		return fmt.Errorf("profile '%s' does not exist", oldName)
+	}
+
+	metadata, err := pm.LoadProfileMetadata(oldName)
+	if err == nil && metadata != nil && metadata.Type == "repo" {
+		return fmt.Errorf("cannot rename repo profile '%s': only user-created profiles can be renamed", oldName)
+	}
+
+	newProfile := pm.loadProfile(newName)
+	if newProfile.IsValid() {
+		return fmt.Errorf("profile '%s' already exists", newName)
+	}
+
+	activeProfile, err := pm.GetActiveProfile()
+	if err != nil {
+		return fmt.Errorf("failed to check active profile: %w", err)
+	}
+
+	wasActive := activeProfile == oldName
+
+	if wasActive && pm.linker != nil {
+		componentTypes := []string{paths.AgentsSubDir, paths.SkillsSubDir, paths.CommandsSubDir}
+		for _, componentType := range componentTypes {
+			componentDir := filepath.Join(oldProfile.BasePath, componentType)
+			if _, err := os.Stat(componentDir); !os.IsNotExist(err) {
+				entries, err := os.ReadDir(componentDir)
+				if err == nil {
+					for _, entry := range entries {
+						if !strings.HasPrefix(entry.Name(), ".") {
+							_ = pm.linker.UnlinkComponent(componentType, entry.Name(), "")
+						}
+					}
+				}
+			}
+		}
+	}
+
+	oldPath := filepath.Join(pm.profilesDir, oldName)
+	newPath := filepath.Join(pm.profilesDir, newName)
+
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return fmt.Errorf("failed to rename profile directory: %w", err)
+	}
+
+	if wasActive {
+		agentsDir, err := paths.GetAgentsDir()
+		if err != nil {
+			return fmt.Errorf("failed to get agents directory after rename: %w", err)
+		}
+		activeProfilePath := filepath.Join(agentsDir, ".active-profile")
+		if err := os.WriteFile(activeProfilePath, []byte(newName), 0644); err != nil {
+			return fmt.Errorf("failed to update active profile state: %w", err)
+		}
+
+		if pm.linker != nil {
+			if err := pm.linker.LinkAllComponents(); err != nil {
+				return fmt.Errorf("failed to re-link components after rename: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
 // unlinkAllComponents removes all symlinks from the agents directory component folders
 func (pm *ProfileManager) unlinkAllComponents(agentsDir string) error {
 	componentDirs := []string{

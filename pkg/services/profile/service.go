@@ -795,3 +795,35 @@ func isLocalPath(path string) bool {
 		strings.HasPrefix(path, ".") ||
 		(len(path) > 1 && path[1] == ':') // Windows drive letter
 }
+
+// RenameProfile renames a user-created profile.
+func (s *Service) RenameProfile(oldName, newName string) error {
+	activeProfile, err := s.profileManager.GetActiveProfile()
+	if err != nil {
+		return fmt.Errorf("failed to get active profile: %w", err)
+	}
+
+	wasActive := activeProfile == oldName
+
+	if wasActive {
+		fmt.Printf("Profile '%s' is currently active. Rename it? [y/N]: ", oldName)
+		var response string
+		fmt.Scanln(&response)
+		if strings.ToLower(strings.TrimSpace(response)) != "y" {
+			fmt.Println("Rename cancelled.")
+			return nil
+		}
+	}
+
+	if err := s.profileManager.RenameProfile(oldName, newName); err != nil {
+		return fmt.Errorf("failed to rename profile: %w", err)
+	}
+
+	s.formatter.Info("%s Renamed profile: %s → %s", formatter.ColoredSuccess(), oldName, newName)
+
+	if wasActive {
+		s.formatter.InfoMsg("Profile '%s' is now active and links have been restored.", newName)
+	}
+
+	return nil
+}
