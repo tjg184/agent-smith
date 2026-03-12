@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.1](https://github.com/tjg184/agent-smith/compare/v1.4.0...v1.4.1) (2026-03-12)
+
+
+### Bug Fixes
+
+* **cmd:** remove duplicate command registrations from root.go ([#57](https://github.com/tjg184/agent-smith/issues/57)) ([78b49f3](https://github.com/tjg184/agent-smith/commit/78b49f3cec4e2f957eb1bd6051ed2bae303a087e))
+* **materialize:** use local-first strategy for update command ([#55](https://github.com/tjg184/agent-smith/issues/55)) ([990f78a](https://github.com/tjg184/agent-smith/commit/990f78a205f97f148d055189154282389b2b0e45))
+
 ## [1.4.0](https://github.com/tjg184/agent-smith/compare/v1.3.5...v1.4.0) (2026-03-11)
 
 
