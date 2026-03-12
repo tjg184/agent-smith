@@ -118,6 +118,7 @@ type MaterializeStatusOptions struct {
 type MaterializeUpdateOptions struct {
 	Target     string // Target to update (empty = all targets)
 	ProjectDir string // Project directory (empty = auto-detect)
+	Profile    string // Profile to source components from (empty = active profile or base)
 	Source     string // Source URL filter (for disambiguation)
 	Force      bool   // Force re-materialization even if in sync
 	DryRun     bool   // Simulate updates

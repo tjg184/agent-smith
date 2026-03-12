@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/tjg184/agent-smith/internal/downloader"
 	"github.com/tjg184/agent-smith/internal/formatter"
 	"github.com/tjg184/agent-smith/internal/materializer"
 	metadataPkg "github.com/tjg184/agent-smith/internal/metadata"
@@ -1180,97 +1179,59 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 		}
 		fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
 
-		// Use batched sync check for better performance (one clone per repo instead of per component)
-		baseDir, _ := paths.GetAgentsDir()
-		syncResults, err := project.CheckMultipleComponentsSyncStatusBatched(baseDir, components)
-		if err != nil {
-			return fmt.Errorf("failed to check sync status: %w", err)
-		}
+		// Resolve the local agent-smith installation directory (respects active profile)
+		localBaseDir, _, _ := s.getSourceDir(opts.Profile)
 
-		// Process each component
+		// Process each component using a local-first strategy:
+		// 1. Check if component exists in the local ~/.agent-smith directory
+		// 2. If local copy exists, compare it to the project copy and update if different
+		// 3. Only fall back to downloading from GitHub if local copy is absent
 		for _, comp := range components {
-			key := fmt.Sprintf("%s/%s", comp.Type, comp.Name)
-			result, ok := syncResults[key]
-
-			// Check sync status
-			if !ok {
-				fmt.Printf("  %s %s (error: status not available)\n", red("✗"), comp.Name)
-				continue
-			}
-
-			if result.Error != nil {
-				fmt.Printf("  %s %s (error checking status: %v)\n", red("✗"), comp.Name, result.Error)
-				continue
-			}
-
-			// Handle source missing
-			if result.Status == project.SyncStatusSourceMissing {
-				fmt.Printf("  %s Skipped %s (source no longer installed)\n", yellow("⚠"), comp.Name)
-				totalSkippedMissing++
-				continue
-			}
-
-			// Skip if in sync and not force mode
-			if result.Status == project.SyncStatusInSync && !opts.Force {
-				fmt.Printf("  %s Skipped %s (already in sync)\n", green("⊘"), comp.Name)
-				totalSkippedInSync++
-				continue
-			}
-
-			// Component needs updating
-			if opts.DryRun {
-				fmt.Printf("  %s Would update %s\n", green("→"), comp.Name)
-				totalUpdated++
-				continue
-			}
-
-			// Download from GitHub to temp directory
-			tempDir, err := os.MkdirTemp("", "materialize-update-*")
-			if err != nil {
-				fmt.Printf("  %s Failed to create temp directory for %s: %v\n", red("✗"), comp.Name, err)
-				continue
-			}
-			defer os.RemoveAll(tempDir)
-
-			// Download component from GitHub using downloader
-			var downloadErr error
-			switch comp.Type {
-			case "skills":
-				dl := downloader.NewSkillDownloaderWithTargetDir(tempDir)
-				downloadErr = dl.DownloadSkill(comp.Metadata.Source, comp.Name)
-			case "agents":
-				dl := downloader.NewAgentDownloaderWithTargetDir(tempDir)
-				downloadErr = dl.DownloadAgent(comp.Metadata.Source, comp.Name)
-			case "commands":
-				dl := downloader.NewCommandDownloaderWithTargetDir(tempDir)
-				downloadErr = dl.DownloadCommand(comp.Metadata.Source, comp.Name)
-			default:
-				downloadErr = fmt.Errorf("unknown component type: %s", comp.Type)
-			}
-
-			if downloadErr != nil {
-				fmt.Printf("  %s Failed to download %s from GitHub: %v\n", red("✗"), comp.Name, downloadErr)
-				continue
-			}
-
-			// Source is in temp directory
-			sourceDir := filepath.Join(tempDir, comp.Type, comp.Name)
-
-			// Use FilesystemName from metadata if available (handles auto-suffixing)
 			filesystemName := comp.Name
 			if comp.Metadata.FilesystemName != "" {
 				filesystemName = comp.Metadata.FilesystemName
 			}
 			destDir := filepath.Join(targetDir, comp.Type, filesystemName)
 
-			// Remove existing materialized component
+			localSourceDir := filepath.Join(localBaseDir, comp.Type, filesystemName)
+			localExists := false
+			if _, statErr := os.Stat(localSourceDir); statErr == nil {
+				localExists = true
+			}
+
+			if !localExists {
+				// Local component not installed — skip; user should run `agent-smith update` first
+				fmt.Printf("  %s Skipped %s (source no longer installed)\n", yellow("⚠"), comp.Name)
+				totalSkippedMissing++
+				continue
+			}
+
+			// Compare local source to the materialized copy to decide whether an update is needed
+			match, err := materializer.DirectoriesMatch(localSourceDir, destDir)
+			if err != nil {
+				fmt.Printf("  %s %s (error comparing directories: %v)\n", red("✗"), comp.Name, err)
+				continue
+			}
+
+			if match && !opts.Force {
+				fmt.Printf("  %s Skipped %s (already in sync)\n", green("⊘"), comp.Name)
+				totalSkippedInSync++
+				continue
+			}
+
+			if opts.DryRun {
+				fmt.Printf("  %s Would update %s\n", green("→"), comp.Name)
+				totalUpdated++
+				continue
+			}
+
+			// Remove existing materialized component and replace with local version
 			if err := os.RemoveAll(destDir); err != nil {
 				fmt.Printf("  %s Failed to remove existing %s: %v\n", red("✗"), comp.Name, err)
 				continue
 			}
 
-			// Copy from temp to target
-			if err := materializer.CopyDirectory(sourceDir, destDir); err != nil {
+			if err := materializer.CopyDirectory(localSourceDir, destDir); err != nil {
 				fmt.Printf("  %s Failed to copy %s: %v\n", red("✗"), comp.Name, err)
 				continue
 			}
@@ -1292,8 +1253,7 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 				continue
 			}
 
-			// Calculate new hashes
-			newSourceHash, err := materializer.CalculateDirectoryHash(sourceDir)
+			newSourceHash, err := materializer.CalculateDirectoryHash(localSourceDir)
 			if err != nil {
 				fmt.Printf("  %s Failed to calculate source hash for %s: %v\n", red("✗"), comp.Name, err)
 				continue
@@ -1305,26 +1265,19 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 				continue
 			}
 
-			// Get the latest commit hash from what we just downloaded
-			// Read the lock file entry from temp directory to get the updated commit hash
-			lockEntry, err := metadataPkg.LoadLockFileEntry(tempDir, comp.Type, comp.Name)
+			// Read commit hash from the local lock file so metadata stays consistent with local state
 			var newCommitHash string
-			if err == nil && lockEntry != nil {
+			if lockEntry, lockErr := metadataPkg.LoadLockFileEntry(localBaseDir, comp.Type, comp.Name); lockErr == nil && lockEntry != nil {
 				newCommitHash = lockEntry.CommitHash
 			} else {
-				// Fallback: fetch current commit from GitHub
-				ud := updater.NewUpdateDetectorWithBaseDir(baseDir)
-				newCommitHash, _ = ud.GetCurrentRepoSHA(comp.Metadata.Source)
+				newCommitHash = comp.Metadata.CommitHash
 			}
 
-			// Update metadata entry with new commit hash
 			comp.Metadata.CommitHash = newCommitHash
 			comp.Metadata.SourceHash = newSourceHash
 			comp.Metadata.CurrentHash = newCurrentHash
 			comp.Metadata.MaterializedAt = time.Now().Format(time.RFC3339)
 
-			// Save updated metadata back to the nested metadata struct
-			// Use the source URL from the metadata to determine the correct nested location
 			sourceURL := comp.Metadata.Source
 			switch comp.Type {
 			case "skills":
