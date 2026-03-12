@@ -1117,6 +1117,150 @@ func TestCopyComponentFilesRecursive(t *testing.T) {
 	t.Logf("SUCCESS: CopyComponentFiles correctly copied all files and subdirectories recursively")
 }
 
+// TestDownloadSkillWithRepoPreservesHierarchy verifies that install all preserves intermediate
+// directory hierarchy (e.g. skills/category/skill-name/SKILL.md installs to skills/category/skill-name).
+// This exercises the exact code path used by "install all" via DownloadSkillWithRepo.
+func TestDownloadSkillWithRepoPreservesHierarchy(t *testing.T) {
+	helper := NewTestHelper(t)
+	defer helper.Cleanup()
+
+	repoPath := helper.CreateMockRepo("hierarchical-repo", map[string]string{
+		"skills/category/skill-name/SKILL.md":       "# Skill",
+		"skills/category/skill-name/resources/a.md": "# Resource A",
+		"skills/flat-skill/SKILL.md":                "# Flat Skill",
+	})
+
+	installDir := helper.CreateInstallDir()
+	dl := NewSkillDownloaderWithTargetDir(installDir)
+
+	det := detector.NewRepositoryDetector()
+	components, err := det.DetectComponentsInRepo(repoPath)
+	if err != nil {
+		t.Fatalf("failed to detect components: %v", err)
+	}
+
+	for _, comp := range components {
+		if err := dl.DownloadSkillWithRepo(repoPath, comp.Name, repoPath, repoPath, components); err != nil {
+			t.Fatalf("DownloadSkillWithRepo(%q) failed: %v", comp.Name, err)
+		}
+	}
+
+	// Hierarchical skill must land at skills/category/skill-name, not skills/skill-name
+	hierarchicalDir := filepath.Join(installDir, "skills", "category", "skill-name")
+	helper.VerifyDirExists(hierarchicalDir, "hierarchical skill directory")
+	helper.VerifyFileExists(filepath.Join(hierarchicalDir, "SKILL.md"), "SKILL.md")
+	helper.VerifyFileExists(filepath.Join(hierarchicalDir, "resources", "a.md"), "resources/a.md")
+
+	// Flat skill must still land at skills/flat-skill
+	flatDir := filepath.Join(installDir, "skills", "flat-skill")
+	helper.VerifyDirExists(flatDir, "flat skill directory")
+	helper.VerifyFileExists(filepath.Join(flatDir, "SKILL.md"), "SKILL.md")
+
+	// skills/skill-name must NOT exist (the old broken path)
+	brokenDir := filepath.Join(installDir, "skills", "skill-name")
+	if _, err := os.Stat(brokenDir); err == nil {
+		t.Errorf("expected no directory at %s (hierarchy not preserved)", brokenDir)
+	}
+}
+
+// TestDownloadAgentWithRepoPreservesHierarchy verifies that install all preserves intermediate
+// directory hierarchy for agents (e.g. agents/category/my-agent.md installs to agents/category/my-agent).
+func TestDownloadAgentWithRepoPreservesHierarchy(t *testing.T) {
+	helper := NewTestHelper(t)
+	defer helper.Cleanup()
+
+	repoPath := helper.CreateMockRepo("hierarchical-agent-repo", map[string]string{
+		"agents/category/my-agent.md": `---
+name: my-agent
+---
+# My Agent`,
+		"agents/flat-agent.md": `---
+name: flat-agent
+---
+# Flat Agent`,
+	})
+
+	installDir := helper.CreateInstallDir()
+	dl := NewAgentDownloaderWithTargetDir(installDir)
+
+	det := detector.NewRepositoryDetector()
+	components, err := det.DetectComponentsInRepo(repoPath)
+	if err != nil {
+		t.Fatalf("failed to detect components: %v", err)
+	}
+
+	for _, comp := range components {
+		if err := dl.DownloadAgentWithRepo(repoPath, comp.Name, repoPath, repoPath, components); err != nil {
+			t.Fatalf("DownloadAgentWithRepo(%q) failed: %v", comp.Name, err)
+		}
+	}
+
+	// Hierarchical agent must land at agents/category/my-agent, not agents/my-agent
+	hierarchicalDir := filepath.Join(installDir, "agents", "category", "my-agent")
+	helper.VerifyDirExists(hierarchicalDir, "hierarchical agent directory")
+	helper.VerifyFileExists(filepath.Join(hierarchicalDir, "my-agent.md"), "my-agent.md")
+
+	// Flat agent must still land at agents/flat-agent
+	flatDir := filepath.Join(installDir, "agents", "flat-agent")
+	helper.VerifyDirExists(flatDir, "flat agent directory")
+	helper.VerifyFileExists(filepath.Join(flatDir, "flat-agent.md"), "flat-agent.md")
+
+	// agents/my-agent must NOT exist (the old broken path)
+	brokenDir := filepath.Join(installDir, "agents", "my-agent")
+	if _, err := os.Stat(brokenDir); err == nil {
+		t.Errorf("expected no directory at %s (hierarchy not preserved)", brokenDir)
+	}
+}
+
+// TestDownloadCommandWithRepoPreservesHierarchy verifies that install all preserves intermediate
+// directory hierarchy for commands (e.g. commands/category/my-command.md installs to commands/category/my-command).
+func TestDownloadCommandWithRepoPreservesHierarchy(t *testing.T) {
+	helper := NewTestHelper(t)
+	defer helper.Cleanup()
+
+	repoPath := helper.CreateMockRepo("hierarchical-command-repo", map[string]string{
+		"commands/category/my-command.md": `---
+name: my-command
+---
+# My Command`,
+		"commands/flat-command.md": `---
+name: flat-command
+---
+# Flat Command`,
+	})
+
+	installDir := helper.CreateInstallDir()
+	dl := NewCommandDownloaderWithTargetDir(installDir)
+
+	det := detector.NewRepositoryDetector()
+	components, err := det.DetectComponentsInRepo(repoPath)
+	if err != nil {
+		t.Fatalf("failed to detect components: %v", err)
+	}
+
+	for _, comp := range components {
+		if err := dl.DownloadCommandWithRepo(repoPath, comp.Name, repoPath, repoPath, components); err != nil {
+			t.Fatalf("DownloadCommandWithRepo(%q) failed: %v", comp.Name, err)
+		}
+	}
+
+	// Hierarchical command must land at commands/category/my-command, not commands/my-command
+	hierarchicalDir := filepath.Join(installDir, "commands", "category", "my-command")
+	helper.VerifyDirExists(hierarchicalDir, "hierarchical command directory")
+	helper.VerifyFileExists(filepath.Join(hierarchicalDir, "my-command.md"), "my-command.md")
+
+	// Flat command must still land at commands/flat-command
+	flatDir := filepath.Join(installDir, "commands", "flat-command")
+	helper.VerifyDirExists(flatDir, "flat command directory")
+	helper.VerifyFileExists(filepath.Join(flatDir, "flat-command.md"), "flat-command.md")
+
+	// commands/my-command must NOT exist (the old broken path)
+	brokenDir := filepath.Join(installDir, "commands", "my-command")
+	if _, err := os.Stat(brokenDir); err == nil {
+		t.Errorf("expected no directory at %s (hierarchy not preserved)", brokenDir)
+	}
+}
+
 // TestDetermineDestinationFolderName tests the destination folder name determination
 func TestDetermineDestinationFolderName(t *testing.T) {
 	tests := []struct {
@@ -1124,7 +1268,7 @@ func TestDetermineDestinationFolderName(t *testing.T) {
 		componentFilePath string
 		expectedDest      string
 	}{
-		// Single-file components (should use filename without extension)
+		// Flat single-file components (no intermediate dirs)
 		{
 			name:              "Root-level agent file",
 			componentFilePath: "agents/architect.md",
@@ -1136,17 +1280,29 @@ func TestDetermineDestinationFolderName(t *testing.T) {
 			expectedDest:      "review-diff",
 		},
 		{
-			name:              "Nested single agent file",
-			componentFilePath: "src/agents/my-agent.md",
-			expectedDest:      "my-agent",
-		},
-		{
 			name:              "Agent with hyphenated name",
 			componentFilePath: "agents/code-reviewer.md",
 			expectedDest:      "code-reviewer",
 		},
 
-		// Directory-based components (should use directory hierarchy)
+		// Single-file components with intermediate hierarchy
+		{
+			name:              "Agent with category subdirectory",
+			componentFilePath: "agents/category/my-agent.md",
+			expectedDest:      filepath.Join("category", "my-agent"),
+		},
+		{
+			name:              "Command with category subdirectory",
+			componentFilePath: "commands/category/my-command.md",
+			expectedDest:      filepath.Join("category", "my-command"),
+		},
+		{
+			name:              "Nested single agent file beyond component-type dir",
+			componentFilePath: "src/agents/my-agent.md",
+			expectedDest:      "my-agent",
+		},
+
+		// Flat directory-based components (no intermediate dirs)
 		{
 			name:              "Directory-based skill with SKILL.md",
 			componentFilePath: "skills/my-skill/SKILL.md",
@@ -1171,6 +1327,23 @@ func TestDetermineDestinationFolderName(t *testing.T) {
 			name:              "Deeply nested directory-based skill",
 			componentFilePath: "foo/bar/baz/skills/deep-skill/SKILL.md",
 			expectedDest:      "deep-skill",
+		},
+
+		// Directory-based components with intermediate hierarchy
+		{
+			name:              "Skill with category subdirectory",
+			componentFilePath: "skills/category/skill-name/SKILL.md",
+			expectedDest:      filepath.Join("category", "skill-name"),
+		},
+		{
+			name:              "Skill with multi-level category",
+			componentFilePath: "skills/cat-a/cat-b/skill-name/SKILL.md",
+			expectedDest:      filepath.Join("cat-a", "cat-b", "skill-name"),
+		},
+		{
+			name:              "Deeply nested skill with category",
+			componentFilePath: "src/skills/category/skill-name/SKILL.md",
+			expectedDest:      filepath.Join("category", "skill-name"),
 		},
 	}
 
