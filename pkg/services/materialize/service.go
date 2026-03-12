@@ -102,28 +102,17 @@ type componentInfo struct {
 	SourceUrl     string
 }
 
-// buildFilesystemNameMap creates a mapping from filesystem names to component info
-// This is needed because filesystemName can differ from componentName due to conflicts
+// buildFilesystemNameMap creates a mapping from filesystem names to component info.
+// filesystemName can differ from componentName due to conflicts or category nesting
+// (e.g. "kotlin/convert-groovy-kotlin").
 func (s *Service) buildFilesystemNameMap(baseDir string) (map[string]componentInfo, error) {
-	lockFilePath := filepath.Join(baseDir, ".component-lock.json")
-
-	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
-		return make(map[string]componentInfo), nil
-	}
-
-	lockData, err := os.ReadFile(lockFilePath)
+	lockFile, err := s.loadLockFile(baseDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read lock file: %w", err)
-	}
-
-	var lockFile models.ComponentLockFile
-	if err := json.Unmarshal(lockData, &lockFile); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal lock file: %w", err)
+		return nil, err
 	}
 
 	mapping := make(map[string]componentInfo)
 
-	// Helper to add entries from a component type map
 	addEntries := func(componentType string, sourceMap map[string]map[string]models.ComponentEntry) {
 		for sourceUrl, components := range sourceMap {
 			for componentName, entry := range components {
@@ -137,18 +126,31 @@ func (s *Service) buildFilesystemNameMap(baseDir string) (map[string]componentIn
 		}
 	}
 
-	// Add all component types
-	if lockFile.Skills != nil {
-		addEntries("skills", lockFile.Skills)
-	}
-	if lockFile.Agents != nil {
-		addEntries("agents", lockFile.Agents)
-	}
-	if lockFile.Commands != nil {
-		addEntries("commands", lockFile.Commands)
-	}
+	addEntries("skills", lockFile.Skills)
+	addEntries("agents", lockFile.Agents)
+	addEntries("commands", lockFile.Commands)
 
 	return mapping, nil
+}
+
+func (s *Service) loadLockFile(baseDir string) (models.ComponentLockFile, error) {
+	lockFilePath := filepath.Join(baseDir, ".component-lock.json")
+
+	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
+		return models.ComponentLockFile{}, nil
+	}
+
+	lockData, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		return models.ComponentLockFile{}, fmt.Errorf("failed to read lock file: %w", err)
+	}
+
+	var lockFile models.ComponentLockFile
+	if err := json.Unmarshal(lockData, &lockFile); err != nil {
+		return models.ComponentLockFile{}, fmt.Errorf("failed to unmarshal lock file: %w", err)
+	}
+
+	return lockFile, nil
 }
 
 // MaterializeComponent materializes a single component to a target
@@ -275,16 +277,55 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			sourceUrl = lockEntry.SourceUrl
 		}
 
-		// Resolve the actual filesystem name (handles conflicts with auto-suffixing)
-		// Will reuse existing filesystem name if this exact component is already materialized
-		filesystemName := project.ResolveFilesystemName(filepath.Join(targetDir, componentType), componentType, componentName, sourceUrl, matMetadata)
-		destPath := filepath.Join(targetDir, componentType, filesystemName)
+		// When the lock entry carries a category prefix (e.g. "kotlin/convert-groovy-kotlin"),
+		// use it directly to preserve the source hierarchy. ResolveFilesystemName only knows
+		// the leaf name and would silently drop the prefix.
+		var filesystemName string
+		if dirName != componentName {
+			filesystemName = dirName
+		} else {
+			filesystemName = project.ResolveFilesystemName(filepath.Join(targetDir, componentType), componentType, componentName, sourceUrl, matMetadata)
+		}
+
+		// Agents and commands on opencode/claudecode are expected as flat .md files directly
+		// in the component type dir (e.g. .opencode/agents/architect.md), not wrapped in a
+		// subdirectory. This mirrors what `link` produces and what those editors actually load.
+		useFlatCopy := (componentType == "agents" || componentType == "commands") &&
+			(tgt == "opencode" || tgt == "claudecode")
+
+		componentTypeDir := filepath.Join(targetDir, componentType)
+		var destPath string
+		if useFlatCopy {
+			destPath = componentTypeDir
+		} else {
+			destPath = filepath.Join(componentTypeDir, filesystemName)
+		}
 
 		// Check if exists
-		if _, err := os.Stat(destPath); err == nil {
-			match, err := materializer.DirectoriesMatch(componentSourceDir, destPath)
-			if err != nil {
-				return fmt.Errorf("failed to compare directories: %w", err)
+		alreadyExists := false
+		if useFlatCopy {
+			// For flat copy the destPath is always the type dir (which always exists once created).
+			// Use FlatMdFilesMatch to determine whether this specific component's files are
+			// already present and identical, rather than testing directory existence.
+			if _, statErr := os.Stat(destPath); statErr == nil {
+				alreadyExists, err = materializer.FlatMdFilesMatch(componentSourceDir, destPath)
+				if err != nil {
+					return fmt.Errorf("failed to compare flat files: %w", err)
+				}
+			}
+		} else if _, statErr := os.Stat(destPath); statErr == nil {
+			alreadyExists = true
+		}
+
+		if alreadyExists {
+			var match bool
+			if useFlatCopy {
+				match = true // FlatMdFilesMatch already returned true above
+			} else {
+				match, err = materializer.DirectoriesMatch(componentSourceDir, destPath)
+				if err != nil {
+					return fmt.Errorf("failed to compare directories: %w", err)
+				}
 			}
 			if match {
 				if opts.DryRun {
@@ -322,7 +363,11 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 				}
 				s.postprocessorRegistry.RunCleanup(cleanupCtx)
 
-				if err := os.RemoveAll(destPath); err != nil {
+				if useFlatCopy {
+					if err := materializer.RemoveFlatMdFiles(componentSourceDir, destPath); err != nil {
+						return fmt.Errorf("failed to remove existing component files: %w", err)
+					}
+				} else if err := os.RemoveAll(destPath); err != nil {
 					return fmt.Errorf("failed to remove existing component: %w", err)
 				}
 			}
@@ -369,7 +414,11 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			}
 
 			// Copy component
-			if err := materializer.CopyDirectory(componentSourceDir, destPath); err != nil {
+			if useFlatCopy {
+				if err := materializer.CopyFlatMdFiles(componentSourceDir, destPath); err != nil {
+					return fmt.Errorf("failed to copy component: %w", err)
+				}
+			} else if err := materializer.CopyDirectory(componentSourceDir, destPath); err != nil {
 				return fmt.Errorf("failed to copy component: %w", err)
 			}
 
@@ -441,48 +490,34 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 
 // MaterializeAll materializes all components to a target
 func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
-	// Get source directory
 	baseDir, sourceProfile, err := s.getSourceDir(opts.Profile)
 	if err != nil {
 		return err
 	}
 
-	// Build filesystem name mapping from lock file
-	fsNameMap, err := s.buildFilesystemNameMap(baseDir)
+	lockFile, err := s.loadLockFile(baseDir)
 	if err != nil {
-		return fmt.Errorf("failed to build filesystem name mapping: %w", err)
+		return fmt.Errorf("failed to load lock file: %w", err)
 	}
 
-	// Get all components
 	var components []struct {
 		Type string
 		Name string
 	}
 
-	for _, componentType := range []string{"skills", "agents", "commands"} {
-		dir := filepath.Join(baseDir, componentType)
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return fmt.Errorf("failed to read %s directory: %w", componentType, err)
-		}
+	typeMap := map[string]map[string]map[string]models.ComponentEntry{
+		"skills":   lockFile.Skills,
+		"agents":   lockFile.Agents,
+		"commands": lockFile.Commands,
+	}
 
-		for _, entry := range entries {
-			if entry.IsDir() {
-				// Map filesystem name to component name using lock file
-				key := componentType + "/" + entry.Name()
-				if info, exists := fsNameMap[key]; exists {
-					// Use the component name from lock file
-					components = append(components, struct {
-						Type string
-						Name string
-					}{componentType, info.ComponentName})
-				} else {
-					// Directory not in lock file - warn and skip
-					s.formatter.WarningMsg("Skipping untracked directory: %s/%s (not found in lock file)", componentType, entry.Name())
-				}
+	for _, componentType := range []string{"skills", "agents", "commands"} {
+		for _, componentsByName := range typeMap[componentType] {
+			for componentName := range componentsByName {
+				components = append(components, struct {
+					Type string
+					Name string
+				}{componentType, componentName})
 			}
 		}
 	}
@@ -497,7 +532,6 @@ func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
 		return nil
 	}
 
-	// Materialize each component
 	for _, comp := range components {
 		if err := s.MaterializeComponent(comp.Type, comp.Name, opts); err != nil {
 			s.formatter.WarningMsg("Failed to materialize %s '%s': %v", comp.Type, comp.Name, err)
@@ -509,7 +543,6 @@ func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
 
 // MaterializeByType materializes all components of a specific type to a target
 func (s *Service) MaterializeByType(componentType string, opts services.MaterializeOptions) error {
-	// Validate component type
 	validTypes := map[string]bool{
 		"skills":   true,
 		"agents":   true,
@@ -519,53 +552,33 @@ func (s *Service) MaterializeByType(componentType string, opts services.Material
 		return fmt.Errorf("invalid component type: %s (must be skills, agents, or commands)", componentType)
 	}
 
-	// Get source directory
 	baseDir, sourceProfile, err := s.getSourceDir(opts.Profile)
 	if err != nil {
 		return err
 	}
 
-	// Build filesystem name mapping from lock file
-	fsNameMap, err := s.buildFilesystemNameMap(baseDir)
+	lockFile, err := s.loadLockFile(baseDir)
 	if err != nil {
-		return fmt.Errorf("failed to build filesystem name mapping: %w", err)
+		return fmt.Errorf("failed to load lock file: %w", err)
 	}
 
-	// Get all components of the specified type
+	typeMap := map[string]map[string]map[string]models.ComponentEntry{
+		"skills":   lockFile.Skills,
+		"agents":   lockFile.Agents,
+		"commands": lockFile.Commands,
+	}
+
 	var components []struct {
 		Type string
 		Name string
 	}
 
-	dir := filepath.Join(baseDir, componentType)
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			s.formatter.Info("No %s found to materialize", componentType)
-			if sourceProfile != "" {
-				s.formatter.Info("  Source: profile '%s' (~/.agent-smith/profiles/%s/%s/)", sourceProfile, sourceProfile, componentType)
-			} else {
-				s.formatter.Info("  Source: ~/.agent-smith/%s/", componentType)
-			}
-			return nil
-		}
-		return fmt.Errorf("failed to read %s directory: %w", componentType, err)
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			// Map filesystem name to component name using lock file
-			key := componentType + "/" + entry.Name()
-			if info, exists := fsNameMap[key]; exists {
-				// Use the component name from lock file
-				components = append(components, struct {
-					Type string
-					Name string
-				}{componentType, info.ComponentName})
-			} else {
-				// Directory not in lock file - warn and skip
-				s.formatter.WarningMsg("Skipping untracked directory: %s/%s (not found in lock file)", componentType, entry.Name())
-			}
+	for _, componentsByName := range typeMap[componentType] {
+		for componentName := range componentsByName {
+			components = append(components, struct {
+				Type string
+				Name string
+			}{componentType, componentName})
 		}
 	}
 
@@ -579,7 +592,6 @@ func (s *Service) MaterializeByType(componentType string, opts services.Material
 		return nil
 	}
 
-	// Materialize each component
 	successCount := 0
 	failureCount := 0
 	for _, comp := range components {

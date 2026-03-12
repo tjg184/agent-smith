@@ -121,8 +121,14 @@ func TestMaterializeAllComponentTypes(t *testing.T) {
 				t.Fatalf("Materialize failed: %v\nOutput: %s", err, outputStr)
 			}
 
-			// Verify component was copied
-			destPath := filepath.Join(opencodeDir, data.componentType, data.componentName, data.fileName)
+			// Agents and commands are flat-copied for opencode: destPath is the type dir, not a subdir.
+			var destPath string
+			switch data.componentType {
+			case "agents", "commands":
+				destPath = filepath.Join(opencodeDir, data.componentType, data.fileName)
+			default:
+				destPath = filepath.Join(opencodeDir, data.componentType, data.componentName, data.fileName)
+			}
 			testutil.AssertFileExists(t, destPath)
 
 			// Verify file content matches
@@ -387,22 +393,29 @@ func TestMaterializeRecursiveDirectoryStructure(t *testing.T) {
 		t.Fatalf("Materialize failed: %v\nOutput: %s", err, outputStr)
 	}
 
-	// Verify all files were copied with correct structure
-	destBase := filepath.Join(opencodeDir, "commands", "complex-command")
-	for originalPath, expectedContent := range files {
-		// Convert original path to destination path
-		relPath, err := filepath.Rel(commandDir, originalPath)
-		testutil.AssertNoError(t, err, "Failed to get relative path")
-		destPath := filepath.Join(destBase, relPath)
+	// For opencode/claudecode targets, agents and commands are flat-copied: only top-level
+	// .md files land directly in the component type dir. Non-md assets are dropped because
+	// OpenCode and Claude Code only read .md files.
+	destDir := filepath.Join(opencodeDir, "commands")
+	destPath := filepath.Join(destDir, "COMMAND.md")
+	testutil.AssertFileExists(t, destPath)
 
-		testutil.AssertFileExists(t, destPath)
+	content, err := os.ReadFile(destPath)
+	testutil.AssertNoError(t, err, "Failed to read COMMAND.md")
+	testutil.AssertEqual(t, files[filepath.Join(commandDir, "COMMAND.md")], string(content), "Content mismatch for COMMAND.md")
 
-		content, err := os.ReadFile(destPath)
-		testutil.AssertNoError(t, err, "Failed to read file: "+destPath)
-		testutil.AssertEqual(t, expectedContent, string(content), "Content mismatch for: "+destPath)
+	// Non-md assets must NOT be present (flat copy drops them)
+	nonMdPaths := []string{
+		filepath.Join(destDir, "complex-command", "subdir", "helper.js"),
+		filepath.Join(destDir, "complex-command", "subdir", "nested", "data.json"),
+	}
+	for _, p := range nonMdPaths {
+		if _, statErr := os.Stat(p); statErr == nil {
+			t.Errorf("Non-md asset should not be present at %s", p)
+		}
 	}
 
-	t.Logf("Recursive directory structure preserved correctly")
+	t.Logf("Flat copy verified: only .md files materialized")
 }
 
 // TestMaterializeEnvTarget verifies that AGENT_SMITH_TARGET environment variable

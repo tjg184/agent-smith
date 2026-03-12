@@ -16,23 +16,32 @@ type ComponentLockEntry = models.ComponentEntry
 // Re-export functions for backward compatibility
 var ComputeLocalFolderHash = metadata.ComputeLocalFolderHash
 
-// DetermineDestinationFolderName determines the destination folder name using hierarchy heuristic
-// Walks up from component file directory, skipping component-type names (agents/commands/skills)
-// Returns first non-component-type directory name for preserving optional hierarchy
+// DetermineDestinationFolderName determines the destination folder name, preserving any
+// intermediate hierarchy between the component-type directory (skills/agents/commands) and
+// the component file. For example:
+//   - agents/category/my-agent.md      → category/my-agent
+//   - skills/category/skill-name/SKILL.md → category/skill-name
+//   - skills/skill-name/SKILL.md       → skill-name
 func DetermineDestinationFolderName(componentFilePath string) string {
 	componentTypeNames := []string{"skills", "agents", "commands"}
 
 	fileName := filepath.Base(componentFilePath)
 	fileExt := filepath.Ext(fileName)
 
-	if fileExt == ".md" &&
+	isSingleFile := fileExt == ".md" &&
 		fileName != "SKILL.md" &&
 		fileName != "AGENT.md" &&
-		fileName != "COMMAND.md" {
-		return strings.TrimSuffix(fileName, fileExt)
-	}
+		fileName != "COMMAND.md"
 
+	// Start walking up from the file's directory (or the file itself for single-file components).
+	// Collect all path segments until we hit a component-type directory.
 	currentDir := filepath.Dir(componentFilePath)
+
+	var segments []string
+
+	if isSingleFile {
+		segments = append(segments, strings.TrimSuffix(fileName, fileExt))
+	}
 
 	for {
 		dirName := filepath.Base(currentDir)
@@ -45,18 +54,31 @@ func DetermineDestinationFolderName(componentFilePath string) string {
 			}
 		}
 
-		if !isComponentType && dirName != "." && dirName != "" {
-			return dirName
+		if isComponentType || dirName == "." || dirName == "" {
+			break
 		}
+
+		segments = append(segments, dirName)
 
 		parentDir := filepath.Dir(currentDir)
 
-		if parentDir == currentDir || parentDir == "." || parentDir == "/" || dirName == "" {
-			return "root"
+		if parentDir == currentDir || parentDir == "." || parentDir == "/" {
+			break
 		}
 
 		currentDir = parentDir
 	}
+
+	if len(segments) == 0 {
+		return "root"
+	}
+
+	// Segments were collected bottom-up (or with file stem prepended); reverse for top-down order.
+	for i, j := 0, len(segments)-1; i < j; i, j = i+1, j-1 {
+		segments[i], segments[j] = segments[j], segments[i]
+	}
+
+	return filepath.Join(segments...)
 }
 
 // extractGitHubOwnerRepo extracts "owner/repo" from a GitHub URL

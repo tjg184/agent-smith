@@ -178,16 +178,26 @@ A test agent for copilot flattening.
 			t.Fatalf("Failed to materialize agent: %v\nOutput: %s", err, string(matOutput))
 		}
 
-		// Verify agent folder exists
-		agentFolder := filepath.Join(opencodeDir, "agents", agentName)
-		if _, err := os.Stat(agentFolder); os.IsNotExist(err) {
-			t.Error("Agent folder was not created")
+		// For opencode, agents are flat-copied: the .md file lives directly in the agents dir.
+		flatFilePath := filepath.Join(opencodeDir, "agents", "opencode-agent.md")
+		if _, err := os.Stat(flatFilePath); os.IsNotExist(err) {
+			t.Error("Flat agent .md file was not created for opencode target")
 		}
 
-		// Verify flattened symlink does NOT exist
+		// Agent wrapper folder must NOT exist (flat copy, not nested).
+		agentFolder := filepath.Join(opencodeDir, "agents", agentName)
+		if _, err := os.Stat(agentFolder); err == nil {
+			t.Error("Agent folder should not exist for opencode flat copy")
+		}
+
+		// Verify flat file is a regular file, not a symlink
 		symlinkPath := filepath.Join(opencodeDir, "agents", agentName+".md")
-		if _, err := os.Lstat(symlinkPath); err == nil {
-			t.Error("Flattened symlink should not be created for opencode target")
+		info, err := os.Lstat(symlinkPath)
+		if err != nil {
+			t.Fatalf("Flat agent file should exist at %s: %v", symlinkPath, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			t.Error("opencode flat file must not be a symlink")
 		}
 
 		t.Log("✓ Agent materialized to opencode without symlink (as expected)")
