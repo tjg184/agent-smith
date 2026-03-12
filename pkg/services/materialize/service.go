@@ -277,9 +277,15 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			sourceUrl = lockEntry.SourceUrl
 		}
 
-		// Resolve the actual filesystem name (handles conflicts with auto-suffixing)
-		// Will reuse existing filesystem name if this exact component is already materialized
-		filesystemName := project.ResolveFilesystemName(filepath.Join(targetDir, componentType), componentType, componentName, sourceUrl, matMetadata)
+		// When the lock entry carries a category prefix (e.g. "kotlin/convert-groovy-kotlin"),
+		// use it directly to preserve the source hierarchy. ResolveFilesystemName only knows
+		// the leaf name and would silently drop the prefix.
+		var filesystemName string
+		if dirName != componentName {
+			filesystemName = dirName
+		} else {
+			filesystemName = project.ResolveFilesystemName(filepath.Join(targetDir, componentType), componentType, componentName, sourceUrl, matMetadata)
+		}
 		destPath := filepath.Join(targetDir, componentType, filesystemName)
 
 		// Check if exists
