@@ -17,9 +17,10 @@ import (
 
 // RepositoryDetector maintains repository patterns and component detection
 type RepositoryDetector struct {
-	patterns        map[string]string
-	detectionConfig *models.DetectionConfig
-	logger          *logger.Logger
+	patterns                 map[string]string
+	detectionConfig          *models.DetectionConfig
+	logger                   *logger.Logger
+	suppressDuplicateWarning bool
 }
 
 // NewRepositoryDetector creates a new RepositoryDetector with default config
@@ -64,6 +65,13 @@ func NewRepositoryDetectorWithConfig(configPath string) *RepositoryDetector {
 // SetLogger sets the logger for this detector
 func (rd *RepositoryDetector) SetLogger(l *logger.Logger) {
 	rd.logger = l
+}
+
+// SuppressDuplicateWarning disables the duplicate component warning printed during detection.
+// Use this when detection is an internal implementation detail (e.g. during update) rather
+// than a user-facing install action.
+func (rd *RepositoryDetector) SuppressDuplicateWarning() {
+	rd.suppressDuplicateWarning = true
 }
 
 // createDefaultDetectionConfig returns the default component detection patterns

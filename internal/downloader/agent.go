@@ -507,7 +507,5 @@ func (ad *AgentDownloader) DownloadAgentWithRepo(fullURL, agentName, repoURL str
 	// Success - don't clean up the directory
 	shouldCleanup = false
 
-	ad.formatter.Success("agent", agentName)
-
 	return nil
 }
