@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/tjg184/agent-smith/compare/v1.3.5...v1.4.0) (2026-03-11)
+
+
+### Features
+
+* **profiles:** add profile rename command ([#53](https://github.com/tjg184/agent-smith/issues/53)) ([1b483dc](https://github.com/tjg184/agent-smith/commit/1b483dc8aeb2ba271b0d0c1e064a9e6148335791))
+
 ## [1.3.5](https://github.com/tjg184/agent-smith/compare/v1.3.4...v1.3.5) (2026-03-11)
 
 
