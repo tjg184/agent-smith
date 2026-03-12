@@ -286,13 +286,46 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 		} else {
 			filesystemName = project.ResolveFilesystemName(filepath.Join(targetDir, componentType), componentType, componentName, sourceUrl, matMetadata)
 		}
-		destPath := filepath.Join(targetDir, componentType, filesystemName)
+
+		// Agents and commands on opencode/claudecode are expected as flat .md files directly
+		// in the component type dir (e.g. .opencode/agents/architect.md), not wrapped in a
+		// subdirectory. This mirrors what `link` produces and what those editors actually load.
+		useFlatCopy := (componentType == "agents" || componentType == "commands") &&
+			(tgt == "opencode" || tgt == "claudecode")
+
+		componentTypeDir := filepath.Join(targetDir, componentType)
+		var destPath string
+		if useFlatCopy {
+			destPath = componentTypeDir
+		} else {
+			destPath = filepath.Join(componentTypeDir, filesystemName)
+		}
 
 		// Check if exists
-		if _, err := os.Stat(destPath); err == nil {
-			match, err := materializer.DirectoriesMatch(componentSourceDir, destPath)
-			if err != nil {
-				return fmt.Errorf("failed to compare directories: %w", err)
+		alreadyExists := false
+		if useFlatCopy {
+			// For flat copy the destPath is always the type dir (which always exists once created).
+			// Use FlatMdFilesMatch to determine whether this specific component's files are
+			// already present and identical, rather than testing directory existence.
+			if _, statErr := os.Stat(destPath); statErr == nil {
+				alreadyExists, err = materializer.FlatMdFilesMatch(componentSourceDir, destPath)
+				if err != nil {
+					return fmt.Errorf("failed to compare flat files: %w", err)
+				}
+			}
+		} else if _, statErr := os.Stat(destPath); statErr == nil {
+			alreadyExists = true
+		}
+
+		if alreadyExists {
+			var match bool
+			if useFlatCopy {
+				match = true // FlatMdFilesMatch already returned true above
+			} else {
+				match, err = materializer.DirectoriesMatch(componentSourceDir, destPath)
+				if err != nil {
+					return fmt.Errorf("failed to compare directories: %w", err)
+				}
 			}
 			if match {
 				if opts.DryRun {
@@ -330,7 +363,11 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 				}
 				s.postprocessorRegistry.RunCleanup(cleanupCtx)
 
-				if err := os.RemoveAll(destPath); err != nil {
+				if useFlatCopy {
+					if err := materializer.RemoveFlatMdFiles(componentSourceDir, destPath); err != nil {
+						return fmt.Errorf("failed to remove existing component files: %w", err)
+					}
+				} else if err := os.RemoveAll(destPath); err != nil {
 					return fmt.Errorf("failed to remove existing component: %w", err)
 				}
 			}
@@ -377,7 +414,11 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			}
 
 			// Copy component
-			if err := materializer.CopyDirectory(componentSourceDir, destPath); err != nil {
+			if useFlatCopy {
+				if err := materializer.CopyFlatMdFiles(componentSourceDir, destPath); err != nil {
+					return fmt.Errorf("failed to copy component: %w", err)
+				}
+			} else if err := materializer.CopyDirectory(componentSourceDir, destPath); err != nil {
 				return fmt.Errorf("failed to copy component: %w", err)
 			}
 
