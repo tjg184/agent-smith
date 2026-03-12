@@ -483,7 +483,5 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 	// Success - don't clean up the directory
 	shouldCleanup = false
 
-	cd.formatter.Success("command", commandName)
-
 	return nil
 }

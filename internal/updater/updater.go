@@ -54,7 +54,7 @@ func NewUpdateDetector() *UpdateDetector {
 
 	return &UpdateDetector{
 		baseDir:     baseDir,
-		detector:    detector.NewRepositoryDetector(),
+		detector:    newDetector(),
 		profileName: profileName,
 	}
 }
@@ -96,7 +96,7 @@ func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
 
 	return &UpdateDetector{
 		baseDir:     baseDir,
-		detector:    detector.NewRepositoryDetector(),
+		detector:    newDetector(),
 		profileName: profileName,
 	}
 }
@@ -107,9 +107,15 @@ func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
 func NewUpdateDetectorWithBaseDir(baseDir string) *UpdateDetector {
 	return &UpdateDetector{
 		baseDir:     baseDir,
-		detector:    detector.NewRepositoryDetector(),
+		detector:    newDetector(),
 		profileName: "", // No profile name since we're using an explicit directory
 	}
+}
+
+func newDetector() *detector.RepositoryDetector {
+	d := detector.NewRepositoryDetector()
+	d.SuppressDuplicateWarning()
+	return d
 }
 
 // LoadMetadata loads component metadata from lock files only
@@ -285,7 +291,7 @@ func (ud *UpdateDetector) UpdateAll() error {
 	}
 
 	// Step 1: Scan all components and group by repository
-	componentsByRepo, totalComponents, err := ud.groupComponentsByRepository()
+	componentsByRepo, totalComponents, noMetadata, err := ud.groupComponentsByRepository()
 	if err != nil {
 		return err
 	}
@@ -296,6 +302,14 @@ func (ud *UpdateDetector) UpdateAll() error {
 	}
 
 	var totalChecked, upToDate, updated, failed int
+
+	for _, comp := range noMetadata {
+		totalChecked++
+		fmt.Print(styles.ComponentProgressFormat(totalChecked, totalComponents, comp.Type, comp.Name))
+		fmt.Printf("%s\n", styles.StatusFailedFormat())
+		fmt.Printf("%s\n", styles.IndentedErrorFormat(fmt.Sprintf("No lock file entry: %v", comp.Err)))
+		failed++
+	}
 
 	for repoURL, components := range componentsByRepo {
 		tempDir, err := os.MkdirTemp("", "agent-smith-update-batch-*")
@@ -441,10 +455,18 @@ func (ud *UpdateDetector) UpdateAll() error {
 	return nil
 }
 
-// groupComponentsByRepository scans all installed components and groups them by source repository
-// Returns a map of repository URL -> components, total component count, and any error
-func (ud *UpdateDetector) groupComponentsByRepository() (map[string][]componentUpdateInfo, int, error) {
+type noMetadataComponent struct {
+	Type string
+	Name string
+	Err  error
+}
+
+// groupComponentsByRepository scans all installed components and groups them by source repository.
+// Returns a map of repository URL -> components, total component count, components with missing
+// metadata (cannot be updated), and any fatal error.
+func (ud *UpdateDetector) groupComponentsByRepository() (map[string][]componentUpdateInfo, int, []noMetadataComponent, error) {
 	componentsByRepo := make(map[string][]componentUpdateInfo)
+	var noMetadata []noMetadataComponent
 	totalComponents := 0
 
 	componentTypes := paths.GetComponentTypes()
@@ -462,29 +484,38 @@ func (ud *UpdateDetector) groupComponentsByRepository() (map[string][]componentU
 		}
 
 		for _, entry := range entries {
-			if entry.IsDir() {
-				componentName := entry.Name()
+			if !entry.IsDir() {
+				continue
+			}
+			componentName := entry.Name()
+
+			instances, err := metadataPkg.FindAllComponentInstances(ud.baseDir, componentType, componentName)
+			if err != nil || len(instances) == 0 {
 				totalComponents++
+				noMetadata = append(noMetadata, noMetadataComponent{
+					Type: componentType,
+					Name: componentName,
+					Err:  fmt.Errorf("no lock file entry found"),
+				})
+				continue
+			}
 
-				// Load metadata to get source URL
-				metadata, err := ud.loadMetadata(componentType, componentName)
-				if err != nil {
-					// Skip components with missing metadata, they'll be handled as errors during update
-					continue
-				}
-
-				// Group by source repository URL
-				repoURL := metadata.Source
-				componentsByRepo[repoURL] = append(componentsByRepo[repoURL], componentUpdateInfo{
-					Type:     componentType,
-					Name:     componentName,
-					Metadata: metadata,
+			totalComponents += len(instances)
+			for _, instance := range instances {
+				componentsByRepo[instance.SourceUrl] = append(componentsByRepo[instance.SourceUrl], componentUpdateInfo{
+					Type: componentType,
+					Name: componentName,
+					Metadata: &models.ComponentMetadata{
+						Name:   componentName,
+						Source: instance.SourceUrl,
+						Commit: instance.Entry.CommitHash,
+					},
 				})
 			}
 		}
 	}
 
-	return componentsByRepo, totalComponents, nil
+	return componentsByRepo, totalComponents, noMetadata, nil
 }
 
 // downloadComponentWithRepo downloads a component using the *WithRepo methods to reuse a cloned repository

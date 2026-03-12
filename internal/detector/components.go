@@ -295,8 +295,8 @@ func (rd *RepositoryDetector) DetectComponentsInRepo(repoPath string) ([]models.
 	}
 
 	// Display duplicate warnings summary only if there are actual conflicts
-	// (duplicates with different content)
-	if hasConflicts {
+	// (duplicates with different content) and warnings are not suppressed
+	if hasConflicts && !rd.suppressDuplicateWarning {
 		fmt.Printf("\n")
 		fmt.Printf("╔════════════════════════════════════════════════════════════════════╗\n")
 		fmt.Printf("║  ⚠️  WARNING: Duplicate Component Names Detected                  ║\n")

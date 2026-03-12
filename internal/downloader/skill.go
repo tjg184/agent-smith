@@ -487,7 +487,5 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 	// Success - don't clean up the directory
 	shouldCleanup = false
 
-	sd.formatter.Success("skill", skillName)
-
 	return nil
 }
