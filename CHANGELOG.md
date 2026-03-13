@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/tjg184/agent-smith/compare/v1.4.2...v1.5.0) (2026-03-13)
+
+
+### Features
+
+* add share feature and improve find color ([#61](https://github.com/tjg184/agent-smith/issues/61)) ([e5627c6](https://github.com/tjg184/agent-smith/commit/e5627c6e28cfaddac92812d8e24f68b2eef50336))
+
 ## [1.4.2](https://github.com/tjg184/agent-smith/compare/v1.4.1...v1.4.2) (2026-03-12)
 
 
