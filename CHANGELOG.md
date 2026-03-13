@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.2](https://github.com/tjg184/agent-smith/compare/v1.4.1...v1.4.2) (2026-03-12)
+
+
+### Bug Fixes
+
+* directory structure for skills, agents, commands and materialize ([#60](https://github.com/tjg184/agent-smith/issues/60)) ([be3e57c](https://github.com/tjg184/agent-smith/commit/be3e57c8321eeef3ea6909518819ecc8d57265cd))
+* **update:** handle multi-source components and clean up update output ([#58](https://github.com/tjg184/agent-smith/issues/58)) ([59aeee0](https://github.com/tjg184/agent-smith/commit/59aeee09f024055b0c810fe7adcfb44feb65df78))
+
 ## [1.4.1](https://github.com/tjg184/agent-smith/compare/v1.4.0...v1.4.1) (2026-03-12)
 
 
