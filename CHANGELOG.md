@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/tjg184/agent-smith/compare/v1.6.0...v1.6.1) (2026-03-13)
+
+
+### Bug Fixes
+
+* **updater:** resolve 'no lock file entry' for monorepo subdir components ([#65](https://github.com/tjg184/agent-smith/issues/65)) ([9486664](https://github.com/tjg184/agent-smith/commit/94866641737eec572beda8e26cb04e213ea10fea))
+
 ## [1.6.0](https://github.com/tjg184/agent-smith/compare/v1.5.0...v1.6.0) (2026-03-13)
 
 
