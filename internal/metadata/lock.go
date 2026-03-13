@@ -357,6 +357,50 @@ type ComponentSource struct {
 	Entry     models.ComponentEntry
 }
 
+// NamedComponentSource extends ComponentSource with the component name.
+type NamedComponentSource struct {
+	Name      string
+	SourceUrl string
+	Entry     models.ComponentEntry
+}
+
+// LoadAllComponents returns every installed component entry for the given base dir
+// and component type, across all source URLs.
+func LoadAllComponents(baseDir, componentType string) ([]NamedComponentSource, error) {
+	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
+
+	lockData, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []NamedComponentSource{}, nil
+		}
+		return nil, fmt.Errorf("failed to read lock file: %w", err)
+	}
+
+	var lockFile models.ComponentLockFile
+	if err := json.Unmarshal(lockData, &lockFile); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal lock file: %w", err)
+	}
+
+	targetMap, err := getTargetMap(&lockFile, componentType)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []NamedComponentSource
+	for sourceUrl, components := range targetMap {
+		for name, entry := range components {
+			results = append(results, NamedComponentSource{
+				Name:      name,
+				SourceUrl: sourceUrl,
+				Entry:     entry,
+			})
+		}
+	}
+
+	return results, nil
+}
+
 // FindAllComponentInstances returns all instances of a component across all sources
 func FindAllComponentInstances(baseDir, componentType, componentName string) ([]ComponentSource, error) {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
