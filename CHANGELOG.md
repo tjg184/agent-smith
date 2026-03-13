@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/tjg184/agent-smith/compare/v1.5.0...v1.6.0) (2026-03-13)
+
+
+### Features
+
+* automatically swith single skill install ([#63](https://github.com/tjg184/agent-smith/issues/63)) ([a0cf907](https://github.com/tjg184/agent-smith/commit/a0cf907f08c256ef29442d3a81f5de16cab48cba))
+
 ## [1.5.0](https://github.com/tjg184/agent-smith/compare/v1.4.2...v1.5.0) (2026-03-13)
 
 
