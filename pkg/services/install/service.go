@@ -173,8 +173,7 @@ func (s *Service) installSkillToProfile(repoURL, name, profile string) error {
 	}
 	s.logger.Debug("[DEBUG] Skill download to profile completed successfully")
 
-	// Auto-activate profile if no profile is currently active
-	return s.maybeAutoActivateProfile(profile)
+	return s.activateProfileWithFeedback(profile)
 }
 
 // installSkillToBase installs a skill to ~/.agent-smith/
@@ -221,8 +220,7 @@ func (s *Service) installAgentToProfile(repoURL, name, profile string) error {
 		return fmt.Errorf("failed to download agent: %w", err)
 	}
 
-	// Auto-activate profile if no profile is currently active
-	return s.maybeAutoActivateProfile(profile)
+	return s.activateProfileWithFeedback(profile)
 }
 
 // installAgentToBase installs an agent to ~/.agent-smith/
@@ -267,8 +265,7 @@ func (s *Service) installCommandToProfile(repoURL, name, profile string) error {
 		return fmt.Errorf("failed to download command: %w", err)
 	}
 
-	// Auto-activate profile if no profile is currently active
-	return s.maybeAutoActivateProfile(profile)
+	return s.activateProfileWithFeedback(profile)
 }
 
 // installCommandToBase installs a command to ~/.agent-smith/
@@ -404,33 +401,7 @@ func (s *Service) installBulkToProfile(repoURL, profile string) error {
 
 	// STEP 5: Auto-activate profile after successful installation
 	s.logger.Debug("[DEBUG] Auto-activating profile after install all: %s", profileName)
-	result, err := s.profileManager.ActivateProfileWithResult(profileName)
-	if err != nil {
-		// Don't fail the installation if activation fails, just warn
-		s.logger.Warn("⚠ Profile created but activation failed: %v", err)
-		s.formatter.EmptyLine()
-		s.formatter.Info("To manually activate this profile, run:")
-		s.formatter.Info("  agent-smith profile activate %s", profileName)
-		return nil
-	}
-
-	// Display activation result with clear messaging
-	s.formatter.EmptyLine()
-	if result.Switched {
-		s.formatter.SuccessMsg("Switched profile: %s → %s", result.PreviousProfile, result.NewProfile)
-	} else if result.PreviousProfile == result.NewProfile {
-		// Profile was already active - just confirm it's ready
-		s.formatter.SuccessMsg("Profile '%s' is active and ready", result.NewProfile)
-	} else {
-		// First activation
-		s.formatter.SuccessMsg("Profile activated: %s", result.NewProfile)
-	}
-
-	// Display next step hint
-	s.formatter.EmptyLine()
-	s.formatter.Info("Next: Run 'agent-smith link all' to apply changes to your editor(s)")
-
-	return nil
+	return s.activateProfileWithFeedback(profileName)
 }
 
 // validateProfileExists validates that a profile exists
@@ -456,21 +427,29 @@ func (s *Service) validateProfileExists(profile string) error {
 	return nil
 }
 
-// maybeAutoActivateProfile auto-activates a profile if no profile is currently active
-func (s *Service) maybeAutoActivateProfile(profile string) error {
-	activeProfile, err := s.profileManager.GetActiveProfile()
+// activateProfileWithFeedback unconditionally activates a profile and displays the result.
+// On activation failure it warns but does not fail the installation.
+func (s *Service) activateProfileWithFeedback(profile string) error {
+	result, err := s.profileManager.ActivateProfileWithResult(profile)
 	if err != nil {
-		return fmt.Errorf("failed to get active profile: %w", err)
+		s.logger.Warn("Profile created but activation failed: %v", err)
+		s.formatter.EmptyLine()
+		s.formatter.Info("To manually activate this profile, run:")
+		s.formatter.Info("  agent-smith profile activate %s", profile)
+		return nil
 	}
 
-	if activeProfile == "" {
-		s.logger.Debug("[DEBUG] No active profile detected, auto-activating profile: %s", profile)
-		if err := s.profileManager.ActivateProfile(profile); err != nil {
-			return fmt.Errorf("failed to auto-activate profile: %w", err)
-		}
-		s.logger.Info("Profile '%s' has been automatically activated as your first profile.", profile)
-		s.logger.Info("Components from this profile are now ready to be linked.")
+	s.formatter.EmptyLine()
+	if result.Switched {
+		s.formatter.SuccessMsg("Switched profile: %s → %s", result.PreviousProfile, result.NewProfile)
+	} else if result.PreviousProfile == result.NewProfile {
+		s.formatter.SuccessMsg("Profile '%s' is active and ready", result.NewProfile)
+	} else {
+		s.formatter.SuccessMsg("Profile activated: %s", result.NewProfile)
 	}
+
+	s.formatter.EmptyLine()
+	s.formatter.Info("Next: Run 'agent-smith link all' to apply changes to your editor(s)")
 
 	return nil
 }
