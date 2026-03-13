@@ -51,11 +51,11 @@ build:
     @echo "Building agent-smith..."
     @go build -o agent-smith .
 
-# Build and install agent-smith to $GOPATH/bin
+# Build and install agent-smith
 install:
     @echo "Installing agent-smith..."
     @go install .
-    @echo "✓ agent-smith installed to $(go env GOPATH)/bin/agent-smith"
+    @echo "✓ agent-smith installed to $(go env GOBIN)/agent-smith"
 
 # Clean build artifacts and test files
 clean:
