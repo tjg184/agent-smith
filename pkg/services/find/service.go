@@ -197,6 +197,7 @@ func (s *Service) outputTerminal(results []FormattedResult) error {
 	cyan := color.New(color.FgCyan).SprintFunc()
 	gray := color.New(color.FgHiBlack).SprintFunc()
 	brightWhite := color.New(color.FgHiWhite).SprintFunc()
+	yellow := color.New(color.FgYellow).SprintFunc()
 
 	// Print Agent Smith banner
 	fmt.Print(getBanner())
@@ -218,7 +219,7 @@ func (s *Service) outputTerminal(results []FormattedResult) error {
 		fmt.Printf("%s %s\n", gray("└"), gray(result.URL))
 
 		// Line 3: install command (dimmed)
-		fmt.Printf("  %s\n", gray(result.InstallCommand))
+		fmt.Printf("  %s\n", yellow(result.InstallCommand))
 		fmt.Println()
 	}
 
