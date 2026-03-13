@@ -734,7 +734,20 @@ func main() {
 			}
 		},
 		func(profileName, outputFile string) {
-			// Allow "base" as an alias for the base installation
+			if profileName == "" {
+				pm, err := profiles.NewProfileManager(nil, NewLockService())
+				if err != nil {
+					log.Fatal("Failed to initialize profile manager:", err)
+				}
+				activeProfile, err := pm.GetActiveProfile()
+				if err != nil {
+					log.Fatal("Failed to get active profile:", err)
+				}
+				if activeProfile == "" {
+					log.Fatal("No profile specified and no active profile set")
+				}
+				profileName = activeProfile
+			}
 			if profileName == "base" {
 				profileName = paths.BaseProfileName
 			}

@@ -306,7 +306,7 @@ EXAMPLES:
 
 	// profiles share - Generate commands to recreate a profile
 	profilesShareCmd := &cobra.Command{
-		Use:   "share <profile-name>",
+		Use:   "share [profile-name]",
 		Short: "Generate commands to recreate a profile",
 		Long: `Generate a shareable text file containing the exact commands needed to recreate a profile.
 
@@ -315,7 +315,12 @@ You can share this with teammates, commit it to version control, or use it as ba
 
 Components installed from local paths are skipped as they cannot be recreated.
 
+If no profile name is provided, the active profile is used.
+
 EXAMPLES:
+  # Display commands to stdout (uses active profile)
+  agent-smith profile share
+
   # Display commands to stdout
   agent-smith profile share work
 
@@ -327,10 +332,14 @@ EXAMPLES:
 
   # Share base installation
   agent-smith profile share base --output my-setup.txt`,
-		Args: exactArgsWithHelp(1, "agent-smith profile share <profile-name>"),
+		Args: rangeArgsWithHelp(0, 1, "agent-smith profile share [profile-name]"),
 		Run: func(cmd *cobra.Command, args []string) {
 			outputFile, _ := cmd.Flags().GetString("output")
-			handleProfilesShare(args[0], outputFile)
+			profileName := ""
+			if len(args) > 0 {
+				profileName = args[0]
+			}
+			handleProfilesShare(profileName, outputFile)
 		},
 	}
 	profilesShareCmd.Flags().StringP("output", "o", "", "Save commands to file instead of stdout")
