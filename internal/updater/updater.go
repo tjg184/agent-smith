@@ -291,7 +291,7 @@ func (ud *UpdateDetector) UpdateAll() error {
 	}
 
 	// Step 1: Scan all components and group by repository
-	componentsByRepo, totalComponents, noMetadata, err := ud.groupComponentsByRepository()
+	componentsByRepo, totalComponents, err := ud.groupComponentsByRepository()
 	if err != nil {
 		return err
 	}
@@ -302,14 +302,6 @@ func (ud *UpdateDetector) UpdateAll() error {
 	}
 
 	var totalChecked, upToDate, updated, failed int
-
-	for _, comp := range noMetadata {
-		totalChecked++
-		fmt.Print(styles.ComponentProgressFormat(totalChecked, totalComponents, comp.Type, comp.Name))
-		fmt.Printf("%s\n", styles.StatusFailedFormat())
-		fmt.Printf("%s\n", styles.IndentedErrorFormat(fmt.Sprintf("No lock file entry: %v", comp.Err)))
-		failed++
-	}
 
 	for repoURL, components := range componentsByRepo {
 		tempDir, err := os.MkdirTemp("", "agent-smith-update-batch-*")
@@ -455,67 +447,36 @@ func (ud *UpdateDetector) UpdateAll() error {
 	return nil
 }
 
-type noMetadataComponent struct {
-	Type string
-	Name string
-	Err  error
-}
-
-// groupComponentsByRepository scans all installed components and groups them by source repository.
-// Returns a map of repository URL -> components, total component count, components with missing
-// metadata (cannot be updated), and any fatal error.
-func (ud *UpdateDetector) groupComponentsByRepository() (map[string][]componentUpdateInfo, int, []noMetadataComponent, error) {
+// groupComponentsByRepository reads the lock file and groups all installed components by
+// source repository. This approach is authoritative: only components with lock entries are
+// considered, which correctly handles components whose filesystemName contains subdirectory
+// separators (e.g. "category/skill-name" installed from a monorepo).
+func (ud *UpdateDetector) groupComponentsByRepository() (map[string][]componentUpdateInfo, int, error) {
 	componentsByRepo := make(map[string][]componentUpdateInfo)
-	var noMetadata []noMetadataComponent
 	totalComponents := 0
 
-	componentTypes := paths.GetComponentTypes()
-
-	for _, componentType := range componentTypes {
-		typeDir := filepath.Join(ud.baseDir, componentType)
-		if _, err := os.Stat(typeDir); os.IsNotExist(err) {
-			continue
-		}
-
-		entries, err := os.ReadDir(typeDir)
+	for _, componentType := range paths.GetComponentTypes() {
+		entries, err := metadataPkg.LoadAllComponents(ud.baseDir, componentType)
 		if err != nil {
-			fmt.Printf("%s\n", styles.IndentedErrorFormat(fmt.Sprintf("Failed to read %s directory: %v", componentType, err)))
+			fmt.Printf("%s\n", styles.IndentedErrorFormat(fmt.Sprintf("Failed to read %s lock entries: %v", componentType, err)))
 			continue
 		}
 
+		totalComponents += len(entries)
 		for _, entry := range entries {
-			if !entry.IsDir() {
-				continue
-			}
-			componentName := entry.Name()
-
-			instances, err := metadataPkg.FindAllComponentInstances(ud.baseDir, componentType, componentName)
-			if err != nil || len(instances) == 0 {
-				totalComponents++
-				noMetadata = append(noMetadata, noMetadataComponent{
-					Type: componentType,
-					Name: componentName,
-					Err:  fmt.Errorf("no lock file entry found"),
-				})
-				continue
-			}
-
-			totalComponents += len(instances)
-			for _, instance := range instances {
-				componentsByRepo[instance.SourceUrl] = append(componentsByRepo[instance.SourceUrl], componentUpdateInfo{
-					Type: componentType,
-					Name: componentName,
-					Metadata: &models.ComponentMetadata{
-						Name:   componentName,
-						Source: instance.SourceUrl,
-						Commit: instance.Entry.CommitHash,
-					},
-				})
-			}
+			componentsByRepo[entry.SourceUrl] = append(componentsByRepo[entry.SourceUrl], componentUpdateInfo{
+				Type: componentType,
+				Name: entry.Name,
+				Metadata: &models.ComponentMetadata{
+					Name:   entry.Name,
+					Source: entry.SourceUrl,
+					Commit: entry.Entry.CommitHash,
+				},
+			})
 		}
 	}
 
-	return componentsByRepo, totalComponents, noMetadata, nil
+	return componentsByRepo, totalComponents, nil
 }
 
 // downloadComponentWithRepo downloads a component using the *WithRepo methods to reuse a cloned repository

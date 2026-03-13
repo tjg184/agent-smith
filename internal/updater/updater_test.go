@@ -586,6 +586,80 @@ func TestUpdateAll_NoComponents(t *testing.T) {
 	}
 }
 
+// TestGroupComponentsByRepository_SubdirFilesystemName tests that components whose
+// filesystemName contains a subdirectory separator (e.g. installed from a monorepo
+// as "category/skill-name") are resolved via the lock file, not via a shallow
+// directory scan. Previously these would produce "No lock file entry" errors.
+func TestGroupComponentsByRepository_SubdirFilesystemName(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "agent-smith-updater-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	lockFileContent := `{
+  "version": 5,
+  "skills": {
+    "https://github.com/paytient/opencode": {
+      "architecture": {
+        "source": "https://github.com/paytient/opencode",
+        "sourceType": "git",
+        "sourceUrl": "https://github.com/paytient/opencode",
+        "commitHash": "abc123",
+        "filesystemName": "opencode/architecture",
+        "installedAt": "2024-01-01T00:00:00Z",
+        "version": 5
+      },
+      "code-quality": {
+        "source": "https://github.com/paytient/opencode",
+        "sourceType": "git",
+        "sourceUrl": "https://github.com/paytient/opencode",
+        "commitHash": "abc123",
+        "filesystemName": "opencode/code-quality",
+        "installedAt": "2024-01-01T00:00:00Z",
+        "version": 5
+      }
+    }
+  },
+  "agents": {},
+  "commands": {}
+}`
+	lockFilePath := filepath.Join(tempDir, ".component-lock.json")
+	if err := os.WriteFile(lockFilePath, []byte(lockFileContent), 0644); err != nil {
+		t.Fatalf("Failed to write lock file: %v", err)
+	}
+
+	detector := NewUpdateDetectorWithBaseDir(tempDir)
+
+	componentsByRepo, total, err := detector.groupComponentsByRepository()
+	if err != nil {
+		t.Fatalf("groupComponentsByRepository returned error: %v", err)
+	}
+
+	if total != 2 {
+		t.Errorf("expected 2 components, got %d", total)
+	}
+
+	repoComponents, ok := componentsByRepo["https://github.com/paytient/opencode"]
+	if !ok {
+		t.Fatal("expected components grouped under paytient/opencode repo URL")
+	}
+
+	if len(repoComponents) != 2 {
+		t.Errorf("expected 2 components for repo, got %d", len(repoComponents))
+	}
+
+	names := make(map[string]bool)
+	for _, c := range repoComponents {
+		names[c.Name] = true
+	}
+	for _, expected := range []string{"architecture", "code-quality"} {
+		if !names[expected] {
+			t.Errorf("expected component %q in group, not found", expected)
+		}
+	}
+}
+
 // TestUpdateAll_EmptyDirectories tests UpdateAll behavior with empty component directories
 func TestUpdateAll_EmptyDirectories(t *testing.T) {
 	// Create a temporary directory for testing
