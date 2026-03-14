@@ -57,8 +57,7 @@ func (s *Service) UninstallComponent(componentType, componentName string, opts s
 
 	uninstallerService := uninstaller.NewUninstaller(baseDir, s.linker)
 
-	// Uninstall component
-	if err := uninstallerService.UninstallComponent(componentType, componentName); err != nil {
+	if err := uninstallerService.UninstallComponent(componentType, componentName, opts.Source); err != nil {
 		return fmt.Errorf("failed to uninstall component: %w", err)
 	}
 

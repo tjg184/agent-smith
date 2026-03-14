@@ -646,9 +646,10 @@ func main() {
 				log.Fatal("Failed to unlink components:", err)
 			}
 		},
-		func(componentType, componentName, profile string) {
+		func(componentType, componentName, profile, source string) {
 			opts := services.UninstallOptions{
 				Profile: profile,
+				Source:  source,
 			}
 			if err := uninstallService.UninstallComponent(componentType, componentName, opts); err != nil {
 				log.Fatal("Failed to uninstall component:", err)
