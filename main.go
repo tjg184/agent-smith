@@ -68,7 +68,7 @@ func infoPrintf(format string, a ...interface{}) {
 // Deprecated: Use appLogger.Info() instead
 func infoPrintln(a ...interface{}) {
 	if appLogger != nil {
-		appLogger.Info(fmt.Sprint(a...))
+		appLogger.Info("%s", fmt.Sprint(a...))
 	}
 }
 
@@ -84,7 +84,7 @@ func debugPrintf(format string, a ...interface{}) {
 // Deprecated: Use appLogger.Debug() instead
 func debugPrintln(a ...interface{}) {
 	if appLogger != nil {
-		appLogger.Debug(fmt.Sprint(a...))
+		appLogger.Debug("%s", fmt.Sprint(a...))
 	}
 }
 
