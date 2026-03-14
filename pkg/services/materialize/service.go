@@ -490,6 +490,7 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
 	baseDir, sourceProfile, err := s.getSourceDir(opts.Profile)
 	if err != nil {
+		s.logger.Error("Failed to get source directory: %v", err)
 		return err
 	}
 
@@ -556,6 +557,7 @@ func (s *Service) MaterializeByType(componentType string, opts services.Material
 
 	baseDir, sourceProfile, err := s.getSourceDir(opts.Profile)
 	if err != nil {
+		s.logger.Error("Failed to get source directory: %v", err)
 		return err
 	}
 

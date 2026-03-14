@@ -87,7 +87,11 @@ func (u *Uninstaller) UninstallComponent(componentType, name, source string) err
 	}
 
 	u.formatter.ProgressMsg("Removing directory", componentDir)
-	sharedDir, err := u.isDirectorySharedByOtherSource(componentType, name, dirName, source)
+	resolvedSource := source
+	if resolvedSource == "" && entry != nil {
+		resolvedSource = entry.SourceUrl
+	}
+	sharedDir, err := u.isDirectorySharedByOtherSource(componentType, name, dirName, resolvedSource)
 	if err != nil {
 		u.formatter.ProgressFailed()
 		return fmt.Errorf("failed to check directory sharing: %w", err)
