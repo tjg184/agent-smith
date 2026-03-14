@@ -26,7 +26,6 @@ type Service struct {
 	apiURL    string
 }
 
-// NewService creates a new find service
 func NewService(log *logger.Logger, fmt *formatter.Formatter) *Service {
 	return &Service{
 		logger:    log,
@@ -38,7 +37,6 @@ func NewService(log *logger.Logger, fmt *formatter.Formatter) *Service {
 	}
 }
 
-// NewServiceWithClient creates a new find service with custom HTTP client and API URL (for testing)
 func NewServiceWithClient(log *logger.Logger, fmt *formatter.Formatter, client *http.Client, apiURL string) *Service {
 	if client == nil {
 		client = &http.Client{

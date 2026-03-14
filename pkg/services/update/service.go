@@ -15,7 +15,6 @@ type Service struct {
 	formatter *formatter.Formatter
 }
 
-// NewService creates a new UpdateService with dependencies injected
 func NewService(
 	logger *logger.Logger,
 	formatter *formatter.Formatter,
@@ -26,7 +25,6 @@ func NewService(
 	}
 }
 
-// UpdateComponent updates a single component to the latest version
 func (s *Service) UpdateComponent(componentType, componentName string, opts services.UpdateOptions) error {
 	detector := s.createUpdateDetector(opts.Profile)
 
@@ -43,7 +41,6 @@ func (s *Service) UpdateComponent(componentType, componentName string, opts serv
 	return nil
 }
 
-// UpdateAll updates all installed components to their latest versions
 func (s *Service) UpdateAll(opts services.UpdateOptions) error {
 	detector := s.createUpdateDetector(opts.Profile)
 
@@ -54,7 +51,6 @@ func (s *Service) UpdateAll(opts services.UpdateOptions) error {
 	return nil
 }
 
-// CheckForUpdates checks for available updates without applying them
 func (s *Service) CheckForUpdates(opts services.UpdateOptions) ([]services.UpdateInfo, error) {
 	// This would require extending UpdateDetector to return available updates
 	// For now, we'll return a placeholder implementation

@@ -14,7 +14,6 @@ import (
 	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
-// LoadMaterializationMetadata loads metadata from the target directory's .component-lock.json
 func LoadMaterializationMetadata(targetDir string) (*models.ComponentLockFile, error) {
 	lockFilePath := paths.GetComponentLockPath(targetDir, "")
 
@@ -51,7 +50,6 @@ func LoadMaterializationMetadata(targetDir string) (*models.ComponentLockFile, e
 	return &lockFile, nil
 }
 
-// SaveMaterializationMetadata saves metadata to the target directory's .component-lock.json
 func SaveMaterializationMetadata(targetDir string, metadata *models.ComponentLockFile) error {
 	lockFilePath := paths.GetComponentLockPath(targetDir, "")
 
@@ -63,8 +61,6 @@ func SaveMaterializationMetadata(targetDir string, metadata *models.ComponentLoc
 	return os.WriteFile(lockFilePath, jsonData, 0644)
 }
 
-// AddMaterializationEntry adds or updates a materialization entry in the metadata
-// Uses unified ComponentEntry structure
 func AddMaterializationEntry(metadata *models.ComponentLockFile, componentType, componentName, source, sourceType, sourceProfile, commitHash, originalPath, sourceHash, currentHash, filesystemName string) {
 	now := time.Now().Format(time.RFC3339)
 
@@ -101,7 +97,6 @@ func AddMaterializationEntry(metadata *models.ComponentLockFile, componentType, 
 	targetMap[source][componentName] = entry
 }
 
-// GetMaterializationComponentMap returns the appropriate nested component map for the given component type
 func GetMaterializationComponentMap(metadata *models.ComponentLockFile, componentType string) map[string]map[string]models.ComponentEntry {
 	switch componentType {
 	case "skills":
@@ -222,8 +217,6 @@ type ComponentInfo struct {
 	Metadata models.ComponentEntry
 }
 
-// GetAllMaterializedComponents returns a flat list of all materialized components
-// Iterates through nested structure and flattens
 func GetAllMaterializedComponents(metadata *models.ComponentLockFile) []ComponentInfo {
 	var components []ComponentInfo
 
@@ -275,10 +268,7 @@ type SyncCheckResult struct {
 	Error  error
 }
 
-// CheckComponentSyncStatus checks if a materialized component is in sync with its GitHub source
-// Returns the sync status and any error encountered
 func CheckComponentSyncStatus(componentType, componentName string, metadata models.ComponentEntry) (SyncStatus, error) {
-	// Check if we have a valid source URL and commit hash
 	if metadata.Source == "" {
 		return "", fmt.Errorf("component metadata missing source URL")
 	}
@@ -330,9 +320,6 @@ func CheckComponentSyncStatus(componentType, componentName string, metadata mode
 	return SyncStatusOutOfSync, nil
 }
 
-// CheckMultipleComponentsSyncStatusBatched checks sync status for multiple components
-// by batching components from the same repository to reduce git clone operations.
-// Returns a map of component key (type/name) -> sync check result
 func CheckMultipleComponentsSyncStatusBatched(baseDir string, components []ComponentInfo) (map[string]SyncCheckResult, error) {
 	results := make(map[string]SyncCheckResult)
 
@@ -439,10 +426,7 @@ func CheckMultipleComponentsSyncStatusBatched(baseDir string, components []Compo
 	return results, nil
 }
 
-// UpdateMaterializationEntry updates an existing materialization entry with new hashes and timestamp
-// Searches across all sources and updates all matches
 func UpdateMaterializationEntry(metadataFile *models.ComponentLockFile, baseDir, componentType, componentName, newSourceHash, newCurrentHash string) error {
-	// Get the nested component map
 	componentMap := GetMaterializationComponentMap(metadataFile, componentType)
 	if componentMap == nil {
 		return fmt.Errorf("invalid component type: %s", componentType)

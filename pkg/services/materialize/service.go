@@ -31,7 +31,6 @@ type Service struct {
 	postprocessorRegistry *PostprocessorRegistry
 }
 
-// NewService creates a new MaterializeService with the given dependencies
 func NewService(pm *profiles.ProfileManager, logger *logger.Logger, formatter *formatter.Formatter) services.MaterializeService {
 	return &Service{
 		profileManager:        pm,
@@ -53,7 +52,6 @@ func (s *Service) getSourceDir(profile string) (string, string, error) {
 			return baseDir, "", nil
 		}
 
-		// Validate profile exists
 		profilesList, err := s.profileManager.ScanProfiles()
 		if err != nil {
 			return "", "", fmt.Errorf("failed to scan profiles: %w", err)
