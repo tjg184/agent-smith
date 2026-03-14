@@ -24,7 +24,6 @@ type SkillDownloader struct {
 	formatter *formatter.Formatter
 }
 
-// NewSkillDownloader creates a new SkillDownloader instance
 func NewSkillDownloader() *SkillDownloader {
 	baseDir, err := paths.GetSkillsDir()
 	if err != nil {
@@ -43,7 +42,6 @@ func NewSkillDownloader() *SkillDownloader {
 	}
 }
 
-// NewSkillDownloaderForProfile creates a new SkillDownloader instance that installs to a profile
 func NewSkillDownloaderForProfile(profileName string) *SkillDownloader {
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
@@ -64,7 +62,6 @@ func NewSkillDownloaderForProfile(profileName string) *SkillDownloader {
 	}
 }
 
-// NewSkillDownloaderWithTargetDir creates a new SkillDownloader instance that installs to a custom target directory
 func NewSkillDownloaderWithTargetDir(targetDir string) *SkillDownloader {
 	baseDir := filepath.Join(targetDir, "skills")
 
@@ -178,7 +175,6 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 	if matchingComponent != nil && len(skillComponents) > 1 {
 		for _, comp := range skillComponents {
 			if comp.Name == skillName && comp.Path != matchingComponent.Path {
-				// Found a more specific version (different path)
 				matchingComponent = &comp
 				break
 			}
@@ -211,8 +207,6 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 			return fmt.Errorf("failed to copy skill files: %w", err)
 		}
 	} else {
-		// Multiple skills found but none match the requested skill name
-		// Return error with list of available skills
 		var skillNames []string
 		for _, comp := range skillComponents {
 			skillNames = append(skillNames, comp.Name)

@@ -64,7 +64,6 @@ type Profile struct {
 }
 
 func NewComponentLinker(agentsDir string, targets []config.Target, det *detector.RepositoryDetector, pm ProfileManager) (*ComponentLinker, error) {
-	// Validate inputs
 	if agentsDir == "" {
 		return nil, fmt.Errorf("agentsDir cannot be empty")
 	}
@@ -95,7 +94,6 @@ func NewComponentLinker(agentsDir string, targets []config.Target, det *detector
 	}, nil
 }
 
-// SetFormatter sets a custom formatter (useful for testing)
 func (cl *ComponentLinker) SetFormatter(f *formatter.Formatter) {
 	cl.formatter = f
 }
@@ -127,7 +125,6 @@ func (cl *ComponentLinker) createSymlink(src, dst string) error {
 	}
 
 	if err := os.Symlink(relPath, dst); err != nil {
-		// Try fallback to junction on Windows
 		if runtime.GOOS == "windows" {
 			return cl.createJunction(src, dst)
 		}
@@ -151,7 +148,6 @@ func (cl *ComponentLinker) copyFile(src, dst string) error {
 	return fileutil.CopyFile(src, dst)
 }
 
-// LinkComponent links a single component to all configured targets
 func (cl *ComponentLinker) LinkComponent(componentType, componentName string) error {
 	return cl.linkComponentInternal(componentType, componentName, true)
 }
@@ -200,7 +196,6 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 	for _, target := range cl.targets {
 		targetName := target.GetName()
 
-		// Get destination directory from target
 		componentDir, err := target.GetGlobalComponentDir(componentType)
 		if err != nil {
 			linkResults = append(linkResults, linkResult{
@@ -254,7 +249,6 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 			continue
 		}
 
-		// Create symlink or copy
 		if err := cl.createSymlink(srcDir, dstDir); err != nil {
 			linkResults = append(linkResults, linkResult{
 				name:    targetName,
@@ -496,7 +490,6 @@ func (cl *ComponentLinker) isMonorepoContainer(componentType, componentName stri
 		return false
 	}
 
-	// Determine possible marker files for this component type
 	var markerFiles []string
 	switch componentType {
 	case "skills":
@@ -533,7 +526,6 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 		return fmt.Errorf("failed to read monorepo directory: %w", err)
 	}
 
-	// Determine possible marker files for this component type
 	var markerFiles []string
 	switch componentType {
 	case "skills":
@@ -552,7 +544,6 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 			subComponentName := entry.Name()
 			subComponentDir := filepath.Join(repoDir, subComponentName)
 
-			// Check if this subdirectory contains any marker file or a {name}.md file
 			hasMarker := false
 			for _, markerFile := range markerFiles {
 				if _, err := os.Stat(filepath.Join(subComponentDir, markerFile)); err == nil {
@@ -561,7 +552,6 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 				}
 			}
 
-			// Also check for {name}.md pattern
 			if !hasMarker {
 				if _, err := os.Stat(filepath.Join(subComponentDir, subComponentName+".md")); err == nil {
 					hasMarker = true
@@ -623,20 +613,16 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 	return nil
 }
 
-// DetectAndLinkLocalRepositories detects and links components from the current directory
 func (cl *ComponentLinker) DetectAndLinkLocalRepositories() error {
-	// Get current working directory
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
-	// Check if current directory is a git repository
 	if !cl.detector.IsLocalPath(cwd) {
 		return fmt.Errorf("current directory is not a git repository")
 	}
 
-	// Detect components in the current repository
 	components, err := cl.detector.DetectComponentsInRepo(cwd)
 	if err != nil {
 		return fmt.Errorf("failed to detect components in repository: %w", err)
@@ -654,7 +640,6 @@ func (cl *ComponentLinker) DetectAndLinkLocalRepositories() error {
 
 	// Link each detected component
 	for _, component := range components {
-		// Convert component type to plural form for directory structure
 		componentTypeStr := string(component.Type) + "s"
 		componentPath := filepath.Join(cwd, component.Path)
 
@@ -862,7 +847,6 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 		return nil
 	}
 
-	// Get link status for each component across all targets
 	type ComponentStatus struct {
 		Component ComponentInfo
 		Targets   map[string]string // target name -> status symbol
@@ -1184,7 +1168,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 		return nil
 	}
 
-	// Get link status for each component across all targets
 	type ComponentStatus struct {
 		Component ComponentInfo
 		Targets   map[string]string // target name -> status symbol
@@ -2169,12 +2152,10 @@ func (cl *ComponentLinker) promptProfileSelection(componentType, componentName s
 	fmt.Scanln(&response)
 	response = strings.TrimSpace(strings.ToLower(response))
 
-	// Check for cancellation
 	if response == "c" || response == "" {
 		return "", "", fmt.Errorf("profile selection cancelled")
 	}
 
-	// Parse selection
 	var selection int
 	_, err := fmt.Sscanf(response, "%d", &selection)
 	if err != nil || selection < 1 || selection > len(matches) {

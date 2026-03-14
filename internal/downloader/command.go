@@ -44,7 +44,6 @@ func NewCommandDownloader() *CommandDownloader {
 	}
 }
 
-// NewCommandDownloaderForProfile creates a new CommandDownloader instance that installs to a profile
 func NewCommandDownloaderForProfile(profileName string) *CommandDownloader {
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
@@ -65,7 +64,6 @@ func NewCommandDownloaderForProfile(profileName string) *CommandDownloader {
 	}
 }
 
-// NewCommandDownloaderWithTargetDir creates a new CommandDownloader instance that installs to a custom target directory
 func NewCommandDownloaderWithTargetDir(targetDir string) *CommandDownloader {
 	baseDir := filepath.Join(targetDir, "commands")
 
@@ -177,12 +175,9 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		}
 	}
 
-	// Additional check: if we found a matching component but it's part of a larger directory structure,
-	// prefer components that have their own directory (more specific)
 	if matchingComponent != nil && len(commandComponents) > 1 {
 		for _, comp := range commandComponents {
 			if comp.Name == commandName && comp.Path != matchingComponent.Path {
-				// Found a more specific version (different path)
 				matchingComponent = &comp
 				break
 			}
@@ -215,8 +210,6 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 			return fmt.Errorf("failed to copy command files: %w", err)
 		}
 	} else {
-		// Multiple commands found but none match the requested command name
-		// Return error with list of available commands
 		var commandNames []string
 		for _, comp := range commandComponents {
 			commandNames = append(commandNames, comp.Name)

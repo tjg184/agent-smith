@@ -26,7 +26,6 @@ type AgentDownloader struct {
 	formatter *formatter.Formatter
 }
 
-// NewAgentDownloader creates a new AgentDownloader instance
 func NewAgentDownloader() *AgentDownloader {
 	baseDir, err := paths.GetAgentsSubDir()
 	if err != nil {
@@ -45,7 +44,6 @@ func NewAgentDownloader() *AgentDownloader {
 	}
 }
 
-// NewAgentDownloaderForProfile creates a new AgentDownloader instance that installs to a profile
 func NewAgentDownloaderForProfile(profileName string) *AgentDownloader {
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
@@ -66,7 +64,6 @@ func NewAgentDownloaderForProfile(profileName string) *AgentDownloader {
 	}
 }
 
-// NewAgentDownloaderWithTargetDir creates a new AgentDownloader instance that installs to a custom target directory
 func NewAgentDownloaderWithTargetDir(targetDir string) *AgentDownloader {
 	baseDir := filepath.Join(targetDir, "agents")
 
@@ -82,7 +79,6 @@ func NewAgentDownloaderWithTargetDir(targetDir string) *AgentDownloader {
 	}
 }
 
-// NewAgentDownloaderWithParams creates a new AgentDownloader with custom parameters (for testing)
 func NewAgentDownloaderWithParams(baseDir string, detect *detector.RepositoryDetector) *AgentDownloader {
 	return &AgentDownloader{
 		baseDir:   baseDir,
@@ -131,7 +127,6 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		}
 		defer os.RemoveAll(tempDir)
 
-		// Clone repository to temporary location for detection
 		cloneOpts := &git.CloneOptions{
 			URL:           fullURL,
 			Depth:         1,
@@ -139,7 +134,6 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 			SingleBranch:  true,
 		}
 
-		// Add authentication if needed
 		if auth, _ := gitpkg.GetAuthMethod(fullURL); auth != nil {
 			cloneOpts.Auth = auth
 		}
@@ -150,7 +144,6 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		}
 		repoPath = tempDir
 
-		// Get commit hash from the cloned repository
 		ref, err := repo.Head()
 		if err != nil {
 			return fmt.Errorf("failed to get HEAD reference: %w", err)
@@ -185,13 +178,11 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		filesystemName = agentName
 	}
 
-	// Create agent directory with resolved name
 	agentDir := filepath.Join(ad.baseDir, filesystemName)
 	if err := fileutil.CreateDirectoryWithPermissions(agentDir); err != nil {
 		return fmt.Errorf("failed to create agent directory: %w", err)
 	}
 
-	// Set up cleanup on error - will remove directory if we return with an error
 	shouldCleanup := true
 	defer func() {
 		if shouldCleanup {
@@ -199,7 +190,6 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		}
 	}()
 
-	// Check if the requested agentName matches one of the detected components
 	var matchingComponent *models.DetectedComponent
 	for _, comp := range agentComponents {
 		if comp.Name == agentName {
@@ -208,12 +198,9 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		}
 	}
 
-	// Additional check: if we found a matching component but it's part of a larger directory structure,
-	// prefer components that have their own directory (more specific)
 	if matchingComponent != nil && len(agentComponents) > 1 {
 		for _, comp := range agentComponents {
 			if comp.Name == agentName && comp.Path != matchingComponent.Path {
-				// Found a more specific version (different path)
 				matchingComponent = &comp
 				break
 			}
@@ -253,8 +240,6 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 			return fmt.Errorf("failed to copy agent files: %w", err)
 		}
 	} else {
-		// Multiple agents found but none match the requested agent name
-		// Return error with list of available agents
 		var agentNames []string
 		for _, comp := range agentComponents {
 			agentNames = append(agentNames, comp.Name)
@@ -262,7 +247,6 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		return fmt.Errorf("agent '%s' not found in repository. Available agents: %s", agentName, strings.Join(agentNames, ", "))
 	}
 
-	// Save to lock file
 	sourceType := "github"
 	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
@@ -270,17 +254,14 @@ func (ad *AgentDownloader) DownloadAgent(repoURL, agentName string, providedRepo
 		sourceType = "git"
 	}
 
-	// Get commit hash from repository (already retrieved during clone for remote repos)
 	var commitHash string
 	if hasProvidedPath || ad.detector.DetectProvider(repoURL) == "local" {
-		// For provided path or local repos, try to get hash from path
 		if hash, err := gitpkg.GetCommitHashFromPath(ad.cloner, repoPath); err == nil {
 			commitHash = hash
 		} else {
 			ad.formatter.Warning("failed to get commit hash: %v", err)
 		}
 	} else {
-		// For remote repos, use the hash we got during clone
 		commitHash = commitHashFromRepo
 	}
 
@@ -319,13 +300,11 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 		filesystemName = agentName
 	}
 
-	// Create agent directory with resolved name
 	agentDir := filepath.Join(ad.baseDir, filesystemName)
 	if err := fileutil.CreateDirectoryWithPermissions(agentDir); err != nil {
 		return fmt.Errorf("failed to create agent directory: %w", err)
 	}
 
-	// Set up cleanup on error
 	shouldCleanup := true
 	defer func() {
 		if shouldCleanup {
@@ -333,7 +312,6 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 		}
 	}()
 
-	// Clone repository directly
 	cloneOpts := &git.CloneOptions{
 		URL:           fullURL,
 		Depth:         1,
@@ -341,7 +319,6 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 		SingleBranch:  true,
 	}
 
-	// Add authentication if needed
 	if auth, _ := gitpkg.GetAuthMethod(fullURL); auth != nil {
 		cloneOpts.Auth = auth
 	}
@@ -351,7 +328,6 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 		return fmt.Errorf("failed to clone repository: %w", cloneErr)
 	}
 
-	// Save to lock file
 	sourceType := "github"
 	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
@@ -359,7 +335,6 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 		sourceType = "git"
 	}
 
-	// Get commit hash from repository
 	var commitHash string
 	if hash, hashErr := gitpkg.GetCommitHashFromPath(ad.cloner, agentDir); hashErr == nil {
 		commitHash = hash
@@ -371,7 +346,6 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 		ad.formatter.Warning("failed to save lock file: %v", err)
 	}
 
-	// Create {name}.md if it doesn't exist
 	agentFile := filepath.Join(agentDir, agentName+".md")
 	if _, err := os.Stat(agentFile); os.IsNotExist(err) {
 		if err := ad.createAgentFile(agentFile, agentName, fullURL); err != nil {
@@ -379,7 +353,6 @@ func (ad *AgentDownloader) downloadAgentDirect(fullURL, agentName string) error 
 		}
 	}
 
-	// Success - don't clean up the directory
 	shouldCleanup = false
 
 	return nil
@@ -452,20 +425,17 @@ func (ad *AgentDownloader) DownloadAgentWithRepo(fullURL, agentName, repoURL str
 	}
 
 	if targetComponent == nil {
-		// Agent component not found in provided components, fall back to original behavior
 		return ad.downloadAgentDirect(fullURL, agentName)
 	}
 
-	// Determine destination folder name using heuristic
+	// Use heuristic to determine proper folder name to avoid nested monorepo directories
 	destFolderName := DetermineDestinationFolderName(targetComponent.FilePath)
 
-	// Create agent directory with heuristic name
 	agentDir := filepath.Join(ad.baseDir, destFolderName)
 	if err := fileutil.CreateDirectoryWithPermissions(agentDir); err != nil {
 		return fmt.Errorf("failed to create agent directory: %w", err)
 	}
 
-	// Set up cleanup on error
 	shouldCleanup := true
 	defer func() {
 		if shouldCleanup {
@@ -473,13 +443,10 @@ func (ad *AgentDownloader) DownloadAgentWithRepo(fullURL, agentName, repoURL str
 		}
 	}()
 
-	// Copy the entire component directory recursively
-	err := fileutil.CopyComponentFiles(repoPath, *targetComponent, agentDir)
-	if err != nil {
+	if err := fileutil.CopyComponentFiles(repoPath, *targetComponent, agentDir); err != nil {
 		return fmt.Errorf("failed to copy agent files: %w", err)
 	}
 
-	// Save to lock file
 	sourceType := "github"
 	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
@@ -487,7 +454,6 @@ func (ad *AgentDownloader) DownloadAgentWithRepo(fullURL, agentName, repoURL str
 		sourceType = "git"
 	}
 
-	// Get commit hash from repository
 	var commitHash string
 	if hash, err := gitpkg.GetCommitHashFromPath(ad.cloner, repoPath); err == nil {
 		commitHash = hash
