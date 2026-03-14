@@ -922,7 +922,7 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 
 	cl.formatter.EmptyLine()
 	cl.formatter.SectionHeader("Link Status Across All Targets")
-	cl.formatter.InfoMsg(cl.getSourceDescription())
+	cl.formatter.InfoMsg("%s", cl.getSourceDescription())
 	cl.formatter.EmptyLine()
 
 	targetNames := make([]string, 0, len(cl.targets))
@@ -1490,7 +1490,7 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 
 	if len(errors) > 0 {
 		for _, errMsg := range errors {
-			cl.formatter.WarningMsg(errMsg)
+			cl.formatter.WarningMsg("%s", errMsg)
 		}
 		if successCount == 0 {
 			return fmt.Errorf("failed to unlink from any target")
