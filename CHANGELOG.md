@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.2](https://github.com/tjg184/agent-smith/compare/v1.6.1...v1.6.2) (2026-03-14)
+
+
+### Bug Fixes
+
+* **materialize,uninstall:** preserve sourceURL to avoid ambiguous com… ([#70](https://github.com/tjg184/agent-smith/issues/70)) ([6c6e2e2](https://github.com/tjg184/agent-smith/commit/6c6e2e2066f3b3c3dda9809695a8ef34494ea7e9))
+
 ## [1.6.1](https://github.com/tjg184/agent-smith/compare/v1.6.0...v1.6.1) (2026-03-13)
 
 
