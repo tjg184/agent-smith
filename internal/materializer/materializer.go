@@ -11,7 +11,6 @@ import (
 
 // CopyDirectory recursively copies a directory from src to dst
 func CopyDirectory(src, dst string) error {
-	// Get source directory info
 	srcInfo, err := os.Stat(src)
 	if err != nil {
 		return fmt.Errorf("failed to stat source directory: %w", err)
@@ -26,18 +25,15 @@ func CopyDirectory(src, dst string) error {
 		return fmt.Errorf("failed to read source directory: %w", err)
 	}
 
-	// Copy each entry
 	for _, entry := range entries {
 		srcPath := filepath.Join(src, entry.Name())
 		dstPath := filepath.Join(dst, entry.Name())
 
 		if entry.IsDir() {
-			// Recursively copy subdirectory
 			if err := CopyDirectory(srcPath, dstPath); err != nil {
 				return err
 			}
 		} else {
-			// Copy file
 			if err := copyFile(srcPath, dstPath); err != nil {
 				return err
 			}
@@ -149,16 +145,13 @@ func RemoveFlatMdFiles(srcDir, destDir string) error {
 	return nil
 }
 
-// copyFile copies a single file from src to dst
 func copyFile(src, dst string) error {
-	// Open source file
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return fmt.Errorf("failed to open source file: %w", err)
 	}
 	defer srcFile.Close()
 
-	// Get source file info
 	srcInfo, err := srcFile.Stat()
 	if err != nil {
 		return fmt.Errorf("failed to stat source file: %w", err)
@@ -170,7 +163,6 @@ func copyFile(src, dst string) error {
 	}
 	defer dstFile.Close()
 
-	// Copy file contents
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
 		return fmt.Errorf("failed to copy file contents: %w", err)
 	}
@@ -184,24 +176,20 @@ func copyFile(src, dst string) error {
 func CalculateDirectoryHash(dirPath string) (string, error) {
 	hash := sha256.New()
 
-	// Walk the directory tree
 	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Skip directories, only hash files
 		if info.IsDir() {
 			return nil
 		}
 
-		// Get relative path for consistent hashing
 		relPath, err := filepath.Rel(dirPath, path)
 		if err != nil {
 			return err
 		}
 
-		// Write relative path to hash with null separator
 		if _, err := hash.Write([]byte(relPath)); err != nil {
 			return err
 		}
@@ -209,7 +197,6 @@ func CalculateDirectoryHash(dirPath string) (string, error) {
 			return err
 		}
 
-		// Read and hash file contents
 		file, err := os.Open(path)
 		if err != nil {
 			return err
@@ -220,7 +207,6 @@ func CalculateDirectoryHash(dirPath string) (string, error) {
 			return err
 		}
 
-		// Add null separator between files
 		if _, err := hash.Write([]byte("\x00")); err != nil {
 			return err
 		}
@@ -232,7 +218,6 @@ func CalculateDirectoryHash(dirPath string) (string, error) {
 		return "", fmt.Errorf("failed to calculate directory hash: %w", err)
 	}
 
-	// Return plain hex format (no sha256: prefix) to match metadata.ComputeLocalFolderHash
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 

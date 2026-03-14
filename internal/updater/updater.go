@@ -21,16 +21,12 @@ import (
 	"github.com/tjg184/agent-smith/pkg/styles"
 )
 
-// UpdateDetector provides functionality to detect and apply updates to components
 type UpdateDetector struct {
 	baseDir     string
 	detector    *detector.RepositoryDetector
 	profileName string // If non-empty, we're working with a profile
 }
 
-// NewUpdateDetector creates a new UpdateDetector instance
-// If an active profile exists, it will use that profile's directory
-// Otherwise, it will use the default ~/.agent-smith/ directory
 func NewUpdateDetector() *UpdateDetector {
 	baseDir, err := paths.GetAgentsDir()
 	if err != nil {
@@ -59,8 +55,6 @@ func NewUpdateDetector() *UpdateDetector {
 	}
 }
 
-// NewUpdateDetectorWithProfile creates a new UpdateDetector instance for a specific profile
-// If profile is empty, it falls back to the active profile or base directory
 func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
 	baseDir, err := paths.GetAgentsDir()
 	if err != nil {
@@ -101,9 +95,6 @@ func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
 	}
 }
 
-// NewUpdateDetectorWithBaseDir creates a new UpdateDetector instance with an explicit base directory
-// This allows the caller to specify exactly which directory to use, bypassing all profile detection logic
-// The profileName is left empty since the caller is managing the directory directly
 func NewUpdateDetectorWithBaseDir(baseDir string) *UpdateDetector {
 	return &UpdateDetector{
 		baseDir:     baseDir,
@@ -118,33 +109,14 @@ func newDetector() *detector.RepositoryDetector {
 	return d
 }
 
-// LoadMetadata loads component metadata from lock files only
-func (ud *UpdateDetector) LoadMetadata(componentType, componentName string) (*models.ComponentMetadata, error) {
-	return ud.loadMetadata(componentType, componentName)
-}
-
-// loadMetadata loads component metadata from lock files only
-func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*models.ComponentMetadata, error) {
-	// Load from lock files
-	entry, err := metadataPkg.LoadLockFileEntry(ud.baseDir, componentType, componentName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load lock file entry: %w", err)
-	}
-
-	return &models.ComponentMetadata{
-		Name:   componentName,
-		Source: entry.SourceUrl,
-		Commit: entry.CommitHash,
-	}, nil
-}
-
-// loadFromLockFile loads component metadata from lock files
-func (ud *UpdateDetector) loadFromLockFile(componentType, componentName string) (*models.ComponentLockEntry, error) {
+func (ud *UpdateDetector) LoadMetadata(componentType, componentName string) (*models.ComponentEntry, error) {
 	return metadataPkg.LoadLockFileEntry(ud.baseDir, componentType, componentName)
 }
 
-// GetCurrentRepoSHA fetches the current HEAD commit SHA from a repository
-// This method is public to allow other packages (like materialization) to check for updates
+func (ud *UpdateDetector) loadFromLockFile(componentType, componentName string) (*models.ComponentEntry, error) {
+	return metadataPkg.LoadLockFileEntry(ud.baseDir, componentType, componentName)
+}
+
 func (ud *UpdateDetector) GetCurrentRepoSHA(repoURL string) (string, error) {
 	fullURL, err := ud.detector.NormalizeURL(repoURL)
 	if err != nil {
@@ -183,12 +155,12 @@ func (ud *UpdateDetector) GetCurrentRepoSHA(repoURL string) (string, error) {
 
 // HasUpdates checks if a component has updates available
 func (ud *UpdateDetector) HasUpdates(componentType, componentName, repoURL string) (bool, error) {
-	metadata, err := ud.loadMetadata(componentType, componentName)
+	metadata, err := ud.LoadMetadata(componentType, componentName)
 	if err != nil {
 		return false, fmt.Errorf("failed to load metadata: %w", err)
 	}
 
-	if metadata.Commit == "" {
+	if metadata.CommitHash == "" {
 		fmt.Printf("Warning: %s/%s has no commit hash stored, will re-download to update lock file\n", componentType, componentName)
 		return true, nil
 	}
@@ -198,10 +170,9 @@ func (ud *UpdateDetector) HasUpdates(componentType, componentName, repoURL strin
 		return false, fmt.Errorf("failed to get current repository SHA: %w", err)
 	}
 
-	return metadata.Commit != currentSHA, nil
+	return metadata.CommitHash != currentSHA, nil
 }
 
-// UpdateComponent updates a single component if updates are detected
 func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL string) error {
 	if ud.profileName != "" {
 		fmt.Printf("%s\n\n", styles.InfoArrowFormat(fmt.Sprintf("Updating components in: %s", ud.baseDir)))
@@ -273,15 +244,12 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 	return nil
 }
 
-// componentUpdateInfo holds information about a component that needs checking/updating
 type componentUpdateInfo struct {
 	Type     string
 	Name     string
-	Metadata *models.ComponentMetadata
+	Metadata *models.ComponentEntry
 }
 
-// UpdateAll iterates through all installed components and updates them
-// Optimized to batch components by repository to reduce git clone operations
 func (ud *UpdateDetector) UpdateAll() error {
 	// Show location header
 	if ud.profileName != "" {
@@ -386,11 +354,10 @@ func (ud *UpdateDetector) UpdateAll() error {
 			totalChecked++
 			fmt.Print(styles.ComponentProgressFormat(totalChecked, totalComponents, comp.Type, comp.Name))
 
-			// Check if update is needed by comparing commit hashes
-			if comp.Metadata.Commit == "" {
+			if comp.Metadata.CommitHash == "" {
 				// No commit hash stored, assume update needed
 				fmt.Printf("%s\n", styles.StatusUpdatingFormat())
-			} else if comp.Metadata.Commit == currentSHA {
+			} else if comp.Metadata.CommitHash == currentSHA {
 				// Already up to date
 				fmt.Printf("%s\n", styles.StatusUpToDateFormat())
 				upToDate++
@@ -465,13 +432,9 @@ func (ud *UpdateDetector) groupComponentsByRepository() (map[string][]componentU
 		totalComponents += len(entries)
 		for _, entry := range entries {
 			componentsByRepo[entry.SourceUrl] = append(componentsByRepo[entry.SourceUrl], componentUpdateInfo{
-				Type: componentType,
-				Name: entry.Name,
-				Metadata: &models.ComponentMetadata{
-					Name:   entry.Name,
-					Source: entry.SourceUrl,
-					Commit: entry.Entry.CommitHash,
-				},
+				Type:     componentType,
+				Name:     entry.Name,
+				Metadata: &entry.Entry,
 			})
 		}
 	}

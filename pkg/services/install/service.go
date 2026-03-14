@@ -20,7 +20,6 @@ type Service struct {
 	formatter      *formatter.Formatter
 }
 
-// NewService creates a new InstallService with dependencies injected
 func NewService(
 	profileManager *profiles.ProfileManager,
 	logger *logger.Logger,

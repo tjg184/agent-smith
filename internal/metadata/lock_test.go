@@ -262,15 +262,3 @@ func TestFilesystemNameConflicts(t *testing.T) {
 		t.Errorf("Second install should get name %s, got %s", expected, name2)
 	}
 }
-
-func TestBackwardCompatibility(t *testing.T) {
-	// Test that ComponentLockEntry type alias still works
-	var entry models.ComponentLockEntry
-	entry.Source = "test"
-	entry.SourceUrl = "https://example.com"
-	entry.Version = 5
-
-	if entry.Source != "test" {
-		t.Errorf("ComponentLockEntry alias not working correctly")
-	}
-}

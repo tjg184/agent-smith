@@ -18,7 +18,6 @@ import (
 	"github.com/tjg184/agent-smith/pkg/styles"
 )
 
-// ComponentLinker handles linking components to configured targets
 type ComponentLinker struct {
 	agentsDir      string
 	targets        []config.Target
@@ -27,8 +26,7 @@ type ComponentLinker struct {
 	formatter      *formatter.Formatter
 }
 
-// ProfileManager is an interface for profile scanning operations
-// This interface prevents circular dependencies between linker and profiles packages
+// ProfileManager prevents circular dependencies between linker and profiles packages.
 type ProfileManager interface {
 	ScanProfiles() ([]*Profile, error)
 	GetActiveProfile() (string, error)
@@ -56,8 +54,7 @@ func displayName(name string) string {
 	return strings.Join(words, "")
 }
 
-// Profile represents a user profile (minimal interface to avoid circular dependency)
-// This must match the Profile struct from pkg/profiles/profiles.go
+// Profile must match the Profile struct from pkg/profiles/profiles.go
 type Profile struct {
 	Name        string
 	BasePath    string
@@ -66,10 +63,7 @@ type Profile struct {
 	HasCommands bool
 }
 
-// NewComponentLinker creates a new ComponentLinker with dependency injection
-// The pm parameter is optional and can be nil for backward compatibility
 func NewComponentLinker(agentsDir string, targets []config.Target, det *detector.RepositoryDetector, pm ProfileManager) (*ComponentLinker, error) {
-	// Validate inputs
 	if agentsDir == "" {
 		return nil, fmt.Errorf("agentsDir cannot be empty")
 	}
@@ -100,20 +94,16 @@ func NewComponentLinker(agentsDir string, targets []config.Target, det *detector
 	}, nil
 }
 
-// SetFormatter sets a custom formatter for this linker (useful for testing)
 func (cl *ComponentLinker) SetFormatter(f *formatter.Formatter) {
 	cl.formatter = f
 }
 
-// filterTargets filters the targets based on the targetFilter parameter.
-// Returns all targets if targetFilter is empty or "all", otherwise returns only the matching target.
+// filterTargets returns all targets when targetFilter is empty or "all", otherwise returns only the matching target.
 func (cl *ComponentLinker) filterTargets(targetFilter string) []config.Target {
-	// If no filter or "all", return all targets
 	if targetFilter == "" || targetFilter == "all" {
 		return cl.targets
 	}
 
-	// Filter for specific target
 	filtered := make([]config.Target, 0)
 	for _, target := range cl.targets {
 		if target.GetName() == targetFilter {
@@ -124,9 +114,7 @@ func (cl *ComponentLinker) filterTargets(targetFilter string) []config.Target {
 	return filtered
 }
 
-// createSymlink creates a symbolic link from src to dst
 func (cl *ComponentLinker) createSymlink(src, dst string) error {
-	// Remove existing destination if it exists
 	if _, err := os.Lstat(dst); err == nil {
 		os.Remove(dst)
 	}
@@ -137,7 +125,6 @@ func (cl *ComponentLinker) createSymlink(src, dst string) error {
 	}
 
 	if err := os.Symlink(relPath, dst); err != nil {
-		// Try fallback to junction on Windows
 		if runtime.GOOS == "windows" {
 			return cl.createJunction(src, dst)
 		}
@@ -147,37 +134,29 @@ func (cl *ComponentLinker) createSymlink(src, dst string) error {
 	return nil
 }
 
-// createJunction creates a Windows junction or falls back to copying
+// createJunction creates a Windows junction, falling back to directory copy.
 func (cl *ComponentLinker) createJunction(src, dst string) error {
-	// For Windows, we would need to use Windows API calls for proper junctions
-	// For now, fall back to copying the directory as cross-platform solution
+	// Windows junctions require Windows API; fall back to copying as a cross-platform solution.
 	return cl.copyDirectory(src, dst)
 }
 
-// copyDirectory copies a directory from src to dst
 func (cl *ComponentLinker) copyDirectory(src, dst string) error {
 	return fileutil.CopyDirectoryContents(src, dst)
 }
 
-// copyFile copies a file from src to dst
 func (cl *ComponentLinker) copyFile(src, dst string) error {
 	return fileutil.CopyFile(src, dst)
 }
 
-// LinkComponent links a single component to all configured targets
 func (cl *ComponentLinker) LinkComponent(componentType, componentName string) error {
 	return cl.linkComponentInternal(componentType, componentName, true)
 }
 
-// linkComponentInternal links a single component with optional quiet mode for bulk operations
 func (cl *ComponentLinker) linkComponentInternal(componentType, componentName string, verbose bool) error {
 	srcDir := filepath.Join(cl.agentsDir, componentType, componentName)
-	selectedProfileName := "" // Track which profile was used
+	selectedProfileName := ""
 
-	// Check if source component exists in current directory (active profile or base)
 	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
-		// Component not found in active profile/base directory
-		// Search across all profiles
 		matches, searchErr := cl.searchComponentInProfiles(componentType, componentName)
 		if searchErr != nil {
 			return fmt.Errorf("failed to search profiles: %w", searchErr)
@@ -187,7 +166,6 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 			return fmt.Errorf("component %s/%s does not exist in any profile", componentType, componentName)
 		}
 
-		// If found in multiple profiles, prompt user to select
 		if len(matches) > 1 {
 			profilePath, profileName, err := cl.promptProfileSelection(componentType, componentName, matches)
 			if err != nil {
@@ -196,20 +174,17 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 			srcDir = filepath.Join(profilePath, componentType, componentName)
 			selectedProfileName = profileName
 		} else {
-			// Only one match, use it automatically
 			srcDir = filepath.Join(matches[0].ProfilePath, componentType, componentName)
 			selectedProfileName = matches[0].ProfileName
 			fmt.Printf("  %s Component found in profile: %s\n", colors.Muted("→"), selectedProfileName)
 		}
 	} else {
-		// Component found in current directory - determine profile name
 		selectedProfileName = getProfileFromPath(srcDir)
 	}
 
 	// All components are now stored type-based, no special plugin handling needed
 	metadata := cl.loadComponentMetadata(componentType, componentName)
 	_ = metadata
-
 	type linkResult struct {
 		name    string
 		path    string
@@ -221,7 +196,6 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 	for _, target := range cl.targets {
 		targetName := target.GetName()
 
-		// Get destination directory from target
 		componentDir, err := target.GetGlobalComponentDir(componentType)
 		if err != nil {
 			linkResults = append(linkResults, linkResult{
@@ -265,7 +239,6 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 
 		dstDir := filepath.Join(componentDir, componentName)
 
-		// Create destination directory
 		if err := fileutil.CreateDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
 			linkResults = append(linkResults, linkResult{
 				name:    targetName,
@@ -276,7 +249,6 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 			continue
 		}
 
-		// Create symlink or copy
 		if err := cl.createSymlink(srcDir, dstDir); err != nil {
 			linkResults = append(linkResults, linkResult{
 				name:    targetName,
@@ -340,21 +312,14 @@ func (cl *ComponentLinker) linkComponentInternal(componentType, componentName st
 	return nil
 }
 
-// loadComponentMetadata loads metadata for a component from lock files only
-func (cl *ComponentLinker) loadComponentMetadata(componentType, componentName string) *models.ComponentMetadata {
-	return cl.loadFromLockFile(componentType, componentName)
-}
-
-// loadFromLockFile loads metadata from lock file
-func (cl *ComponentLinker) loadFromLockFile(componentType, componentName string) *models.ComponentMetadata {
-	metadata, err := metadataPkg.LoadFromLockFile(cl.agentsDir, componentType, componentName)
+func (cl *ComponentLinker) loadComponentMetadata(componentType, componentName string) *models.ComponentEntry {
+	entry, err := metadataPkg.LoadLockFileEntry(cl.agentsDir, componentType, componentName)
 	if err != nil {
 		return nil
 	}
-	return metadata
+	return entry
 }
 
-// LinkComponentsByType links all components of a specific type to opencode
 func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 	typeDir := filepath.Join(cl.agentsDir, componentType)
 
@@ -433,7 +398,6 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 	return nil
 }
 
-// LinkAllComponents links all components to opencode
 func (cl *ComponentLinker) LinkAllComponents() error {
 	componentTypes := paths.GetComponentTypes()
 
@@ -472,10 +436,8 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 					continue
 				}
 
-				// Show inline progress: "Linking {type}: {name}... ✓ Done"
 				fmt.Printf("Linking %s: %s... ", componentType, componentName)
 
-				// Link as a regular single component (quiet mode for bulk operations)
 				if err := cl.linkComponentInternal(componentType, componentName, false); err != nil {
 					fmt.Printf("%s\n", colors.Error(formatter.SymbolError+" Failed"))
 					fmt.Printf("  %s %v\n", colors.Muted("→"), err)
@@ -519,17 +481,15 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 }
 
 // isMonorepoContainer checks if a component directory contains other component directories
-// and should not be linked as a single component
+// and should not be linked as a single component.
 func (cl *ComponentLinker) isMonorepoContainer(componentType, componentName string) bool {
 	componentDir := filepath.Join(cl.agentsDir, componentType, componentName)
 
-	// Check if this directory contains other component directories
 	entries, err := os.ReadDir(componentDir)
 	if err != nil {
 		return false
 	}
 
-	// Determine possible marker files for this component type
 	var markerFiles []string
 	switch componentType {
 	case "skills":
@@ -542,7 +502,6 @@ func (cl *ComponentLinker) isMonorepoContainer(componentType, componentName stri
 		return false
 	}
 
-	// Count how many subdirectories contain a marker file
 	subComponentCount := 0
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -556,11 +515,9 @@ func (cl *ComponentLinker) isMonorepoContainer(componentType, componentName stri
 		}
 	}
 
-	// If there are multiple sub-components, this is a monorepo container
 	return subComponentCount > 1
 }
 
-// LinkMonorepoComponents links individual components from a monorepo container
 func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string) error {
 	repoDir := filepath.Join(cl.agentsDir, componentType, repoName)
 
@@ -569,7 +526,6 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 		return fmt.Errorf("failed to read monorepo directory: %w", err)
 	}
 
-	// Determine possible marker files for this component type
 	var markerFiles []string
 	switch componentType {
 	case "skills":
@@ -588,7 +544,6 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 			subComponentName := entry.Name()
 			subComponentDir := filepath.Join(repoDir, subComponentName)
 
-			// Check if this subdirectory contains any marker file or a {name}.md file
 			hasMarker := false
 			for _, markerFile := range markerFiles {
 				if _, err := os.Stat(filepath.Join(subComponentDir, markerFile)); err == nil {
@@ -597,7 +552,6 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 				}
 			}
 
-			// Also check for {name}.md pattern
 			if !hasMarker {
 				if _, err := os.Stat(filepath.Join(subComponentDir, subComponentName+".md")); err == nil {
 					hasMarker = true
@@ -605,19 +559,15 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 			}
 
 			if hasMarker {
-				// Link this sub-component using a unique name that includes the repo name
 				linkName := fmt.Sprintf("%s-%s", repoName, subComponentName)
 
-				// Create the link from the sub-component directory
 				srcDir := subComponentDir
 
-				// Link to all configured targets
 				var successfulTargets []struct {
 					name string
 					path string
 				}
 				for _, target := range cl.targets {
-					// Get destination directory from target
 					componentDir, err := target.GetGlobalComponentDir(componentType)
 					if err != nil {
 						fmt.Printf("Warning: failed to get target component directory for %s: %v\n", target.GetName(), err)
@@ -625,13 +575,11 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 					}
 					dstDir := filepath.Join(componentDir, linkName)
 
-					// Create destination directory
 					if err := fileutil.CreateDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
 						fmt.Printf("Warning: failed to create destination directory for %s in %s: %v\n", linkName, target.GetName(), err)
 						continue
 					}
 
-					// Create symlink
 					if err := cl.createSymlink(srcDir, dstDir); err != nil {
 						fmt.Printf("Warning: failed to link monorepo component %s to %s: %v\n", linkName, target.GetName(), err)
 						continue
@@ -665,20 +613,16 @@ func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string
 	return nil
 }
 
-// DetectAndLinkLocalRepositories detects and links components from the current directory
 func (cl *ComponentLinker) DetectAndLinkLocalRepositories() error {
-	// Get current working directory
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
-	// Check if current directory is a git repository
 	if !cl.detector.IsLocalPath(cwd) {
 		return fmt.Errorf("current directory is not a git repository")
 	}
 
-	// Detect components in the current repository
 	components, err := cl.detector.DetectComponentsInRepo(cwd)
 	if err != nil {
 		return fmt.Errorf("failed to detect components in repository: %w", err)
@@ -696,27 +640,22 @@ func (cl *ComponentLinker) DetectAndLinkLocalRepositories() error {
 
 	// Link each detected component
 	for _, component := range components {
-		// Convert component type to plural form for directory structure
 		componentTypeStr := string(component.Type) + "s"
 		componentPath := filepath.Join(cwd, component.Path)
 
-		// Create a temporary link to the detected component
 		tempLinkName := fmt.Sprintf("auto-detected-%s", component.Name)
 		tempLinkPath := filepath.Join(cl.agentsDir, componentTypeStr, tempLinkName)
 
-		// Create destination directory
 		if err := fileutil.CreateDirectoryWithPermissions(filepath.Dir(tempLinkPath)); err != nil {
 			fmt.Printf("Warning: failed to create directory for %s: %v\n", component.Name, err)
 			continue
 		}
 
-		// Create symlink to the detected component
 		if err := cl.createSymlink(componentPath, tempLinkPath); err != nil {
 			fmt.Printf("Warning: failed to link component %s: %v\n", component.Name, err)
 			continue
 		}
 
-		// Now link it to opencode
 		if err := cl.LinkComponent(componentTypeStr, tempLinkName); err != nil {
 			fmt.Printf("Warning: failed to link %s to opencode: %v\n", component.Name, err)
 			continue
@@ -732,7 +671,6 @@ func (cl *ComponentLinker) DetectAndLinkLocalRepositories() error {
 func (cl *ComponentLinker) ListLinkedComponents() error {
 	componentTypes := paths.GetComponentTypes()
 
-	// Loop through each target and display links
 	for _, target := range cl.targets {
 		allLinks := make(map[string][]LinkStatus)
 		totalCount := 0
@@ -745,13 +683,11 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 				return fmt.Errorf("failed to get target component directory: %w", err)
 			}
 
-			// Check if directory exists
 			if _, err := os.Stat(componentDir); os.IsNotExist(err) {
 				allLinks[componentType] = []LinkStatus{}
 				continue
 			}
 
-			// Read directory entries
 			entries, err := os.ReadDir(componentDir)
 			if err != nil {
 				return fmt.Errorf("failed to read %s directory: %w", componentType, err)
@@ -759,7 +695,6 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 
 			links := []LinkStatus{}
 			for _, entry := range entries {
-				// Skip hidden files
 				if strings.HasPrefix(entry.Name(), ".") {
 					continue
 				}
@@ -767,7 +702,6 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 				fullPath := filepath.Join(componentDir, entry.Name())
 				linkType, targetPath, valid := cl.analyzeLinkStatus(fullPath)
 
-				// Determine profile from target path
 				profile := paths.BaseProfileName
 				if targetPath != "" {
 					profile = getProfileFromPath(targetPath)
@@ -796,11 +730,9 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 			allLinks[componentType] = links
 		}
 
-		// Get target info for display
 		targetName := target.GetName()
 		targetDir, _ := target.GetGlobalBaseDir()
 
-		// Display results for this target
 		fmt.Printf("\n=== %s ===\n", displayName(targetName))
 		fmt.Printf("%s\n", cl.getSourceDescription())
 
@@ -810,14 +742,12 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 			continue
 		}
 
-		// Display by type
 		for _, componentType := range componentTypes {
 			links := allLinks[componentType]
 			if len(links) == 0 {
 				continue
 			}
 
-			// Capitalize first letter for display
 			displayType := strings.Title(componentType)
 			fmt.Printf("\n%s (%d):\n", displayType, len(links))
 
@@ -852,7 +782,6 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 			}
 		}
 
-		// Summary
 		fmt.Printf("\nTotal: %d components", totalCount)
 		if brokenCount > 0 {
 			fmt.Printf(" (%d valid, %d broken)", validCount, brokenCount)
@@ -876,7 +805,6 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 	}
 	allComponents := make([]ComponentInfo, 0)
 
-	// Scan source directories for all available components
 	for _, componentType := range componentTypes {
 		sourceDir := filepath.Join(cl.agentsDir, componentType)
 		if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
@@ -892,22 +820,16 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 			if strings.HasPrefix(entry.Name(), ".") {
 				continue
 			}
-			// Determine profile from component location
-			// If it's a symlink, check where it points to determine the actual profile
 			componentPath := filepath.Join(sourceDir, entry.Name())
 
 			var profile string
-			// Check if the component is a symlink
 			info, err := os.Lstat(componentPath)
 			if err == nil && info.Mode()&os.ModeSymlink != 0 {
-				// It's a symlink - determine profile from target
 				profile = GetProfileNameFromSymlink(componentPath)
-				// If GetProfileNameFromSymlink returns empty (broken link), fall back to path-based detection
 				if profile == "" {
 					profile = getProfileFromPath(componentPath)
 				}
 			} else {
-				// Not a symlink - use path-based detection
 				profile = getProfileFromPath(componentPath)
 			}
 
@@ -925,7 +847,6 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 		return nil
 	}
 
-	// Get link status for each component across all targets
 	type ComponentStatus struct {
 		Component ComponentInfo
 		Targets   map[string]string // target name -> status symbol
@@ -958,25 +879,19 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 
 			linkPath := filepath.Join(componentDir, comp.Name)
 
-			// Check if link exists
 			if _, err := os.Lstat(linkPath); os.IsNotExist(err) {
 				status.Targets[target.GetName()] = colors.Muted("-")
 				continue
 			}
 
-			// Get link status and target path
 			linkType, targetPath, valid := cl.analyzeLinkStatus(linkPath)
 
-			// Verify the target matches this component's source
 			expectedSource := filepath.Join(comp.BasePath, comp.Type, comp.Name)
 
-			// For symlinks, check if they point to this specific component
 			if linkType == "symlink" && valid {
-				// Resolve both paths for comparison
 				expectedSource, _ = filepath.EvalSymlinks(expectedSource)
 				targetPath, _ = filepath.EvalSymlinks(targetPath)
 
-				// If the target doesn't match this component's source, it's not linked to this one
 				if expectedSource != targetPath {
 					status.Targets[target.GetName()] = colors.Muted("-")
 					continue
@@ -1010,22 +925,18 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 	cl.formatter.InfoMsg(cl.getSourceDescription())
 	cl.formatter.EmptyLine()
 
-	// Get target names for header
 	targetNames := make([]string, 0, len(cl.targets))
 	for _, target := range cl.targets {
 		targetNames = append(targetNames, target.GetName())
 	}
 
-	// Build headers for table
 	headers := []string{"Component", "Profile"}
 	for _, targetName := range targetNames {
 		headers = append(headers, displayName(targetName))
 	}
 
-	// Create table using formatter's writer
 	table := formatter.NewBoxTable(cl.formatter.Writer(), headers)
 
-	// Group by type and sort by name within each type
 	byType := make(map[string][]ComponentStatus)
 	for _, status := range statuses {
 		byType[status.Component.Type] = append(byType[status.Component.Type], status)
@@ -1037,7 +948,6 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 			continue
 		}
 
-		// Add section header row
 		sectionRow := []string{strings.Title(componentType) + ":", ""}
 		for range targetNames {
 			sectionRow = append(sectionRow, "")
@@ -1045,11 +955,9 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 		table.AddRow(sectionRow)
 
 		for _, status := range components {
-			// Skip if linkedOnly and component has no links
 			if linkedOnly {
 				hasAnyLink := false
 				for _, symbol := range status.Targets {
-					// Check if the symbol is NOT "not linked" (-)
 					if symbol != colors.Muted("-") {
 						hasAnyLink = true
 						break
@@ -1071,7 +979,6 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 		}
 	}
 
-	// Render the table
 	table.Render()
 
 	cl.formatter.EmptyLine()
@@ -1091,7 +998,6 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 		linkedCount := 0
 		for _, status := range statuses {
 			symbol := status.Targets[targetName]
-			// Compare against color-wrapped symbols
 			if symbol == colors.Success("✓") || symbol == colors.Success("◆") {
 				linkedCount++
 			}
@@ -1105,7 +1011,6 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 // ShowAllProfilesLinkStatus displays link status for components across all profiles
 // profileFilter can filter to specific profiles, or empty to show all
 func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, linkedOnly bool) error {
-	// Validate that profileManager is available
 	if cl.profileManager == nil {
 		return fmt.Errorf("profile manager not available - this operation requires a profile manager")
 	}
@@ -1121,13 +1026,11 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 	}
 	allComponents := make([]ComponentInfo, 0)
 
-	// Get base installation directory
 	baseDir, err := paths.GetAgentsDir()
 	if err != nil {
 		return fmt.Errorf("failed to get base directory: %w", err)
 	}
 
-	// Scan base installation
 	baseComponents := make([]ComponentInfo, 0)
 	for _, componentType := range componentTypes {
 		sourceDir := filepath.Join(baseDir, componentType)
@@ -1148,22 +1051,16 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 				continue
 			}
 
-			// Determine profile from component location
-			// If it's a symlink, check where it points to determine the actual profile
 			componentPath := filepath.Join(sourceDir, entry.Name())
 
 			var profile string
-			// Check if the component is a symlink
 			info, err := os.Lstat(componentPath)
 			if err == nil && info.Mode()&os.ModeSymlink != 0 {
-				// It's a symlink - determine profile from target
 				profile = GetProfileNameFromSymlink(componentPath)
-				// If GetProfileNameFromSymlink returns empty (broken link), fall back to base
 				if profile == "" {
 					profile = paths.BaseProfileName
 				}
 			} else {
-				// Not a symlink - use base profile
 				profile = paths.BaseProfileName
 			}
 
@@ -1176,13 +1073,11 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 		}
 	}
 
-	// Scan all profiles
 	profiles, err := cl.profileManager.ScanProfiles()
 	if err != nil {
 		return fmt.Errorf("failed to scan profiles: %w", err)
 	}
 
-	// Apply profile filter if specified
 	var filteredProfiles []*Profile
 	if len(profileFilter) > 0 {
 		filterMap := make(map[string]bool)
@@ -1190,7 +1085,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 			filterMap[name] = true
 		}
 
-		// Validate that all filter names exist
 		profileMap := make(map[string]bool)
 		for _, p := range profiles {
 			profileMap[p.Name] = true
@@ -1202,7 +1096,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 			}
 		}
 
-		// Apply filter
 		for _, p := range profiles {
 			if filterMap[p.Name] {
 				filteredProfiles = append(filteredProfiles, p)
@@ -1212,7 +1105,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 		filteredProfiles = profiles
 	}
 
-	// Scan each profile for components
 	profileComponents := make([]ComponentInfo, 0)
 	for _, profile := range filteredProfiles {
 		for _, componentType := range componentTypes {
@@ -1245,7 +1137,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 			if err != nil {
 				continue // Skip directories we can't read
 			}
-
 			for _, entry := range entries {
 				if strings.HasPrefix(entry.Name(), ".") {
 					continue
@@ -1263,8 +1154,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 		}
 	}
 
-	// Combine base and profile components
-	// Only include base components if no filter is applied or if we're showing all
 	if len(profileFilter) == 0 {
 		allComponents = append(allComponents, baseComponents...)
 	}
@@ -1279,7 +1168,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 		return nil
 	}
 
-	// Get link status for each component across all targets
 	type ComponentStatus struct {
 		Component ComponentInfo
 		Targets   map[string]string // target name -> status symbol
@@ -1293,7 +1181,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 			Targets:   make(map[string]string),
 		}
 
-		// For each target, check the link status
 		for _, target := range cl.targets {
 			componentDir, err := target.GetGlobalComponentDir(comp.Type)
 			if err != nil {
@@ -1313,29 +1200,23 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 
 			linkPath := filepath.Join(componentDir, comp.Name)
 
-			// Check if link exists
 			if _, err := os.Lstat(linkPath); os.IsNotExist(err) {
 				status.Targets[target.GetName()] = colors.Muted("-")
 				continue
 			}
 
-			// Get link status
 			linkType, linkTarget, valid := cl.analyzeLinkStatus(linkPath)
 
-			// Verify that the symlink actually points to THIS profile's component
 			if linkType == "symlink" && valid {
 				expectedSource := filepath.Join(comp.BasePath, comp.Type, comp.Name)
 
-				// Resolve both paths to absolute for comparison
 				absTarget, err1 := filepath.Abs(linkTarget)
 				absExpected, err2 := filepath.Abs(expectedSource)
 
 				if err1 == nil && err2 == nil {
-					// Clean paths for comparison
 					absTarget = filepath.Clean(absTarget)
 					absExpected = filepath.Clean(absExpected)
 
-					// If the symlink doesn't point to this profile's component, mark as not linked
 					if absTarget != absExpected {
 						status.Targets[target.GetName()] = colors.Muted("-")
 						continue
@@ -1369,22 +1250,18 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 	cl.formatter.SectionHeader("Link Status Across All Profiles")
 	cl.formatter.EmptyLine()
 
-	// Get target names for header
 	targetNames := make([]string, 0, len(cl.targets))
 	for _, target := range cl.targets {
 		targetNames = append(targetNames, target.GetName())
 	}
 
-	// Build headers for table
 	headers := []string{"Component", "Type", "Profile"}
 	for _, targetName := range targetNames {
 		headers = append(headers, displayName(targetName))
 	}
 
-	// Create table
 	table := formatter.NewBoxTable(cl.formatter.Writer(), headers)
 
-	// Group by type and sort by name within each type
 	byType := make(map[string][]ComponentStatus)
 	for _, status := range statuses {
 		byType[status.Component.Type] = append(byType[status.Component.Type], status)
@@ -1396,7 +1273,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 			continue
 		}
 
-		// Add section header row
 		sectionRow := []string{strings.Title(componentType) + ":", "", ""}
 		for range targetNames {
 			sectionRow = append(sectionRow, "")
@@ -1404,12 +1280,10 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 		table.AddRow(sectionRow)
 
 		for _, status := range components {
-			// Skip if linkedOnly and component has no links
 			if linkedOnly {
 				hasAnyLink := false
 				for _, targetName := range targetNames {
 					symbol := status.Targets[targetName]
-					// Check if the symbol is NOT "not linked" (-)
 					if symbol != colors.Muted("-") {
 						hasAnyLink = true
 						break
@@ -1448,7 +1322,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 	cl.formatter.EmptyLine()
 	cl.formatter.SubsectionHeader("Summary")
 
-	// Calculate profile count
 	profileCount := len(filteredProfiles)
 	if len(profileFilter) == 0 {
 		profileCount++ // Include base
@@ -1468,7 +1341,6 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 		linkedCount := 0
 		for _, status := range statuses {
 			symbol := status.Targets[targetName]
-			// Compare against color-wrapped symbols
 			if symbol == colors.Success("✓") || symbol == colors.Success("◆") {
 				linkedCount++
 			}
@@ -1495,16 +1367,13 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 //   - "all": unlink from all targets
 //   - specific target name (e.g., "opencode", "claudecode"): unlink from only that target
 func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetFilter string) error {
-	// Validate component type
 	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
 		return fmt.Errorf("invalid component type: %s (must be skills, agents, or commands)", componentType)
 	}
 
-	// Filter targets based on targetFilter parameter
 	targetsToUnlink := cl.filterTargets(targetFilter)
 	if len(targetsToUnlink) == 0 {
 		if targetFilter != "" && targetFilter != "all" {
-			// Build list of available target names for the error message
 			availableTargets := make([]string, 0, len(cl.targets))
 			for _, target := range cl.targets {
 				availableTargets = append(availableTargets, target.GetName())
@@ -1532,7 +1401,6 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 	if targetFilter != "" && targetFilter != "all" {
 		cl.formatter.SectionHeader(fmt.Sprintf("Unlinking %s '%s' from: %s", componentType, componentName, targetFilter))
 	} else {
-		// Build list of target names
 		targetNames := make([]string, 0, len(targetsToUnlink))
 		for _, target := range targetsToUnlink {
 			targetNames = append(targetNames, target.GetName())
@@ -1573,16 +1441,12 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 
 		linkPath := filepath.Join(componentDir, componentName)
 
-		// Check if link exists
 		if _, err := os.Lstat(linkPath); os.IsNotExist(err) {
-			// Not an error, just skip this target - component is already unlinked
 			continue
 		}
 
-		// Analyze what we're removing
 		linkType, targetPath, _ := cl.analyzeLinkStatus(linkPath)
 
-		// For copied directories, ask for confirmation
 		if linkType == "copied" {
 			cl.formatter.WarningMsg("'%s' is a copied directory in %s, not a symlink", componentName, targetName)
 			fmt.Printf("This will permanently delete: %s\n", linkPath)
@@ -1597,10 +1461,8 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 			}
 		}
 
-		// Show progress
 		cl.formatter.ProgressMsg(fmt.Sprintf("Unlinking from %s", targetName), componentName)
 
-		// Remove the link or directory
 		if linkType == "copied" {
 			if err := os.RemoveAll(linkPath); err != nil {
 				cl.formatter.ProgressFailed()
@@ -1609,7 +1471,6 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 				continue
 			}
 		} else {
-			// For symlinks and broken links
 			if err := os.Remove(linkPath); err != nil {
 				cl.formatter.ProgressFailed()
 				errors = append(errors, fmt.Sprintf("failed to remove link from %s: %v", targetName, err))
@@ -1652,11 +1513,9 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 //   - "all": unlink from all targets
 //   - specific target name (e.g., "opencode", "claudecode"): unlink from only that target
 func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter string, force bool) error {
-	// Filter targets based on targetFilter parameter
 	targetsToUnlink := cl.filterTargets(targetFilter)
 	if len(targetsToUnlink) == 0 {
 		if targetFilter != "" && targetFilter != "all" {
-			// Build list of available target names for the error message
 			availableTargets := make([]string, 0, len(cl.targets))
 			for _, target := range cl.targets {
 				availableTargets = append(availableTargets, target.GetName())
@@ -1678,7 +1537,6 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 	totalLinks := 0
 	copiedDirs := 0
 
-	// First, collect all symlinks across all targets
 	for _, target := range targetsToUnlink {
 		componentDir, err := target.GetGlobalComponentDir(componentType)
 		if err != nil {
@@ -1704,7 +1562,7 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 
 			if linkType == "copied" {
 				copiedDirs++
-				continue // Skip copied directories
+				continue
 			}
 			totalLinks++
 		}
@@ -1715,10 +1573,8 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 		return nil
 	}
 
-	// Require force flag or confirmation
 	if !force {
 		if totalLinks > 0 {
-			// Build target names string
 			targetNames := make([]string, 0, len(targetsToUnlink))
 			for _, target := range targetsToUnlink {
 				targetNames = append(targetNames, target.GetName())
@@ -1788,16 +1644,13 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 			fullPath := filepath.Join(componentDir, entry.Name())
 			linkType, _, _ := cl.analyzeLinkStatus(fullPath)
 
-			// Skip copied directories - don't delete them
 			if linkType == "copied" {
 				skippedCount++
 				continue
 			}
 
-			// Show progress for each item
 			cl.formatter.ProgressMsg(fmt.Sprintf("Unlinking %s from %s", componentType, target.GetName()), entry.Name())
 
-			// Remove symlinks and broken links
 			err := os.Remove(fullPath)
 
 			if err != nil {
@@ -1820,21 +1673,17 @@ func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter st
 // isSymlinkFromCurrentProfile checks if a symlink belongs to the current profile
 // by comparing the symlink target path with the ComponentLinker's agentsDir
 func (cl *ComponentLinker) isSymlinkFromCurrentProfile(symlinkPath string) (bool, error) {
-	// Read the symlink target
 	target, err := os.Readlink(symlinkPath)
 	if err != nil {
 		return false, err
 	}
 
-	// Resolve relative paths to absolute
 	if !filepath.IsAbs(target) {
 		target = filepath.Join(filepath.Dir(symlinkPath), target)
 	}
 
-	// Clean the target path
 	target = filepath.Clean(target)
 
-	// Get profile names and compare
 	// This correctly distinguishes base installation from profile installations
 	// because profile directories are physically inside ~/.agent-smith/ but
 	// getProfileFromPath() extracts the actual profile name from the path
@@ -1846,43 +1695,34 @@ func (cl *ComponentLinker) isSymlinkFromCurrentProfile(symlinkPath string) (bool
 // isSymlinkFromAgentSmith checks if a symlink points to any agent-smith directory
 // (base installation, any profile, etc). Returns false for manually-created external symlinks.
 func (cl *ComponentLinker) isSymlinkFromAgentSmith(symlinkPath string) (bool, error) {
-	// Read the symlink target
 	target, err := os.Readlink(symlinkPath)
 	if err != nil {
 		return false, err
 	}
 
-	// Resolve relative paths to absolute
 	if !filepath.IsAbs(target) {
 		target = filepath.Join(filepath.Dir(symlinkPath), target)
 	}
 
-	// Clean path for comparison
 	target = filepath.Clean(target)
 
-	// First check if target starts with the ComponentLinker's agentsDir
 	// This is important for tests and for the current profile/base installation
 	agentsDir := filepath.Clean(cl.agentsDir)
 	if strings.HasPrefix(target, agentsDir) {
 		return true, nil
 	}
 
-	// Get base agent-smith directory (parent of profiles)
 	baseAgentsDir, err := paths.GetAgentsDir()
 	if err != nil {
-		// If we can't get base agents dir, just rely on the ComponentLinker's agentsDir check above
 		return false, nil
 	}
 
-	// Check if target starts with base agents directory
 	if strings.HasPrefix(target, baseAgentsDir) {
 		return true, nil
 	}
 
-	// Check if target is within any profile
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
-		// If we can't get profiles dir, just rely on checks above
 		return false, nil
 	}
 
@@ -1890,31 +1730,26 @@ func (cl *ComponentLinker) isSymlinkFromAgentSmith(symlinkPath string) (bool, er
 		return true, nil
 	}
 
-	// Not from agent-smith
 	return false, nil
 }
 
 // anyProfilesExist checks if any profiles directory exists and contains profiles
-// Returns false for fresh installations with no profiles (backward compatibility)
 func (cl *ComponentLinker) anyProfilesExist() bool {
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
 		return false
 	}
 
-	// Check if profiles directory exists
 	info, err := os.Stat(profilesDir)
 	if err != nil || !info.IsDir() {
 		return false
 	}
 
-	// Check if there are any profile directories inside
 	entries, err := os.ReadDir(profilesDir)
 	if err != nil {
 		return false
 	}
 
-	// Check for at least one valid profile directory
 	for _, entry := range entries {
 		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
 			return true
@@ -1932,11 +1767,9 @@ func (cl *ComponentLinker) anyProfilesExist() bool {
 //
 // allProfiles: if true, unlinks components from all profiles; if false, only from current profile
 func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, allProfiles bool) error {
-	// Filter targets based on targetFilter parameter
 	targetsToUnlink := cl.filterTargets(targetFilter)
 	if len(targetsToUnlink) == 0 {
 		if targetFilter != "" && targetFilter != "all" {
-			// Build list of available target names for the error message
 			availableTargets := make([]string, 0, len(cl.targets))
 			for _, target := range cl.targets {
 				availableTargets = append(availableTargets, target.GetName())
@@ -1956,11 +1789,10 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 
 	componentTypes := paths.GetComponentTypes()
 
-	// First, collect all symlinks across all targets
 	totalLinks := 0
 	copiedDirs := 0
 	skippedProfilesCount := 0
-	skippedProfilesMap := make(map[string]int) // Track count per profile
+	skippedProfilesMap := make(map[string]int)
 
 	for _, target := range targetsToUnlink {
 		for _, componentType := range componentTypes {
@@ -1988,25 +1820,20 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 
 				if linkType == "copied" {
 					copiedDirs++
-					continue // Skip copied directories
+					continue
 				}
 
-				// Skip manual/external symlinks (not from agent-smith)
 				if linkType == "symlink" || linkType == "broken" {
 					fromAgentSmith, err := cl.isSymlinkFromAgentSmith(fullPath)
 					if err == nil && !fromAgentSmith {
-						// This is a manually created symlink outside agent-smith - always preserve
 						skippedProfilesCount++
 						continue
 					}
 				}
 
-				// If not unlinking all profiles, check if this symlink belongs to current profile
-				// This applies to both valid symlinks and broken symlinks
 				if !allProfiles && (linkType == "symlink" || linkType == "broken") {
 					belongsToProfile, err := cl.isSymlinkFromCurrentProfile(fullPath)
 					if err == nil && !belongsToProfile {
-						// Track which profile this component belongs to
 						profileName := GetProfileNameFromSymlink(fullPath)
 						if profileName != "" {
 							skippedProfilesMap[profileName]++
@@ -2026,21 +1853,15 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 		return nil
 	}
 
-	// Determine current profile name for messaging
 	currentProfileName := getProfileFromPath(cl.agentsDir)
-
-	// Check if any profiles exist at all (for backward compatibility messaging)
 	profilesExist := cl.anyProfilesExist()
 
-	// Require force flag or confirmation
 	if !force {
 		if totalLinks > 0 {
-			// Build target description for confirmation message
 			targetStr := "all targets"
 			if targetFilter != "" && targetFilter != "all" {
 				targetStr = targetFilter
 			} else if len(targetsToUnlink) > 0 {
-				// List specific targets
 				targetNames := make([]string, 0, len(targetsToUnlink))
 				for _, target := range targetsToUnlink {
 					targetNames = append(targetNames, target.GetName())
@@ -2049,18 +1870,15 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 			}
 
 			profileMsg := ""
-			// Only show profile-related messages if profiles exist or --all-profiles was used
 			if allProfiles {
 				profileMsg = " from all profiles"
 			} else if profilesExist {
-				// Show profile context only when profiles actually exist
 				if currentProfileName == paths.BaseProfileName {
 					profileMsg = " from base installation"
 				} else {
 					profileMsg = fmt.Sprintf(" from profile '%s'", currentProfileName)
 				}
 			}
-			// If no profiles exist and not using --all-profiles, don't add any profile message
 			fmt.Printf("This will unlink %d symlinked components%s from: %s", totalLinks, profileMsg, targetStr)
 			fmt.Println()
 		}
@@ -2068,7 +1886,6 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 			cl.formatter.InfoMsg("Note: %d copied directories will be skipped (not deleted)", copiedDirs)
 		}
 		if skippedProfilesCount > 0 && !allProfiles {
-			// Show detailed breakdown of skipped profiles
 			profileNames := make([]string, 0, len(skippedProfilesMap))
 			for profileName := range skippedProfilesMap {
 				profileNames = append(profileNames, profileName)
@@ -2111,14 +1928,12 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 		if allProfiles {
 			headerMsg = fmt.Sprintf("Unlinking all components (all profiles) from: %s", targetFilter)
 		} else if profilesExist {
-			// Only show profile context in header when profiles actually exist
 			if currentProfileName == paths.BaseProfileName {
 				headerMsg = fmt.Sprintf("Unlinking components (base installation) from: %s", targetFilter)
 			} else {
 				headerMsg = fmt.Sprintf("Unlinking components (profile '%s') from: %s", currentProfileName, targetFilter)
 			}
 		} else {
-			// No profiles exist - use simple messaging for backward compatibility
 			headerMsg = fmt.Sprintf("Unlinking components from: %s", targetFilter)
 		}
 	} else {
@@ -2130,23 +1945,20 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 		if allProfiles {
 			headerMsg = fmt.Sprintf("Unlinking all components (all profiles) from: %s", targetList)
 		} else if profilesExist {
-			// Only show profile context in header when profiles actually exist
 			if currentProfileName == paths.BaseProfileName {
 				headerMsg = fmt.Sprintf("Unlinking components (base installation) from: %s", targetList)
 			} else {
 				headerMsg = fmt.Sprintf("Unlinking components (profile '%s') from: %s", currentProfileName, targetList)
 			}
 		} else {
-			// No profiles exist - use simple messaging for backward compatibility
 			headerMsg = fmt.Sprintf("Unlinking components from: %s", targetList)
 		}
 	}
 	cl.formatter.SectionHeader(headerMsg)
 
-	// Remove all symlinks (skip copied directories and other profiles' components)
 	removedCount := 0
 	skippedCount := 0
-	skippedByProfile := make(map[string][]string) // Track skipped items by profile
+	skippedByProfile := make(map[string][]string)
 	errorCount := 0
 
 	for _, target := range targetsToUnlink {
@@ -2174,28 +1986,22 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 				fullPath := filepath.Join(componentDir, entry.Name())
 				linkType, _, _ := cl.analyzeLinkStatus(fullPath)
 
-				// Skip copied directories - don't delete them
 				if linkType == "copied" {
 					skippedCount++
 					continue
 				}
 
-				// Skip manual/external symlinks (not from agent-smith)
 				if linkType == "symlink" || linkType == "broken" {
 					fromAgentSmith, err := cl.isSymlinkFromAgentSmith(fullPath)
 					if err == nil && !fromAgentSmith {
-						// This is a manually created symlink outside agent-smith - always preserve
 						skippedCount++
 						continue
 					}
 				}
 
-				// If not unlinking all profiles, check if this symlink belongs to current profile
-				// This applies to both valid symlinks and broken symlinks
 				if !allProfiles && (linkType == "symlink" || linkType == "broken") {
 					belongsToProfile, err := cl.isSymlinkFromCurrentProfile(fullPath)
 					if err == nil && !belongsToProfile {
-						// Track which profile this skipped component belongs to
 						profileName := GetProfileNameFromSymlink(fullPath)
 						if profileName != "" {
 							skippedByProfile[profileName] = append(skippedByProfile[profileName], fmt.Sprintf("%s/%s", componentType, entry.Name()))
@@ -2205,10 +2011,7 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 					}
 				}
 
-				// Determine profile for progress message
 				profileNote := ""
-				// Only show profile tags when profiles actually exist
-				// This applies to both valid symlinks and broken symlinks
 				if profilesExist && (linkType == "symlink" || linkType == "broken") {
 					profileName := GetProfileNameFromSymlink(fullPath)
 					if profileName != "" && profileName != paths.BaseProfileName {
@@ -2216,10 +2019,8 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 					}
 				}
 
-				// Show progress for each item with profile context
 				cl.formatter.ProgressMsg(fmt.Sprintf("Unlinking %s from %s%s", componentType, target.GetName(), profileNote), entry.Name())
 
-				// Remove symlinks and broken links
 				var err error
 				err = os.Remove(fullPath)
 
@@ -2235,7 +2036,6 @@ func (cl *ComponentLinker) UnlinkAllComponents(targetFilter string, force bool, 
 		}
 	}
 
-	// Display summary with profile breakdown
 	cl.formatter.EmptyLine()
 	cl.formatter.CounterSummary(removedCount+errorCount, removedCount, errorCount, skippedCount)
 
@@ -2270,18 +2070,15 @@ type ProfileMatch struct {
 // searchComponentInProfiles searches for a component across all profiles
 // Returns a list of profiles that contain the specified component
 func (cl *ComponentLinker) searchComponentInProfiles(componentType, componentName string) ([]ProfileMatch, error) {
-	// Get profiles directory
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get profiles directory: %w", err)
 	}
 
-	// Check if profiles directory exists
 	if _, err := os.Stat(profilesDir); os.IsNotExist(err) {
-		return []ProfileMatch{}, nil // No profiles yet
+		return []ProfileMatch{}, nil
 	}
 
-	// Get active profile
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agents directory: %w", err)
@@ -2290,7 +2087,6 @@ func (cl *ComponentLinker) searchComponentInProfiles(componentType, componentNam
 	activeProfileData, _ := os.ReadFile(activeProfilePath)
 	activeProfile := strings.TrimSpace(string(activeProfileData))
 
-	// Scan all profile directories
 	entries, err := os.ReadDir(profilesDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read profiles directory: %w", err)
@@ -2298,7 +2094,6 @@ func (cl *ComponentLinker) searchComponentInProfiles(componentType, componentNam
 
 	var matches []ProfileMatch
 	for _, entry := range entries {
-		// Skip files and hidden directories
 		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
@@ -2307,9 +2102,7 @@ func (cl *ComponentLinker) searchComponentInProfiles(componentType, componentNam
 		profilePath := filepath.Join(profilesDir, profileName)
 		componentPath := filepath.Join(profilePath, componentType, componentName)
 
-		// Check if component exists in this profile
 		if _, err := os.Stat(componentPath); err == nil {
-			// Try to load source URL from lock file
 			sourceUrl := ""
 			lockEntry, err := metadataPkg.LoadLockFileEntry(profilePath, componentType, componentName)
 			if err == nil && lockEntry != nil {
@@ -2344,12 +2137,10 @@ func (cl *ComponentLinker) promptProfileSelection(componentType, componentName s
 		}
 		fmt.Printf("  %d. %s%s\n", i+1, match.ProfileName, activeIndicator)
 
-		// Display source URL if available
 		if match.SourceUrl != "" {
 			fmt.Printf("     Source: %s\n", match.SourceUrl)
 		}
 
-		// Add blank line between options for readability
 		if i < len(matches)-1 {
 			fmt.Println()
 		}
@@ -2361,12 +2152,10 @@ func (cl *ComponentLinker) promptProfileSelection(componentType, componentName s
 	fmt.Scanln(&response)
 	response = strings.TrimSpace(strings.ToLower(response))
 
-	// Check for cancellation
 	if response == "c" || response == "" {
 		return "", "", fmt.Errorf("profile selection cancelled")
 	}
 
-	// Parse selection
 	var selection int
 	_, err := fmt.Sscanf(response, "%d", &selection)
 	if err != nil || selection < 1 || selection > len(matches) {

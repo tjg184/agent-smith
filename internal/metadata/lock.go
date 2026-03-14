@@ -92,36 +92,6 @@ func SaveComponentEntry(baseDir, componentType, componentName, source, sourceTyp
 	return writeLockFile(lockFilePath, lockFile)
 }
 
-// SaveLockFileEntry is the legacy function for backward compatibility
-// Calls SaveComponentEntry with install-specific parameters
-func SaveLockFileEntry(baseDir, componentType, componentName, source, sourceType, sourceUrl, commitHash string, components int, detection, originalPath string) error {
-	return SaveComponentEntry(baseDir, componentType, componentName, source, sourceType, sourceUrl, commitHash, originalPath, ComponentEntryOptions{
-		UpdatedAt:  time.Now().Format(time.RFC3339),
-		Components: components,
-		Detection:  detection,
-	})
-}
-
-// LoadFromLockFile loads metadata from lock file
-func LoadFromLockFile(baseDir, componentType, componentName string) (*models.ComponentMetadata, error) {
-	entry, err := LoadLockFileEntry(baseDir, componentType, componentName)
-	if err != nil {
-		return nil, err
-	}
-
-	return &models.ComponentMetadata{
-		Name:         componentName,
-		Source:       entry.SourceUrl,
-		Commit:       entry.CommitHash,
-		OriginalPath: entry.OriginalPath,
-		Components:   entry.Components,
-		Detection:    entry.Detection,
-	}, nil
-}
-
-// LoadLockFileEntry loads a component lock entry from the lock file
-// Searches across all sources and returns the first match
-// Returns error if not found or multiple sources have the same component
 func LoadLockFileEntry(baseDir, componentType, componentName string) (*models.ComponentEntry, error) {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
@@ -164,7 +134,6 @@ func LoadLockFileEntry(baseDir, componentType, componentName string) (*models.Co
 	return foundEntry, nil
 }
 
-// LoadLockFileEntryBySource loads a component lock entry from a specific source
 func LoadLockFileEntryBySource(baseDir, componentType, componentName, sourceUrl string) (*models.ComponentEntry, error) {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
@@ -274,8 +243,6 @@ func RemoveComponentEntryBySource(baseDir, componentType, componentName, sourceU
 	return writeLockFile(lockFilePath, lockFile)
 }
 
-// GetAllComponentNames returns all component names from the lock file for a given type
-// Aggregates names across all sources
 func GetAllComponentNames(baseDir, componentType string) ([]string, error) {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
@@ -364,8 +331,6 @@ type NamedComponentSource struct {
 	Entry     models.ComponentEntry
 }
 
-// LoadAllComponents returns every installed component entry for the given base dir
-// and component type, across all source URLs.
 func LoadAllComponents(baseDir, componentType string) ([]NamedComponentSource, error) {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
@@ -502,9 +467,6 @@ func getTargetMap(lockFile *models.ComponentLockFile, componentType string) (map
 	}
 }
 
-// ResolveInstallFilesystemName determines the actual filesystem name to use for a component during install
-// If the exact component (sourceUrl + componentName) is already installed, returns its existing filesystem name
-// Otherwise, if componentName already exists, returns componentName-2, componentName-3, etc.
 func ResolveInstallFilesystemName(baseDir, componentType, componentName, sourceUrl string) (string, error) {
 	// Load existing lock file
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)

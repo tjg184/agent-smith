@@ -24,9 +24,6 @@ var ProjectBoundaryMarkers = []string{
 	"mix.exs",        // Elixir project
 }
 
-// FindProjectRoot walks up the directory tree from the current working directory
-// looking for project markers (.opencode or .claude directories).
-// Returns the project root path or an error if no project is found.
 func FindProjectRoot() (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -36,10 +33,6 @@ func FindProjectRoot() (string, error) {
 	return FindProjectRootFromDir(cwd)
 }
 
-// FindProjectRootFromDir walks up the directory tree from the specified directory
-// looking for project markers (.opencode, .claude, or .github directories) or project boundary markers.
-// Returns the project root path or an error if no project boundary is found.
-// Stops at any project boundary marker, home directory, or filesystem root.
 func FindProjectRootFromDir(startDir string) (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -106,9 +99,6 @@ func FindProjectRootFromDir(startDir string) (string, error) {
 		"  3. Or initialize version control: git init")
 }
 
-// EnsureTargetStructure creates the target directory structure if it doesn't exist.
-// Creates the target directory and subdirectories: skills/, agents/, commands/
-// Returns true if any directories were created (structure was initialized), false if all existed.
 func EnsureTargetStructure(targetDir string) (bool, error) {
 	created := false
 
@@ -136,9 +126,6 @@ func EnsureTargetStructure(targetDir string) (bool, error) {
 	return created, nil
 }
 
-// EnsureComponentDirectory creates only the target directory and the specific component subdirectory.
-// This is used when materializing a specific component type to avoid creating empty directories.
-// Returns true if any directories were created, false if all existed.
 func EnsureComponentDirectory(targetDir, componentType string) (bool, error) {
 	created := false
 

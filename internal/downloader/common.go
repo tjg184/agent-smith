@@ -3,18 +3,7 @@ package downloader
 import (
 	"path/filepath"
 	"strings"
-
-	"github.com/tjg184/agent-smith/internal/metadata"
-	"github.com/tjg184/agent-smith/internal/models"
 )
-
-// Re-export types for backward compatibility
-// These now reference models.ComponentLockFile and models.ComponentEntry
-type ComponentLockFile = models.ComponentLockFile
-type ComponentLockEntry = models.ComponentEntry
-
-// Re-export functions for backward compatibility
-var ComputeLocalFolderHash = metadata.ComputeLocalFolderHash
 
 // DetermineDestinationFolderName determines the destination folder name, preserving any
 // intermediate hierarchy between the component-type directory (skills/agents/commands) and
