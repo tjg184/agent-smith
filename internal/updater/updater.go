@@ -109,18 +109,14 @@ func newDetector() *detector.RepositoryDetector {
 	return d
 }
 
-// LoadMetadata loads component metadata from lock files only
 func (ud *UpdateDetector) LoadMetadata(componentType, componentName string) (*models.ComponentEntry, error) {
 	return metadataPkg.LoadLockFileEntry(ud.baseDir, componentType, componentName)
 }
 
-// loadFromLockFile loads component metadata from lock files
 func (ud *UpdateDetector) loadFromLockFile(componentType, componentName string) (*models.ComponentEntry, error) {
 	return metadataPkg.LoadLockFileEntry(ud.baseDir, componentType, componentName)
 }
 
-// GetCurrentRepoSHA fetches the current HEAD commit SHA from a repository
-// This method is public to allow other packages (like materialization) to check for updates
 func (ud *UpdateDetector) GetCurrentRepoSHA(repoURL string) (string, error) {
 	fullURL, err := ud.detector.NormalizeURL(repoURL)
 	if err != nil {
@@ -177,7 +173,6 @@ func (ud *UpdateDetector) HasUpdates(componentType, componentName, repoURL strin
 	return metadata.CommitHash != currentSHA, nil
 }
 
-// UpdateComponent updates a single component if updates are detected
 func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL string) error {
 	if ud.profileName != "" {
 		fmt.Printf("%s\n\n", styles.InfoArrowFormat(fmt.Sprintf("Updating components in: %s", ud.baseDir)))
@@ -255,8 +250,6 @@ type componentUpdateInfo struct {
 	Metadata *models.ComponentEntry
 }
 
-// UpdateAll iterates through all installed components and updates them
-// Optimized to batch components by repository to reduce git clone operations
 func (ud *UpdateDetector) UpdateAll() error {
 	// Show location header
 	if ud.profileName != "" {
