@@ -31,12 +31,18 @@ func NewUninstaller(baseDir string, componentLinker *linker.ComponentLinker) *Un
 	}
 }
 
-func (u *Uninstaller) UninstallComponent(componentType, name string) error {
+func (u *Uninstaller) UninstallComponent(componentType, name, source string) error {
 	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
 		return fmt.Errorf("invalid component type: %s (must be skills, agents, or commands)", componentType)
 	}
 
-	entry, err := metadata.LoadLockFileEntry(u.baseDir, componentType, name)
+	var entry *models.ComponentEntry
+	var err error
+	if source != "" {
+		entry, err = metadata.LoadLockFileEntryBySource(u.baseDir, componentType, name, source)
+	} else {
+		entry, err = metadata.LoadLockFileEntry(u.baseDir, componentType, name)
+	}
 	if err != nil {
 		return fmt.Errorf("component '%s' not installed", name)
 	}
@@ -81,16 +87,36 @@ func (u *Uninstaller) UninstallComponent(componentType, name string) error {
 	}
 
 	u.formatter.ProgressMsg("Removing directory", componentDir)
-	if err := os.RemoveAll(componentDir); err != nil {
+	sharedDir, err := u.isDirectorySharedByOtherSource(componentType, name, dirName, source)
+	if err != nil {
 		u.formatter.ProgressFailed()
-		return fmt.Errorf("failed to remove component directory: %w", err)
+		return fmt.Errorf("failed to check directory sharing: %w", err)
 	}
-	u.formatter.ProgressComplete()
+	if sharedDir {
+		u.formatter.ProgressComplete()
+		u.formatter.DetailItem("Note", "Directory kept (referenced by another source)")
+	} else {
+		if err := os.RemoveAll(componentDir); err != nil {
+			u.formatter.ProgressFailed()
+			return fmt.Errorf("failed to remove component directory: %w", err)
+		}
+		u.formatter.ProgressComplete()
+	}
 
 	u.formatter.ProgressMsg("Updating lock file", "")
-	if err := metadata.RemoveComponentEntry(u.baseDir, componentType, name); err != nil {
+	removeSource := source
+	if removeSource == "" && entry != nil {
+		removeSource = entry.SourceUrl
+	}
+	var lockErr error
+	if removeSource != "" {
+		lockErr = metadata.RemoveComponentEntryBySource(u.baseDir, componentType, name, removeSource)
+	} else {
+		lockErr = metadata.RemoveComponentEntry(u.baseDir, componentType, name)
+	}
+	if lockErr != nil {
 		u.formatter.ProgressFailed()
-		u.formatter.WarningMsg("Could not update lock file: %v", err)
+		u.formatter.WarningMsg("Could not update lock file: %v", lockErr)
 	} else {
 		u.formatter.ProgressComplete()
 	}
@@ -337,4 +363,29 @@ func (u *Uninstaller) findLinkedTargets(componentType, componentName string) []s
 	}
 
 	return linkedTargets
+}
+
+// isDirectorySharedByOtherSource returns true when another source entry in the lock
+// file maps to the same filesystemName, meaning the on-disk directory must not be
+// deleted — only the lock entry for the given source should be removed.
+func (u *Uninstaller) isDirectorySharedByOtherSource(componentType, name, filesystemName, removingSource string) (bool, error) {
+	instances, err := metadata.FindAllComponentInstances(u.baseDir, componentType, name)
+	if err != nil {
+		return false, err
+	}
+
+	for _, inst := range instances {
+		if inst.SourceUrl == removingSource {
+			continue
+		}
+		instDirName := inst.Entry.FilesystemName
+		if instDirName == "" {
+			instDirName = name
+		}
+		if instDirName == filesystemName {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

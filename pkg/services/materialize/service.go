@@ -499,8 +499,9 @@ func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
 	}
 
 	var components []struct {
-		Type string
-		Name string
+		Type   string
+		Name   string
+		Source string
 	}
 
 	typeMap := map[string]map[string]map[string]models.ComponentEntry{
@@ -510,12 +511,13 @@ func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
 	}
 
 	for _, componentType := range []string{"skills", "agents", "commands"} {
-		for _, componentsByName := range typeMap[componentType] {
+		for sourceURL, componentsByName := range typeMap[componentType] {
 			for componentName := range componentsByName {
 				components = append(components, struct {
-					Type string
-					Name string
-				}{componentType, componentName})
+					Type   string
+					Name   string
+					Source string
+				}{componentType, componentName, sourceURL})
 			}
 		}
 	}
@@ -531,7 +533,9 @@ func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
 	}
 
 	for _, comp := range components {
-		if err := s.MaterializeComponent(comp.Type, comp.Name, opts); err != nil {
+		compOpts := opts
+		compOpts.Source = comp.Source
+		if err := s.MaterializeComponent(comp.Type, comp.Name, compOpts); err != nil {
 			s.formatter.WarningMsg("Failed to materialize %s '%s': %v", comp.Type, comp.Name, err)
 		}
 	}
@@ -567,16 +571,18 @@ func (s *Service) MaterializeByType(componentType string, opts services.Material
 	}
 
 	var components []struct {
-		Type string
-		Name string
+		Type   string
+		Name   string
+		Source string
 	}
 
-	for _, componentsByName := range typeMap[componentType] {
+	for sourceURL, componentsByName := range typeMap[componentType] {
 		for componentName := range componentsByName {
 			components = append(components, struct {
-				Type string
-				Name string
-			}{componentType, componentName})
+				Type   string
+				Name   string
+				Source string
+			}{componentType, componentName, sourceURL})
 		}
 	}
 
@@ -593,7 +599,9 @@ func (s *Service) MaterializeByType(componentType string, opts services.Material
 	successCount := 0
 	failureCount := 0
 	for _, comp := range components {
-		if err := s.MaterializeComponent(comp.Type, comp.Name, opts); err != nil {
+		compOpts := opts
+		compOpts.Source = comp.Source
+		if err := s.MaterializeComponent(comp.Type, comp.Name, compOpts); err != nil {
 			s.formatter.WarningMsg("Failed to materialize %s '%s': %v", comp.Type, comp.Name, err)
 			failureCount++
 		} else {

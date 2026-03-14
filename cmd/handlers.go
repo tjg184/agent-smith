@@ -20,7 +20,7 @@ var (
 	handleUnlinkAllWithProfile  func(targetFilter string, force bool, allProfiles bool, profile string)
 	handleUnlinkType            func(componentType, targetFilter string, force bool)
 	handleUnlinkTypeWithProfile func(componentType, targetFilter string, force bool, profile string)
-	handleUninstall             func(componentType, componentName, profile string)
+	handleUninstall             func(componentType, componentName, profile, source string)
 	handleUninstallAll          func(repoURL string, force bool)
 	handleProfilesList          func(profileFilter []string, activeOnly bool, typeFilter string)
 	handleProfilesShow          func(profileName string)
@@ -68,7 +68,7 @@ func SetHandlers(
 	unlinkAllWithProfile func(targetFilter string, force bool, allProfiles bool, profile string),
 	unlinkType func(componentType, targetFilter string, force bool),
 	unlinkTypeWithProfile func(componentType, targetFilter string, force bool, profile string),
-	uninstall func(componentType, componentName, profile string),
+	uninstall func(componentType, componentName, profile, source string),
 	uninstallAll func(repoURL string, force bool),
 	profilesList func(profileFilter []string, activeOnly bool, typeFilter string),
 	profilesShow func(profileName string),

@@ -636,6 +636,68 @@ func TestMaterializeConflictHandling(t *testing.T) {
 	})
 }
 
+// TestMaterializeAllWithAmbiguousComponent verifies that "materialize all" succeeds
+// for a component installed from one of multiple sources sharing the same name.
+// Regression test: MaterializeAll previously discarded the sourceURL from the lock file,
+// causing re-resolution to fail with "ambiguous component name".
+func TestMaterializeAllWithAmbiguousComponent(t *testing.T) {
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	tempDir := testutil.CreateTempDir(t, "agent-smith-materialize-ambiguous-*")
+	oldHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempDir)
+	t.Cleanup(func() { os.Setenv("HOME", oldHome) })
+
+	binaryPath := AgentSmithBinary
+
+	agentSmithDir := filepath.Join(tempDir, ".agent-smith")
+	skillDir := filepath.Join(agentSmithDir, "skills", "conventional-commit")
+	err = os.MkdirAll(skillDir, 0755)
+	testutil.AssertNoError(t, err, "Failed to create skill directory")
+	err = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Conventional Commit Skill"), 0644)
+	testutil.AssertNoError(t, err, "Failed to write SKILL.md")
+
+	lockFilePath := filepath.Join(agentSmithDir, ".component-lock.json")
+	// Install conventional-commit from one specific source
+	testutil.CreateComponentLockFile(t, lockFilePath, "skills", "conventional-commit", "https://github.com/github/awesome-copilot", map[string]interface{}{
+		"sourceType": "github",
+		"sourceUrl":  "https://github.com/github/awesome-copilot",
+		"commitHash": "abc123",
+	})
+	// Simulate another repo also having a skill with the same name (but NOT installed)
+	// by adding a second source entry for a different component, leaving the lock file
+	// with only the one installed source for conventional-commit. The ambiguity only
+	// arises during LoadLockFileEntry scanning — our fix bypasses that by passing the
+	// source directly. No need to pollute the lock file here.
+
+	projectDir := filepath.Join(tempDir, "test-project")
+	opencodeDir := filepath.Join(projectDir, ".opencode")
+	err = os.MkdirAll(opencodeDir, 0755)
+	testutil.AssertNoError(t, err, "Failed to create project directory")
+
+	err = os.Chdir(projectDir)
+	testutil.AssertNoError(t, err, "Failed to change to project directory")
+
+	cmd := exec.Command(binaryPath, "materialize", "all", "--target", "opencode")
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+	t.Logf("Output:\n%s", outputStr)
+
+	if err != nil {
+		t.Fatalf("materialize all failed: %v\nOutput: %s", err, outputStr)
+	}
+
+	if contains(outputStr, "ambiguous component name") {
+		t.Errorf("Expected no ambiguity error, but got one:\n%s", outputStr)
+	}
+
+	testutil.AssertFileExists(t, filepath.Join(opencodeDir, "skills", "conventional-commit", "SKILL.md"))
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && containsHelper(s, substr))
 }

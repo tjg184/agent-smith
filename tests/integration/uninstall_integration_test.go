@@ -497,3 +497,76 @@ func TestE2E_UninstallFromProfileWorkflow(t *testing.T) {
 		t.Logf("Verified skill removed from profile")
 	})
 }
+
+// TestUninstallSkillWithSourceFlag verifies that --source disambiguates when the same
+// component name is installed from multiple repositories. Only the specified source's
+// entry is removed; the other remains intact.
+func TestUninstallSkillWithSourceFlag(t *testing.T) {
+	tempDir := testutil.CreateTempDir(t, "agent-smith-uninstall-source-*")
+	oldHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempDir)
+	t.Cleanup(func() { os.Setenv("HOME", oldHome) })
+
+	binaryPath := AgentSmithBinary
+
+	agentSmithDir := filepath.Join(tempDir, ".agent-smith")
+	sourceA := "https://github.com/github/awesome-copilot"
+	sourceB := "https://github.com/marcelorodrigo/agent-skills"
+
+	for _, source := range []string{sourceA, sourceB} {
+		skillDir := filepath.Join(agentSmithDir, "skills", "conventional-commit")
+		if err := os.MkdirAll(skillDir, 0755); err != nil {
+			t.Fatalf("Failed to create skill directory: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Conventional Commit"), 0644); err != nil {
+			t.Fatalf("Failed to write SKILL.md: %v", err)
+		}
+
+		lockFilePath := filepath.Join(agentSmithDir, ".component-lock.json")
+		testutil.AddComponentToLockFile(t, lockFilePath, "skills", "conventional-commit", source, map[string]interface{}{
+			"sourceType":     "github",
+			"sourceUrl":      source,
+			"commitHash":     "abc123",
+			"filesystemName": "conventional-commit",
+		})
+	}
+
+	t.Run("FailsWithoutSourceWhenAmbiguous", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "uninstall", "skill", "conventional-commit")
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			t.Fatalf("Expected failure for ambiguous component, but command succeeded:\n%s", string(output))
+		}
+	})
+
+	t.Run("SucceedsWithSourceFlag", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "uninstall", "skill", "conventional-commit", "--source", sourceB)
+		output, err := cmd.CombinedOutput()
+		outputStr := string(output)
+		t.Logf("Output:\n%s", outputStr)
+		if err != nil {
+			t.Fatalf("Uninstall with --source failed: %v\nOutput: %s", err, outputStr)
+		}
+	})
+
+	t.Run("OtherSourceEntryStillPresent", func(t *testing.T) {
+		lockFilePath := filepath.Join(agentSmithDir, ".component-lock.json")
+		data, err := os.ReadFile(lockFilePath)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+		if !strings.Contains(string(data), sourceA) {
+			t.Errorf("Expected source %s to remain in lock file after targeted uninstall, but it was removed", sourceA)
+		}
+		if strings.Contains(string(data), sourceB) {
+			t.Errorf("Expected source %s to be removed from lock file, but it is still present", sourceB)
+		}
+	})
+
+	t.Run("SharedDirectoryPreserved", func(t *testing.T) {
+		skillDir := filepath.Join(agentSmithDir, "skills", "conventional-commit")
+		if _, err := os.Stat(skillDir); os.IsNotExist(err) {
+			t.Errorf("Expected skill directory to be preserved (still referenced by %s), but it was deleted", sourceA)
+		}
+	})
+}
