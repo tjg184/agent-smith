@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/tjg184/agent-smith/internal/models"
 	"github.com/tjg184/agent-smith/internal/testutil"
-	"github.com/tjg184/agent-smith/pkg/project"
 )
 
 // TestMaterializeAllComponentTypes verifies that skills, agents, and commands
@@ -149,7 +149,7 @@ func TestMaterializeAllComponentTypes(t *testing.T) {
 		metadataBytes, err := os.ReadFile(metadataPath)
 		testutil.AssertNoError(t, err, "Failed to read metadata file")
 
-		var metadata project.MaterializationMetadata
+		var metadata models.ComponentLockFile
 		err = json.Unmarshal(metadataBytes, &metadata)
 		testutil.AssertNoError(t, err, "Failed to parse metadata")
 
@@ -226,7 +226,7 @@ func TestMaterializeAllComponentTypes(t *testing.T) {
 		metadataBytes, err := os.ReadFile(claudeMetadataPath)
 		testutil.AssertNoError(t, err, "Failed to read Claude metadata")
 
-		var claudeMetadata project.MaterializationMetadata
+		var claudeMetadata models.ComponentLockFile
 		err = json.Unmarshal(metadataBytes, &claudeMetadata)
 		testutil.AssertNoError(t, err, "Failed to parse Claude metadata")
 

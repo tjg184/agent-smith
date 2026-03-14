@@ -328,14 +328,14 @@ func TestLoadMetadata_Success(t *testing.T) {
 	}
 
 	// Verify metadata
-	if metadata.Name != "test-skill" {
-		t.Errorf("Expected name 'test-skill', got '%s'", metadata.Name)
+	if metadata.SourceUrl != "https://github.com/user/repo" {
+		t.Errorf("Expected sourceUrl 'https://github.com/user/repo', got '%s'", metadata.SourceUrl)
 	}
-	if metadata.Source != "https://github.com/user/repo" {
-		t.Errorf("Expected source 'https://github.com/user/repo', got '%s'", metadata.Source)
+	if metadata.SourceUrl != "https://github.com/user/repo" {
+		t.Errorf("Expected source 'https://github.com/user/repo', got '%s'", metadata.SourceUrl)
 	}
-	if metadata.Commit != "abc123" {
-		t.Errorf("Expected commit 'abc123', got '%s'", metadata.Commit)
+	if metadata.CommitHash != "abc123" {
+		t.Errorf("Expected commit 'abc123', got '%s'", metadata.CommitHash)
 	}
 }
 
@@ -439,11 +439,8 @@ func TestLoadMetadata_AllComponentTypes(t *testing.T) {
 			}
 
 			// Verify metadata
-			if metadata.Name != "test-component" {
-				t.Errorf("Expected name 'test-component', got '%s'", metadata.Name)
-			}
-			if metadata.Commit != "def456" {
-				t.Errorf("Expected commit 'def456', got '%s'", metadata.Commit)
+			if metadata.CommitHash != "def456" {
+				t.Errorf("Expected commit 'def456', got '%s'", metadata.CommitHash)
 			}
 		})
 	}
@@ -489,8 +486,8 @@ func TestLoadMetadata_NoCommitHash(t *testing.T) {
 	}
 
 	// Verify that commit hash is empty
-	if metadata.Commit != "" {
-		t.Errorf("Expected empty commit hash, got '%s'", metadata.Commit)
+	if metadata.CommitHash != "" {
+		t.Errorf("Expected empty commit hash, got '%s'", metadata.CommitHash)
 	}
 }
 

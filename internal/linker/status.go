@@ -32,7 +32,6 @@ func (cl *ComponentLinker) getSourceDescription() string {
 // getProfileFromPath extracts the profile name from a component path
 // Returns paths.BaseProfileName if the component is in the base installation, or the profile name
 func getProfileFromPath(path string) string {
-	// Clean the path first
 	path = filepath.Clean(path)
 
 	// Check if the path itself is a profile directory (e.g., ~/.agent-smith/profiles/work)
@@ -42,38 +41,31 @@ func getProfileFromPath(path string) string {
 		return filepath.Base(path)
 	}
 
-	// Walk up the directory tree to find "profiles" directory
 	dir := parent
 	for {
 		grandparent := filepath.Dir(dir)
 		if filepath.Base(grandparent) == "profiles" {
-			// This is a profile directory
 			return filepath.Base(dir)
 		}
 		if grandparent == dir || grandparent == "." || grandparent == "/" {
-			// Reached root without finding "profiles"
 			return paths.BaseProfileName
 		}
 		dir = grandparent
 	}
 }
 
-// GetProfileNameFromSymlink extracts the profile name from a symlink's target path
-// Returns the profile name if the symlink points to a profile, or paths.BaseProfileName if it points to base installation
-// Returns empty string if the symlink is broken or invalid
+// GetProfileNameFromSymlink extracts the profile name from a symlink's target path.
+// Returns paths.BaseProfileName if base installation, empty string if broken/invalid.
 func GetProfileNameFromSymlink(symlinkPath string) string {
-	// Read the symlink target
 	target, err := os.Readlink(symlinkPath)
 	if err != nil {
 		return "" // Broken or not a symlink
 	}
 
-	// Resolve relative paths
 	if !filepath.IsAbs(target) {
 		target = filepath.Join(filepath.Dir(symlinkPath), target)
 	}
 
-	// Use getProfileFromPath to extract profile name
 	return getProfileFromPath(target)
 }
 
@@ -84,26 +76,22 @@ func (cl *ComponentLinker) analyzeLinkStatus(path string) (linkType string, targ
 		return "missing", "", false
 	}
 
-	// Check if it's a symlink
 	if info.Mode()&os.ModeSymlink != 0 {
 		target, err := os.Readlink(path)
 		if err != nil {
 			return "broken", "", false
 		}
 
-		// Resolve relative paths
 		if !filepath.IsAbs(target) {
 			target = filepath.Join(filepath.Dir(path), target)
 		}
 
-		// Check if target exists
 		if _, err := os.Stat(target); err == nil {
 			return "symlink", target, true
 		}
 		return "broken", target, false
 	}
 
-	// If it's a directory, it's a copied component
 	if info.IsDir() {
 		return "copied", path, true
 	}

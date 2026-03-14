@@ -92,33 +92,6 @@ func SaveComponentEntry(baseDir, componentType, componentName, source, sourceTyp
 	return writeLockFile(lockFilePath, lockFile)
 }
 
-// SaveLockFileEntry is the legacy function for backward compatibility
-// Calls SaveComponentEntry with install-specific parameters
-func SaveLockFileEntry(baseDir, componentType, componentName, source, sourceType, sourceUrl, commitHash string, components int, detection, originalPath string) error {
-	return SaveComponentEntry(baseDir, componentType, componentName, source, sourceType, sourceUrl, commitHash, originalPath, ComponentEntryOptions{
-		UpdatedAt:  time.Now().Format(time.RFC3339),
-		Components: components,
-		Detection:  detection,
-	})
-}
-
-// LoadFromLockFile loads metadata from lock file
-func LoadFromLockFile(baseDir, componentType, componentName string) (*models.ComponentMetadata, error) {
-	entry, err := LoadLockFileEntry(baseDir, componentType, componentName)
-	if err != nil {
-		return nil, err
-	}
-
-	return &models.ComponentMetadata{
-		Name:         componentName,
-		Source:       entry.SourceUrl,
-		Commit:       entry.CommitHash,
-		OriginalPath: entry.OriginalPath,
-		Components:   entry.Components,
-		Detection:    entry.Detection,
-	}, nil
-}
-
 // LoadLockFileEntry loads a component lock entry from the lock file
 // Searches across all sources and returns the first match
 // Returns error if not found or multiple sources have the same component

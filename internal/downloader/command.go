@@ -26,7 +26,6 @@ type CommandDownloader struct {
 	formatter *formatter.Formatter
 }
 
-// NewCommandDownloader creates a new CommandDownloader instance
 func NewCommandDownloader() *CommandDownloader {
 	baseDir, err := paths.GetCommandsDir()
 	if err != nil {
@@ -83,7 +82,6 @@ func NewCommandDownloaderWithTargetDir(targetDir string) *CommandDownloader {
 }
 
 func (cd *CommandDownloader) parseRepoURL(repoURL string) (string, error) {
-	// Normalize URL first (handles GitHub shorthand, etc.)
 	normalizedURL, err := cd.detector.NormalizeURL(repoURL)
 	if err != nil {
 		return "", err
@@ -96,7 +94,6 @@ func (cd *CommandDownloader) parseRepoURL(repoURL string) (string, error) {
 	return normalizedURL, nil
 }
 
-// DownloadCommand downloads a command from the repository
 func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, providedRepoPath ...string) error {
 	fullURL, err := cd.parseRepoURL(repoURL)
 	if err != nil {
@@ -106,21 +103,17 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 	var repoPath string
 	hasProvidedPath := len(providedRepoPath) > 0 && providedRepoPath[0] != ""
 
-	// Use provided repo path if available, otherwise clone for detection
 	if hasProvidedPath {
 		repoPath = providedRepoPath[0]
 	} else if cd.detector.DetectProvider(repoURL) == "local" {
-		// For local repositories, use path directly
 		repoPath = fullURL
 	} else {
-		// For remote repositories, create temporary directory for repository detection
 		tempDir, err := os.MkdirTemp("", "agent-smith-detect-*")
 		if err != nil {
 			return fmt.Errorf("failed to create temporary directory: %w", err)
 		}
 		defer os.RemoveAll(tempDir)
 
-		// Clone repository to temporary location for detection
 		cloneOpts := &git.CloneOptions{
 			URL:           fullURL,
 			Depth:         1,
@@ -128,7 +121,6 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 			SingleBranch:  true,
 		}
 
-		// Add authentication if needed
 		if auth, _ := gitpkg.GetAuthMethod(fullURL); auth != nil {
 			cloneOpts.Auth = auth
 		}
@@ -140,13 +132,11 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		repoPath = tempDir
 	}
 
-	// Detect components in repository
 	components, err := cd.detector.DetectComponentsInRepo(repoPath)
 	if err != nil {
 		return fmt.Errorf("failed to detect components: %w", err)
 	}
 
-	// Filter for command components
 	var commandComponents []models.DetectedComponent
 	for _, comp := range components {
 		if comp.Type == models.ComponentCommand {
@@ -167,13 +157,11 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		filesystemName = commandName
 	}
 
-	// Create command directory with resolved name
 	commandDir := filepath.Join(cd.baseDir, filesystemName)
 	if err := fileutil.CreateDirectoryWithPermissions(commandDir); err != nil {
 		return fmt.Errorf("failed to create command directory: %w", err)
 	}
 
-	// Set up cleanup on error
 	shouldCleanup := true
 	defer func() {
 		if shouldCleanup {
@@ -181,7 +169,6 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		}
 	}()
 
-	// Check if the requested commandName matches one of the detected components
 	var matchingComponent *models.DetectedComponent
 	for _, comp := range commandComponents {
 		if comp.Name == commandName {
@@ -202,26 +189,20 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		}
 	}
 
-	// If only one command component found, copy its contents
 	if len(commandComponents) == 1 {
 		component := commandComponents[0]
 
-		// Copy component files (non-recursive) using FilePath to command directory
 		err = fileutil.CopyComponentFiles(repoPath, component, commandDir)
 		if err != nil {
 			return fmt.Errorf("failed to copy command files: %w", err)
 		}
 	} else if matchingComponent != nil {
-		// Downloading a specific component from a multi-component directory
 		// Use heuristic to determine proper folder name to avoid nested monorepo directories
 		destFolderName := DetermineDestinationFolderName(matchingComponent.FilePath)
 
-		// If heuristic name differs from resolved filesystem name, update it
 		if destFolderName != filesystemName {
-			// Remove the originally created directory
 			os.RemoveAll(commandDir)
 
-			// Recreate with heuristic name
 			filesystemName = destFolderName
 			commandDir = filepath.Join(cd.baseDir, filesystemName)
 			if err := fileutil.CreateDirectoryWithPermissions(commandDir); err != nil {
@@ -229,7 +210,6 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 			}
 		}
 
-		// Copy component files (non-recursive) using FilePath to command directory
 		err = fileutil.CopyComponentFiles(repoPath, *matchingComponent, commandDir)
 		if err != nil {
 			return fmt.Errorf("failed to copy command files: %w", err)
@@ -244,7 +224,6 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		return fmt.Errorf("command '%s' not found in repository. Available commands: %s", commandName, strings.Join(commandNames, ", "))
 	}
 
-	// Save to lock file
 	sourceType := "github"
 	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
@@ -252,7 +231,6 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		sourceType = "git"
 	}
 
-	// Get commit hash from repository
 	var commitHash string
 	if hash, err := gitpkg.GetCommitHashFromPath(cd.cloner, repoPath); err == nil {
 		commitHash = hash
@@ -260,7 +238,6 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		cd.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	// Determine detection type and original path for lock file
 	detectionType := "recursive"
 	originalPath := ""
 	if matchingComponent != nil && len(commandComponents) > 1 {
@@ -273,12 +250,10 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
-	// Clean up git clone if it exists
 	if _, err := os.Stat(commandDir + ".git"); err == nil {
 		os.RemoveAll(commandDir + ".git")
 	}
 
-	// Success - don't clean up the directory
 	shouldCleanup = false
 
 	cd.formatter.Success("command", commandName)
@@ -287,7 +262,6 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 }
 
 func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) error {
-	// Resolve filesystem name before creating directory to handle conflicts
 	lockBaseDir := filepath.Dir(cd.baseDir)
 	filesystemName, err := metadataPkg.ResolveInstallFilesystemName(lockBaseDir, "commands", commandName, fullURL)
 	if err != nil {
@@ -295,13 +269,11 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		filesystemName = commandName
 	}
 
-	// Create command directory with resolved name
 	commandDir := filepath.Join(cd.baseDir, filesystemName)
 	if err := fileutil.CreateDirectoryWithPermissions(commandDir); err != nil {
 		return fmt.Errorf("failed to create command directory: %w", err)
 	}
 
-	// Set up cleanup on error
 	shouldCleanup := true
 	defer func() {
 		if shouldCleanup {
@@ -309,7 +281,6 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		}
 	}()
 
-	// Clone repository directly
 	cloneOpts := &git.CloneOptions{
 		URL:           fullURL,
 		Depth:         1,
@@ -317,7 +288,6 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		SingleBranch:  true,
 	}
 
-	// Add authentication if needed
 	if auth, _ := gitpkg.GetAuthMethod(fullURL); auth != nil {
 		cloneOpts.Auth = auth
 	}
@@ -327,7 +297,6 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		return fmt.Errorf("failed to clone repository: %w", cloneErr)
 	}
 
-	// Save to lock file
 	sourceType := "github"
 	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
@@ -335,7 +304,6 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		sourceType = "git"
 	}
 
-	// Get commit hash from repository
 	var commitHash string
 	if hash, hashErr := gitpkg.GetCommitHashFromPath(cd.cloner, commandDir); hashErr == nil {
 		commitHash = hash
@@ -347,7 +315,6 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
-	// Create {name}.md if it doesn't exist
 	commandFile := filepath.Join(commandDir, commandName+".md")
 	if _, err := os.Stat(commandFile); os.IsNotExist(err) {
 		if err := cd.createCommandFile(commandFile, commandName, fullURL); err != nil {
@@ -355,7 +322,6 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		}
 	}
 
-	// Success - don't clean up the directory
 	shouldCleanup = false
 
 	return nil
@@ -416,9 +382,7 @@ Add usage instructions here.
 	return fileutil.CreateFileWithPermissions(filePath, []byte(content))
 }
 
-// DownloadCommandWithRepo downloads a command with repo path provided
 func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoURL string, repoPath string, components []models.DetectedComponent) error {
-	// Find the specific command component with matching name
 	var targetComponent *models.DetectedComponent
 	for _, comp := range components {
 		if comp.Type == models.ComponentCommand && comp.Name == commandName {
@@ -428,20 +392,17 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 	}
 
 	if targetComponent == nil {
-		// Command component not found in provided components, fall back to original behavior
 		return cd.downloadCommandDirect(fullURL, commandName)
 	}
 
-	// Determine destination folder name using heuristic
+	// Use heuristic to determine proper folder name to avoid nested monorepo directories
 	destFolderName := DetermineDestinationFolderName(targetComponent.FilePath)
 
-	// Create command directory with heuristic name
 	commandDir := filepath.Join(cd.baseDir, destFolderName)
 	if err := fileutil.CreateDirectoryWithPermissions(commandDir); err != nil {
 		return fmt.Errorf("failed to create command directory: %w", err)
 	}
 
-	// Set up cleanup on error
 	shouldCleanup := true
 	defer func() {
 		if shouldCleanup {
@@ -449,13 +410,11 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 		}
 	}()
 
-	// Copy the entire component directory recursively
 	err := fileutil.CopyComponentFiles(repoPath, *targetComponent, commandDir)
 	if err != nil {
 		return fmt.Errorf("failed to copy command files: %w", err)
 	}
 
-	// Save to lock file
 	sourceType := "github"
 	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
@@ -463,7 +422,6 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 		sourceType = "git"
 	}
 
-	// Get commit hash from repository
 	var commitHash string
 	if hash, err := gitpkg.GetCommitHashFromPath(cd.cloner, repoPath); err == nil {
 		commitHash = hash
@@ -475,12 +433,10 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
-	// Clean up git clone if it exists
 	if _, err := os.Stat(commandDir + ".git"); err == nil {
 		os.RemoveAll(commandDir + ".git")
 	}
 
-	// Success - don't clean up the directory
 	shouldCleanup = false
 
 	return nil

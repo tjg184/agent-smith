@@ -45,7 +45,6 @@ func NewSkillDownloader() *SkillDownloader {
 
 // NewSkillDownloaderForProfile creates a new SkillDownloader instance that installs to a profile
 func NewSkillDownloaderForProfile(profileName string) *SkillDownloader {
-	// Get profiles directory
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
 		log.Fatal("Failed to get profiles directory:", err)
@@ -82,13 +81,11 @@ func NewSkillDownloaderWithTargetDir(targetDir string) *SkillDownloader {
 }
 
 func (sd *SkillDownloader) parseRepoURL(repoURL string) (string, error) {
-	// Normalize URL first (handles GitHub shorthand, etc.)
 	normalizedURL, err := sd.detector.NormalizeURL(repoURL)
 	if err != nil {
 		return "", err
 	}
 
-	// Validate the normalized repository
 	if err := sd.detector.ValidateRepository(normalizedURL); err != nil {
 		return "", fmt.Errorf("repository validation failed: %w", err)
 	}
@@ -107,28 +104,23 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 	var commitHashFromRepo string // Store commit hash from clone
 	hasProvidedPath := len(providedRepoPath) > 0 && providedRepoPath[0] != ""
 
-	// Use provided repo path if available, otherwise clone for detection
 	if hasProvidedPath {
 		repoPath = providedRepoPath[0]
 	} else if sd.detector.DetectProvider(repoURL) == "local" {
-		// For local repositories, use path directly
 		repoPath = fullURL
 	} else {
-		// For remote repositories, create temporary directory for repository detection
 		tempDir, err := os.MkdirTemp("", "agent-smith-detect-*")
 		if err != nil {
 			return fmt.Errorf("failed to create temporary directory: %w", err)
 		}
 		defer os.RemoveAll(tempDir)
 
-		// Clone repository to temporary location for detection
 		repo, err := gitpkg.CloneShallow(sd.cloner, tempDir, fullURL)
 		if err != nil {
 			return fmt.Errorf("failed to clone repository for detection: %w", err)
 		}
 		repoPath = tempDir
 
-		// Get commit hash from the cloned repository
 		if repo != nil {
 			ref, err := repo.Head()
 			if err == nil {
@@ -137,13 +129,11 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		}
 	}
 
-	// Detect components in the repository
 	components, err := sd.detector.DetectComponentsInRepo(repoPath)
 	if err != nil {
 		return fmt.Errorf("failed to detect components: %w", err)
 	}
 
-	// Filter for skill components
 	var skillComponents []models.DetectedComponent
 	for _, comp := range components {
 		if comp.Type == models.ComponentSkill {
@@ -156,7 +146,6 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		return sd.downloadSkillDirect(fullURL, skillName, repoURL)
 	}
 
-	// Resolve filesystem name before creating directory to handle conflicts
 	lockBaseDir := filepath.Dir(sd.baseDir)
 	filesystemName, err := metadataPkg.ResolveInstallFilesystemName(lockBaseDir, "skills", skillName, fullURL)
 	if err != nil {
@@ -164,13 +153,11 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		filesystemName = skillName
 	}
 
-	// Create skill directory with resolved name
 	skillDir := filepath.Join(sd.baseDir, filesystemName)
 	if err := fileutil.CreateDirectoryWithPermissions(skillDir); err != nil {
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
-	// Set up cleanup on error
 	shouldCleanup := true
 	defer func() {
 		if shouldCleanup {
@@ -178,7 +165,6 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		}
 	}()
 
-	// Check if the requested skillName matches one of the detected components
 	var matchingComponent *models.DetectedComponent
 	for _, comp := range skillComponents {
 		if comp.Name == skillName {
@@ -199,27 +185,20 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		}
 	}
 
-	// If only one skill component found, copy its contents
 	if len(skillComponents) == 1 {
 		component := skillComponents[0]
 
-		// Copy component files (non-recursive) using FilePath to skill directory
 		err = fileutil.CopyComponentFiles(repoPath, component, skillDir)
 		if err != nil {
 			return fmt.Errorf("failed to copy skill files: %w", err)
 		}
 	} else if matchingComponent != nil {
-		// Downloading a specific component from a multi-component directory
 		// Use heuristic to determine proper folder name to avoid nested monorepo directories
 		destFolderName := DetermineDestinationFolderName(matchingComponent.FilePath)
 
-		// If heuristic name differs from resolved filesystem name, update it
-		// (This can happen when the heuristic produces a different name than what was requested)
 		if destFolderName != filesystemName {
-			// Remove the originally created directory
 			os.RemoveAll(skillDir)
 
-			// Recreate with heuristic name
 			filesystemName = destFolderName
 			skillDir = filepath.Join(sd.baseDir, filesystemName)
 			if err := fileutil.CreateDirectoryWithPermissions(skillDir); err != nil {
@@ -227,7 +206,6 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 			}
 		}
 
-		// Copy component files (non-recursive) using FilePath to skill directory
 		err = fileutil.CopyComponentFiles(repoPath, *matchingComponent, skillDir)
 		if err != nil {
 			return fmt.Errorf("failed to copy skill files: %w", err)
@@ -242,7 +220,6 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		return fmt.Errorf("skill '%s' not found in repository. Available skills: %s", skillName, strings.Join(skillNames, ", "))
 	}
 
-	// Save to lock file
 	sourceType := "github"
 	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
@@ -250,21 +227,17 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		sourceType = "git"
 	}
 
-	// Get commit hash from repository (already retrieved during clone for remote repos)
 	var commitHash string
 	if hasProvidedPath || sd.detector.DetectProvider(repoURL) == "local" {
-		// For provided path or local repos, try to get hash from path
 		if hash, err := gitpkg.GetCommitHashFromPath(sd.cloner, repoPath); err == nil {
 			commitHash = hash
 		} else {
 			sd.formatter.Warning("failed to get commit hash: %v", err)
 		}
 	} else {
-		// For remote repos, use the hash we got during clone
 		commitHash = commitHashFromRepo
 	}
 
-	// Determine detection type and original path for lock file
 	detectionType := "recursive"
 	originalPath := ""
 	if matchingComponent != nil && len(skillComponents) > 1 {
@@ -277,12 +250,10 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
-	// Clean up git clone if it exists
 	if _, err := os.Stat(skillDir + ".git"); err == nil {
 		os.RemoveAll(skillDir + ".git")
 	}
 
-	// Success - don't clean up the directory
 	shouldCleanup = false
 
 	sd.formatter.Success("skill", skillName)
@@ -291,7 +262,6 @@ func (sd *SkillDownloader) DownloadSkill(repoURL, skillName string, providedRepo
 }
 
 func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL string) error {
-	// Resolve filesystem name before creating directory to handle conflicts
 	lockBaseDir := filepath.Dir(sd.baseDir)
 	filesystemName, err := metadataPkg.ResolveInstallFilesystemName(lockBaseDir, "skills", skillName, fullURL)
 	if err != nil {
@@ -299,13 +269,11 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 		filesystemName = skillName
 	}
 
-	// Create skill directory with resolved name
 	skillDir := filepath.Join(sd.baseDir, filesystemName)
 	if err := fileutil.CreateDirectoryWithPermissions(skillDir); err != nil {
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
-	// Set up cleanup on error
 	shouldCleanup := true
 	defer func() {
 		if shouldCleanup {
@@ -313,25 +281,20 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 		}
 	}()
 
-	// Clone repository for local or remote
 	var cloneErr error
 
-	// Handle local vs remote repositories
 	if sd.detector.DetectProvider(repoURL) == "local" {
-		// For local repositories, copy directory contents directly
 		cloneErr = fileutil.CopyDirectoryContents(fullURL, skillDir)
 		if cloneErr != nil {
 			return fmt.Errorf("failed to copy local repository: %w", cloneErr)
 		}
 	} else {
-		// For remote repositories, clone directly
 		_, cloneErr = gitpkg.CloneShallow(sd.cloner, skillDir, fullURL)
 		if cloneErr != nil {
 			return fmt.Errorf("failed to clone repository: %w", cloneErr)
 		}
 	}
 
-	// Save to lock file
 	sourceType := "github"
 	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
@@ -339,7 +302,6 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 		sourceType = "git"
 	}
 
-	// Get commit hash from the repository
 	var commitHash string
 	if hash, hashErr := gitpkg.GetCommitHashFromPath(sd.cloner, skillDir); hashErr == nil {
 		commitHash = hash
@@ -351,7 +313,6 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
-	// Create SKILL.md if it doesn't exist
 	skillFile := filepath.Join(skillDir, "SKILL.md")
 	if _, err := os.Stat(skillFile); os.IsNotExist(err) {
 		if err := sd.createSkillFile(skillFile, skillName, fullURL); err != nil {
@@ -359,7 +320,6 @@ func (sd *SkillDownloader) downloadSkillDirect(fullURL, skillName, repoURL strin
 		}
 	}
 
-	// Success - don't clean up the directory
 	shouldCleanup = false
 
 	return nil
@@ -420,9 +380,7 @@ Add usage instructions here.
 	return fileutil.CreateFileWithPermissions(filePath, []byte(content))
 }
 
-// DownloadSkillWithRepo downloads a skill with repo path provided
 func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL string, repoPath string, components []models.DetectedComponent) error {
-	// Find the specific skill component with matching name
 	var targetComponent *models.DetectedComponent
 	for _, comp := range components {
 		if comp.Type == models.ComponentSkill && comp.Name == skillName {
@@ -432,20 +390,17 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 	}
 
 	if targetComponent == nil {
-		// Skill component not found in provided components, fall back to original behavior
 		return sd.downloadSkillDirect(fullURL, skillName, repoURL)
 	}
 
-	// Determine destination folder name using heuristic
+	// Use heuristic to determine proper folder name to avoid nested monorepo directories
 	destFolderName := DetermineDestinationFolderName(targetComponent.FilePath)
 
-	// Create skill directory with heuristic name
 	skillDir := filepath.Join(sd.baseDir, destFolderName)
 	if err := fileutil.CreateDirectoryWithPermissions(skillDir); err != nil {
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
-	// Set up cleanup on error
 	shouldCleanup := true
 	defer func() {
 		if shouldCleanup {
@@ -453,13 +408,11 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 		}
 	}()
 
-	// Copy the entire component directory recursively
 	err := fileutil.CopyComponentFiles(repoPath, *targetComponent, skillDir)
 	if err != nil {
 		return fmt.Errorf("failed to copy skill files: %w", err)
 	}
 
-	// Save to lock file
 	sourceType := "github"
 	if strings.Contains(fullURL, "gitlab") {
 		sourceType = "gitlab"
@@ -467,7 +420,6 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 		sourceType = "git"
 	}
 
-	// Get commit hash from the repository
 	var commitHash string
 	if hash, err := gitpkg.GetCommitHashFromPath(sd.cloner, repoPath); err == nil {
 		commitHash = hash
@@ -479,12 +431,10 @@ func (sd *SkillDownloader) DownloadSkillWithRepo(fullURL, skillName, repoURL str
 		sd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
-	// Clean up git clone if it exists
 	if _, err := os.Stat(skillDir + ".git"); err == nil {
 		os.RemoveAll(skillDir + ".git")
 	}
 
-	// Success - don't clean up the directory
 	shouldCleanup = false
 
 	return nil

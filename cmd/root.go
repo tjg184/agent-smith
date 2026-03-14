@@ -28,7 +28,6 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-// getBanner returns the ASCII art banner for Agent Smith
 func getBanner() string {
 	return `
   ___                   _     _____           _ _   _     
@@ -88,13 +87,10 @@ func showWelcomeScreen() {
 		cyan("agent-smith <command> --help"))
 }
 
-// showSystemStatus displays a brief system status in the welcome screen
 func showSystemStatus(bold func(...interface{}) string, cyan func(...interface{}) string, gray func(...interface{}) string) {
-	// Initialize profile manager to check status
 	pm, _ := profiles.NewProfileManager(nil, locksvc.NewService(logger.New(logger.LevelError)))
 	activeProfile, _ := pm.GetActiveProfile()
 
-	// Count components
 	skillsDir, _ := paths.GetSkillsDir()
 	agentsDir, _ := paths.GetAgentsDir()
 	commandsDir, _ := paths.GetCommandsDir()
@@ -105,14 +101,12 @@ func showSystemStatus(bold func(...interface{}) string, cyan func(...interface{}
 
 	fmt.Println(bold("SYSTEM STATUS"))
 
-	// Profile status
 	if activeProfile != "" {
 		fmt.Printf("  Profile: %s\n", cyan(activeProfile))
 	} else {
 		fmt.Printf("  Profile: %s\n", gray("none (using base installation)"))
 	}
 
-	// Component counts
 	total := skillsCount + agentsCount + commandsCount
 	if total > 0 {
 		parts := []string{}
@@ -131,7 +125,6 @@ func showSystemStatus(bold func(...interface{}) string, cyan func(...interface{}
 	}
 }
 
-// countComponents counts the number of components in a directory
 func countComponents(dir string) int {
 	if dir == "" {
 		return 0
@@ -152,13 +145,10 @@ func countComponents(dir string) int {
 }
 
 func init() {
-	// Setup colored help templates for all commands
 	help.SetupCustomTemplates(rootCmd)
 
-	// Hide completion command from help output
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 
-	// Add version flag
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
 
 	rootCmd.PersistentFlags().Bool("verbose", false, "Show informational output (default: show only errors)")

@@ -29,7 +29,6 @@ func GetCrossPlatformPermissions() os.FileMode {
 
 // GetCrossPlatformFilePermissions returns the appropriate file permissions
 // for the current operating system.
-// Returns 0644 for all systems.
 func GetCrossPlatformFilePermissions() os.FileMode {
 	if runtime.GOOS == "windows" {
 		return 0644 // Windows has less granular permissions
@@ -133,7 +132,6 @@ func CopyComponentFiles(repoPath string, component models.DetectedComponent, dst
 	componentPath := filepath.Join(repoPath, component.FilePath)
 	componentDir := filepath.Dir(componentPath)
 
-	// Validate that the component file exists
 	if _, err := os.Stat(componentPath); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("cannot copy component '%s': component file does not exist at %s", component.Name, componentPath)
@@ -141,14 +139,12 @@ func CopyComponentFiles(repoPath string, component models.DetectedComponent, dst
 		return fmt.Errorf("cannot copy component '%s': failed to access component file %s: %w", component.Name, componentPath, err)
 	}
 
-	// Check if this is a single file component
-	// Directory-based components use SKILL.md, AGENT.md, or COMMAND.md
 	baseName := filepath.Base(component.FilePath)
+	// Directory-based components use SKILL.md, AGENT.md, or COMMAND.md
 	if filepath.Ext(component.FilePath) == ".md" &&
 		baseName != "SKILL.md" &&
 		baseName != "AGENT.md" &&
 		baseName != "COMMAND.md" {
-		// Single file component - copy just this file
 		fileName := filepath.Base(component.FilePath)
 		dstFilePath := filepath.Join(dst, fileName)
 		if err := CopyFile(componentPath, dstFilePath); err != nil {
@@ -157,7 +153,6 @@ func CopyComponentFiles(repoPath string, component models.DetectedComponent, dst
 		return nil
 	}
 
-	// Directory-based component - recursively copy all contents
 	if err := CopyDirectoryContents(componentDir, dst); err != nil {
 		return fmt.Errorf("cannot copy component '%s': %w", component.Name, err)
 	}
@@ -176,13 +171,10 @@ func ParseFrontmatter(filePath string) (*models.ComponentFrontmatter, error) {
 
 	contentStr := string(content)
 
-	// Check if file starts with frontmatter delimiter
 	if !strings.HasPrefix(contentStr, "---\n") && !strings.HasPrefix(contentStr, "---\r\n") {
-		// No frontmatter found, return nil (not an error)
 		return nil, nil
 	}
 
-	// Find the closing delimiter
 	lines := strings.Split(contentStr, "\n")
 	var frontmatterLines []string
 	foundClosing := false
@@ -201,7 +193,6 @@ func ParseFrontmatter(filePath string) (*models.ComponentFrontmatter, error) {
 		return nil, nil
 	}
 
-	// Parse YAML
 	frontmatterStr := strings.Join(frontmatterLines, "\n")
 	var frontmatter models.ComponentFrontmatter
 

@@ -23,7 +23,6 @@ type Uninstaller struct {
 	formatter *formatter.Formatter
 }
 
-// NewUninstaller creates a new Uninstaller instance
 func NewUninstaller(baseDir string, componentLinker *linker.ComponentLinker) *Uninstaller {
 	return &Uninstaller{
 		baseDir:   baseDir,
@@ -32,7 +31,6 @@ func NewUninstaller(baseDir string, componentLinker *linker.ComponentLinker) *Un
 	}
 }
 
-// UninstallComponent removes a single component
 func (u *Uninstaller) UninstallComponent(componentType, name string) error {
 	if componentType != "skills" && componentType != "agents" && componentType != "commands" {
 		return fmt.Errorf("invalid component type: %s (must be skills, agents, or commands)", componentType)
@@ -197,23 +195,18 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 		}
 
 		for _, name := range names {
-			// Auto-unlink component from all targets (silent if not linked)
 			if u.linker != nil {
-				// Pass empty targetFilter to unlink from all targets
 				_ = u.linker.UnlinkComponent(componentType, name, "")
 			}
 
-			// Show progress for removal
 			u.formatter.ProgressMsg(fmt.Sprintf("Removing %s", componentType), name)
 
-			// Load lock entry to get filesystem name
 			entry, err := metadata.LoadLockFileEntry(u.baseDir, componentType, name)
 			dirName := name
 			if err == nil && entry.FilesystemName != "" {
 				dirName = entry.FilesystemName
 			}
 
-			// Remove component directory from filesystem
 			componentDir := filepath.Join(u.baseDir, componentType, dirName)
 			if err := os.RemoveAll(componentDir); err != nil {
 				u.formatter.ProgressFailed()
@@ -223,7 +216,6 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 				continue
 			}
 
-			// Remove entry from lock file
 			if err := metadata.RemoveComponentEntry(u.baseDir, componentType, name); err != nil {
 				u.formatter.WarningMsg("Could not update lock file for %s: %s", name, err)
 			}
@@ -267,7 +259,6 @@ func (u *Uninstaller) findComponentsBySource(normalizedURL string) (map[string][
 			return nil, fmt.Errorf("failed to parse lock file for %s: %w", componentType, err)
 		}
 
-		// Get the appropriate nested map for this component type
 		var nestedEntries map[string]map[string]models.ComponentEntry
 		switch componentType {
 		case "skills":
@@ -280,7 +271,6 @@ func (u *Uninstaller) findComponentsBySource(normalizedURL string) (map[string][
 			continue
 		}
 
-		// Find components matching the source URL (iterate through nested structure)
 		var matchingNames []string
 		for sourceURL, entries := range nestedEntries {
 			for name, entry := range entries {
@@ -306,7 +296,6 @@ func (u *Uninstaller) matchesSourceURL(url1, url2 string) bool {
 		return false
 	}
 
-	// Normalize both URLs for comparison
 	normalized1 := normalizeURLForComparison(url1)
 	normalized2 := normalizeURLForComparison(url2)
 
@@ -315,18 +304,10 @@ func (u *Uninstaller) matchesSourceURL(url1, url2 string) bool {
 
 // normalizeURLForComparison normalizes a URL for comparison purposes
 func normalizeURLForComparison(url string) string {
-	// Trim whitespace
 	url = strings.TrimSpace(url)
-
-	// Remove trailing slash
 	url = strings.TrimSuffix(url, "/")
-
-	// Remove .git suffix
 	url = strings.TrimSuffix(url, ".git")
-
-	// Convert to lowercase for case-insensitive comparison
 	url = strings.ToLower(url)
-
 	return url
 }
 
@@ -338,17 +319,11 @@ func (u *Uninstaller) findLinkedTargets(componentType, componentName string) []s
 		return linkedTargets
 	}
 
-	// Get the list of targets from the linker
-	// We need to check each target to see if the component is linked there
-	// This requires accessing the targets, which we can do through the detector
-
-	// For now, we'll check common target directories
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return linkedTargets
 	}
 
-	// Check common target locations (both macOS and Linux paths)
 	targetPaths := map[string]string{
 		"opencode":   filepath.Join(homeDir, ".config", "opencode", componentType),
 		"claudecode": filepath.Join(homeDir, ".claude", componentType),

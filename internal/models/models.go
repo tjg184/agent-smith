@@ -72,10 +72,6 @@ type ComponentEntry struct {
 	Version int `json:"version"` // Entry version
 }
 
-// ComponentLockEntry is deprecated - use ComponentEntry instead
-// Kept for backward compatibility
-type ComponentLockEntry = ComponentEntry
-
 // ComponentLockFile tracks all components (installs and materializations)
 // Version 5+ uses unified ComponentEntry structure
 type ComponentLockFile struct {
@@ -83,15 +79,4 @@ type ComponentLockFile struct {
 	Skills   map[string]map[string]ComponentEntry `json:"skills"`
 	Agents   map[string]map[string]ComponentEntry `json:"agents,omitempty"`
 	Commands map[string]map[string]ComponentEntry `json:"commands,omitempty"`
-}
-
-// ComponentMetadata is a legacy metadata structure for backward compatibility
-type ComponentMetadata struct {
-	Name         string `json:"name"`
-	Source       string `json:"source"`
-	Commit       string `json:"commit"`
-	Downloaded   string `json:"downloaded"`
-	Components   int    `json:"components,omitempty"`
-	Detection    string `json:"detection,omitempty"`
-	OriginalPath string `json:"originalPath,omitempty"` // Original path in repo
 }

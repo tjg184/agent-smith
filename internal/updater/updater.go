@@ -119,27 +119,12 @@ func newDetector() *detector.RepositoryDetector {
 }
 
 // LoadMetadata loads component metadata from lock files only
-func (ud *UpdateDetector) LoadMetadata(componentType, componentName string) (*models.ComponentMetadata, error) {
-	return ud.loadMetadata(componentType, componentName)
-}
-
-// loadMetadata loads component metadata from lock files only
-func (ud *UpdateDetector) loadMetadata(componentType, componentName string) (*models.ComponentMetadata, error) {
-	// Load from lock files
-	entry, err := metadataPkg.LoadLockFileEntry(ud.baseDir, componentType, componentName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load lock file entry: %w", err)
-	}
-
-	return &models.ComponentMetadata{
-		Name:   componentName,
-		Source: entry.SourceUrl,
-		Commit: entry.CommitHash,
-	}, nil
+func (ud *UpdateDetector) LoadMetadata(componentType, componentName string) (*models.ComponentEntry, error) {
+	return metadataPkg.LoadLockFileEntry(ud.baseDir, componentType, componentName)
 }
 
 // loadFromLockFile loads component metadata from lock files
-func (ud *UpdateDetector) loadFromLockFile(componentType, componentName string) (*models.ComponentLockEntry, error) {
+func (ud *UpdateDetector) loadFromLockFile(componentType, componentName string) (*models.ComponentEntry, error) {
 	return metadataPkg.LoadLockFileEntry(ud.baseDir, componentType, componentName)
 }
 
@@ -183,12 +168,12 @@ func (ud *UpdateDetector) GetCurrentRepoSHA(repoURL string) (string, error) {
 
 // HasUpdates checks if a component has updates available
 func (ud *UpdateDetector) HasUpdates(componentType, componentName, repoURL string) (bool, error) {
-	metadata, err := ud.loadMetadata(componentType, componentName)
+	metadata, err := ud.LoadMetadata(componentType, componentName)
 	if err != nil {
 		return false, fmt.Errorf("failed to load metadata: %w", err)
 	}
 
-	if metadata.Commit == "" {
+	if metadata.CommitHash == "" {
 		fmt.Printf("Warning: %s/%s has no commit hash stored, will re-download to update lock file\n", componentType, componentName)
 		return true, nil
 	}
@@ -198,7 +183,7 @@ func (ud *UpdateDetector) HasUpdates(componentType, componentName, repoURL strin
 		return false, fmt.Errorf("failed to get current repository SHA: %w", err)
 	}
 
-	return metadata.Commit != currentSHA, nil
+	return metadata.CommitHash != currentSHA, nil
 }
 
 // UpdateComponent updates a single component if updates are detected
@@ -273,11 +258,10 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 	return nil
 }
 
-// componentUpdateInfo holds information about a component that needs checking/updating
 type componentUpdateInfo struct {
 	Type     string
 	Name     string
-	Metadata *models.ComponentMetadata
+	Metadata *models.ComponentEntry
 }
 
 // UpdateAll iterates through all installed components and updates them
@@ -386,11 +370,10 @@ func (ud *UpdateDetector) UpdateAll() error {
 			totalChecked++
 			fmt.Print(styles.ComponentProgressFormat(totalChecked, totalComponents, comp.Type, comp.Name))
 
-			// Check if update is needed by comparing commit hashes
-			if comp.Metadata.Commit == "" {
+			if comp.Metadata.CommitHash == "" {
 				// No commit hash stored, assume update needed
 				fmt.Printf("%s\n", styles.StatusUpdatingFormat())
-			} else if comp.Metadata.Commit == currentSHA {
+			} else if comp.Metadata.CommitHash == currentSHA {
 				// Already up to date
 				fmt.Printf("%s\n", styles.StatusUpToDateFormat())
 				upToDate++
@@ -465,13 +448,9 @@ func (ud *UpdateDetector) groupComponentsByRepository() (map[string][]componentU
 		totalComponents += len(entries)
 		for _, entry := range entries {
 			componentsByRepo[entry.SourceUrl] = append(componentsByRepo[entry.SourceUrl], componentUpdateInfo{
-				Type: componentType,
-				Name: entry.Name,
-				Metadata: &models.ComponentMetadata{
-					Name:   entry.Name,
-					Source: entry.SourceUrl,
-					Commit: entry.Entry.CommitHash,
-				},
+				Type:     componentType,
+				Name:     entry.Name,
+				Metadata: &entry.Entry,
 			})
 		}
 	}

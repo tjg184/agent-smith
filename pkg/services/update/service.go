@@ -36,7 +36,7 @@ func (s *Service) UpdateComponent(componentType, componentName string, opts serv
 		return fmt.Errorf("failed to load component metadata: %w", err)
 	}
 
-	if err := detector.UpdateComponent(componentType, componentName, metadata.Source); err != nil {
+	if err := detector.UpdateComponent(componentType, componentName, metadata.SourceUrl); err != nil {
 		return fmt.Errorf("failed to update component: %w", err)
 	}
 

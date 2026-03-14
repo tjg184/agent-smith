@@ -187,7 +187,7 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 	}
 
 	// Get lock file entry for provenance FIRST (we need the FilesystemName)
-	var lockEntry *models.ComponentLockEntry
+	var lockEntry *models.ComponentEntry
 
 	if opts.Source != "" {
 		// Use specific source if provided
@@ -816,7 +816,7 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 		}
 
 		// Look up the component across all sources
-		var foundMeta *project.MaterializedComponentMetadata
+		var foundMeta *models.ComponentEntry
 		for _, components := range componentMap {
 			if meta, exists := components[componentName]; exists {
 				foundMeta = &meta
@@ -1294,17 +1294,17 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 			switch comp.Type {
 			case "skills":
 				if metadata.Skills[sourceURL] == nil {
-					metadata.Skills[sourceURL] = make(map[string]project.MaterializedComponentMetadata)
+					metadata.Skills[sourceURL] = make(map[string]models.ComponentEntry)
 				}
 				metadata.Skills[sourceURL][comp.Name] = comp.Metadata
 			case "agents":
 				if metadata.Agents[sourceURL] == nil {
-					metadata.Agents[sourceURL] = make(map[string]project.MaterializedComponentMetadata)
+					metadata.Agents[sourceURL] = make(map[string]models.ComponentEntry)
 				}
 				metadata.Agents[sourceURL][comp.Name] = comp.Metadata
 			case "commands":
 				if metadata.Commands[sourceURL] == nil {
-					metadata.Commands[sourceURL] = make(map[string]project.MaterializedComponentMetadata)
+					metadata.Commands[sourceURL] = make(map[string]models.ComponentEntry)
 				}
 				metadata.Commands[sourceURL][comp.Name] = comp.Metadata
 			}
