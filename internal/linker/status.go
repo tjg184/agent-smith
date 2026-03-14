@@ -29,8 +29,6 @@ func (cl *ComponentLinker) getSourceDescription() string {
 	return fmt.Sprintf("Source: %s (base installation)", cl.agentsDir)
 }
 
-// getProfileFromPath extracts the profile name from a component path
-// Returns paths.BaseProfileName if the component is in the base installation, or the profile name
 func getProfileFromPath(path string) string {
 	path = filepath.Clean(path)
 
@@ -54,8 +52,6 @@ func getProfileFromPath(path string) string {
 	}
 }
 
-// GetProfileNameFromSymlink extracts the profile name from a symlink's target path.
-// Returns paths.BaseProfileName if base installation, empty string if broken/invalid.
 func GetProfileNameFromSymlink(symlinkPath string) string {
 	target, err := os.Readlink(symlinkPath)
 	if err != nil {

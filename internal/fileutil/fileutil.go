@@ -19,7 +19,6 @@ import (
 
 // GetCrossPlatformPermissions returns the appropriate directory permissions
 // for the current operating system.
-// Returns 0666 for Windows, 0755 for Unix-like systems.
 func GetCrossPlatformPermissions() os.FileMode {
 	if runtime.GOOS == "windows" {
 		return 0666 // Windows has less granular permissions
@@ -159,10 +158,6 @@ func CopyComponentFiles(repoPath string, component models.DetectedComponent, dst
 	return nil
 }
 
-// ParseFrontmatter extracts YAML frontmatter from a markdown file.
-// Frontmatter must be delimited by "---" at the start of the file.
-// Returns nil if no frontmatter is found (not an error).
-// Returns error only if the file cannot be read.
 func ParseFrontmatter(filePath string) (*models.ComponentFrontmatter, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
