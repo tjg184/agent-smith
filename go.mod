@@ -1,8 +1,6 @@
 module github.com/tjg184/agent-smith
 
-go 1.23.0
-
-toolchain go1.24.12
+go 1.26.1
 
 require (
 	github.com/fatih/color v1.18.0
