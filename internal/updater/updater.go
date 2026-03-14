@@ -21,16 +21,12 @@ import (
 	"github.com/tjg184/agent-smith/pkg/styles"
 )
 
-// UpdateDetector provides functionality to detect and apply updates to components
 type UpdateDetector struct {
 	baseDir     string
 	detector    *detector.RepositoryDetector
 	profileName string // If non-empty, we're working with a profile
 }
 
-// NewUpdateDetector creates a new UpdateDetector instance
-// If an active profile exists, it will use that profile's directory
-// Otherwise, it will use the default ~/.agent-smith/ directory
 func NewUpdateDetector() *UpdateDetector {
 	baseDir, err := paths.GetAgentsDir()
 	if err != nil {
@@ -59,8 +55,6 @@ func NewUpdateDetector() *UpdateDetector {
 	}
 }
 
-// NewUpdateDetectorWithProfile creates a new UpdateDetector instance for a specific profile
-// If profile is empty, it falls back to the active profile or base directory
 func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
 	baseDir, err := paths.GetAgentsDir()
 	if err != nil {
@@ -101,9 +95,6 @@ func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
 	}
 }
 
-// NewUpdateDetectorWithBaseDir creates a new UpdateDetector instance with an explicit base directory
-// This allows the caller to specify exactly which directory to use, bypassing all profile detection logic
-// The profileName is left empty since the caller is managing the directory directly
 func NewUpdateDetectorWithBaseDir(baseDir string) *UpdateDetector {
 	return &UpdateDetector{
 		baseDir:     baseDir,
