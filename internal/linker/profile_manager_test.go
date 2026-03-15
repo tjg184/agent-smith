@@ -200,6 +200,39 @@ func TestShowAllProfilesLinkStatus_WithProfileManager(t *testing.T) {
 	}
 }
 
+// TestProfileMatch_ActiveFlag verifies the ProfileMatch struct correctly tracks active status
+func TestProfileMatch_ActiveFlag(t *testing.T) {
+	match1 := ProfileMatch{
+		ProfileName: "profile1",
+		ProfilePath: "/path/to/profile1",
+		IsActive:    true,
+		SourceUrl:   "https://github.com/user/repo1",
+	}
+
+	match2 := ProfileMatch{
+		ProfileName: "profile2",
+		ProfilePath: "/path/to/profile2",
+		IsActive:    false,
+		SourceUrl:   "https://github.com/user/repo2",
+	}
+
+	if !match1.IsActive {
+		t.Error("match1 should be marked as active")
+	}
+	if match2.IsActive {
+		t.Error("match2 should not be marked as active")
+	}
+	if match1.ProfileName != "profile1" {
+		t.Errorf("Expected ProfileName 'profile1', got '%s'", match1.ProfileName)
+	}
+	if match1.SourceUrl != "https://github.com/user/repo1" {
+		t.Errorf("Expected SourceUrl 'https://github.com/user/repo1', got '%s'", match1.SourceUrl)
+	}
+	if match2.SourceUrl != "https://github.com/user/repo2" {
+		t.Errorf("Expected SourceUrl 'https://github.com/user/repo2', got '%s'", match2.SourceUrl)
+	}
+}
+
 // TestProfileManagerInterface verifies that the ProfileManager interface
 // is correctly defined and can be implemented
 func TestProfileManagerInterface(t *testing.T) {
