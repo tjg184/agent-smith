@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.3](https://github.com/tjg184/agent-smith/compare/v1.6.2...v1.6.3) (2026-03-15)
+
+
+### Bug Fixes
+
+* checksum was off ([#75](https://github.com/tjg184/agent-smith/issues/75)) ([6ec330f](https://github.com/tjg184/agent-smith/commit/6ec330f96586e703409d0705fbbbeb77816b94ae))
+* install script was not handling version correctly ([#73](https://github.com/tjg184/agent-smith/issues/73)) ([229c2f1](https://github.com/tjg184/agent-smith/commit/229c2f183266a154ba789cf38dfff8c45f33c501))
+
 ## [1.6.2](https://github.com/tjg184/agent-smith/compare/v1.6.1...v1.6.2) (2026-03-14)
 
 
