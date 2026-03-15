@@ -18,6 +18,10 @@ import (
 func linkFlatMdFiles(srcDir, targetBaseDir string) ([]string, error) {
 	var linked []string
 
+	if resolved, err := filepath.EvalSymlinks(srcDir); err == nil {
+		srcDir = resolved
+	}
+
 	err := filepath.WalkDir(srcDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -43,7 +47,12 @@ func linkFlatMdFiles(srcDir, targetBaseDir string) ([]string, error) {
 			}
 		}
 
-		relSymlink, err := filepath.Rel(filepath.Dir(dst), path)
+		dstDir := filepath.Dir(dst)
+		if realDir, err := filepath.EvalSymlinks(dstDir); err == nil {
+			dstDir = realDir
+		}
+
+		relSymlink, err := filepath.Rel(dstDir, path)
 		if err != nil {
 			return err
 		}

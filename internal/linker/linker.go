@@ -119,7 +119,12 @@ func (cl *ComponentLinker) createSymlink(src, dst string) error {
 		os.Remove(dst)
 	}
 
-	relPath, err := filepath.Rel(filepath.Dir(dst), src)
+	dstDir := filepath.Dir(dst)
+	if realDir, err := filepath.EvalSymlinks(dstDir); err == nil {
+		dstDir = realDir
+	}
+
+	relPath, err := filepath.Rel(dstDir, src)
 	if err != nil {
 		return fmt.Errorf("failed to create relative path: %w", err)
 	}
@@ -642,6 +647,9 @@ func (cl *ComponentLinker) DetectAndLinkLocalRepositories() error {
 	for _, component := range components {
 		componentTypeStr := string(component.Type) + "s"
 		componentPath := filepath.Join(cwd, component.Path)
+		if info, err := os.Stat(componentPath); err == nil && !info.IsDir() {
+			componentPath = filepath.Dir(componentPath)
+		}
 
 		tempLinkName := fmt.Sprintf("auto-detected-%s", component.Name)
 		tempLinkPath := filepath.Join(cl.agentsDir, componentTypeStr, tempLinkName)
