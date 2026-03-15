@@ -11,6 +11,7 @@ const (
 	OpencodeDir   = "~/.config/opencode"
 	ClaudeCodeDir = "~/.claude"
 	CopilotDir    = "~/.copilot"
+	UniversalDir  = "~/.agents"
 )
 
 const (
@@ -45,7 +46,6 @@ var IgnoredPaths = []string{
 	".idea",
 }
 
-// expandHome expands ~ to the user's home directory
 func expandHome(path string) (string, error) {
 	if len(path) == 0 || path[0] != '~' {
 		return path, nil
@@ -67,24 +67,24 @@ func expandHome(path string) (string, error) {
 	return path, nil
 }
 
-// GetAgentsDir returns the expanded agents directory path
 func GetAgentsDir() (string, error) {
 	return expandHome(AgentsDir)
 }
 
-// GetOpencodeDir returns the expanded opencode config directory path
 func GetOpencodeDir() (string, error) {
 	return expandHome(OpencodeDir)
 }
 
-// GetClaudeCodeDir returns the expanded claudecode config directory path
 func GetClaudeCodeDir() (string, error) {
 	return expandHome(ClaudeCodeDir)
 }
 
-// GetCopilotDir returns the expanded copilot config directory path
 func GetCopilotDir() (string, error) {
 	return expandHome(CopilotDir)
+}
+
+func GetUniversalDir() (string, error) {
+	return expandHome(UniversalDir)
 }
 
 // GetSkillsDir returns the full path to the skills directory

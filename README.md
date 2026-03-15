@@ -11,16 +11,28 @@
        |___/
 ```
 
-Agent Smith is a powerful CLI tool for downloading, managing, and executing AI agents, skills, and commands from git repositories.
+Agent Smith is a CLI tool for downloading, managing, and linking AI agents, skills, and commands from git repositories.
 
-Install, manage, and link AI components with ease:
-- Download and install agents, skills, and commands from any git repository
-- Link components to supported targets (OpenCode, Claude Code, etc.)
-- Materialize components to project directories for version control and team sharing
-- Manage multiple profiles for context switching
-- Update and maintain installed components
-- Remove components cleanly when no longer needed
+## Key Features
 
+| Feature | Description |
+|---------|-------------|
+| Install | Download agents, skills, and commands from any git repository |
+| Link | Connect components to your AI editor |
+| Materialize | Copy components to project directories for version control |
+| Profiles | Switch between different component sets for different contexts |
+| Update | Keep installed components up to date |
+
+See [Supported Targets](#supported-targets) for compatible AI editors.
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Commands](#commands)
+- [Supported Targets](#supported-targets)
+- [Directory Structure](#directory-structure)
+- [Common Workflows](#common-workflows)
 
 ## Installation
 
@@ -110,136 +122,92 @@ agent-smith unlink all
 
 ## Commands
 
-### Install
+### Installation Commands
 
-Download and install components from git repositories.
+| Command | Description |
+|---------|-------------|
+| `install` | Download components from git repositories |
+| `uninstall` | Remove installed components from the system |
+| `update` | Keep installed components up to date |
 
 ```bash
-# Install specific components
+# Install components
 agent-smith install skill owner/repo skill-name
 agent-smith install agent owner/repo agent-name
 agent-smith install command owner/repo command-name
-
-# Install all components from a repository
 agent-smith install all owner/repo
 
-# Install to custom directory
-agent-smith install all owner/repo --install-dir ./tools
+# Uninstall components
+agent-smith uninstall skill mcp-builder
+agent-smith uninstall all owner/repo
+
+# Update components
+agent-smith update skills mcp-builder
+agent-smith update all
 ```
 
 **URL formats:** `owner/repo`, `https://github.com/owner/repo`, `git@github.com:owner/repo.git`, `/path/to/local/repo`
 
-### Find
+### Discovery Commands
 
-Search for skills in the remote skills.sh registry.
+| Command | Description |
+|---------|-------------|
+| `find` | Search for skills in the skills.sh registry |
+| `status` | Show installed components and their state |
 
 ```bash
-# Search for skills by keyword
 agent-smith find skill prd
-agent-smith find skill typescript
-agent-smith find skill react
-
-# Limit results
-agent-smith find skill api --limit 10
-
-# Get JSON output for scripting
+agent-smith find skill typescript --limit 10
 agent-smith find skill prd --json
+agent-smith status
 ```
 
-Results show:
-- Skill name and source repository
-- Install count (popularity)
-- Installation commands for both specific skill and all skills from repo
-- skills.sh URL for reference
+### Integration Commands
 
-### Link
-
-Link installed components to detected targets (OpenCode, Claude Code, or custom).
+| Command | Description |
+|---------|-------------|
+| `link` | Connect components to your AI editor |
+| `unlink` | Remove components from your AI editor |
+| `target` | Manage custom target directories |
 
 ```bash
-# Link specific or all components
+# Link components to targets
 agent-smith link skill mcp-builder
-agent-smith link agent coding-assistant
-agent-smith link all
-
-# Link to specific target
 agent-smith link all --to opencode
-agent-smith link all --to cursor
 
-# Link with profile options
-agent-smith link all --profile work
-agent-smith link all --all-profiles
-
-# Show status
-agent-smith link status
-agent-smith link list
-```
-
-### Unlink
-
-Remove linked components from targets.
-
-```bash
+# Unlink components
 agent-smith unlink skill mcp-builder
-agent-smith unlink agent coding-assistant
 agent-smith unlink all
-agent-smith unlink all --profile work
-agent-smith unlink all --all-profiles
-```
 
-### Uninstall
-
-Remove installed components from the system.
-
-```bash
-agent-smith uninstall skill mcp-builder
-agent-smith uninstall agent coding-assistant
-agent-smith uninstall command format-json
-agent-smith uninstall all owner/repo
-agent-smith uninstall all owner/repo --force
-agent-smith uninstall skill mcp-builder --profile work
-```
-
-### Profile
-
-Manage profiles for context switching.
-
-```bash
-# Basic management
-agent-smith profile create work
-agent-smith profile activate work
-agent-smith profile deactivate
-agent-smith profile list
-agent-smith profile status
-agent-smith profile delete work
-
-# Copy components between profiles
-agent-smith profile add skills work-profile api-design
-agent-smith profile copy skills work-profile personal-profile api-design
-agent-smith profile remove skills work-profile old-skill
-agent-smith profile cherry-pick new-profile --source work --source personal
-```
-
-### Target
-
-Manage custom target directories for linking components.
-
-```bash
+# Manage custom targets
 agent-smith target add cursor ~/.cursor
 agent-smith target list
 agent-smith target remove cursor
 ```
 
-### Update
+See [Supported Targets](#supported-targets) for available options.
+
+### Distribution Commands
+
+| Command | Description |
+|---------|-------------|
+| `materialize` | Copy components to project directories |
+| `profile` | Manage component sets for different contexts |
 
 ```bash
-agent-smith update skills mcp-builder
-agent-smith update all
+# Materialize to project directories
+agent-smith materialize skill api-design --target opencode
+agent-smith materialize agents --target all
+
+# Manage profiles
+agent-smith profile create work
+agent-smith profile activate work
+agent-smith profile copy skills work-profile personal-profile
 ```
 
 ### Materialize
 
-Copy components from `~/.agent-smith/` to project directories (`.opencode/`, `.claude/`) for version control and team sharing.
+Copy components from `~/.agent-smith/` to project directories for version control and team sharing. See [Supported Targets](#supported-targets) for available options.
 
 ```bash
 # Materialize specific components
@@ -256,17 +224,11 @@ agent-smith materialize skill api-design --target opencode --dry-run
 agent-smith materialize skill api-design --target opencode --force
 ```
 
-### Status
-
-```bash
-agent-smith status
-```
-
 ## Project Detection
 
-Agent Smith uses intelligent project detection to determine where to materialize components. When you run materialization commands, agent-smith walks up the directory tree looking for project markers (`.git/`, `.opencode/`, `.claude/`, `go.mod`, etc.).
+Agent Smith uses intelligent project detection to determine where to materialize components. When you run materialization commands, agent-smith walks up the directory tree looking for project markers.
 
-The first detected marker determines the project root where `.opencode/` or `.claude/` will be created. Use `--project-dir` to explicitly specify a location:
+The first detected marker determines the project root where components will be created. Use `--project-dir` to explicitly specify a location:
 
 ```bash
 agent-smith materialize skill api-design --target opencode --project-dir ~/my-project
@@ -285,9 +247,28 @@ agent-smith materialize skill api-design --target opencode --project-dir ~/my-pr
 └── profiles/         # Profile directories
 
 ~/my-project/
-├── .opencode/        # Materialized components
-└── .claude/          # Materialized components
+├── .opencode/        # Materialized components for OpenCode
+├── .claude/          # Materialized components for Claude Code
+├── .github/          # Materialized components for GitHub Copilot
+└── .agents/          # Materialized components for Universal
 ```
+
+## Supported Targets
+
+| Agent | CLI Flag | Component | Project Path | Global Path |
+|-------|----------|----------|--------------|-------------|
+| Claude Code | claudecode | skills | .claude/skills/ | ~/.claude/skills/ |
+| Claude Code | claudecode | agents | .claude/agents/ | ~/.claude/agents/ |
+| Claude Code | claudecode | commands | .claude/commands/ | ~/.claude/commands/ |
+| GitHub Copilot | copilot | skills | .github/skills/ | ~/.copilot/skills/ |
+| GitHub Copilot | copilot | agents | .github/agents/ | ~/.copilot/agents/ |
+| GitHub Copilot | copilot | commands | .github/commands/ | ~/.copilot/commands/ |
+| OpenCode | opencode | skills | .opencode/skills/ | ~/.config/opencode/skills/ |
+| OpenCode | opencode | agents | .opencode/agents/ | ~/.config/opencode/agents/ |
+| OpenCode | opencode | commands | .opencode/commands/ | ~/.config/opencode/commands/ |
+| Universal | universal | skills | .agents/skills/ | ~/.agents/skills/ |
+| Universal | universal | agents | .agents/agents/ | ~/.agents/agents/ |
+| Universal | universal | commands | .agents/commands/ | ~/.agents/commands/ |
 
 ## Common Workflows
 
@@ -356,7 +337,7 @@ Windows is not currently supported.
 ## Contributing
 
 Contributions are welcome! Please ensure:
-- All tests pass: `go test -tags=integration ./...`
+- All tests pass
 - Code follows Go conventions
 - New features include tests
 
