@@ -171,7 +171,7 @@ check_requirements() {
 get_latest_version() {
     local version
     
-    print_info "Fetching latest version..."
+    print_info "Fetching latest version..." >&2
     
     version=$(curl -sSL "${GITHUB_API}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
     
