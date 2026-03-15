@@ -228,17 +228,23 @@ download_and_verify() {
         exit 1
     fi
     
-    # Use sha256sum on Linux, shasum on macOS
-    if command -v sha256sum >/dev/null 2>&1; then
-        echo "$checksum_line" | sha256sum -c --quiet || {
-            print_error "Checksum verification failed"
-            exit 1
-        }
+    local expected_hash
+    local actual_hash
+
+    expected_hash=$(echo "$checksum_line" | awk '{print $1}')
+
+    if command -v shasum >/dev/null 2>&1; then
+        actual_hash=$(shasum -a 256 "$archive_name" | awk '{print $1}')
+    elif command -v sha256sum >/dev/null 2>&1; then
+        actual_hash=$(sha256sum "$archive_name" | awk '{print $1}')
     else
-        echo "$checksum_line" | shasum -a 256 -c --quiet || {
-            print_error "Checksum verification failed"
-            exit 1
-        }
+        print_error "No SHA256 tool found"
+        exit 1
+    fi
+
+    if [ "$expected_hash" != "$actual_hash" ]; then
+        print_error "Checksum verification failed"
+        exit 1
     fi
     
     print_success "Checksum verified"
