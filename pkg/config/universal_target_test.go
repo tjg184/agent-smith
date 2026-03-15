@@ -13,9 +13,18 @@ func TestUniversalTarget_GetGlobalBaseDir(t *testing.T) {
 		t.Fatalf("NewUniversalTarget() error = %v", err)
 	}
 
-	_, err = target.GetGlobalBaseDir()
-	if err == nil {
-		t.Error("GetGlobalBaseDir() expected error for universal target without base dir, got nil")
+	got, err := target.GetGlobalBaseDir()
+	if err != nil {
+		t.Fatalf("GetGlobalBaseDir() error = %v", err)
+	}
+
+	want, err := paths.GetUniversalDir()
+	if err != nil {
+		t.Fatalf("GetUniversalDir() error = %v", err)
+	}
+
+	if got != want {
+		t.Errorf("GetGlobalBaseDir() = %v, want %v", got, want)
 	}
 }
 
@@ -156,30 +165,30 @@ func TestUniversalTargetWithDir_CustomDirectory(t *testing.T) {
 	}
 }
 
-func TestUniversalTarget_RequiresProjectContext(t *testing.T) {
+func TestUniversalTarget_DefaultGlobalPaths(t *testing.T) {
 	target, err := NewUniversalTarget()
 	if err != nil {
 		t.Fatalf("NewUniversalTarget() error = %v", err)
 	}
 
-	// All directory methods should return error when no base dir is set
+	// All directory methods should work with default global path
 	_, err = target.GetGlobalSkillsDir()
-	if err == nil {
-		t.Error("GetGlobalSkillsDir() expected error without project context, got nil")
+	if err != nil {
+		t.Errorf("GetGlobalSkillsDir() error = %v", err)
 	}
 
 	_, err = target.GetGlobalAgentsDir()
-	if err == nil {
-		t.Error("GetGlobalAgentsDir() expected error without project context, got nil")
+	if err != nil {
+		t.Errorf("GetGlobalAgentsDir() error = %v", err)
 	}
 
 	_, err = target.GetGlobalCommandsDir()
-	if err == nil {
-		t.Error("GetGlobalCommandsDir() expected error without project context, got nil")
+	if err != nil {
+		t.Errorf("GetGlobalCommandsDir() error = %v", err)
 	}
 
 	_, err = target.GetDetectionConfigPath()
-	if err == nil {
-		t.Error("GetDetectionConfigPath() expected error without project context, got nil")
+	if err != nil {
+		t.Errorf("GetDetectionConfigPath() error = %v", err)
 	}
 }
