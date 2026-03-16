@@ -43,30 +43,57 @@ Unit tests are co-located with source files following Go conventions:
 
 **Packages with unit tests:**
 - `internal/detector/`: Component detection, extraction, and pattern matching (6 test files)
+- `internal/downloader/`: Download operations and error handling (2 test files)
 - `internal/fileutil/`: File operations and utilities (2 test files)
-- `internal/git/`: Git operations and URL normalization (2 test files)
-- `internal/linker/`: Component linking and profile collision handling (4 test files)
-- `internal/updater/`: Update operations and logic (1 test file)
-- `internal/downloader/`: Download operations and error handling (1 test file)
+- `internal/formatter/`: Output formatting (4 test files)
+- `internal/git/`: Git operations and URL normalization (3 test files)
+- `internal/linker/`: Component linking and profile collision handling (6 test files)
+- `internal/materializer/`: File copy and sync-detection logic (1 test file)
+- `internal/metadata/`: Lock file read/write operations (1 test file)
 - `internal/testutil/`: Shared test utilities and helpers (1 test file)
-- `pkg/profiles/`: Profile management, reuse, and activation (5 test files)
-- `pkg/config/`: Configuration and target management (4 test files)
-- `pkg/paths/`: Path utilities (1 test file)
+- `internal/uninstaller/`: Component uninstall logic (1 test file)
+- `internal/updater/`: Update operations and logic (1 test file)
+- `pkg/colors/`: Terminal color helpers (1 test file)
+- `pkg/config/`: Configuration and target management (6 test files)
+- `pkg/errors/`: Error helpers (1 test file)
+- `pkg/help/`: Help formatter (1 test file)
 - `pkg/logger/`: Logging functionality (1 test file)
+- `pkg/paths/`: Path utilities (1 test file)
+- `pkg/profiles/`: Profile management, reuse, and activation (5 test files)
+- `pkg/project/`: Project detection and materialization (2 test files)
+- `pkg/services/find/`: Find service (1 test file)
+- `pkg/services/lock/`: Lock service (1 test file)
+- `pkg/services/materialize/`: Materialization post-processors (2 test files)
+- `pkg/styles/`: UI styles (1 test file)
 
 ### Integration Tests
 Integration tests verify end-to-end functionality and are distinguished by:
 - Build tag `//go:build integration` at the top of the file
-- Suffix `_integration_test.go` in the filename
+- Standard `_test.go` naming suffix
 - Test complete workflows involving multiple components
 - **Located in `tests/integration/` directory** for better organization
 
 **Location:** All integration tests are located in the `tests/integration/` directory at the project root.
 
-**Current integration tests:**
-- `tests/integration/component_download_integration_test.go`: Component downloading, repository detection, cross-platform paths
-- `tests/integration/e2e_workflow_integration_test.go`: End-to-end workflows (install → link → update → uninstall)
+**Current integration tests (18 files):**
+- `tests/integration/e2e_workflow_test.go`: End-to-end workflows (install → link → update → uninstall)
+- `tests/integration/install_profile_switch_test.go`: Profile switching during install
+- `tests/integration/link_auto_profile_test.go`: Auto-profile linking behavior
+- `tests/integration/link_mixed_profiles_test.go`: Linking across multiple profiles
+- `tests/integration/link_profile_collision_test.go`: Profile collision handling during link
+- `tests/integration/link_status_default_behavior_test.go`: Link status command defaults
+- `tests/integration/materialize_all_components_test.go`: Materializing all component types
+- `tests/integration/materialize_commands_test.go`: Command component materialization
+- `tests/integration/materialize_flat_agents_commands_test.go`: Flat agent/command materialization
+- `tests/integration/materialize_flatten_copilot_test.go`: Copilot target flattening
+- `tests/integration/materialize_nested_skills_test.go`: Nested skill materialization
 - `tests/integration/profile_add_lock_preservation_test.go`: Profile addition and lock file preservation
+- `tests/integration/profile_error_messages_test.go`: Profile command error message quality
+- `tests/integration/profile_remove_lock_cleanup_test.go`: Lock file cleanup on profile removal
+- `tests/integration/profile_rename_test.go`: Profile rename command behavior
+- `tests/integration/profile_share_active_test.go`: Sharing components across profiles
+- `tests/integration/uninstall_test.go`: Component uninstall workflows
+- `tests/integration/unlink_test.go`: Component unlink workflows
 
 ## Running Tests
 
@@ -204,8 +231,8 @@ func TestYourFeature(t *testing.T) {
 
 | Category | Build Tag | Location | Test Count | Purpose |
 |----------|-----------|----------|------------|---------|
-| Unit Tests | None | Co-located with source | 29 files | Test individual functions and packages |
-| Integration Tests | `integration` | `tests/integration/` directory | 3 files | Test end-to-end workflows |
+| Unit Tests | None | Co-located with source | 48 files | Test individual functions and packages |
+| Integration Tests | `integration` | `tests/integration/` directory | 18 files | Test end-to-end workflows |
 
 ## Adding New Tests
 
@@ -233,11 +260,10 @@ func TestMyFunction(t *testing.T) {
 ```
 
 ### Adding an Integration Test
-1. Create a file named `<feature>_integration_test.go` in the `tests/integration/` directory
-2. Add build tags at the top:
+1. Create a file named `<feature>_test.go` in the `tests/integration/` directory
+2. Add the build tag at the top:
    ```go
    //go:build integration
-   // +build integration
    
    package main
    ```
@@ -254,7 +280,6 @@ func TestMyFunction(t *testing.T) {
 Example:
 ```go
 //go:build integration
-// +build integration
 
 package main
 
