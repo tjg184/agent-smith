@@ -96,8 +96,7 @@ EXAMPLES:
 			handleAddSkill(args[0], args[1], profile, installDir)
 		},
 	}
-	installSkillCmd.Flags().StringP("profile", "p", "", "Force creation of a new profile with a custom name")
-	installSkillCmd.Flags().StringP("install-dir", "i", "", "Install to a custom directory (isolated from ~/.agent-smith/)")
+	addInstallFlags(installSkillCmd)
 	installCmd.AddCommand(installSkillCmd)
 
 	installAgentCmd := &cobra.Command{
@@ -155,8 +154,7 @@ EXAMPLES:
 			handleAddAgent(args[0], args[1], profile, installDir)
 		},
 	}
-	installAgentCmd.Flags().StringP("profile", "p", "", "Force creation of a new profile with a custom name")
-	installAgentCmd.Flags().StringP("install-dir", "i", "", "Install to a custom directory (isolated from ~/.agent-smith/)")
+	addInstallFlags(installAgentCmd)
 	installCmd.AddCommand(installAgentCmd)
 
 	installCommandCmd := &cobra.Command{
@@ -214,8 +212,7 @@ EXAMPLES:
 			handleAddCommand(args[0], args[1], profile, installDir)
 		},
 	}
-	installCommandCmd.Flags().StringP("profile", "p", "", "Force creation of a new profile with a custom name")
-	installCommandCmd.Flags().StringP("install-dir", "i", "", "Install to a custom directory (isolated from ~/.agent-smith/)")
+	addInstallFlags(installCommandCmd)
 	installCmd.AddCommand(installCommandCmd)
 
 	installAllCmd := &cobra.Command{

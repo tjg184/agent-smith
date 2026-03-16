@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"path/filepath"
+
+	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
 // CustomTarget implements the Target interface for custom user-defined targets
@@ -23,7 +25,7 @@ func NewCustomTarget(config CustomTargetConfig) (*CustomTarget, error) {
 	}
 
 	// Expand base directory path
-	expandedBaseDir, err := expandHomePath(config.BaseDir)
+	expandedBaseDir, err := paths.ExpandHome(config.BaseDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand base directory: %w", err)
 	}

@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/tjg184/agent-smith/internal/detector"
 	"github.com/tjg184/agent-smith/internal/downloader"
 	"github.com/tjg184/agent-smith/internal/formatter"
@@ -129,18 +127,7 @@ func (ud *UpdateDetector) GetCurrentRepoSHA(repoURL string) (string, error) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	cloneOpts := &git.CloneOptions{
-		URL:           fullURL,
-		Depth:         1,
-		ReferenceName: plumbing.HEAD,
-		SingleBranch:  true,
-	}
-
-	if auth, _ := gitpkg.GetAuthMethod(fullURL); auth != nil {
-		cloneOpts.Auth = auth
-	}
-
-	repo, err := git.PlainClone(tempDir, true, cloneOpts)
+	repo, err := gitpkg.CloneBareShallow(gitpkg.NewDefaultCloner(), tempDir, fullURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to clone repository: %w", err)
 	}
@@ -298,19 +285,7 @@ func (ud *UpdateDetector) UpdateAll() error {
 			continue
 		}
 
-		cloneOpts := &git.CloneOptions{
-			URL:           fullURL,
-			Depth:         1,
-			ReferenceName: plumbing.HEAD,
-			SingleBranch:  true,
-		}
-
-		// Add authentication if needed
-		if auth, _ := gitpkg.GetAuthMethod(fullURL); auth != nil {
-			cloneOpts.Auth = auth
-		}
-
-		repo, cloneErr := git.PlainClone(tempDir, false, cloneOpts)
+		repo, cloneErr := gitpkg.CloneShallow(gitpkg.NewDefaultCloner(), tempDir, fullURL)
 		if cloneErr != nil {
 			os.RemoveAll(tempDir)
 			// Mark all components from this repo as failed

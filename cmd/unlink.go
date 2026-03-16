@@ -4,6 +4,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func makeUnlinkRun(componentType string) func(cmd *cobra.Command, args []string) {
+	return func(cmd *cobra.Command, args []string) {
+		targetFilter, _ := cmd.Flags().GetString("target")
+		profile, _ := cmd.Flags().GetString("profile")
+		handleUnlinkWithProfile(componentType, args[0], targetFilter, profile)
+	}
+}
+
+func makeUnlinkBulkRun(componentType string) func(cmd *cobra.Command, args []string) {
+	return func(cmd *cobra.Command, args []string) {
+		targetFilter, _ := cmd.Flags().GetString("target")
+		profile, _ := cmd.Flags().GetString("profile")
+		if len(args) == 1 {
+			handleUnlinkWithProfile(componentType, args[0], targetFilter, profile)
+		} else {
+			force, _ := cmd.Flags().GetBool("force")
+			handleUnlinkTypeWithProfile(componentType, targetFilter, force, profile)
+		}
+	}
+}
+
 func init() {
 	unlinkCmd := &cobra.Command{
 		Use:   "unlink",
@@ -38,14 +59,9 @@ EXAMPLES:
   # Unlink a skill from a specific profile
   agent-smith unlink skill mcp-builder --profile work`,
 		Args: exactArgsWithHelp(1, "agent-smith unlink skill <name>"),
-		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("target")
-			profile, _ := cmd.Flags().GetString("profile")
-			handleUnlinkWithProfile("skills", args[0], targetFilter, profile)
-		},
+		Run:  makeUnlinkRun("skills"),
 	}
-	unlinkSkillCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, copilot, or all). Default: unlink from all detected targets")
-	unlinkSkillCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
+	addUnlinkFlags(unlinkSkillCmd)
 	unlinkCmd.AddCommand(unlinkSkillCmd)
 
 	unlinkAgentCmd := &cobra.Command{
@@ -66,14 +82,9 @@ EXAMPLES:
   # Unlink an agent from a specific profile
   agent-smith unlink agent coding-assistant --profile work`,
 		Args: exactArgsWithHelp(1, "agent-smith unlink agent <name>"),
-		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("target")
-			profile, _ := cmd.Flags().GetString("profile")
-			handleUnlinkWithProfile("agents", args[0], targetFilter, profile)
-		},
+		Run:  makeUnlinkRun("agents"),
 	}
-	unlinkAgentCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, copilot, or all). Default: unlink from all detected targets")
-	unlinkAgentCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
+	addUnlinkFlags(unlinkAgentCmd)
 	unlinkCmd.AddCommand(unlinkAgentCmd)
 
 	unlinkCommandCmd := &cobra.Command{
@@ -94,14 +105,9 @@ EXAMPLES:
   # Unlink a command from a specific profile
   agent-smith unlink command json-formatter --profile work`,
 		Args: exactArgsWithHelp(1, "agent-smith unlink command <name>"),
-		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("target")
-			profile, _ := cmd.Flags().GetString("profile")
-			handleUnlinkWithProfile("commands", args[0], targetFilter, profile)
-		},
+		Run:  makeUnlinkRun("commands"),
 	}
-	unlinkCommandCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, copilot, or all). Default: unlink from all detected targets")
-	unlinkCommandCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
+	addUnlinkFlags(unlinkCommandCmd)
 	unlinkCmd.AddCommand(unlinkCommandCmd)
 
 	unlinkSkillsCmd := &cobra.Command{
@@ -131,21 +137,10 @@ EXAMPLES:
   # Unlink a specific skill (backward compatibility)
   agent-smith unlink skills mcp-builder`,
 		Args: rangeArgsWithHelp(0, 1, "agent-smith unlink skills [name]"),
-		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("target")
-			profile, _ := cmd.Flags().GetString("profile")
-			// Backward compatibility: if a name is provided, unlink that specific skill
-			if len(args) == 1 {
-				handleUnlinkWithProfile("skills", args[0], targetFilter, profile)
-			} else {
-				force, _ := cmd.Flags().GetBool("force")
-				handleUnlinkTypeWithProfile("skills", targetFilter, force, profile)
-			}
-		},
+		Run:  makeUnlinkBulkRun("skills"),
 	}
-	unlinkSkillsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
-	unlinkSkillsCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, copilot, or all). Default: unlink from all detected targets")
-	unlinkSkillsCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
+	addForceFlag(unlinkSkillsCmd)
+	addUnlinkFlags(unlinkSkillsCmd)
 	unlinkCmd.AddCommand(unlinkSkillsCmd)
 
 	unlinkAgentsCmd := &cobra.Command{
@@ -175,21 +170,10 @@ EXAMPLES:
   # Unlink a specific agent (backward compatibility)
   agent-smith unlink agents coding-assistant`,
 		Args: rangeArgsWithHelp(0, 1, "agent-smith unlink agents [name]"),
-		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("target")
-			profile, _ := cmd.Flags().GetString("profile")
-			// Backward compatibility: if a name is provided, unlink that specific agent
-			if len(args) == 1 {
-				handleUnlinkWithProfile("agents", args[0], targetFilter, profile)
-			} else {
-				force, _ := cmd.Flags().GetBool("force")
-				handleUnlinkTypeWithProfile("agents", targetFilter, force, profile)
-			}
-		},
+		Run:  makeUnlinkBulkRun("agents"),
 	}
-	unlinkAgentsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
-	unlinkAgentsCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, copilot, or all). Default: unlink from all detected targets")
-	unlinkAgentsCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
+	addForceFlag(unlinkAgentsCmd)
+	addUnlinkFlags(unlinkAgentsCmd)
 	unlinkCmd.AddCommand(unlinkAgentsCmd)
 
 	unlinkCommandsCmd := &cobra.Command{
@@ -219,21 +203,10 @@ EXAMPLES:
   # Unlink a specific command (backward compatibility)
   agent-smith unlink commands json-formatter`,
 		Args: rangeArgsWithHelp(0, 1, "agent-smith unlink commands [name]"),
-		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("target")
-			profile, _ := cmd.Flags().GetString("profile")
-			// Backward compatibility: if a name is provided, unlink that specific command
-			if len(args) == 1 {
-				handleUnlinkWithProfile("commands", args[0], targetFilter, profile)
-			} else {
-				force, _ := cmd.Flags().GetBool("force")
-				handleUnlinkTypeWithProfile("commands", targetFilter, force, profile)
-			}
-		},
+		Run:  makeUnlinkBulkRun("commands"),
 	}
-	unlinkCommandsCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
-	unlinkCommandsCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, copilot, or all). Default: unlink from all detected targets")
-	unlinkCommandsCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
+	addForceFlag(unlinkCommandsCmd)
+	addUnlinkFlags(unlinkCommandsCmd)
 	unlinkCmd.AddCommand(unlinkCommandsCmd)
 
 	unlinkAllCmd := &cobra.Command{
@@ -272,7 +245,7 @@ EXAMPLES:
 			handleUnlinkAllWithProfile(targetFilter, force, allProfiles, profile)
 		},
 	}
-	unlinkAllCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
+	addForceFlag(unlinkAllCmd)
 	unlinkAllCmd.Flags().StringP("target", "t", "", "Target to unlink from (opencode, claudecode, copilot, or all). Default: unlink from all detected targets")
 	unlinkAllCmd.Flags().Bool("all-profiles", false, "Unlink components from all profiles (default: current profile only)")
 	unlinkAllCmd.Flags().StringP("profile", "p", "", "Unlink from a specific profile without switching to it")
