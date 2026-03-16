@@ -230,6 +230,175 @@ func TestUnifiedComponentEntry(t *testing.T) {
 	})
 }
 
+func TestFindAllComponentInstances(t *testing.T) {
+	t.Run("ReturnsAllInstancesAcrossSources", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		SaveComponentEntry(tempDir, "skills", "shared-skill", "github", "git",
+			"https://github.com/org/repo-a", "aaa111", "skills/shared-skill",
+			ComponentEntryOptions{UpdatedAt: time.Now().Format(time.RFC3339), FilesystemName: "shared-skill"})
+
+		SaveComponentEntry(tempDir, "skills", "shared-skill", "github", "git",
+			"https://github.com/org/repo-b", "bbb222", "skills/shared-skill",
+			ComponentEntryOptions{UpdatedAt: time.Now().Format(time.RFC3339), FilesystemName: "shared-skill-2"})
+
+		instances, err := FindAllComponentInstances(tempDir, "skills", "shared-skill")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(instances) != 2 {
+			t.Errorf("expected 2 instances, got %d", len(instances))
+		}
+
+		seenURLs := make(map[string]bool)
+		for _, inst := range instances {
+			seenURLs[inst.SourceUrl] = true
+		}
+		if !seenURLs["https://github.com/org/repo-a"] || !seenURLs["https://github.com/org/repo-b"] {
+			t.Errorf("expected both source URLs to be present, got %v", seenURLs)
+		}
+	})
+
+	t.Run("ReturnsEmptyWhenComponentMissing", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		SaveComponentEntry(tempDir, "skills", "other-skill", "github", "git",
+			"https://github.com/org/repo", "abc123", "skills/other-skill",
+			ComponentEntryOptions{UpdatedAt: time.Now().Format(time.RFC3339), FilesystemName: "other-skill"})
+
+		instances, err := FindAllComponentInstances(tempDir, "skills", "nonexistent")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(instances) != 0 {
+			t.Errorf("expected 0 instances, got %d", len(instances))
+		}
+	})
+
+	t.Run("ReturnsEmptyWhenNoLockFile", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		instances, err := FindAllComponentInstances(tempDir, "skills", "any-skill")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(instances) != 0 {
+			t.Errorf("expected 0 instances, got %d", len(instances))
+		}
+	})
+
+	t.Run("EntryDataIsPreserved", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		SaveComponentEntry(tempDir, "agents", "my-agent", "github", "git",
+			"https://github.com/org/repo", "commit-hash", "agents/my-agent",
+			ComponentEntryOptions{
+				UpdatedAt:      time.Now().Format(time.RFC3339),
+				FilesystemName: "my-agent",
+				SourceHash:     "src-hash",
+				CurrentHash:    "cur-hash",
+			})
+
+		instances, err := FindAllComponentInstances(tempDir, "agents", "my-agent")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(instances) != 1 {
+			t.Fatalf("expected 1 instance, got %d", len(instances))
+		}
+
+		inst := instances[0]
+		if inst.SourceUrl != "https://github.com/org/repo" {
+			t.Errorf("expected SourceUrl 'https://github.com/org/repo', got '%s'", inst.SourceUrl)
+		}
+		if inst.Entry.CommitHash != "commit-hash" {
+			t.Errorf("expected CommitHash 'commit-hash', got '%s'", inst.Entry.CommitHash)
+		}
+		if inst.Entry.SourceHash != "src-hash" {
+			t.Errorf("expected SourceHash 'src-hash', got '%s'", inst.Entry.SourceHash)
+		}
+	})
+}
+
+func TestLoadAllComponents(t *testing.T) {
+	t.Run("ReturnsAllComponents", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		SaveComponentEntry(tempDir, "skills", "skill-a", "github", "git",
+			"https://github.com/org/repo", "aaa", "skills/skill-a",
+			ComponentEntryOptions{UpdatedAt: time.Now().Format(time.RFC3339), FilesystemName: "skill-a"})
+
+		SaveComponentEntry(tempDir, "skills", "skill-b", "github", "git",
+			"https://github.com/org/repo", "bbb", "skills/skill-b",
+			ComponentEntryOptions{UpdatedAt: time.Now().Format(time.RFC3339), FilesystemName: "skill-b"})
+
+		SaveComponentEntry(tempDir, "skills", "skill-c", "github", "git",
+			"https://github.com/org/other-repo", "ccc", "skills/skill-c",
+			ComponentEntryOptions{UpdatedAt: time.Now().Format(time.RFC3339), FilesystemName: "skill-c"})
+
+		results, err := LoadAllComponents(tempDir, "skills")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(results) != 3 {
+			t.Errorf("expected 3 components, got %d", len(results))
+		}
+
+		nameSet := make(map[string]bool)
+		for _, r := range results {
+			nameSet[r.Name] = true
+		}
+		if !nameSet["skill-a"] || !nameSet["skill-b"] || !nameSet["skill-c"] {
+			t.Errorf("expected all component names, got %v", nameSet)
+		}
+	})
+
+	t.Run("ReturnsEmptyWhenNoLockFile", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		results, err := LoadAllComponents(tempDir, "skills")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(results) != 0 {
+			t.Errorf("expected 0 components, got %d", len(results))
+		}
+	})
+
+	t.Run("ReturnsMultipleSources", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		SaveComponentEntry(tempDir, "commands", "cmd-a", "github", "git",
+			"https://github.com/org/repo-x", "xxx", "commands/cmd-a",
+			ComponentEntryOptions{UpdatedAt: time.Now().Format(time.RFC3339), FilesystemName: "cmd-a"})
+
+		SaveComponentEntry(tempDir, "commands", "cmd-a", "github", "git",
+			"https://github.com/org/repo-y", "yyy", "commands/cmd-a",
+			ComponentEntryOptions{UpdatedAt: time.Now().Format(time.RFC3339), FilesystemName: "cmd-a-2"})
+
+		results, err := LoadAllComponents(tempDir, "commands")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(results) != 2 {
+			t.Errorf("expected 2 results (same name, two sources), got %d", len(results))
+		}
+
+		for _, r := range results {
+			if r.Name != "cmd-a" {
+				t.Errorf("expected component name 'cmd-a', got '%s'", r.Name)
+			}
+		}
+	})
+}
+
 func TestFilesystemNameConflicts(t *testing.T) {
 	tempDir := t.TempDir()
 	skillsDir := filepath.Join(tempDir, "skills")

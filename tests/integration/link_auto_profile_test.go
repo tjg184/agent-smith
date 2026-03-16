@@ -83,14 +83,20 @@ func TestE2E_LinkSkill_AutoLinkFromActiveProfile(t *testing.T) {
 			absTarget = filepath.Clean(filepath.Join(filepath.Dir(linkedPath), target))
 		}
 
+		// Resolve both paths through EvalSymlinks so that platform-specific
+		// indirections (e.g. /var -> /private/var on macOS) don't cause spurious mismatches.
+		resolvedTarget, err := filepath.EvalSymlinks(absTarget)
+		if err != nil {
+			resolvedTarget = filepath.Clean(absTarget)
+		}
+
 		expectedTarget, err := filepath.EvalSymlinks(skillDir)
 		if err != nil {
-			// skillDir may not be a symlink itself — use clean abs path
 			expectedTarget = filepath.Clean(skillDir)
 		}
 
-		if absTarget != expectedTarget {
-			t.Errorf("symlink target mismatch\nexpected: %s\ngot:      %s", expectedTarget, absTarget)
+		if resolvedTarget != expectedTarget {
+			t.Errorf("symlink target mismatch\nexpected: %s\ngot:      %s", expectedTarget, resolvedTarget)
 		}
 	})
 }
