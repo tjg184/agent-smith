@@ -79,13 +79,24 @@ func TestE2E_LinkSkill_CollisionActiveProfileWins(t *testing.T) {
 			absTarget = filepath.Clean(filepath.Join(filepath.Dir(linkedPath), linkTarget))
 		}
 
-		expectedProfile1SkillDir := filepath.Clean(filepath.Join(
+		// Resolve both sides through EvalSymlinks to handle platform-specific
+		// indirections (e.g. /var -> /private/var on macOS).
+		resolvedTarget, err := filepath.EvalSymlinks(absTarget)
+		if err != nil {
+			resolvedTarget = filepath.Clean(absTarget)
+		}
+
+		rawExpected := filepath.Clean(filepath.Join(
 			tempDir, ".agent-smith", "profiles", "collision-profile-1", "skills", skillName,
 		))
+		expectedProfile1SkillDir, err := filepath.EvalSymlinks(rawExpected)
+		if err != nil {
+			expectedProfile1SkillDir = rawExpected
+		}
 
-		if absTarget != expectedProfile1SkillDir {
+		if resolvedTarget != expectedProfile1SkillDir {
 			t.Errorf("symlink should point to active profile (collision-profile-1)\nexpected: %s\ngot:      %s",
-				expectedProfile1SkillDir, absTarget)
+				expectedProfile1SkillDir, resolvedTarget)
 		}
 	})
 }
