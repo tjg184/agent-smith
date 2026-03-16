@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/schollz/progressbar/v3"
 	"github.com/tjg184/agent-smith/internal/detector"
 	"github.com/tjg184/agent-smith/internal/formatter"
@@ -71,20 +69,7 @@ func (bd *BulkDownloader) ValidateRepo(repoURL string) (tempDir string, componen
 	}
 
 	// Clone repository to temporary location for detection
-	cloneOpts := &git.CloneOptions{
-		URL:           fullURL,
-		Depth:         1,
-		ReferenceName: plumbing.HEAD,
-		SingleBranch:  true,
-	}
-
-	// Add authentication if needed
-	if auth, _ := gitpkg.GetAuthMethod(fullURL); auth != nil {
-		cloneOpts.Auth = auth
-	}
-
-	_, err = git.PlainClone(tempDir, false, cloneOpts)
-	if err != nil {
+	if _, err = gitpkg.CloneShallow(gitpkg.NewDefaultCloner(), tempDir, fullURL); err != nil {
 		os.RemoveAll(tempDir)
 		return "", nil, fmt.Errorf("failed to clone repository for bulk detection: %w", err)
 	}

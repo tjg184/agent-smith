@@ -7,11 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/tjg184/agent-smith/internal/detector"
 	"github.com/tjg184/agent-smith/internal/fileutil"
-	"github.com/tjg184/agent-smith/internal/formatter"
 	gitpkg "github.com/tjg184/agent-smith/internal/git"
 	metadataPkg "github.com/tjg184/agent-smith/internal/metadata"
 	"github.com/tjg184/agent-smith/internal/models"
@@ -20,10 +16,7 @@ import (
 
 // CommandDownloader handles downloading command components
 type CommandDownloader struct {
-	baseDir   string
-	detector  *detector.RepositoryDetector
-	cloner    gitpkg.Cloner
-	formatter *formatter.Formatter
+	baseDownloader
 }
 
 func NewCommandDownloader() *CommandDownloader {
@@ -36,12 +29,7 @@ func NewCommandDownloader() *CommandDownloader {
 		log.Fatal("Failed to create commands directory:", err)
 	}
 
-	return &CommandDownloader{
-		baseDir:   baseDir,
-		detector:  detector.NewRepositoryDetector(),
-		cloner:    gitpkg.NewDefaultCloner(),
-		formatter: formatter.New(),
-	}
+	return &CommandDownloader{newBaseDownloader(baseDir)}
 }
 
 func NewCommandDownloaderForProfile(profileName string) *CommandDownloader {
@@ -56,12 +44,7 @@ func NewCommandDownloaderForProfile(profileName string) *CommandDownloader {
 		log.Fatal("Failed to create profile commands directory:", err)
 	}
 
-	return &CommandDownloader{
-		baseDir:   baseDir,
-		detector:  detector.NewRepositoryDetector(),
-		cloner:    gitpkg.NewDefaultCloner(),
-		formatter: formatter.New(),
-	}
+	return &CommandDownloader{newBaseDownloader(baseDir)}
 }
 
 func NewCommandDownloaderWithTargetDir(targetDir string) *CommandDownloader {
@@ -71,25 +54,7 @@ func NewCommandDownloaderWithTargetDir(targetDir string) *CommandDownloader {
 		log.Fatal("Failed to create target commands directory:", err)
 	}
 
-	return &CommandDownloader{
-		baseDir:   baseDir,
-		detector:  detector.NewRepositoryDetector(),
-		cloner:    gitpkg.NewDefaultCloner(),
-		formatter: formatter.New(),
-	}
-}
-
-func (cd *CommandDownloader) parseRepoURL(repoURL string) (string, error) {
-	normalizedURL, err := cd.detector.NormalizeURL(repoURL)
-	if err != nil {
-		return "", err
-	}
-
-	if err := cd.detector.ValidateRepository(normalizedURL); err != nil {
-		return "", fmt.Errorf("repository validation failed: %w", err)
-	}
-
-	return normalizedURL, nil
+	return &CommandDownloader{newBaseDownloader(baseDir)}
 }
 
 func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, providedRepoPath ...string) error {
@@ -112,18 +77,7 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		}
 		defer os.RemoveAll(tempDir)
 
-		cloneOpts := &git.CloneOptions{
-			URL:           fullURL,
-			Depth:         1,
-			ReferenceName: plumbing.HEAD,
-			SingleBranch:  true,
-		}
-
-		if auth, _ := gitpkg.GetAuthMethod(fullURL); auth != nil {
-			cloneOpts.Auth = auth
-		}
-
-		_, err = git.PlainClone(tempDir, false, cloneOpts)
+		_, err = gitpkg.CloneShallow(cd.cloner, tempDir, fullURL)
 		if err != nil {
 			return fmt.Errorf("failed to clone repository for detection: %w", err)
 		}
@@ -143,11 +97,9 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 	}
 
 	if len(commandComponents) == 0 {
-		// No command components detected, fall back to original behavior
 		return cd.downloadCommandDirect(fullURL, commandName)
 	}
 
-	// Resolve filesystem name before creating directory to handle conflicts
 	lockBaseDir := filepath.Dir(cd.baseDir)
 	filesystemName, err := metadataPkg.ResolveInstallFilesystemName(lockBaseDir, "commands", commandName, fullURL)
 	if err != nil {
@@ -192,7 +144,6 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 			return fmt.Errorf("failed to copy command files: %w", err)
 		}
 	} else if matchingComponent != nil {
-		// Use heuristic to determine proper folder name to avoid nested monorepo directories
 		destFolderName := DetermineDestinationFolderName(matchingComponent.FilePath)
 
 		if destFolderName != filesystemName {
@@ -217,12 +168,7 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 		return fmt.Errorf("command '%s' not found in repository. Available commands: %s", commandName, strings.Join(commandNames, ", "))
 	}
 
-	sourceType := "github"
-	if strings.Contains(fullURL, "gitlab") {
-		sourceType = "gitlab"
-	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
-		sourceType = "git"
-	}
+	sourceType := cd.detectSourceType(fullURL)
 
 	var commitHash string
 	if hash, err := gitpkg.GetCommitHashFromPath(cd.cloner, repoPath); err == nil {
@@ -234,12 +180,11 @@ func (cd *CommandDownloader) DownloadCommand(repoURL, commandName string, provid
 	detectionType := "recursive"
 	originalPath := ""
 	if matchingComponent != nil && len(commandComponents) > 1 {
-		// Single command from multi-command repo
 		detectionType = "single"
 		originalPath = matchingComponent.FilePath
 	}
 
-	if err := cd.saveLockFile(commandName, filesystemName, fullURL, sourceType, fullURL, commitHash, len(commandComponents), detectionType, originalPath); err != nil {
+	if err := cd.saveLockFile("commands", commandName, filesystemName, fullURL, sourceType, fullURL, commitHash, len(commandComponents), detectionType, originalPath); err != nil {
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -274,28 +219,12 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		}
 	}()
 
-	cloneOpts := &git.CloneOptions{
-		URL:           fullURL,
-		Depth:         1,
-		ReferenceName: plumbing.HEAD,
-		SingleBranch:  true,
-	}
-
-	if auth, _ := gitpkg.GetAuthMethod(fullURL); auth != nil {
-		cloneOpts.Auth = auth
-	}
-
-	_, cloneErr := git.PlainClone(commandDir, false, cloneOpts)
+	_, cloneErr := gitpkg.CloneShallow(cd.cloner, commandDir, fullURL)
 	if cloneErr != nil {
 		return fmt.Errorf("failed to clone repository: %w", cloneErr)
 	}
 
-	sourceType := "github"
-	if strings.Contains(fullURL, "gitlab") {
-		sourceType = "gitlab"
-	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
-		sourceType = "git"
-	}
+	sourceType := cd.detectSourceType(fullURL)
 
 	var commitHash string
 	if hash, hashErr := gitpkg.GetCommitHashFromPath(cd.cloner, commandDir); hashErr == nil {
@@ -304,13 +233,13 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 		cd.formatter.Warning("failed to get commit hash: %v", hashErr)
 	}
 
-	if err := cd.saveLockFile(commandName, filesystemName, fullURL, sourceType, fullURL, commitHash, 1, "direct", ""); err != nil {
+	if err := cd.saveLockFile("commands", commandName, filesystemName, fullURL, sourceType, fullURL, commitHash, 1, "direct", ""); err != nil {
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
 	commandFile := filepath.Join(commandDir, commandName+".md")
 	if _, err := os.Stat(commandFile); os.IsNotExist(err) {
-		if err := cd.createCommandFile(commandFile, commandName, fullURL); err != nil {
+		if err := cd.createComponentMarkdownFile(commandFile, "command", commandName, fullURL); err != nil {
 			cd.formatter.Warning("failed to create %s.md: %v", commandName, err)
 		}
 	}
@@ -318,61 +247,6 @@ func (cd *CommandDownloader) downloadCommandDirect(fullURL, commandName string) 
 	shouldCleanup = false
 
 	return nil
-}
-
-// saveLockFile saves command lock entry in agent-smith install compatible format
-func (cd *CommandDownloader) saveLockFile(commandName, filesystemName, source, sourceType, sourceUrl, commitHash string, components int, detection, originalPath string) error {
-	// Use the parent directory of baseDir for lock file
-	// baseDir is the commands directory (e.g., ~/.agent-smith/commands)
-	// We want the lock file in the parent (e.g., ~/.agent-smith)
-	lockBaseDir := filepath.Dir(cd.baseDir)
-
-	if err := fileutil.CreateDirectoryWithPermissions(lockBaseDir); err != nil {
-		return fmt.Errorf("failed to create lock file directory: %w", err)
-	}
-
-	// Calculate hashes for drift detection
-	// Both sourceHash and currentHash use local filesystem hashing
-	// They should match at install time (no modifications yet)
-	var sourceHash, currentHash string
-	commandDir := filepath.Join(cd.baseDir, filesystemName)
-
-	if hash, err := metadataPkg.ComputeLocalFolderHash(commandDir); err == nil {
-		sourceHash = hash
-		currentHash = hash
-	} else {
-		// Only warn if we can't hash at all (rare - filesystem issue)
-		cd.formatter.Warning("failed to compute hash: %v", err)
-	}
-
-	return metadataPkg.SaveComponentEntry(lockBaseDir, "commands", commandName, source, sourceType, sourceUrl, commitHash, originalPath, metadataPkg.ComponentEntryOptions{
-		UpdatedAt:      "", // Will be set by SaveComponentEntry
-		Components:     components,
-		Detection:      detection,
-		SourceHash:     sourceHash,
-		CurrentHash:    currentHash,
-		FilesystemName: filesystemName,
-	})
-}
-
-func (cd *CommandDownloader) createCommandFile(filePath, commandName, source string) error {
-	content := fmt.Sprintf(`# %s
-
-Downloaded from: %s
-
-## Description
-
-This command was automatically downloaded by Agent Smith.
-
-## Usage
-
-Add usage instructions here.
-
----
-*Auto-generated by Agent Smith*
-`, commandName, source)
-
-	return fileutil.CreateFileWithPermissions(filePath, []byte(content))
 }
 
 func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoURL string, repoPath string, components []models.DetectedComponent) error {
@@ -388,7 +262,6 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 		return cd.downloadCommandDirect(fullURL, commandName)
 	}
 
-	// Use heuristic to determine proper folder name to avoid nested monorepo directories
 	destFolderName := DetermineDestinationFolderName(targetComponent.FilePath)
 
 	commandDir := filepath.Join(cd.baseDir, destFolderName)
@@ -408,12 +281,7 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 		return fmt.Errorf("failed to copy command files: %w", err)
 	}
 
-	sourceType := "github"
-	if strings.Contains(fullURL, "gitlab") {
-		sourceType = "gitlab"
-	} else if strings.HasPrefix(fullURL, "git@") || strings.HasPrefix(fullURL, "ssh://") {
-		sourceType = "git"
-	}
+	sourceType := cd.detectSourceType(fullURL)
 
 	var commitHash string
 	if hash, err := gitpkg.GetCommitHashFromPath(cd.cloner, repoPath); err == nil {
@@ -422,7 +290,7 @@ func (cd *CommandDownloader) DownloadCommandWithRepo(fullURL, commandName, repoU
 		cd.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := cd.saveLockFile(commandName, destFolderName, fullURL, sourceType, fullURL, commitHash, 1, "single", targetComponent.FilePath); err != nil {
+	if err := cd.saveLockFile("commands", commandName, destFolderName, fullURL, sourceType, fullURL, commitHash, 1, "single", targetComponent.FilePath); err != nil {
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 

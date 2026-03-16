@@ -88,39 +88,6 @@ func debugPrintln(a ...interface{}) {
 	}
 }
 
-// determineDestinationFolderName uses a hierarchy heuristic to preserve
-// optional directory structure. It walks up from the component file,
-// skipping component-type names (agents/commands/skills), and returns
-// the first non-component-type directory name found.
-func determineDestinationFolderName(componentFilePath string) string {
-	componentTypeNames := paths.GetComponentTypeNames()
-	currentDir := filepath.Dir(componentFilePath)
-
-	for {
-		dirName := filepath.Base(currentDir)
-
-		isComponentType := false
-		for _, typeName := range componentTypeNames {
-			if dirName == typeName {
-				isComponentType = true
-				break
-			}
-		}
-
-		if !isComponentType && dirName != "." && dirName != "" {
-			return dirName
-		}
-
-		parentDir := filepath.Dir(currentDir)
-
-		if parentDir == currentDir || parentDir == "." || parentDir == "/" || dirName == "" {
-			return "root"
-		}
-
-		currentDir = parentDir
-	}
-}
-
 func NewLockService() services.ComponentLockService {
 	return locksvc.NewService(appLogger)
 }
@@ -429,18 +396,6 @@ func getTargetNames(targets []config.Target) []string {
 		names[i] = target.GetName()
 	}
 	return names
-}
-
-// joinStrings joins a slice of strings with a separator
-func joinStrings(strings []string, separator string) string {
-	if len(strings) == 0 {
-		return ""
-	}
-	result := strings[0]
-	for i := 1; i < len(strings); i++ {
-		result += separator + strings[i]
-	}
-	return result
 }
 
 func main() {

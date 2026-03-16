@@ -4,6 +4,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func makeUninstallRun(componentType string) func(cmd *cobra.Command, args []string) {
+	return func(cmd *cobra.Command, args []string) {
+		profile, _ := cmd.Flags().GetString("profile")
+		source, _ := cmd.Flags().GetString("source")
+		handleUninstall(componentType, args[0], profile, source)
+	}
+}
+
 func init() {
 	uninstallCmd := &cobra.Command{
 		Use:   "uninstall",
@@ -21,7 +29,6 @@ SAFETY:
   - Lock file entries are removed to maintain consistency`,
 	}
 
-	// Individual component uninstall commands
 	uninstallSkillCmd := &cobra.Command{
 		Use:   "skill <name>",
 		Short: "Remove a specific skill",
@@ -42,14 +49,9 @@ EXAMPLES:
   # Disambiguate when the same skill name exists in multiple sources
   agent-smith uninstall skill conventional-commit --source https://github.com/marcelorodrigo/agent-skills`,
 		Args: exactArgsWithHelp(1, "agent-smith uninstall skill <name>"),
-		Run: func(cmd *cobra.Command, args []string) {
-			profile, _ := cmd.Flags().GetString("profile")
-			source, _ := cmd.Flags().GetString("source")
-			handleUninstall("skills", args[0], profile, source)
-		},
+		Run:  makeUninstallRun("skills"),
 	}
-	uninstallSkillCmd.Flags().StringP("profile", "p", "", "Remove from a specific profile instead of ~/.agent-smith/")
-	uninstallSkillCmd.Flags().StringP("source", "s", "", "Source repository URL to disambiguate when the same name exists in multiple sources")
+	addUninstallComponentFlags(uninstallSkillCmd)
 	uninstallCmd.AddCommand(uninstallSkillCmd)
 
 	uninstallAgentCmd := &cobra.Command{
@@ -72,14 +74,9 @@ EXAMPLES:
   # Disambiguate when the same agent name exists in multiple sources
   agent-smith uninstall agent my-agent --source https://github.com/owner/repo`,
 		Args: exactArgsWithHelp(1, "agent-smith uninstall agent <name>"),
-		Run: func(cmd *cobra.Command, args []string) {
-			profile, _ := cmd.Flags().GetString("profile")
-			source, _ := cmd.Flags().GetString("source")
-			handleUninstall("agents", args[0], profile, source)
-		},
+		Run:  makeUninstallRun("agents"),
 	}
-	uninstallAgentCmd.Flags().StringP("profile", "p", "", "Remove from a specific profile instead of ~/.agent-smith/")
-	uninstallAgentCmd.Flags().StringP("source", "s", "", "Source repository URL to disambiguate when the same name exists in multiple sources")
+	addUninstallComponentFlags(uninstallAgentCmd)
 	uninstallCmd.AddCommand(uninstallAgentCmd)
 
 	uninstallCommandCmd := &cobra.Command{
@@ -102,17 +99,11 @@ EXAMPLES:
   # Disambiguate when the same command name exists in multiple sources
   agent-smith uninstall command my-command --source https://github.com/owner/repo`,
 		Args: exactArgsWithHelp(1, "agent-smith uninstall command <name>"),
-		Run: func(cmd *cobra.Command, args []string) {
-			profile, _ := cmd.Flags().GetString("profile")
-			source, _ := cmd.Flags().GetString("source")
-			handleUninstall("commands", args[0], profile, source)
-		},
+		Run:  makeUninstallRun("commands"),
 	}
-	uninstallCommandCmd.Flags().StringP("profile", "p", "", "Remove from a specific profile instead of ~/.agent-smith/")
-	uninstallCommandCmd.Flags().StringP("source", "s", "", "Source repository URL to disambiguate when the same name exists in multiple sources")
+	addUninstallComponentFlags(uninstallCommandCmd)
 	uninstallCmd.AddCommand(uninstallCommandCmd)
 
-	// Bulk uninstall from repository
 	uninstallAllCmd := &cobra.Command{
 		Use:   "all <repository-url>",
 		Short: "Remove all components from a repository",
@@ -144,7 +135,7 @@ SAFETY:
 			handleUninstallAll(args[0], force)
 		},
 	}
-	uninstallAllCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
+	addForceFlag(uninstallAllCmd)
 	uninstallCmd.AddCommand(uninstallAllCmd)
 
 	rootCmd.AddCommand(uninstallCmd)

@@ -374,31 +374,7 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 		}
 	}
 
-	cl.formatter.EmptyLine()
-
-	table := formatter.NewBoxTable(cl.formatter.Writer(), []string{"Status", "Count"})
-	table.AddRow([]string{colors.Success(formatter.SymbolSuccess + " Success"), fmt.Sprintf("%d", successCount)})
-	if skippedCount > 0 {
-		table.AddRow([]string{colors.Warning(formatter.SymbolWarning + " Skipped"), fmt.Sprintf("%d (monorepos)", skippedCount)})
-	}
-	if failedCount > 0 {
-		table.AddRow([]string{colors.Error(formatter.SymbolError + " Failed"), fmt.Sprintf("%d", failedCount)})
-	}
-	table.Render()
-
-	if failedCount > 0 {
-		cl.formatter.EmptyLine()
-		fmt.Println("Failed components:")
-		for _, comp := range failedComponents {
-			fmt.Printf("  • %s\n", comp)
-		}
-	}
-
-	if skippedCount > 0 {
-		cl.formatter.EmptyLine()
-		fmt.Printf("%s Monorepo containers were skipped - their individual components should be linked separately\n",
-			colors.Muted("Note:"))
-	}
+	cl.renderLinkSummary(successCount, failedCount, skippedCount, failedComponents)
 
 	return nil
 }
@@ -456,31 +432,7 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 		}
 	}
 
-	cl.formatter.EmptyLine()
-
-	table := formatter.NewBoxTable(cl.formatter.Writer(), []string{"Status", "Count"})
-	table.AddRow([]string{colors.Success(formatter.SymbolSuccess + " Success"), fmt.Sprintf("%d", successCount)})
-	if skippedCount > 0 {
-		table.AddRow([]string{colors.Warning(formatter.SymbolWarning + " Skipped"), fmt.Sprintf("%d (monorepos)", skippedCount)})
-	}
-	if failedCount > 0 {
-		table.AddRow([]string{colors.Error(formatter.SymbolError + " Failed"), fmt.Sprintf("%d", failedCount)})
-	}
-	table.Render()
-
-	if failedCount > 0 {
-		cl.formatter.EmptyLine()
-		fmt.Println("Failed components:")
-		for _, comp := range failedComponents {
-			fmt.Printf("  • %s\n", comp)
-		}
-	}
-
-	if skippedCount > 0 {
-		cl.formatter.EmptyLine()
-		fmt.Printf("%s Monorepo containers were skipped - their individual components should be linked separately\n",
-			colors.Muted("Note:"))
-	}
+	cl.renderLinkSummary(successCount, failedCount, skippedCount, failedComponents)
 
 	return nil
 }
@@ -906,23 +858,7 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 				}
 			}
 
-			var symbol string
-			switch linkType {
-			case "symlink":
-				if valid {
-					symbol = colors.Success("✓")
-				} else {
-					symbol = colors.Error("✗")
-				}
-			case "copied":
-				symbol = colors.Success("◆")
-			case "broken":
-				symbol = colors.Error("✗")
-			default:
-				symbol = colors.Warning("?")
-			}
-
-			status.Targets[target.GetName()] = symbol
+			status.Targets[target.GetName()] = linkStatusSymbol(linkType, valid)
 		}
 
 		statuses = append(statuses, status)
@@ -991,14 +927,7 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 
 	cl.formatter.EmptyLine()
 	cl.formatter.SubsectionHeader("Legend")
-	legendItems := []formatter.LegendItem{
-		{Symbol: colors.Success("✓"), Description: colors.Success("Valid symlink")},
-		{Symbol: colors.Success("◆"), Description: colors.Success("Copied directory")},
-		{Symbol: colors.Error("✗"), Description: colors.Error("Broken link")},
-		{Symbol: colors.Muted("-"), Description: colors.Muted("Not linked")},
-		{Symbol: colors.Warning("?"), Description: colors.Warning("Unknown status")},
-	}
-	cl.formatter.DisplayLegendTable(legendItems)
+	cl.formatter.DisplayLegendTable(linkStatusLegendItems())
 
 	cl.formatter.EmptyLine()
 	cl.formatter.SubsectionHeader("Summary")
@@ -1232,23 +1161,7 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 				}
 			}
 
-			var symbol string
-			switch linkType {
-			case "symlink":
-				if valid {
-					symbol = colors.Success("✓")
-				} else {
-					symbol = colors.Error("✗")
-				}
-			case "copied":
-				symbol = colors.Success("◆")
-			case "broken":
-				symbol = colors.Error("✗")
-			default:
-				symbol = colors.Warning("?")
-			}
-
-			status.Targets[target.GetName()] = symbol
+			status.Targets[target.GetName()] = linkStatusSymbol(linkType, valid)
 		}
 
 		statuses = append(statuses, status)
@@ -1318,14 +1231,7 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 
 	cl.formatter.EmptyLine()
 	cl.formatter.SubsectionHeader("Legend")
-	legendItems := []formatter.LegendItem{
-		{Symbol: colors.Success("✓"), Description: colors.Success("Valid symlink")},
-		{Symbol: colors.Success("◆"), Description: colors.Success("Copied directory")},
-		{Symbol: colors.Error("✗"), Description: colors.Error("Broken link")},
-		{Symbol: colors.Muted("-"), Description: colors.Muted("Not linked")},
-		{Symbol: colors.Warning("?"), Description: colors.Warning("Unknown status")},
-	}
-	cl.formatter.DisplayLegendTable(legendItems)
+	cl.formatter.DisplayLegendTable(linkStatusLegendItems())
 
 	cl.formatter.EmptyLine()
 	cl.formatter.SubsectionHeader("Summary")
@@ -2172,4 +2078,58 @@ func (cl *ComponentLinker) promptProfileSelection(componentType, componentName s
 
 	selectedMatch := matches[selection-1]
 	return selectedMatch.ProfilePath, selectedMatch.ProfileName, nil
+}
+
+func (cl *ComponentLinker) renderLinkSummary(successCount, failedCount, skippedCount int, failedComponents []string) {
+	cl.formatter.EmptyLine()
+
+	table := formatter.NewBoxTable(cl.formatter.Writer(), []string{"Status", "Count"})
+	table.AddRow([]string{colors.Success(formatter.SymbolSuccess + " Success"), fmt.Sprintf("%d", successCount)})
+	if skippedCount > 0 {
+		table.AddRow([]string{colors.Warning(formatter.SymbolWarning + " Skipped"), fmt.Sprintf("%d (monorepos)", skippedCount)})
+	}
+	if failedCount > 0 {
+		table.AddRow([]string{colors.Error(formatter.SymbolError + " Failed"), fmt.Sprintf("%d", failedCount)})
+	}
+	table.Render()
+
+	if failedCount > 0 {
+		cl.formatter.EmptyLine()
+		fmt.Println("Failed components:")
+		for _, comp := range failedComponents {
+			fmt.Printf("  • %s\n", comp)
+		}
+	}
+
+	if skippedCount > 0 {
+		cl.formatter.EmptyLine()
+		fmt.Printf("%s Monorepo containers were skipped - their individual components should be linked separately\n",
+			colors.Muted("Note:"))
+	}
+}
+
+func linkStatusLegendItems() []formatter.LegendItem {
+	return []formatter.LegendItem{
+		{Symbol: colors.Success("✓"), Description: colors.Success("Valid symlink")},
+		{Symbol: colors.Success("◆"), Description: colors.Success("Copied directory")},
+		{Symbol: colors.Error("✗"), Description: colors.Error("Broken link")},
+		{Symbol: colors.Muted("-"), Description: colors.Muted("Not linked")},
+		{Symbol: colors.Warning("?"), Description: colors.Warning("Unknown status")},
+	}
+}
+
+func linkStatusSymbol(linkType string, valid bool) string {
+	switch linkType {
+	case "symlink":
+		if valid {
+			return colors.Success("✓")
+		}
+		return colors.Error("✗")
+	case "copied":
+		return colors.Success("◆")
+	case "broken":
+		return colors.Error("✗")
+	default:
+		return colors.Warning("?")
+	}
 }

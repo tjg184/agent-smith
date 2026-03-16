@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
 func TestValidateCustomTargetConfig_Valid(t *testing.T) {
@@ -474,7 +476,7 @@ func TestExpandHomePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := expandHomePath(tt.input)
+			result, err := paths.ExpandHome(tt.input)
 			if err != nil {
 				t.Fatalf("Expected no error, got %v", err)
 			}

@@ -349,7 +349,7 @@ func validateCustomTargetConfig(target *CustomTargetConfig) error {
 	}
 
 	// Expand and validate base directory path
-	expandedBaseDir, err := expandHomePath(target.BaseDir)
+	expandedBaseDir, err := paths.ExpandHome(target.BaseDir)
 	if err != nil {
 		return fmt.Errorf("invalid baseDir %q: %w", target.BaseDir, err)
 	}
@@ -418,40 +418,7 @@ func validateSubdirectoryName(name, fieldName string) error {
 	return nil
 }
 
-// expandHomePath expands ~ to the user's home directory.
-//
-// This function handles tilde expansion for paths like:
-//   - "~" -> user's home directory
-//   - "~/Documents" -> user's home directory + /Documents
-//   - "/absolute/path" -> unchanged
-//   - "relative/path" -> unchanged
-//
-// Parameters:
-//   - path: The path to expand
-//
-// Returns:
-//   - string: The expanded path
-//   - error: If the home directory cannot be determined
-func expandHomePath(path string) (string, error) {
-	if len(path) == 0 || path[0] != '~' {
-		return path, nil
-	}
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get home directory: %w", err)
-	}
-
-	if len(path) == 1 {
-		return home, nil
-	}
-
-	if path[1] == filepath.Separator || path[1] == '/' {
-		return filepath.Join(home, path[2:]), nil
-	}
-
-	return path, nil
-}
 
 // validateDisplaySettings validates and applies defaults to display settings.
 //

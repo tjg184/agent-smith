@@ -4,6 +4,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func makeLinkRun(componentType string) func(*cobra.Command, []string) {
+	return func(cmd *cobra.Command, args []string) {
+		targetFilter, _ := cmd.Flags().GetString("to")
+		profile, _ := cmd.Flags().GetString("profile")
+		handleLink(componentType, args[0], targetFilter, profile)
+	}
+}
+
+func makeLinkTypeRun(componentType string) func(*cobra.Command, []string) {
+	return func(cmd *cobra.Command, args []string) {
+		targetFilter, _ := cmd.Flags().GetString("to")
+		profile, _ := cmd.Flags().GetString("profile")
+		handleLinkType(componentType, targetFilter, profile)
+	}
+}
+
 func init() {
 	linkCmd := &cobra.Command{
 		Use:   "link",
@@ -63,14 +79,9 @@ EXAMPLES:
   # Link a skill from a specific profile
   agent-smith link skill mcp-builder --profile work`,
 		Args: exactArgsWithHelp(1, "agent-smith link skill <name>"),
-		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("to")
-			profile, _ := cmd.Flags().GetString("profile")
-			handleLink("skills", args[0], targetFilter, profile)
-		},
+		Run:  makeLinkRun("skills"),
 	}
-	linkSkillCmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
-	linkSkillCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
+	addLinkTargetFlags(linkSkillCmd)
 	linkCmd.AddCommand(linkSkillCmd)
 
 	linkSkillsCmd := &cobra.Command{
@@ -88,14 +99,9 @@ EXAMPLES:
   # Link all skills from a specific profile
   agent-smith link skills --profile work`,
 		Args: noArgsWithHelp,
-		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("to")
-			profile, _ := cmd.Flags().GetString("profile")
-			handleLinkType("skills", targetFilter, profile)
-		},
+		Run:  makeLinkTypeRun("skills"),
 	}
-	linkSkillsCmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
-	linkSkillsCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
+	addLinkTargetFlags(linkSkillsCmd)
 	linkCmd.AddCommand(linkSkillsCmd)
 
 	linkAgentCmd := &cobra.Command{
@@ -113,14 +119,9 @@ EXAMPLES:
   # Link an agent from a specific profile
   agent-smith link agent coding-assistant --profile work`,
 		Args: exactArgsWithHelp(1, "agent-smith link agent <name>"),
-		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("to")
-			profile, _ := cmd.Flags().GetString("profile")
-			handleLink("agents", args[0], targetFilter, profile)
-		},
+		Run:  makeLinkRun("agents"),
 	}
-	linkAgentCmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
-	linkAgentCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
+	addLinkTargetFlags(linkAgentCmd)
 	linkCmd.AddCommand(linkAgentCmd)
 
 	linkAgentsCmd := &cobra.Command{
@@ -138,14 +139,9 @@ EXAMPLES:
   # Link all agents from a specific profile
   agent-smith link agents --profile work`,
 		Args: noArgsWithHelp,
-		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("to")
-			profile, _ := cmd.Flags().GetString("profile")
-			handleLinkType("agents", targetFilter, profile)
-		},
+		Run:  makeLinkTypeRun("agents"),
 	}
-	linkAgentsCmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
-	linkAgentsCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
+	addLinkTargetFlags(linkAgentsCmd)
 	linkCmd.AddCommand(linkAgentsCmd)
 
 	linkCommandCmd := &cobra.Command{
@@ -163,14 +159,9 @@ EXAMPLES:
   # Link a command from a specific profile
   agent-smith link command json-formatter --profile work`,
 		Args: exactArgsWithHelp(1, "agent-smith link command <name>"),
-		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("to")
-			profile, _ := cmd.Flags().GetString("profile")
-			handleLink("commands", args[0], targetFilter, profile)
-		},
+		Run:  makeLinkRun("commands"),
 	}
-	linkCommandCmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
-	linkCommandCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
+	addLinkTargetFlags(linkCommandCmd)
 	linkCmd.AddCommand(linkCommandCmd)
 
 	linkCommandsCmd := &cobra.Command{
@@ -188,14 +179,9 @@ EXAMPLES:
   # Link all commands from a specific profile
   agent-smith link commands --profile work`,
 		Args: noArgsWithHelp,
-		Run: func(cmd *cobra.Command, args []string) {
-			targetFilter, _ := cmd.Flags().GetString("to")
-			profile, _ := cmd.Flags().GetString("profile")
-			handleLinkType("commands", targetFilter, profile)
-		},
+		Run:  makeLinkTypeRun("commands"),
 	}
-	linkCommandsCmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
-	linkCommandsCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
+	addLinkTargetFlags(linkCommandsCmd)
 	linkCmd.AddCommand(linkCommandsCmd)
 
 	linkAllCmd := &cobra.Command{
@@ -226,8 +212,7 @@ EXAMPLES:
 			handleLinkAll(targetFilter, profile, allProfiles)
 		},
 	}
-	linkAllCmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
-	linkAllCmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
+	addLinkTargetFlags(linkAllCmd)
 	linkAllCmd.Flags().Bool("all-profiles", false, "Link components from all profiles simultaneously")
 	linkCmd.AddCommand(linkAllCmd)
 

@@ -46,7 +46,7 @@ var IgnoredPaths = []string{
 	".idea",
 }
 
-func expandHome(path string) (string, error) {
+func ExpandHome(path string) (string, error) {
 	if len(path) == 0 || path[0] != '~' {
 		return path, nil
 	}
@@ -68,23 +68,23 @@ func expandHome(path string) (string, error) {
 }
 
 func GetAgentsDir() (string, error) {
-	return expandHome(AgentsDir)
+	return ExpandHome(AgentsDir)
 }
 
 func GetOpencodeDir() (string, error) {
-	return expandHome(OpencodeDir)
+	return ExpandHome(OpencodeDir)
 }
 
 func GetClaudeCodeDir() (string, error) {
-	return expandHome(ClaudeCodeDir)
+	return ExpandHome(ClaudeCodeDir)
 }
 
 func GetCopilotDir() (string, error) {
-	return expandHome(CopilotDir)
+	return ExpandHome(CopilotDir)
 }
 
 func GetUniversalDir() (string, error) {
-	return expandHome(UniversalDir)
+	return ExpandHome(UniversalDir)
 }
 
 // GetSkillsDir returns the full path to the skills directory
@@ -164,7 +164,7 @@ func ResolveTargetDir(targetDir string) (string, error) {
 	}
 
 	// First expand tilde if present
-	expanded, err := expandHome(targetDir)
+	expanded, err := ExpandHome(targetDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to expand home directory: %w", err)
 	}
