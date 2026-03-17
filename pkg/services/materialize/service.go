@@ -309,7 +309,7 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			}
 		}
 
-		alreadyMaterialized := recordedEntry != nil && recordedEntry.SourceHash == sourceHash
+		alreadyMaterialized := recordedEntry != nil && recordedEntry.SourceHash == sourceHash && !opts.Force
 
 		if alreadyMaterialized {
 			if opts.DryRun {
