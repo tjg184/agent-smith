@@ -298,46 +298,35 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			destPath = filepath.Join(componentTypeDir, filesystemName)
 		}
 
-		// Check if exists
-		alreadyExists := false
-		if useFlatCopy {
-			// For flat copy, destPath is the shared component-type dir (e.g. .opencode/agents/).
-			// Only consider it "already materialized" if the files are real copies (regular files),
-			// not symlinks. Symlinks indicate a `link` operation, not a prior materialize, so we
-			// must not skip — we need to write actual file copies.
-			if _, statErr := os.Stat(destPath); statErr == nil {
-				flatMatch, matchErr := materializer.FlatMdFilesMatch(componentSourceDir, destPath)
-				if matchErr != nil {
-					return fmt.Errorf("failed to compare flat files: %w", matchErr)
-				}
-				if flatMatch {
-					alreadyExists = materializer.FlatMdFilesAreRegular(componentSourceDir, destPath)
+		// Use materialization metadata as the source of truth for skip decisions.
+		// File-content comparison alone cannot distinguish "we materialized this" from
+		// "something else put identical files here", which causes false skips on first run.
+		componentMap := project.GetMaterializationComponentMap(matMetadata, componentType)
+		var recordedEntry *models.ComponentEntry
+		if componentMap != nil {
+			for _, components := range componentMap {
+				if entry, exists := components[componentName]; exists {
+					recordedEntry = &entry
+					break
 				}
 			}
-		} else if _, statErr := os.Stat(destPath); statErr == nil {
-			alreadyExists = true
 		}
 
-		if alreadyExists {
-			var match bool
-			if useFlatCopy {
-				match = true // FlatMdFilesMatch already returned true above
-			} else {
-				match, err = materializer.DirectoriesMatch(componentSourceDir, destPath)
-				if err != nil {
-					return fmt.Errorf("failed to compare directories: %w", err)
-				}
-			}
-			if match {
-				if opts.DryRun {
-					s.formatter.Info("⊘ Would skip %s '%s' to %s (already exists and identical)", componentType, componentName, tgt)
-				} else {
-					s.formatter.Info("⊘ Skipped %s '%s' to %s (already exists and identical)", componentType, componentName, tgt)
-				}
-				skipCount++
-				continue
-			}
+		alreadyMaterialized := recordedEntry != nil && recordedEntry.SourceHash == sourceHash
 
+		if alreadyMaterialized {
+			if opts.DryRun {
+				s.formatter.Info("⊘ Would skip %s '%s' to %s (already exists and identical)", componentType, componentName, tgt)
+			} else {
+				s.formatter.Info("⊘ Skipped %s '%s' to %s (already exists and identical)", componentType, componentName, tgt)
+			}
+			skipCount++
+			continue
+		}
+
+		alreadyExists := recordedEntry != nil
+
+		if alreadyExists {
 			if !opts.Force {
 				if opts.DryRun {
 					s.formatter.Info("⚠ Would fail: Component '%s' already exists in %s (use --force)", componentName, tgt)

@@ -40,3 +40,5 @@ require (
 	golang.org/x/term v0.31.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
+
+replace github.com/tjg184/agent-smith => /home/rootless/agent-smith
