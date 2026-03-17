@@ -58,52 +58,73 @@ func isMdIgnored(name string) bool {
 	return false
 }
 
-// collectMdFiles returns the top-level .md files from srcDir, excluding ignored names.
-func collectMdFiles(srcDir string) ([]string, error) {
-	entries, err := os.ReadDir(srcDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read source directory: %w", err)
-	}
-	var files []string
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		if !isMdIgnored(name) {
-			files = append(files, name)
-		}
-	}
-	return files, nil
+// mdFileEntry pairs the relative source path with the flat destination name.
+// Nested paths are flattened by joining path segments with "-":
+//
+//	"agent.md"              → flatName "agent.md"
+//	"ui-design/designer.md" → flatName "ui-design-designer.md"
+type mdFileEntry struct {
+	relPath  string // relative path within srcDir (used to locate the source file)
+	flatName string // flat filename for the destination (path separators replaced with "-")
 }
 
-// CopyFlatMdFiles copies top-level .md files from srcDir directly into destDir (no wrapper subdir).
-// Mirrors what linkFlatMdFiles does for symlinks. Ignored files: README.md, LICENSE.md, DOCS.md, CHANGELOG.md.
+// collectMdFiles recursively walks srcDir and returns an mdFileEntry for every .md file
+// that is not on the ignore list, flattening any subdirectory structure into the filename.
+func collectMdFiles(srcDir string) ([]mdFileEntry, error) {
+	var entries []mdFileEntry
+	err := filepath.WalkDir(srcDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return err
+		}
+		if isMdIgnored(d.Name()) {
+			return nil
+		}
+		flatName := strings.ReplaceAll(rel, string(filepath.Separator), "-")
+		entries = append(entries, mdFileEntry{relPath: rel, flatName: flatName})
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to walk source directory: %w", err)
+	}
+	return entries, nil
+}
+
+// CopyFlatMdFiles copies all .md files from srcDir (recursively) into destDir with a flat
+// layout. Nested source paths are flattened by joining segments with "-".
+// Ignored files: README.md, LICENSE.md, DOCS.md, CHANGELOG.md.
 func CopyFlatMdFiles(srcDir, destDir string) error {
-	names, err := collectMdFiles(srcDir)
+	entries, err := collectMdFiles(srcDir)
 	if err != nil {
 		return err
 	}
-	for _, name := range names {
-		if err := copyFile(filepath.Join(srcDir, name), filepath.Join(destDir, name)); err != nil {
-			return fmt.Errorf("failed to copy %s: %w", name, err)
+	for _, e := range entries {
+		if err := copyFile(filepath.Join(srcDir, e.relPath), filepath.Join(destDir, e.flatName)); err != nil {
+			return fmt.Errorf("failed to copy %s: %w", e.flatName, err)
 		}
 	}
 	return nil
 }
 
-// FlatMdFilesMatch returns true when every top-level .md file in srcDir exists in destDir with identical content.
+// FlatMdFilesMatch returns true when every .md file in srcDir (recursively, flattened) exists
+// in destDir with identical content.
 func FlatMdFilesMatch(srcDir, destDir string) (bool, error) {
-	names, err := collectMdFiles(srcDir)
+	entries, err := collectMdFiles(srcDir)
 	if err != nil {
 		return false, err
 	}
-	for _, name := range names {
-		srcHash, err := fileHash(filepath.Join(srcDir, name))
+	for _, e := range entries {
+		srcHash, err := fileHash(filepath.Join(srcDir, e.relPath))
 		if err != nil {
 			return false, err
 		}
-		dstHash, err := fileHash(filepath.Join(destDir, name))
+		dstHash, err := fileHash(filepath.Join(destDir, e.flatName))
 		if err != nil {
 			if os.IsNotExist(err) {
 				return false, nil
@@ -114,7 +135,7 @@ func FlatMdFilesMatch(srcDir, destDir string) (bool, error) {
 			return false, nil
 		}
 	}
-	return len(names) > 0, nil
+	return len(entries) > 0, nil
 }
 
 func fileHash(path string) (string, error) {
@@ -130,19 +151,39 @@ func fileHash(path string) (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
-// RemoveFlatMdFiles removes top-level .md files from destDir that correspond to files in srcDir.
+// RemoveFlatMdFiles removes the flat .md files from destDir that correspond to files in srcDir.
 func RemoveFlatMdFiles(srcDir, destDir string) error {
-	names, err := collectMdFiles(srcDir)
+	entries, err := collectMdFiles(srcDir)
 	if err != nil {
 		return err
 	}
-	for _, name := range names {
-		target := filepath.Join(destDir, name)
+	for _, e := range entries {
+		target := filepath.Join(destDir, e.flatName)
 		if err := os.Remove(target); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("failed to remove %s: %w", name, err)
+			return fmt.Errorf("failed to remove %s: %w", e.flatName, err)
 		}
 	}
 	return nil
+}
+
+// FlatMdFilesAreRegular returns true when every .md file that would be written by
+// CopyFlatMdFiles exists in destDir as a regular file (not a symlink). This lets
+// callers distinguish a prior materialize (real copies) from a prior link (symlinks).
+func FlatMdFilesAreRegular(srcDir, destDir string) bool {
+	entries, err := collectMdFiles(srcDir)
+	if err != nil || len(entries) == 0 {
+		return false
+	}
+	for _, e := range entries {
+		info, err := os.Lstat(filepath.Join(destDir, e.flatName))
+		if err != nil {
+			return false
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func copyFile(src, dst string) error {

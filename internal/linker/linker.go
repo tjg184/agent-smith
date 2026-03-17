@@ -338,7 +338,7 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 		return fmt.Errorf("failed to read %s directory: %w", componentType, err)
 	}
 
-	var successCount, failedCount, skippedCount int
+	var successCount, failedCount int
 	var failedComponents []string
 
 	targetNames := make([]string, len(cl.targets))
@@ -355,11 +355,6 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 		if entry.IsDir() {
 			componentName := entry.Name()
 
-			if cl.isMonorepoContainer(componentType, componentName) {
-				skippedCount++
-				continue
-			}
-
 			fmt.Printf("Linking %s: %s... ", componentType, componentName)
 
 			if err := cl.linkComponentInternal(componentType, componentName, false); err != nil {
@@ -374,7 +369,7 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 		}
 	}
 
-	cl.renderLinkSummary(successCount, failedCount, skippedCount, failedComponents)
+	cl.renderLinkSummary(successCount, failedCount, failedComponents)
 
 	return nil
 }
@@ -382,7 +377,7 @@ func (cl *ComponentLinker) LinkComponentsByType(componentType string) error {
 func (cl *ComponentLinker) LinkAllComponents() error {
 	componentTypes := paths.GetComponentTypes()
 
-	var successCount, failedCount, skippedCount int
+	var successCount, failedCount int
 	var failedComponents []string
 
 	targetNames := make([]string, len(cl.targets))
@@ -411,12 +406,6 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 			if entry.IsDir() {
 				componentName := entry.Name()
 
-				// Skip monorepo containers - they shouldn't be linked as individual components
-				if cl.isMonorepoContainer(componentType, componentName) {
-					skippedCount++
-					continue
-				}
-
 				fmt.Printf("Linking %s: %s... ", componentType, componentName)
 
 				if err := cl.linkComponentInternal(componentType, componentName, false); err != nil {
@@ -432,140 +421,7 @@ func (cl *ComponentLinker) LinkAllComponents() error {
 		}
 	}
 
-	cl.renderLinkSummary(successCount, failedCount, skippedCount, failedComponents)
-
-	return nil
-}
-
-// isMonorepoContainer checks if a component directory contains other component directories
-// and should not be linked as a single component.
-func (cl *ComponentLinker) isMonorepoContainer(componentType, componentName string) bool {
-	componentDir := filepath.Join(cl.agentsDir, componentType, componentName)
-
-	entries, err := os.ReadDir(componentDir)
-	if err != nil {
-		return false
-	}
-
-	var markerFiles []string
-	switch componentType {
-	case "skills":
-		markerFiles = []string{"SKILL.md"}
-	case "agents":
-		markerFiles = []string{componentName + ".md"}
-	case "commands":
-		markerFiles = []string{componentName + ".md"}
-	default:
-		return false
-	}
-
-	subComponentCount := 0
-	for _, entry := range entries {
-		if entry.IsDir() {
-			subDir := filepath.Join(componentDir, entry.Name())
-			for _, markerFile := range markerFiles {
-				if _, err := os.Stat(filepath.Join(subDir, markerFile)); err == nil {
-					subComponentCount++
-					break
-				}
-			}
-		}
-	}
-
-	return subComponentCount > 1
-}
-
-func (cl *ComponentLinker) LinkMonorepoComponents(componentType, repoName string) error {
-	repoDir := filepath.Join(cl.agentsDir, componentType, repoName)
-
-	entries, err := os.ReadDir(repoDir)
-	if err != nil {
-		return fmt.Errorf("failed to read monorepo directory: %w", err)
-	}
-
-	var markerFiles []string
-	switch componentType {
-	case "skills":
-		markerFiles = []string{"SKILL.md"}
-	case "agents":
-		markerFiles = []string{}
-	case "commands":
-		markerFiles = []string{}
-	default:
-		return fmt.Errorf("unknown component type: %s", componentType)
-	}
-
-	linkedCount := 0
-	for _, entry := range entries {
-		if entry.IsDir() {
-			subComponentName := entry.Name()
-			subComponentDir := filepath.Join(repoDir, subComponentName)
-
-			hasMarker := false
-			for _, markerFile := range markerFiles {
-				if _, err := os.Stat(filepath.Join(subComponentDir, markerFile)); err == nil {
-					hasMarker = true
-					break
-				}
-			}
-
-			if !hasMarker {
-				if _, err := os.Stat(filepath.Join(subComponentDir, subComponentName+".md")); err == nil {
-					hasMarker = true
-				}
-			}
-
-			if hasMarker {
-				linkName := fmt.Sprintf("%s-%s", repoName, subComponentName)
-
-				srcDir := subComponentDir
-
-				var successfulTargets []struct {
-					name string
-					path string
-				}
-				for _, target := range cl.targets {
-					componentDir, err := target.GetGlobalComponentDir(componentType)
-					if err != nil {
-						fmt.Printf("Warning: failed to get target component directory for %s: %v\n", target.GetName(), err)
-						continue
-					}
-					dstDir := filepath.Join(componentDir, linkName)
-
-					if err := fileutil.CreateDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
-						fmt.Printf("Warning: failed to create destination directory for %s in %s: %v\n", linkName, target.GetName(), err)
-						continue
-					}
-
-					if err := cl.createSymlink(srcDir, dstDir); err != nil {
-						fmt.Printf("Warning: failed to link monorepo component %s to %s: %v\n", linkName, target.GetName(), err)
-						continue
-					}
-
-					successfulTargets = append(successfulTargets, struct {
-						name string
-						path string
-					}{
-						name: target.GetName(),
-						path: dstDir,
-					})
-				}
-
-				if len(successfulTargets) > 0 {
-					fmt.Printf("Successfully linked monorepo component '%s':\n", linkName)
-					for _, t := range successfulTargets {
-						fmt.Printf("  → %s: %s\n", t.name, t.path)
-					}
-					fmt.Printf("  Source: %s\n", srcDir)
-					linkedCount++
-				}
-			}
-		}
-	}
-
-	if linkedCount > 0 {
-		fmt.Printf("Linked %d components from monorepo %s\n", linkedCount, repoName)
-	}
+	cl.renderLinkSummary(successCount, failedCount, failedComponents)
 
 	return nil
 }
@@ -2080,14 +1936,11 @@ func (cl *ComponentLinker) promptProfileSelection(componentType, componentName s
 	return selectedMatch.ProfilePath, selectedMatch.ProfileName, nil
 }
 
-func (cl *ComponentLinker) renderLinkSummary(successCount, failedCount, skippedCount int, failedComponents []string) {
+func (cl *ComponentLinker) renderLinkSummary(successCount, failedCount int, failedComponents []string) {
 	cl.formatter.EmptyLine()
 
 	table := formatter.NewBoxTable(cl.formatter.Writer(), []string{"Status", "Count"})
 	table.AddRow([]string{colors.Success(formatter.SymbolSuccess + " Success"), fmt.Sprintf("%d", successCount)})
-	if skippedCount > 0 {
-		table.AddRow([]string{colors.Warning(formatter.SymbolWarning + " Skipped"), fmt.Sprintf("%d (monorepos)", skippedCount)})
-	}
 	if failedCount > 0 {
 		table.AddRow([]string{colors.Error(formatter.SymbolError + " Failed"), fmt.Sprintf("%d", failedCount)})
 	}
@@ -2099,12 +1952,6 @@ func (cl *ComponentLinker) renderLinkSummary(successCount, failedCount, skippedC
 		for _, comp := range failedComponents {
 			fmt.Printf("  • %s\n", comp)
 		}
-	}
-
-	if skippedCount > 0 {
-		cl.formatter.EmptyLine()
-		fmt.Printf("%s Monorepo containers were skipped - their individual components should be linked separately\n",
-			colors.Muted("Note:"))
 	}
 }
 

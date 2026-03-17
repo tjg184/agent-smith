@@ -101,6 +101,29 @@ func TestCopyFlatMdFiles_NoMdFiles(t *testing.T) {
 	}
 }
 
+func TestCopyFlatMdFiles_NestedMdFilesFlattened(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+
+	writeFile(t, filepath.Join(src, "ui-design", "ui-designer.md"), "designer content")
+	writeFile(t, filepath.Join(src, "top-level.md"), "top content")
+
+	if err := CopyFlatMdFiles(src, dst); err != nil {
+		t.Fatalf("CopyFlatMdFiles error: %v", err)
+	}
+
+	if readFile(t, filepath.Join(dst, "ui-design-ui-designer.md")) != "designer content" {
+		t.Error("expected nested file to be flattened to ui-design-ui-designer.md")
+	}
+	if readFile(t, filepath.Join(dst, "top-level.md")) != "top content" {
+		t.Error("expected top-level.md to be copied unchanged")
+	}
+
+	if _, err := os.Stat(filepath.Join(dst, "ui-design")); !os.IsNotExist(err) {
+		t.Error("subdirectory ui-design should not exist in flat dest")
+	}
+}
+
 // FlatMdFilesMatch
 
 func TestFlatMdFilesMatch_IdenticalContent(t *testing.T) {
@@ -160,6 +183,124 @@ func TestFlatMdFilesMatch_NoMdFilesInSrc(t *testing.T) {
 	}
 	if match {
 		t.Error("expected false when src has no .md files, got true")
+	}
+}
+
+func TestFlatMdFilesMatch_NestedSourceMatchesFlatDest(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+
+	writeFile(t, filepath.Join(src, "ui-design", "ui-designer.md"), "designer content")
+	writeFile(t, filepath.Join(dst, "ui-design-ui-designer.md"), "designer content")
+
+	match, err := FlatMdFilesMatch(src, dst)
+	if err != nil {
+		t.Fatalf("FlatMdFilesMatch error: %v", err)
+	}
+	if !match {
+		t.Error("expected true when nested src matches flat dest, got false")
+	}
+}
+
+func TestFlatMdFilesMatch_NestedSourceMismatchesFlatDest(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+
+	writeFile(t, filepath.Join(src, "ui-design", "ui-designer.md"), "original")
+	writeFile(t, filepath.Join(dst, "ui-design-ui-designer.md"), "modified")
+
+	match, err := FlatMdFilesMatch(src, dst)
+	if err != nil {
+		t.Fatalf("FlatMdFilesMatch error: %v", err)
+	}
+	if match {
+		t.Error("expected false for differing content, got true")
+	}
+}
+
+// FlatMdFilesAreRegular
+
+func TestFlatMdFilesAreRegular_RegularFiles(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+
+	writeFile(t, filepath.Join(src, "tdd-red.md"), "content")
+	writeFile(t, filepath.Join(dst, "tdd-red.md"), "content")
+
+	if !FlatMdFilesAreRegular(src, dst) {
+		t.Error("expected true when dest files are regular files")
+	}
+}
+
+func TestFlatMdFilesAreRegular_Symlinks(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+
+	writeFile(t, filepath.Join(src, "tdd-red.md"), "content")
+	// Place a symlink at the flat dest path instead of a real file
+	if err := os.Symlink(filepath.Join(src, "tdd-red.md"), filepath.Join(dst, "tdd-red.md")); err != nil {
+		t.Fatalf("failed to create symlink: %v", err)
+	}
+
+	if FlatMdFilesAreRegular(src, dst) {
+		t.Error("expected false when dest file is a symlink")
+	}
+}
+
+func TestFlatMdFilesAreRegular_MissingFile(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+
+	writeFile(t, filepath.Join(src, "tdd-red.md"), "content")
+	// dst has no corresponding file
+
+	if FlatMdFilesAreRegular(src, dst) {
+		t.Error("expected false when dest file is missing")
+	}
+}
+
+// RemoveFlatMdFiles
+
+func TestRemoveFlatMdFiles_RemovesExpectedFiles(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+
+	writeFile(t, filepath.Join(src, "skill.md"), "content")
+	writeFile(t, filepath.Join(dst, "skill.md"), "content")
+
+	if err := RemoveFlatMdFiles(src, dst); err != nil {
+		t.Fatalf("RemoveFlatMdFiles error: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dst, "skill.md")); !os.IsNotExist(err) {
+		t.Error("expected skill.md to be removed from dst")
+	}
+}
+
+func TestRemoveFlatMdFiles_NestedSourceRemovesFlatName(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+
+	writeFile(t, filepath.Join(src, "ui-design", "ui-designer.md"), "content")
+	writeFile(t, filepath.Join(dst, "ui-design-ui-designer.md"), "content")
+
+	if err := RemoveFlatMdFiles(src, dst); err != nil {
+		t.Fatalf("RemoveFlatMdFiles error: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dst, "ui-design-ui-designer.md")); !os.IsNotExist(err) {
+		t.Error("expected ui-design-ui-designer.md to be removed from dst")
+	}
+}
+
+func TestRemoveFlatMdFiles_MissingDestFileIsNoop(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+
+	writeFile(t, filepath.Join(src, "skill.md"), "content")
+
+	if err := RemoveFlatMdFiles(src, dst); err != nil {
+		t.Fatalf("RemoveFlatMdFiles should not error on missing dest file, got: %v", err)
 	}
 }
 
