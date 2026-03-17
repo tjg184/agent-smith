@@ -40,7 +40,8 @@ func TestLinkFlatMdFiles_NestedFile(t *testing.T) {
 		t.Fatalf("expected 1 linked, got %d", len(linked))
 	}
 
-	dst := filepath.Join(targetDir, "sub", "other.md")
+	// Nested sub/other.md must be flattened to sub-other.md at the target root
+	dst := filepath.Join(targetDir, "sub-other.md")
 	assertSymlinkPointsInto(t, dst, srcDir)
 }
 
@@ -85,22 +86,29 @@ func TestUnlinkFlatMdFiles_RemovesLinks(t *testing.T) {
 
 func TestUnlinkFlatMdFiles_PrunesEmptyDirs(t *testing.T) {
 	tmp := t.TempDir()
-	srcDir := filepath.Join(tmp, "commands", "commit", "sub")
+	// With flat layout there are no subdirs to prune, but the function must still
+	// remove the flat symlink and leave targetDir intact.
+	srcDir := filepath.Join(tmp, "commands", "commit")
 	targetDir := filepath.Join(tmp, "opencode", "commands")
-	must(t, os.MkdirAll(srcDir, 0755))
-	must(t, os.WriteFile(filepath.Join(srcDir, "other.md"), []byte("# other"), 0644))
+	must(t, os.MkdirAll(filepath.Join(srcDir, "sub"), 0755))
+	must(t, os.WriteFile(filepath.Join(srcDir, "sub", "other.md"), []byte("# other"), 0644))
 
-	if _, err := linkFlatMdFiles(filepath.Dir(srcDir), targetDir); err != nil {
+	if _, err := linkFlatMdFiles(srcDir, targetDir); err != nil {
 		t.Fatalf("setup link: %v", err)
+	}
+
+	// Flat symlink is at targetDir/sub-other.md
+	flatSymlink := filepath.Join(targetDir, "sub-other.md")
+	if _, err := os.Lstat(flatSymlink); err != nil {
+		t.Fatalf("expected flat symlink to exist before unlink: %v", err)
 	}
 
 	if err := unlinkFlatMdFiles("commit", filepath.Join(tmp, "commands"), targetDir); err != nil {
 		t.Fatalf("unlinkFlatMdFiles: %v", err)
 	}
 
-	subDir := filepath.Join(targetDir, "sub")
-	if _, err := os.Lstat(subDir); !os.IsNotExist(err) {
-		t.Errorf("expected empty subdir to be pruned")
+	if _, err := os.Lstat(flatSymlink); !os.IsNotExist(err) {
+		t.Errorf("expected flat symlink to be removed")
 	}
 }
 

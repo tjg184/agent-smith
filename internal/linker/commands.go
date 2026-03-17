@@ -4,22 +4,25 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/tjg184/agent-smith/internal/fileutil"
 )
 
-// linkFlatMdFiles walks srcDir recursively and creates a symlink in targetBaseDir
-// for each .md file, preserving relative path within srcDir.
+// linkFlatMdFiles walks srcDir recursively and creates a flat symlink in targetBaseDir
+// for each .md file. Nested paths are flattened by joining segments with "-" so that
+// all symlinks land directly in targetBaseDir regardless of source depth.
 //
 // e.g. srcDir=".../commands/commit", targetBaseDir="~/.config/opencode/commands"
 //
-//	commit.md     → commands/commit.md
-//	sub/other.md  → commands/sub/other.md
+//	commit.md              → commands/commit.md
+//	ui-design/designer.md  → commands/ui-design-designer.md
 func linkFlatMdFiles(srcDir, targetBaseDir string) ([]string, error) {
 	var linked []string
 
 	if resolved, err := filepath.EvalSymlinks(srcDir); err == nil {
 		srcDir = resolved
+	}
+
+	if err := os.MkdirAll(targetBaseDir, 0755); err != nil {
+		return nil, err
 	}
 
 	err := filepath.WalkDir(srcDir, func(path string, d os.DirEntry, err error) error {
@@ -35,11 +38,8 @@ func linkFlatMdFiles(srcDir, targetBaseDir string) ([]string, error) {
 			return err
 		}
 
-		dst := filepath.Join(targetBaseDir, rel)
-
-		if err := fileutil.CreateDirectoryWithPermissions(filepath.Dir(dst)); err != nil {
-			return err
-		}
+		flatName := strings.ReplaceAll(rel, string(filepath.Separator), "-")
+		dst := filepath.Join(targetBaseDir, flatName)
 
 		if _, err := os.Lstat(dst); err == nil {
 			if err := os.Remove(dst); err != nil {
@@ -47,7 +47,7 @@ func linkFlatMdFiles(srcDir, targetBaseDir string) ([]string, error) {
 			}
 		}
 
-		dstDir := filepath.Dir(dst)
+		dstDir := targetBaseDir
 		if realDir, err := filepath.EvalSymlinks(dstDir); err == nil {
 			dstDir = realDir
 		}

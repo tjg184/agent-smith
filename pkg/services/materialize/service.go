@@ -285,11 +285,10 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			filesystemName = project.ResolveFilesystemName(filepath.Join(targetDir, componentType), componentType, componentName, sourceUrl, matMetadata)
 		}
 
-		// Agents and commands on opencode/claudecode are expected as flat .md files directly
-		// in the component type dir (e.g. .opencode/agents/architect.md), not wrapped in a
-		// subdirectory. This mirrors what `link` produces and what those editors actually load.
-		useFlatCopy := (componentType == "agents" || componentType == "commands") &&
-			(tgt == "opencode" || tgt == "claudecode")
+		// Agents and commands are expected as flat .md files directly in the component type dir
+		// (e.g. .opencode/agents/architect.md), not wrapped in a subdirectory. This mirrors
+		// what `link` produces and what editors actually load.
+		useFlatCopy := componentType == "agents" || componentType == "commands"
 
 		componentTypeDir := filepath.Join(targetDir, componentType)
 		var destPath string
@@ -302,13 +301,17 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 		// Check if exists
 		alreadyExists := false
 		if useFlatCopy {
-			// For flat copy the destPath is always the type dir (which always exists once created).
-			// Use FlatMdFilesMatch to determine whether this specific component's files are
-			// already present and identical, rather than testing directory existence.
+			// For flat copy, destPath is the shared component-type dir (e.g. .opencode/agents/).
+			// Only consider it "already materialized" if the files are real copies (regular files),
+			// not symlinks. Symlinks indicate a `link` operation, not a prior materialize, so we
+			// must not skip — we need to write actual file copies.
 			if _, statErr := os.Stat(destPath); statErr == nil {
-				alreadyExists, err = materializer.FlatMdFilesMatch(componentSourceDir, destPath)
-				if err != nil {
-					return fmt.Errorf("failed to compare flat files: %w", err)
+				flatMatch, matchErr := materializer.FlatMdFilesMatch(componentSourceDir, destPath)
+				if matchErr != nil {
+					return fmt.Errorf("failed to compare flat files: %w", matchErr)
+				}
+				if flatMatch {
+					alreadyExists = materializer.FlatMdFilesAreRegular(componentSourceDir, destPath)
 				}
 			}
 		} else if _, statErr := os.Stat(destPath); statErr == nil {
@@ -1211,7 +1214,16 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 			if comp.Metadata.FilesystemName != "" {
 				filesystemName = comp.Metadata.FilesystemName
 			}
-			destDir := filepath.Join(targetDir, comp.Type, filesystemName)
+
+			useFlatCopy := comp.Type == "agents" || comp.Type == "commands"
+			componentTypeDir := filepath.Join(targetDir, comp.Type)
+
+			var destDir string
+			if useFlatCopy {
+				destDir = componentTypeDir
+			} else {
+				destDir = filepath.Join(componentTypeDir, filesystemName)
+			}
 
 			localSourceDir := filepath.Join(localBaseDir, comp.Type, filesystemName)
 			localExists := false
@@ -1227,7 +1239,13 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 			}
 
 			// Compare local source to the materialized copy to decide whether an update is needed
-			match, err := materializer.DirectoriesMatch(localSourceDir, destDir)
+			var match bool
+			var err error
+			if useFlatCopy {
+				match, err = materializer.FlatMdFilesMatch(localSourceDir, destDir)
+			} else {
+				match, err = materializer.DirectoriesMatch(localSourceDir, destDir)
+			}
 			if err != nil {
 				fmt.Printf("  %s %s (error comparing directories: %v)\n", red("✗"), comp.Name, err)
 				continue
@@ -1246,14 +1264,24 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 			}
 
 			// Remove existing materialized component and replace with local version
-			if err := os.RemoveAll(destDir); err != nil {
-				fmt.Printf("  %s Failed to remove existing %s: %v\n", red("✗"), comp.Name, err)
-				continue
-			}
-
-			if err := materializer.CopyDirectory(localSourceDir, destDir); err != nil {
-				fmt.Printf("  %s Failed to copy %s: %v\n", red("✗"), comp.Name, err)
-				continue
+			if useFlatCopy {
+				if err := materializer.RemoveFlatMdFiles(localSourceDir, destDir); err != nil {
+					fmt.Printf("  %s Failed to remove existing %s: %v\n", red("✗"), comp.Name, err)
+					continue
+				}
+				if err := materializer.CopyFlatMdFiles(localSourceDir, destDir); err != nil {
+					fmt.Printf("  %s Failed to copy %s: %v\n", red("✗"), comp.Name, err)
+					continue
+				}
+			} else {
+				if err := os.RemoveAll(destDir); err != nil {
+					fmt.Printf("  %s Failed to remove existing %s: %v\n", red("✗"), comp.Name, err)
+					continue
+				}
+				if err := materializer.CopyDirectory(localSourceDir, destDir); err != nil {
+					fmt.Printf("  %s Failed to copy %s: %v\n", red("✗"), comp.Name, err)
+					continue
+				}
 			}
 
 			// Run postprocessors after updating component
@@ -1279,10 +1307,17 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 				continue
 			}
 
-			newCurrentHash, err := materializer.CalculateDirectoryHash(destDir)
-			if err != nil {
-				fmt.Printf("  %s Failed to calculate current hash for %s: %v\n", red("✗"), comp.Name, err)
-				continue
+			// For flat copies the files land in the shared type dir alongside other components,
+			// so we use the source hash as the current hash (consistent with MaterializeComponent).
+			var newCurrentHash string
+			if useFlatCopy {
+				newCurrentHash = newSourceHash
+			} else {
+				newCurrentHash, err = materializer.CalculateDirectoryHash(destDir)
+				if err != nil {
+					fmt.Printf("  %s Failed to calculate current hash for %s: %v\n", red("✗"), comp.Name, err)
+					continue
+				}
 			}
 
 			// Read commit hash from the local lock file so metadata stays consistent with local state
