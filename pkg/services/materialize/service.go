@@ -298,9 +298,6 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			destPath = filepath.Join(componentTypeDir, filesystemName)
 		}
 
-		// Use materialization metadata as the source of truth for skip decisions.
-		// File-content comparison alone cannot distinguish "we materialized this" from
-		// "something else put identical files here", which causes false skips on first run.
 		componentMap := project.GetMaterializationComponentMap(matMetadata, componentType)
 		var recordedEntry *models.ComponentEntry
 		if componentMap != nil {
