@@ -212,6 +212,26 @@ func (s *Service) createLinkerWithFilterAndProfile(targetFilter string, profile 
 		return nil, fmt.Errorf("failed to detect targets: %w", err)
 	}
 
+	// When universal is explicitly requested but ~/.agents/ doesn't exist yet,
+	// DetectAllTargets won't include it. Bootstrap the target so the linker
+	// creates the directory on first use.
+	if targetFilter == string(config.TargetUniversal) {
+		alreadyPresent := false
+		for _, t := range allTargets {
+			if t.GetName() == string(config.TargetUniversal) {
+				alreadyPresent = true
+				break
+			}
+		}
+		if !alreadyPresent {
+			universalTarget, err := config.NewUniversalTarget()
+			if err != nil {
+				return nil, fmt.Errorf("failed to create universal target: %w", err)
+			}
+			allTargets = append(allTargets, universalTarget)
+		}
+	}
+
 	targets := s.filterTargets(allTargets, targetFilter)
 
 	det := detector.NewRepositoryDetector()

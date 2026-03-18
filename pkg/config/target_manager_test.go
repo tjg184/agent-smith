@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -89,7 +91,64 @@ func TestNewTarget_LoadsCustomTargetsFromConfig(t *testing.T) {
 	}
 }
 
-// TestDetectAllTargets_ReturnsAtLeastOneTarget tests that DetectAllTargets always returns at least one target
+// TestDetectAllTargets_IncludesUniversalWhenDirExists verifies that DetectAllTargets includes
+// UniversalTarget when ~/.agents/ exists on disk.
+func TestDetectAllTargets_IncludesUniversalWhenDirExists(t *testing.T) {
+	tempHome, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp home: %v", err)
+	}
+	defer os.RemoveAll(tempHome)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempHome)
+	defer os.Setenv("HOME", origHome)
+
+	universalDir := filepath.Join(tempHome, ".agents")
+	if err := os.MkdirAll(universalDir, 0755); err != nil {
+		t.Fatalf("failed to create ~/.agents: %v", err)
+	}
+
+	targets, err := DetectAllTargets()
+	if err != nil {
+		t.Fatalf("DetectAllTargets() error = %v", err)
+	}
+
+	for _, target := range targets {
+		if target.GetName() == "universal" {
+			return
+		}
+	}
+	t.Error("DetectAllTargets() did not include universal target even though ~/.agents/ exists")
+}
+
+// TestDetectAllTargets_ExcludesUniversalWhenDirAbsent verifies that DetectAllTargets does not
+// include UniversalTarget when ~/.agents/ does not exist.
+func TestDetectAllTargets_ExcludesUniversalWhenDirAbsent(t *testing.T) {
+	tempHome, err := os.MkdirTemp("", "agent-smith-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp home: %v", err)
+	}
+	defer os.RemoveAll(tempHome)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempHome)
+	defer os.Setenv("HOME", origHome)
+
+	// ~/.agents does not exist in tempHome
+
+	targets, err := DetectAllTargets()
+	if err != nil {
+		t.Fatalf("DetectAllTargets() error = %v", err)
+	}
+
+	for _, target := range targets {
+		if target.GetName() == "universal" {
+			t.Error("DetectAllTargets() included universal target even though ~/.agents/ does not exist")
+			return
+		}
+	}
+}
 func TestDetectAllTargets_ReturnsAtLeastOneTarget(t *testing.T) {
 	targets, err := DetectAllTargets()
 	if err != nil {

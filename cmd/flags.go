@@ -15,7 +15,7 @@ func addSourceFlag(cmd *cobra.Command) {
 }
 
 func addLinkTargetFlags(cmd *cobra.Command) {
-	cmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, or all)")
+	cmd.Flags().StringP("to", "t", "", "Target editor (opencode, claudecode, copilot, universal, or all)")
 	cmd.Flags().String("profile", "", "Link from specific profile (bypasses active profile)")
 }
 

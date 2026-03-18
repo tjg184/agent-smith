@@ -50,7 +50,7 @@ COMMAND GROUPS:
     link list             Simple list of all linked components
 
 FLAGS:
-  --to, -t <target>     Target editor (opencode, claudecode, copilot, or all)
+  --to, -t <target>     Target editor (opencode, claudecode, copilot, universal, or all)
                         Default: all detected editors
   --profile <name>      Link FROM specific profile (bypasses active profile)
 
@@ -197,6 +197,9 @@ EXAMPLES:
 
   # Link all components to OpenCode only
   agent-smith link all --to opencode
+
+  # Link all components to the universal target (~/.agents/)
+  agent-smith link all --to universal
 
   # Link all components from a specific profile
   agent-smith link all --profile work
