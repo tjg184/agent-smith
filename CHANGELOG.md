@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.0](https://github.com/tjg184/agent-smith/compare/v1.6.3...v1.7.0) (2026-03-18)
+
+
+### Features
+
+* add universal linking ([#81](https://github.com/tjg184/agent-smith/issues/81)) ([6f65e9a](https://github.com/tjg184/agent-smith/commit/6f65e9a441a49f36f9a765d38487b3a335d47741))
+* new release ([#79](https://github.com/tjg184/agent-smith/issues/79)) ([c5575fa](https://github.com/tjg184/agent-smith/commit/c5575fa58a0c9fcf61c6827424b3ce931e403a0e))
+
 ## [1.6.3](https://github.com/tjg184/agent-smith/compare/v1.6.2...v1.6.3) (2026-03-15)
 
 
