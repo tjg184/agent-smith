@@ -195,6 +195,15 @@ func DetectAllTargets() ([]Target, error) {
 		}
 	}
 
+	// Check Universal
+	universalTarget, err := NewUniversalTarget()
+	if err == nil {
+		baseDir, _ := universalTarget.GetGlobalBaseDir()
+		if _, err := os.Stat(baseDir); err == nil {
+			targets = append(targets, universalTarget)
+		}
+	}
+
 	// Load custom targets from config
 	config, err := LoadConfig()
 	if err == nil && config != nil {
