@@ -1,17 +1,12 @@
 package container
 
 import (
-	"fmt"
 	"log"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/tjg184/agent-smith/cmd"
-	"github.com/tjg184/agent-smith/internal/detector"
 	"github.com/tjg184/agent-smith/internal/formatter"
 	"github.com/tjg184/agent-smith/internal/linker"
-	"github.com/tjg184/agent-smith/pkg/config"
 	"github.com/tjg184/agent-smith/pkg/logger"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
@@ -72,7 +67,7 @@ func (a *App) Run() {
 		log.Fatal("Failed to initialize profile manager:", err)
 	}
 
-	componentLinker, err := a.newComponentLinker()
+	componentLinker, err := linker.Build(linker.BuildOptions{}, a.logger)
 	if err != nil {
 		log.Fatal("Failed to initialize component linker:", err)
 	}
@@ -364,146 +359,4 @@ func (a *App) resolveActiveProfile() string {
 		log.Fatal("No profile specified and no active profile set")
 	}
 	return activeProfile
-}
-
-// newComponentLinker builds a ComponentLinker for the active profile (or base dir if none).
-func (a *App) newComponentLinker() (*linker.ComponentLinker, error) {
-	agentsDir, err := paths.GetAgentsDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get agents directory: %w", err)
-	}
-
-	lockService := locksvc.NewService(a.logger)
-	profileManager, err := profiles.NewProfileManager(nil, lockService)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create profile manager: %w", err)
-	}
-
-	activeProfile, err := profileManager.GetActiveProfile()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get active profile: %w", err)
-	}
-
-	if activeProfile != "" {
-		profilesDir, err := paths.GetProfilesDir()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
-		}
-		agentsDir = filepath.Join(profilesDir, activeProfile)
-	}
-
-	targets, err := config.DetectAllTargets()
-	if err != nil {
-		return nil, fmt.Errorf("failed to detect targets: %w", err)
-	}
-
-	det := detector.NewRepositoryDetector()
-	det.SetLogger(a.logger)
-
-	return linker.NewComponentLinker(agentsDir, targets, det, nil)
-}
-
-// getTargetNames returns target names for error messages.
-func getTargetNames(targets []config.Target) []string {
-	names := make([]string, len(targets))
-	for i, t := range targets {
-		names[i] = t.GetName()
-	}
-	return names
-}
-
-// newComponentLinkerWithFilterAndProfile builds a ComponentLinker with an optional target
-// filter and explicit profile override. This mirrors the logic previously in main.go and
-// is kept here so the container owns all linker construction.
-func (a *App) newComponentLinkerWithFilterAndProfile(targetFilter string, profile string) (*linker.ComponentLinker, error) {
-	agentsDir, err := paths.GetAgentsDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get agents directory: %w", err)
-	}
-
-	if profile != "" {
-		profilesDir, err := paths.GetProfilesDir()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
-		}
-
-		profilePath := filepath.Join(profilesDir, profile)
-		if _, err := os.Stat(profilePath); os.IsNotExist(err) {
-			lockService := locksvc.NewService(a.logger)
-			pm, pmErr := profiles.NewProfileManager(nil, lockService)
-			if pmErr == nil {
-				availableProfiles, scanErr := pm.ScanProfiles()
-				if scanErr == nil && len(availableProfiles) > 0 {
-					profileNames := make([]string, len(availableProfiles))
-					for i, p := range availableProfiles {
-						profileNames[i] = p.Name
-					}
-					return nil, fmt.Errorf("profile '%s' does not exist\n\nAvailable profiles:\n  - %s\n\nTo create this profile:\n  agent-smith profile create %s",
-						profile, strings.Join(profileNames, "\n  - "), profile)
-				}
-			}
-			return nil, fmt.Errorf("profile '%s' does not exist\n\nTo create this profile:\n  agent-smith profile create %s\n\nTo list available profiles:\n  agent-smith profile list", profile, profile)
-		}
-
-		profileObj := &profiles.Profile{
-			Name:     profile,
-			BasePath: profilePath,
-		}
-		if _, err := os.Stat(filepath.Join(profilePath, paths.AgentsSubDir)); err == nil {
-			profileObj.HasAgents = true
-		}
-		if _, err := os.Stat(filepath.Join(profilePath, paths.SkillsSubDir)); err == nil {
-			profileObj.HasSkills = true
-		}
-		if _, err := os.Stat(filepath.Join(profilePath, paths.CommandsSubDir)); err == nil {
-			profileObj.HasCommands = true
-		}
-		if !profileObj.HasAgents && !profileObj.HasSkills && !profileObj.HasCommands {
-			return nil, fmt.Errorf("profile '%s' exists but has no components\n\nThe profile directory is empty. To add components to this profile:\n  agent-smith install skill <repo-url> <name> --profile %s\n  agent-smith install agent <repo-url> <name> --profile %s\n  agent-smith install command <repo-url> <name> --profile %s",
-				profile, profile, profile, profile)
-		}
-		agentsDir = profilePath
-	} else {
-		lockService := locksvc.NewService(a.logger)
-		profileManager, err := profiles.NewProfileManager(nil, lockService)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create profile manager: %w", err)
-		}
-		activeProfile, err := profileManager.GetActiveProfile()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get active profile: %w", err)
-		}
-		if activeProfile != "" {
-			profilesDir, err := paths.GetProfilesDir()
-			if err != nil {
-				return nil, fmt.Errorf("failed to get profiles directory: %w", err)
-			}
-			agentsDir = filepath.Join(profilesDir, activeProfile)
-		}
-	}
-
-	allTargets, err := config.DetectAllTargets()
-	if err != nil {
-		return nil, fmt.Errorf("failed to detect targets: %w", err)
-	}
-
-	var targets []config.Target
-	if targetFilter == "" || targetFilter == "all" {
-		targets = allTargets
-	} else {
-		for _, t := range allTargets {
-			if t.GetName() == targetFilter {
-				targets = append(targets, t)
-				break
-			}
-		}
-		if len(targets) == 0 {
-			return nil, fmt.Errorf("target '%s' not found. Available targets: %v", targetFilter, getTargetNames(allTargets))
-		}
-	}
-
-	det := detector.NewRepositoryDetector()
-	det.SetLogger(a.logger)
-
-	return linker.NewComponentLinker(agentsDir, targets, det, nil)
 }

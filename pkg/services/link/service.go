@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/tjg184/agent-smith/internal/detector"
 	"github.com/tjg184/agent-smith/internal/formatter"
 	"github.com/tjg184/agent-smith/internal/linker"
 	"github.com/tjg184/agent-smith/pkg/config"
@@ -57,121 +56,47 @@ func (s *Service) showCurrentContext(explicitProfile string) {
 }
 
 func (s *Service) createLinker() (*linker.ComponentLinker, error) {
-	agentsDir, err := paths.GetAgentsDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get agents directory: %w", err)
-	}
-
 	activeProfile, err := s.profileManager.GetActiveProfile()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active profile: %w", err)
 	}
-
 	if activeProfile != "" {
-		profilesDir, err := paths.GetProfilesDir()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
-		}
-		agentsDir = filepath.Join(profilesDir, activeProfile)
 		s.formatter.Info("Using active profile: %s", activeProfile)
 	}
-
-	targets, err := config.DetectAllTargets()
-	if err != nil {
-		return nil, fmt.Errorf("failed to detect targets: %w", err)
-	}
-
-	det := detector.NewRepositoryDetector()
-	if s.logger != nil {
-		det.SetLogger(s.logger)
-	}
-
-	return linker.NewComponentLinker(agentsDir, targets, det, nil)
+	return linker.Build(linker.BuildOptions{ActiveProfile: activeProfile}, s.logger)
 }
 
 func (s *Service) createLinkerWithFilter(targetFilter string) (*linker.ComponentLinker, error) {
-	agentsDir, err := paths.GetAgentsDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get agents directory: %w", err)
-	}
-
 	activeProfile, err := s.profileManager.GetActiveProfile()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active profile: %w", err)
 	}
-
-	if activeProfile != "" {
-		profilesDir, err := paths.GetProfilesDir()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
-		}
-		agentsDir = filepath.Join(profilesDir, activeProfile)
-	}
-
-	allTargets, err := config.DetectAllTargets()
-	if err != nil {
-		return nil, fmt.Errorf("failed to detect targets: %w", err)
-	}
-
-	targets := s.filterTargets(allTargets, targetFilter)
-
-	det := detector.NewRepositoryDetector()
-	if s.logger != nil {
-		det.SetLogger(s.logger)
-	}
-
-	return linker.NewComponentLinker(agentsDir, targets, det, nil)
+	return linker.Build(linker.BuildOptions{ActiveProfile: activeProfile, TargetFilter: targetFilter}, s.logger)
 }
 
 func (s *Service) createLinkerWithFilterAndProfile(targetFilter string, profile string) (*linker.ComponentLinker, error) {
-	agentsDir, err := paths.GetAgentsDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get agents directory: %w", err)
-	}
+	opts := linker.BuildOptions{TargetFilter: targetFilter}
 
 	if profile != "" {
-		profilesDir, err := paths.GetProfilesDir()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
+		if err := s.validateProfileExists(profile); err != nil {
+			return nil, err
 		}
-
-		profilePath := filepath.Join(profilesDir, profile)
-		if _, err := os.Stat(profilePath); os.IsNotExist(err) {
-			availableProfiles, scanErr := s.profileManager.ScanProfiles()
-			if scanErr == nil && len(availableProfiles) > 0 {
-				profileNames := make([]string, len(availableProfiles))
-				for i, p := range availableProfiles {
-					profileNames[i] = p.Name
-				}
-				return nil, fmt.Errorf("profile '%s' does not exist\n\nAvailable profiles:\n  - %s\n\nTo create this profile:\n  agent-smith profile create %s",
-					profile, strings.Join(profileNames, "\n  - "), profile)
-			}
-			return nil, fmt.Errorf("profile '%s' does not exist\n\nTo create this profile:\n  agent-smith profile create %s\n\nTo list available profiles:\n  agent-smith profile list", profile, profile)
-		}
-
-		agentsDir = profilePath
 		s.formatter.Info("Using profile: %s", profile)
+		opts.ExplicitProfile = profile
 	} else {
 		activeProfile, err := s.profileManager.GetActiveProfile()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get active profile: %w", err)
 		}
-
-		if activeProfile != "" {
-			profilesDir, err := paths.GetProfilesDir()
-			if err != nil {
-				return nil, fmt.Errorf("failed to get profiles directory: %w", err)
-			}
-			agentsDir = filepath.Join(profilesDir, activeProfile)
-		}
+		opts.ActiveProfile = activeProfile
 	}
 
-	allTargets, err := config.DetectAllTargets()
-	if err != nil {
-		return nil, fmt.Errorf("failed to detect targets: %w", err)
-	}
-
+	// The universal target is not auto-detected; inject it when explicitly requested.
 	if targetFilter == string(config.TargetUniversal) {
+		allTargets, err := config.DetectAllTargets()
+		if err != nil {
+			return nil, fmt.Errorf("failed to detect targets: %w", err)
+		}
 		alreadyPresent := false
 		for _, t := range allTargets {
 			if t.GetName() == string(config.TargetUniversal) {
@@ -186,49 +111,37 @@ func (s *Service) createLinkerWithFilterAndProfile(targetFilter string, profile 
 			}
 			allTargets = append(allTargets, universalTarget)
 		}
+		opts.Targets = allTargets
 	}
 
-	targets := s.filterTargets(allTargets, targetFilter)
-
-	det := detector.NewRepositoryDetector()
-	if s.logger != nil {
-		det.SetLogger(s.logger)
-	}
-
-	return linker.NewComponentLinker(agentsDir, targets, det, nil)
+	return linker.Build(opts, s.logger)
 }
 
 func (s *Service) createLinkerWithProfileManager() (*linker.ComponentLinker, error) {
-	agentsDir, err := paths.GetAgentsDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get agents directory: %w", err)
-	}
-
-	targets, err := config.DetectAllTargets()
-	if err != nil {
-		return nil, fmt.Errorf("failed to detect targets: %w", err)
-	}
-
-	det := detector.NewRepositoryDetector()
-	if s.logger != nil {
-		det.SetLogger(s.logger)
-	}
-
-	return linker.NewComponentLinker(agentsDir, targets, det, profiles.NewLinkerAdapter(s.profileManager))
+	return linker.Build(linker.BuildOptions{ProfileManager: profiles.NewLinkerAdapter(s.profileManager)}, s.logger)
 }
 
-func (s *Service) filterTargets(targets []config.Target, targetFilter string) []config.Target {
-	if targetFilter == "" || targetFilter == "all" {
-		return targets
+// validateProfileExists returns a descriptive error if the named profile directory
+// does not exist, listing available profiles when possible.
+func (s *Service) validateProfileExists(profile string) error {
+	profilesDir, err := paths.GetProfilesDir()
+	if err != nil {
+		return fmt.Errorf("failed to get profiles directory: %w", err)
 	}
-
-	var filtered []config.Target
-	for _, target := range targets {
-		if target.GetName() == targetFilter {
-			filtered = append(filtered, target)
+	profilePath := filepath.Join(profilesDir, profile)
+	if _, err := os.Stat(profilePath); os.IsNotExist(err) {
+		availableProfiles, scanErr := s.profileManager.ScanProfiles()
+		if scanErr == nil && len(availableProfiles) > 0 {
+			profileNames := make([]string, len(availableProfiles))
+			for i, p := range availableProfiles {
+				profileNames[i] = p.Name
+			}
+			return fmt.Errorf("profile '%s' does not exist\n\nAvailable profiles:\n  - %s\n\nTo create this profile:\n  agent-smith profile create %s",
+				profile, strings.Join(profileNames, "\n  - "), profile)
 		}
+		return fmt.Errorf("profile '%s' does not exist\n\nTo create this profile:\n  agent-smith profile create %s\n\nTo list available profiles:\n  agent-smith profile list", profile, profile)
 	}
-	return filtered
+	return nil
 }
 
 func (s *Service) LinkComponent(componentType, componentName string, opts services.LinkOptions) error {
