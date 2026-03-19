@@ -366,33 +366,6 @@ func (a *App) resolveActiveProfile() string {
 	return activeProfile
 }
 
-// profileManagerAdapter adapts *profiles.ProfileManager to the linker.ProfileManager interface.
-type profileManagerAdapter struct {
-	pm *profiles.ProfileManager
-}
-
-func (pma *profileManagerAdapter) ScanProfiles() ([]*linker.Profile, error) {
-	scanned, err := pma.pm.ScanProfiles()
-	if err != nil {
-		return nil, err
-	}
-	result := make([]*linker.Profile, len(scanned))
-	for i, p := range scanned {
-		result[i] = &linker.Profile{
-			Name:        p.Name,
-			BasePath:    p.BasePath,
-			HasAgents:   p.HasAgents,
-			HasSkills:   p.HasSkills,
-			HasCommands: p.HasCommands,
-		}
-	}
-	return result, nil
-}
-
-func (pma *profileManagerAdapter) GetActiveProfile() (string, error) {
-	return pma.pm.GetActiveProfile()
-}
-
 // newComponentLinker builds a ComponentLinker for the active profile (or base dir if none).
 func (a *App) newComponentLinker() (*linker.ComponentLinker, error) {
 	agentsDir, err := paths.GetAgentsDir()

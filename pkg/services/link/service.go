@@ -56,33 +56,6 @@ func (s *Service) showCurrentContext(explicitProfile string) {
 	s.formatter.EmptyLine()
 }
 
-type profileManagerAdapter struct {
-	pm *profiles.ProfileManager
-}
-
-func (pma *profileManagerAdapter) ScanProfiles() ([]*linker.Profile, error) {
-	profiles, err := pma.pm.ScanProfiles()
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]*linker.Profile, len(profiles))
-	for i, p := range profiles {
-		result[i] = &linker.Profile{
-			Name:        p.Name,
-			BasePath:    p.BasePath,
-			HasAgents:   p.HasAgents,
-			HasSkills:   p.HasSkills,
-			HasCommands: p.HasCommands,
-		}
-	}
-	return result, nil
-}
-
-func (pma *profileManagerAdapter) GetActiveProfile() (string, error) {
-	return pma.pm.GetActiveProfile()
-}
-
 func (s *Service) createLinker() (*linker.ComponentLinker, error) {
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
@@ -241,9 +214,7 @@ func (s *Service) createLinkerWithProfileManager() (*linker.ComponentLinker, err
 		det.SetLogger(s.logger)
 	}
 
-	adapter := &profileManagerAdapter{pm: s.profileManager}
-
-	return linker.NewComponentLinker(agentsDir, targets, det, adapter)
+	return linker.NewComponentLinker(agentsDir, targets, det, profiles.NewLinkerAdapter(s.profileManager))
 }
 
 func (s *Service) filterTargets(targets []config.Target, targetFilter string) []config.Target {
