@@ -17,14 +17,12 @@ import (
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
-// Service implements the LinkService interface
 type Service struct {
 	profileManager *profiles.ProfileManager
 	logger         *logger.Logger
 	formatter      *formatter.Formatter
 }
 
-// NewService creates a new LinkService with the given dependencies
 func NewService(pm *profiles.ProfileManager, logger *logger.Logger, formatter *formatter.Formatter) services.LinkService {
 	return &Service{
 		profileManager: pm,
@@ -33,7 +31,6 @@ func NewService(pm *profiles.ProfileManager, logger *logger.Logger, formatter *f
 	}
 }
 
-// showCurrentContext displays the current profile context at the start of link operations
 func (s *Service) showCurrentContext(explicitProfile string) {
 	bold := color.New(color.Bold).SprintFunc()
 	cyan := color.New(color.FgCyan).SprintFunc()
@@ -59,7 +56,6 @@ func (s *Service) showCurrentContext(explicitProfile string) {
 	s.formatter.EmptyLine()
 }
 
-// profileManagerAdapter adapts profiles.ProfileManager to linker.ProfileManager
 type profileManagerAdapter struct {
 	pm *profiles.ProfileManager
 }
@@ -70,7 +66,6 @@ func (pma *profileManagerAdapter) ScanProfiles() ([]*linker.Profile, error) {
 		return nil, err
 	}
 
-	// Convert profiles.Profile to linker.Profile
 	result := make([]*linker.Profile, len(profiles))
 	for i, p := range profiles {
 		result[i] = &linker.Profile{
@@ -88,7 +83,6 @@ func (pma *profileManagerAdapter) GetActiveProfile() (string, error) {
 	return pma.pm.GetActiveProfile()
 }
 
-// createLinker creates a ComponentLinker with the default configuration
 func (s *Service) createLinker() (*linker.ComponentLinker, error) {
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
@@ -100,7 +94,6 @@ func (s *Service) createLinker() (*linker.ComponentLinker, error) {
 		return nil, fmt.Errorf("failed to get active profile: %w", err)
 	}
 
-	// If a profile is active, use the profile's base path instead
 	if activeProfile != "" {
 		profilesDir, err := paths.GetProfilesDir()
 		if err != nil {
@@ -110,7 +103,6 @@ func (s *Service) createLinker() (*linker.ComponentLinker, error) {
 		s.formatter.Info("Using active profile: %s", activeProfile)
 	}
 
-	// Detect all available targets
 	targets, err := config.DetectAllTargets()
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect targets: %w", err)
@@ -124,7 +116,6 @@ func (s *Service) createLinker() (*linker.ComponentLinker, error) {
 	return linker.NewComponentLinker(agentsDir, targets, det, nil)
 }
 
-// createLinkerWithFilter creates a ComponentLinker with target filtering
 func (s *Service) createLinkerWithFilter(targetFilter string) (*linker.ComponentLinker, error) {
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
@@ -144,7 +135,6 @@ func (s *Service) createLinkerWithFilter(targetFilter string) (*linker.Component
 		agentsDir = filepath.Join(profilesDir, activeProfile)
 	}
 
-	// Detect targets and apply filter
 	allTargets, err := config.DetectAllTargets()
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect targets: %w", err)
@@ -160,7 +150,6 @@ func (s *Service) createLinkerWithFilter(targetFilter string) (*linker.Component
 	return linker.NewComponentLinker(agentsDir, targets, det, nil)
 }
 
-// createLinkerWithFilterAndProfile creates a ComponentLinker with target filtering and explicit profile
 func (s *Service) createLinkerWithFilterAndProfile(targetFilter string, profile string) (*linker.ComponentLinker, error) {
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
@@ -173,7 +162,6 @@ func (s *Service) createLinkerWithFilterAndProfile(targetFilter string, profile 
 			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
 		}
 
-		// Validate that the profile exists
 		profilePath := filepath.Join(profilesDir, profile)
 		if _, err := os.Stat(profilePath); os.IsNotExist(err) {
 			availableProfiles, scanErr := s.profileManager.ScanProfiles()
@@ -191,7 +179,6 @@ func (s *Service) createLinkerWithFilterAndProfile(targetFilter string, profile 
 		agentsDir = profilePath
 		s.formatter.Info("Using profile: %s", profile)
 	} else {
-		// Use active profile logic
 		activeProfile, err := s.profileManager.GetActiveProfile()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get active profile: %w", err)
@@ -206,15 +193,11 @@ func (s *Service) createLinkerWithFilterAndProfile(targetFilter string, profile 
 		}
 	}
 
-	// Detect targets and apply filter
 	allTargets, err := config.DetectAllTargets()
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect targets: %w", err)
 	}
 
-	// When universal is explicitly requested but ~/.agents/ doesn't exist yet,
-	// DetectAllTargets won't include it. Bootstrap the target so the linker
-	// creates the directory on first use.
 	if targetFilter == string(config.TargetUniversal) {
 		alreadyPresent := false
 		for _, t := range allTargets {
@@ -242,15 +225,12 @@ func (s *Service) createLinkerWithFilterAndProfile(targetFilter string, profile 
 	return linker.NewComponentLinker(agentsDir, targets, det, nil)
 }
 
-// createLinkerWithProfileManager creates a ComponentLinker with ProfileManager for multi-profile operations
 func (s *Service) createLinkerWithProfileManager() (*linker.ComponentLinker, error) {
-	// For multi-profile view, use base directory as the starting point
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
-	// Detect all available targets
 	targets, err := config.DetectAllTargets()
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect targets: %w", err)
@@ -261,13 +241,11 @@ func (s *Service) createLinkerWithProfileManager() (*linker.ComponentLinker, err
 		det.SetLogger(s.logger)
 	}
 
-	// Wrap the ProfileManager in an adapter
 	adapter := &profileManagerAdapter{pm: s.profileManager}
 
 	return linker.NewComponentLinker(agentsDir, targets, det, adapter)
 }
 
-// filterTargets filters targets based on the targetFilter string
 func (s *Service) filterTargets(targets []config.Target, targetFilter string) []config.Target {
 	if targetFilter == "" || targetFilter == "all" {
 		return targets
@@ -282,7 +260,6 @@ func (s *Service) filterTargets(targets []config.Target, targetFilter string) []
 	return filtered
 }
 
-// LinkComponent links a single component to targets
 func (s *Service) LinkComponent(componentType, componentName string, opts services.LinkOptions) error {
 	s.showCurrentContext(opts.Profile)
 	cl, err := s.createLinkerWithFilterAndProfile(opts.TargetFilter, opts.Profile)
@@ -292,15 +269,12 @@ func (s *Service) LinkComponent(componentType, componentName string, opts servic
 	return cl.LinkComponent(componentType, componentName)
 }
 
-// LinkAll links all components to targets
 func (s *Service) LinkAll(opts services.LinkOptions) error {
-	// Validate flag combination
 	if opts.AllProfiles && opts.Profile != "" {
 		return fmt.Errorf("cannot use both --all-profiles and --profile flags together")
 	}
 
 	if opts.AllProfiles {
-		// Link from all profiles
 		profilesList, err := s.profileManager.ScanProfiles()
 		if err != nil {
 			s.formatter.EmptyLine()
@@ -324,13 +298,11 @@ func (s *Service) LinkAll(opts services.LinkOptions) error {
 			return fmt.Errorf("no profiles found")
 		}
 
-		// Color helpers
 		bold := color.New(color.Bold).SprintFunc()
 		green := color.New(color.FgGreen, color.Bold).SprintFunc()
 		cyan := color.New(color.FgCyan).SprintFunc()
 		gray := color.New(color.FgHiBlack).SprintFunc()
 
-		// Link from each profile
 		fmt.Printf("\n%s\n", bold("Linking components from all profiles..."))
 		fmt.Println()
 
@@ -342,7 +314,6 @@ func (s *Service) LinkAll(opts services.LinkOptions) error {
 				return fmt.Errorf("failed to create component linker for profile '%s': %w", profileItem.Name, err)
 			}
 
-			// Count components before linking to check if profile has any
 			agents, skills, commands := s.profileManager.CountComponents(profileItem)
 			totalComponents := agents + skills + commands
 
@@ -360,7 +331,6 @@ func (s *Service) LinkAll(opts services.LinkOptions) error {
 		return nil
 	}
 
-	// Link from single profile (existing behavior)
 	s.showCurrentContext(opts.Profile)
 	cl, err := s.createLinkerWithFilterAndProfile(opts.TargetFilter, opts.Profile)
 	if err != nil {
@@ -369,7 +339,6 @@ func (s *Service) LinkAll(opts services.LinkOptions) error {
 	return cl.LinkAllComponents()
 }
 
-// LinkByType links all components of a specific type to targets
 func (s *Service) LinkByType(componentType string, opts services.LinkOptions) error {
 	s.showCurrentContext(opts.Profile)
 	cl, err := s.createLinkerWithFilterAndProfile(opts.TargetFilter, opts.Profile)
@@ -379,7 +348,6 @@ func (s *Service) LinkByType(componentType string, opts services.LinkOptions) er
 	return cl.LinkComponentsByType(componentType)
 }
 
-// UnlinkComponent unlinks a single component from targets
 func (s *Service) UnlinkComponent(componentType, componentName string, opts services.UnlinkOptions) error {
 	var cl *linker.ComponentLinker
 	var err error
@@ -396,9 +364,7 @@ func (s *Service) UnlinkComponent(componentType, componentName string, opts serv
 	return cl.UnlinkComponent(componentType, componentName, opts.TargetFilter)
 }
 
-// UnlinkAll unlinks all components from targets
 func (s *Service) UnlinkAll(opts services.UnlinkOptions) error {
-	// Validate flag combination
 	if opts.AllProfiles && opts.Profile != "" {
 		return fmt.Errorf("cannot use both --all-profiles and --profile flags together")
 	}
@@ -418,7 +384,6 @@ func (s *Service) UnlinkAll(opts services.UnlinkOptions) error {
 	return cl.UnlinkAllComponents(opts.TargetFilter, opts.Force, opts.AllProfiles)
 }
 
-// UnlinkByType unlinks all components of a specific type from targets
 func (s *Service) UnlinkByType(componentType string, opts services.UnlinkOptions) error {
 	var cl *linker.ComponentLinker
 	var err error
@@ -435,7 +400,6 @@ func (s *Service) UnlinkByType(componentType string, opts services.UnlinkOptions
 	return cl.UnlinkComponentsByType(componentType, opts.TargetFilter, opts.Force)
 }
 
-// AutoLinkRepositories automatically detects and links local repositories
 func (s *Service) AutoLinkRepositories() error {
 	cl, err := s.createLinker()
 	if err != nil {
@@ -444,7 +408,6 @@ func (s *Service) AutoLinkRepositories() error {
 	return cl.DetectAndLinkLocalRepositories()
 }
 
-// ListLinked lists all currently linked components
 func (s *Service) ListLinked() error {
 	cl, err := s.createLinker()
 	if err != nil {
@@ -453,10 +416,8 @@ func (s *Service) ListLinked() error {
 	return cl.ListLinkedComponents()
 }
 
-// ShowStatus shows the link status of components
 func (s *Service) ShowStatus(opts services.LinkStatusOptions) error {
 	if opts.AllProfiles {
-		// Check if any profiles exist
 		profilesList, err := s.profileManager.ScanProfiles()
 		if err != nil {
 			s.formatter.EmptyLine()
@@ -488,12 +449,8 @@ func (s *Service) ShowStatus(opts services.LinkStatusOptions) error {
 		return cl.ShowAllProfilesLinkStatus(opts.ProfileFilter, opts.LinkedOnly)
 	}
 
-	// Single-profile view
-	// If --profile was specified, use that specific profile
-	// Otherwise, use active profile or base directory
 	var profileName string
 	if len(opts.ProfileFilter) > 0 {
-		// Use the first profile from the filter as the target profile
 		profileName = opts.ProfileFilter[0]
 	}
 

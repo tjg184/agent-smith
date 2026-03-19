@@ -12,7 +12,6 @@ import (
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
-// TestFindSkills_QueryValidation tests query length validation
 func TestFindSkills_QueryValidation(t *testing.T) {
 	log := logger.New(logger.LevelError)
 	fmt := formatter.New()
@@ -75,7 +74,6 @@ func TestFindSkills_QueryValidation(t *testing.T) {
 	}
 }
 
-// TestFormatResults tests result formatting logic
 func TestFormatResults(t *testing.T) {
 	log := logger.New(logger.LevelError)
 	fmt := formatter.New()
@@ -133,7 +131,6 @@ func TestFormatResults(t *testing.T) {
 	}
 }
 
-// TestFormatInstallCount tests install count formatting
 func TestFormatInstallCount(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -182,7 +179,6 @@ func TestFormatInstallCount(t *testing.T) {
 	}
 }
 
-// TestOutputJSON tests JSON output formatting
 func TestOutputJSON(t *testing.T) {
 	log := logger.New(logger.LevelError)
 	fmt := formatter.New()
@@ -208,7 +204,6 @@ func TestOutputJSON(t *testing.T) {
 	}
 }
 
-// TestQueryAPI_WithMockServer tests API querying with a mock server
 func TestQueryAPI_WithMockServer(t *testing.T) {
 	log := logger.New(logger.LevelError)
 	fmt := formatter.New()
@@ -307,7 +302,6 @@ func TestQueryAPI_WithMockServer(t *testing.T) {
 	}
 }
 
-// TestGetBanner tests the banner generation
 func TestGetBanner(t *testing.T) {
 	banner := getBanner()
 
@@ -328,7 +322,6 @@ func TestGetBanner(t *testing.T) {
 	}
 }
 
-// TestFindSkills_LimitParameter tests the limit parameter
 func TestFindSkills_LimitParameter(t *testing.T) {
 	log := logger.New(logger.LevelError)
 	fmt := formatter.New()

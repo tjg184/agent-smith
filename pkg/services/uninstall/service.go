@@ -13,14 +13,12 @@ import (
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
-// Service implements the UninstallService interface
 type Service struct {
 	linker    *linker.ComponentLinker
 	logger    *logger.Logger
 	formatter *formatter.Formatter
 }
 
-// NewService creates a new UninstallService with dependencies injected
 func NewService(
 	linker *linker.ComponentLinker,
 	logger *logger.Logger,
@@ -33,23 +31,19 @@ func NewService(
 	}
 }
 
-// UninstallComponent uninstalls a single component
 func (s *Service) UninstallComponent(componentType, componentName string, opts services.UninstallOptions) error {
-	// Determine base directory
 	baseDir, err := paths.GetAgentsDir()
 	if err != nil {
 		return fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
 	if opts.Profile != "" {
-		// Use profile directory
 		profilesDir, err := paths.GetProfilesDir()
 		if err != nil {
 			return fmt.Errorf("failed to get profiles directory: %w", err)
 		}
 		baseDir = filepath.Join(profilesDir, opts.Profile)
 
-		// Validate profile exists
 		if _, err := os.Stat(baseDir); os.IsNotExist(err) {
 			return fmt.Errorf("profile '%s' does not exist", opts.Profile)
 		}
@@ -64,9 +58,7 @@ func (s *Service) UninstallComponent(componentType, componentName string, opts s
 	return nil
 }
 
-// UninstallAllFromSource uninstalls all components from a specific repository source
 func (s *Service) UninstallAllFromSource(repoURL string, opts services.UninstallOptions) error {
-	// Get base directory (always ~/.agent-smith/ for bulk uninstall)
 	baseDir, err := paths.GetAgentsDir()
 	if err != nil {
 		return fmt.Errorf("failed to get base directory: %w", err)
@@ -74,7 +66,6 @@ func (s *Service) UninstallAllFromSource(repoURL string, opts services.Uninstall
 
 	uninstallerService := uninstaller.NewUninstaller(baseDir, s.linker)
 
-	// Uninstall all components from source
 	if err := uninstallerService.UninstallAllFromSource(repoURL, opts.Force); err != nil {
 		return fmt.Errorf("failed to uninstall components: %w", err)
 	}

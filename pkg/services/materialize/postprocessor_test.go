@@ -6,7 +6,6 @@ import (
 	"github.com/tjg184/agent-smith/internal/formatter"
 )
 
-// MockPostprocessor is a test postprocessor for testing the registry
 type MockPostprocessor struct {
 	name            string
 	shouldProcessFn func(componentType, target string) bool

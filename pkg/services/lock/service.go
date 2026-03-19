@@ -9,20 +9,16 @@ import (
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
-// Service implements the ComponentLockService interface
 type Service struct {
 	logger *logger.Logger
 }
 
-// NewService creates a new ComponentLockService
 func NewService(logger *logger.Logger) services.ComponentLockService {
 	return &Service{
 		logger: logger,
 	}
 }
 
-// LoadEntry loads a component entry from the lock file
-// Returns error if component exists in multiple sources (ambiguous)
 func (s *Service) LoadEntry(baseDir, componentType, componentName string) (*models.ComponentEntry, error) {
 	s.logger.Debug("[ComponentLockService] LoadEntry: baseDir=%s, type=%s, name=%s", baseDir, componentType, componentName)
 
@@ -44,7 +40,6 @@ func (s *Service) LoadEntry(baseDir, componentType, componentName string) (*mode
 	return entry, nil
 }
 
-// LoadEntryBySource loads a component entry from a specific source URL
 func (s *Service) LoadEntryBySource(baseDir, componentType, componentName, sourceURL string) (*models.ComponentEntry, error) {
 	s.logger.Debug("[ComponentLockService] LoadEntryBySource: baseDir=%s, type=%s, name=%s, source=%s",
 		baseDir, componentType, componentName, sourceURL)
@@ -70,7 +65,6 @@ func (s *Service) LoadEntryBySource(baseDir, componentType, componentName, sourc
 	return entry, nil
 }
 
-// GetAllComponentNames returns all component names for a given type
 func (s *Service) GetAllComponentNames(baseDir, componentType string) ([]string, error) {
 	s.logger.Debug("[ComponentLockService] GetAllComponentNames: baseDir=%s, type=%s", baseDir, componentType)
 
@@ -89,7 +83,6 @@ func (s *Service) GetAllComponentNames(baseDir, componentType string) ([]string,
 	return names, nil
 }
 
-// FindComponentSources returns all source URLs that contain the given component
 func (s *Service) FindComponentSources(baseDir, componentType, componentName string) ([]string, error) {
 	s.logger.Debug("[ComponentLockService] FindComponentSources: baseDir=%s, type=%s, name=%s",
 		baseDir, componentType, componentName)
@@ -112,7 +105,6 @@ func (s *Service) FindComponentSources(baseDir, componentType, componentName str
 	return sources, nil
 }
 
-// FindAllInstances returns all instances of a component across all sources
 func (s *Service) FindAllInstances(baseDir, componentType, componentName string) ([]*models.ComponentEntry, error) {
 	s.logger.Debug("[ComponentLockService] FindAllInstances: baseDir=%s, type=%s, name=%s",
 		baseDir, componentType, componentName)
@@ -132,7 +124,6 @@ func (s *Service) FindAllInstances(baseDir, componentType, componentName string)
 		return nil, fmt.Errorf("failed to find all instances: %w", err)
 	}
 
-	// Convert ComponentSource to ComponentEntry pointers
 	entries := make([]*models.ComponentEntry, len(sources))
 	for i, src := range sources {
 		entryCopy := src.Entry
@@ -142,7 +133,6 @@ func (s *Service) FindAllInstances(baseDir, componentType, componentName string)
 	return entries, nil
 }
 
-// SaveEntry saves a component entry to the lock file
 func (s *Service) SaveEntry(baseDir, componentType, componentName string, entry *models.ComponentEntry) error {
 	s.logger.Debug("[ComponentLockService] SaveEntry: baseDir=%s, type=%s, name=%s",
 		baseDir, componentType, componentName)
@@ -160,7 +150,6 @@ func (s *Service) SaveEntry(baseDir, componentType, componentName string, entry 
 		return fmt.Errorf("entry is required")
 	}
 
-	// Validate required entry fields
 	if entry.SourceUrl == "" {
 		return fmt.Errorf("entry.SourceUrl is required")
 	}
@@ -168,7 +157,6 @@ func (s *Service) SaveEntry(baseDir, componentType, componentName string, entry 
 		return fmt.Errorf("entry.CommitHash is required")
 	}
 
-	// Convert ComponentEntry to SaveComponentEntry parameters
 	opts := metadata.ComponentEntryOptions{
 		InstalledAt:    entry.InstalledAt,
 		MaterializedAt: entry.MaterializedAt,
@@ -200,8 +188,6 @@ func (s *Service) SaveEntry(baseDir, componentType, componentName string, entry 
 	return nil
 }
 
-// RemoveEntry removes a component entry from the lock file
-// Removes from all sources if component exists in multiple
 func (s *Service) RemoveEntry(baseDir, componentType, componentName string) error {
 	s.logger.Debug("[ComponentLockService] RemoveEntry: baseDir=%s, type=%s, name=%s",
 		baseDir, componentType, componentName)
@@ -225,7 +211,6 @@ func (s *Service) RemoveEntry(baseDir, componentType, componentName string) erro
 	return nil
 }
 
-// RemoveEntryBySource removes a component entry from a specific source
 func (s *Service) RemoveEntryBySource(baseDir, componentType, componentName, sourceURL string) error {
 	s.logger.Debug("[ComponentLockService] RemoveEntryBySource: baseDir=%s, type=%s, name=%s, source=%s",
 		baseDir, componentType, componentName, sourceURL)
@@ -253,7 +238,6 @@ func (s *Service) RemoveEntryBySource(baseDir, componentType, componentName, sou
 	return nil
 }
 
-// ResolveFilesystemName resolves a filesystem name, adding suffixes if conflicts exist
 func (s *Service) ResolveFilesystemName(baseDir, componentType, desiredName, sourceURL string) (string, error) {
 	s.logger.Debug("[ComponentLockService] ResolveFilesystemName: baseDir=%s, type=%s, desiredName=%s, sourceURL=%s",
 		baseDir, componentType, desiredName, sourceURL)
@@ -267,7 +251,6 @@ func (s *Service) ResolveFilesystemName(baseDir, componentType, desiredName, sou
 	if desiredName == "" {
 		return "", fmt.Errorf("desiredName is required")
 	}
-	// sourceURL can be empty for non-source-aware resolution
 
 	resolvedName, err := metadata.ResolveInstallFilesystemName(baseDir, componentType, desiredName, sourceURL)
 	if err != nil {
@@ -278,7 +261,6 @@ func (s *Service) ResolveFilesystemName(baseDir, componentType, desiredName, sou
 	return resolvedName, nil
 }
 
-// HasConflict checks if a component name exists in multiple sources
 func (s *Service) HasConflict(baseDir, componentType, componentName string) (bool, error) {
 	s.logger.Debug("[ComponentLockService] HasConflict: baseDir=%s, type=%s, name=%s",
 		baseDir, componentType, componentName)
