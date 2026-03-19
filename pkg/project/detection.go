@@ -13,7 +13,11 @@ import (
 // ProjectMarkers are the directory names that indicate a project root.
 // Derived from the built-in target registry so adding a new target automatically
 // extends detection without touching this file.
-var ProjectMarkers = config.GetAllTargetProjectDirNames()
+var ProjectMarkers []string
+
+func init() {
+	ProjectMarkers = config.GetAllTargetProjectDirNames()
+}
 
 // ProjectBoundaryMarkers are files/directories that indicate a project boundary
 // checked as fallbacks if no ProjectMarkers are found.
