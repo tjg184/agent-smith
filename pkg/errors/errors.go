@@ -28,7 +28,6 @@ type ErrorMessage struct {
 	IsWarning  bool
 }
 
-// Format returns the fully formatted error message with colors.
 func (e *ErrorMessage) Format() string {
 	var sb strings.Builder
 
@@ -60,12 +59,10 @@ func (e *ErrorMessage) Format() string {
 	return sb.String()
 }
 
-// String returns the formatted error message.
 func (e *ErrorMessage) String() string {
 	return e.Format()
 }
 
-// New creates a new error message with just the main message.
 func New(message string) *ErrorMessage {
 	return &ErrorMessage{
 		Message: message,
@@ -130,7 +127,6 @@ func FormatDim(text string) string {
 	return colors.Dim(text)
 }
 
-// Disable removes all color formatting (useful for testing or piped output).
 func Disable() {
 	colors.Disable()
 	// Reinitialize icons without colors

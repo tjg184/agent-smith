@@ -117,7 +117,6 @@ func NewTargetForProject(targetType, projectRoot string) (Target, error) {
 	return nil, fmt.Errorf("unknown target type: %s (valid options: opencode, claudecode, copilot, universal, or custom targets from config)", targetType)
 }
 
-// Priority: AGENT_SMITH_TARGET env var > auto-detection > default to OpenCode.
 func DetectTarget() (Target, error) {
 	envTarget := GetTargetFromEnv()
 	if envTarget != "" {

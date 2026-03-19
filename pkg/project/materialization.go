@@ -327,7 +327,6 @@ func CheckMultipleComponentsSyncStatusBatched(baseDir string, components []Compo
 	componentsByRepo := make(map[string][]ComponentInfo)
 	for _, comp := range components {
 		if comp.Metadata.Source == "" {
-			// Handle components with missing source URL
 			key := fmt.Sprintf("%s/%s", comp.Type, comp.Name)
 			results[key] = SyncCheckResult{
 				Status: "",

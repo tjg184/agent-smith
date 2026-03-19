@@ -21,7 +21,6 @@ const (
 	LevelDebug
 )
 
-// String returns the string representation of the log level.
 func (l Level) String() string {
 	switch l {
 	case LevelError:
@@ -48,8 +47,6 @@ type Logger struct {
 	colorize bool
 }
 
-// New creates a new Logger with the specified minimum level.
-// Messages below this level will be discarded.
 func New(level Level) *Logger {
 	return &Logger{
 		level:    level,
@@ -248,10 +245,6 @@ func (l *Logger) Println(args ...interface{}) {
 	fmt.Fprintln(output, args...)
 }
 
-// Default returns a logger configured based on common flags.
-// - If debug is true, sets level to LevelDebug
-// - If verbose is true, sets level to LevelInfo
-// - Otherwise, sets level to LevelWarn
 func Default(debug, verbose bool) *Logger {
 	var level Level
 	if debug {

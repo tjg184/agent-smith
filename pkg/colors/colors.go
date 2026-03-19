@@ -37,9 +37,6 @@ func init() {
 	Init(true)
 }
 
-// Init initializes the color system with optional auto-detection.
-// If autoDetect is true, it will check TTY status and NO_COLOR environment variable.
-// If autoDetect is false, colors will be enabled unconditionally.
 func Init(autoDetect bool) {
 	if autoDetect {
 		enabled = shouldEnableColors()
@@ -70,23 +67,15 @@ func IsEnabled() bool {
 	return enabled
 }
 
-// shouldEnableColors determines if colors should be enabled based on:
-// 1. NO_COLOR environment variable (if set, colors are disabled)
-// 2. FORCE_COLOR environment variable (if set, colors are enabled)
-// 3. TTY detection (colors enabled only if stdout is a TTY)
 func shouldEnableColors() bool {
-	// Check NO_COLOR environment variable (highest priority for disabling)
-	// https://no-color.org/
 	if os.Getenv("NO_COLOR") != "" {
 		return false
 	}
 
-	// Check FORCE_COLOR environment variable (overrides TTY detection)
 	if os.Getenv("FORCE_COLOR") != "" {
 		return true
 	}
 
-	// Check if stdout is a TTY
 	return isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 }
 
