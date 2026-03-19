@@ -109,14 +109,14 @@ func NewTargetForProject(targetType, projectRoot string) (Target, error) {
 
 	for _, def := range builtInTargetDefs {
 		if string(def.targetType) == targetType {
-			// Construct a temporary instance to get the project dir name.
-			tmp, err := def.constructor()
-			if err != nil {
-				return nil, fmt.Errorf("failed to create %s target: %w", targetType, err)
-			}
+			// Construct a temporary project-scoped instance to get the project dir name
+			// without relying on the global constructor (which may require global base dirs).
+			tmp := def.projectConstructor(projectRoot)
 			return def.projectConstructor(filepath.Join(projectRoot, tmp.GetProjectDirName())), nil
 		}
 	}
+
+	config, err := LoadConfig()
 
 	config, err := LoadConfig()
 	if err != nil {
