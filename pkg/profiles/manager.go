@@ -1,46 +1,45 @@
 package profiles
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 
-	"github.com/tjg184/agent-smith/internal/detector"
 	"github.com/tjg184/agent-smith/internal/linker"
-	"github.com/tjg184/agent-smith/internal/metadata"
 	"github.com/tjg184/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/pkg/profiles/activation"
+	profileCopy "github.com/tjg184/agent-smith/pkg/profiles/copy"
+	"github.com/tjg184/agent-smith/pkg/profiles/profilemeta"
+	"github.com/tjg184/agent-smith/pkg/profiles/scanner"
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
-// ProfileManager handles profile discovery and management
+// ProfileManager handles profile discovery and management.
 type ProfileManager struct {
 	profilesDir string
 	linker      *linker.ComponentLinker       // Optional - can be nil
 	lockService services.ComponentLockService // Required for lock file operations
 }
 
-// ProfileMetadata stores metadata about a profile's source
-type ProfileMetadata struct {
-	Type      string `json:"type"`       // "repo" or "user"
-	SourceURL string `json:"source_url"` // Only populated for type="repo"
+// ProfileMetadata stores metadata about a profile's source.
+// Delegates to profilemeta.ProfileMetadata.
+type ProfileMetadata = profilemeta.ProfileMetadata
+
+// ProfileActivationResult contains information about a profile activation operation.
+// Delegates to activation.ProfileActivationResult.
+type ProfileActivationResult = activation.ProfileActivationResult
+
+// ComponentItem represents a component available for cherry-picking.
+type ComponentItem struct {
+	Type          string // "skills", "agents", or "commands"
+	Name          string
+	SourceProfile string
 }
 
-// ProfileActivationResult contains information about a profile activation operation
-type ProfileActivationResult struct {
-	PreviousProfile string // empty if no profile was active
-	NewProfile      string
-	Switched        bool // true if switching from another profile
-}
-
-// NewProfileManager creates a new ProfileManager instance
-// The linker parameter is optional (pass nil if not needed for unlinking functionality)
-// The lockService parameter is required for full ProfileManager functionality
+// NewProfileManager creates a new ProfileManager instance.
+// The linker parameter is optional (pass nil if not needed for unlinking functionality).
+// The lockService parameter is required for full ProfileManager functionality.
 func NewProfileManager(componentLinker *linker.ComponentLinker, lockService services.ComponentLockService) (*ProfileManager, error) {
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
@@ -54,565 +53,143 @@ func NewProfileManager(componentLinker *linker.ComponentLinker, lockService serv
 }
 
 // SaveProfileMetadata saves metadata about a profile's source URL.
-// The source URL is normalized before being saved to ensure consistency across different URL formats.
-// This enables duplicate detection when installing from the same repository using different URL formats.
-// Returns an error if the metadata file cannot be written.
 func (pm *ProfileManager) SaveProfileMetadata(profileName, sourceURL string) error {
 	profileDir := filepath.Join(pm.profilesDir, profileName)
-	metadataPath := filepath.Join(profileDir, ".profile-metadata")
-
 	fmt.Printf("Updating profile metadata for '%s'...\n", profileName)
-
-	// Normalize the URL before saving
-	rd := detector.NewRepositoryDetector()
-	normalizedURL, err := rd.NormalizeURL(sourceURL)
-	if err != nil {
-		// If normalization fails, save the original URL
-		normalizedURL = sourceURL
+	if err := profilemeta.Save(profileDir, sourceURL); err != nil {
+		return err
 	}
-
-	metadata := ProfileMetadata{
-		Type:      "repo",
-		SourceURL: normalizedURL,
-	}
-
-	data, err := json.MarshalIndent(metadata, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal metadata: %w", err)
-	}
-
-	if err := os.WriteFile(metadataPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write metadata file: %w", err)
-	}
-
 	fmt.Printf("✓ Profile metadata saved successfully\n")
 	return nil
 }
 
 // SaveUserProfileMetadata saves metadata for a user-created profile.
-// This creates a metadata file marking the profile as type="user" with no source URL.
-// Returns an error if the metadata file cannot be written.
 func (pm *ProfileManager) SaveUserProfileMetadata(profileName string) error {
 	profileDir := filepath.Join(pm.profilesDir, profileName)
-	metadataPath := filepath.Join(profileDir, ".profile-metadata")
-
-	metadata := ProfileMetadata{
-		Type: "user",
-	}
-
-	data, err := json.MarshalIndent(metadata, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal metadata: %w", err)
-	}
-
-	if err := os.WriteFile(metadataPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write metadata file: %w", err)
-	}
-
-	return nil
+	return profilemeta.SaveUser(profileDir)
 }
 
 // LoadProfileMetadata loads metadata for a profile.
-// Returns nil if the metadata file does not exist (backward compatibility with legacy profiles).
-// Returns an error if the metadata file exists but cannot be read or parsed.
-// The returned ProfileMetadata contains the source URL and other profile information.
 func (pm *ProfileManager) LoadProfileMetadata(profileName string) (*ProfileMetadata, error) {
 	profileDir := filepath.Join(pm.profilesDir, profileName)
-	metadataPath := filepath.Join(profileDir, ".profile-metadata")
-
-	if _, err := os.Stat(metadataPath); os.IsNotExist(err) {
-		return nil, nil // No metadata file, return nil without error
-	}
-
-	data, err := os.ReadFile(metadataPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read metadata file: %w", err)
-	}
-
-	var metadata ProfileMetadata
-	if err := json.Unmarshal(data, &metadata); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
-	}
-
-	return &metadata, nil
+	return profilemeta.Load(profileDir)
 }
 
 // GetProfileType returns the type of a profile ("repo", "user", "base", or "unknown").
-// Returns "base" for the base installation (paths.BaseProfileName).
-// Returns "unknown" for profiles without metadata (legacy profiles).
-// Returns an error only if there's a problem reading the metadata file.
 func (pm *ProfileManager) GetProfileType(profileName string) (string, error) {
-	// Handle base installation
 	if profileName == paths.BaseProfileName {
 		return "base", nil
 	}
-
-	metadata, err := pm.LoadProfileMetadata(profileName)
-	if err != nil {
-		return "", fmt.Errorf("failed to load metadata: %w", err)
-	}
-
-	if metadata == nil {
-		return "unknown", nil // No metadata file
-	}
-
-	if metadata.Type == "" {
-		return "unknown", nil // Metadata exists but no type field (legacy)
-	}
-
-	return metadata.Type, nil
+	profileDir := filepath.Join(pm.profilesDir, profileName)
+	return profilemeta.GetProfileType(profileDir)
 }
 
 // FindProfileBySourceURL finds a profile that matches the given source URL.
-// The input URL is normalized before comparison to match different URL formats (HTTPS, SSH, shorthand).
-// Returns the profile name if found, empty string if not found.
-// Returns an error only if there's a problem scanning the profiles directory.
-// Profiles without metadata files are skipped (backward compatibility).
 func (pm *ProfileManager) FindProfileBySourceURL(repoURL string) (string, error) {
-	// Normalize the input URL
-	rd := detector.NewRepositoryDetector()
-	normalizedURL, err := rd.NormalizeURL(repoURL)
-	if err != nil {
-		// If normalization fails, use the original URL
-		normalizedURL = repoURL
-	}
-
-	// Scan all profiles
-	profiles, err := pm.ScanProfiles()
-	if err != nil {
-		return "", fmt.Errorf("failed to scan profiles: %w", err)
-	}
-
-	for _, profile := range profiles {
-		metadata, err := pm.LoadProfileMetadata(profile.Name)
-		if err != nil {
-			// Skip profiles with metadata errors
-			continue
-		}
-
-		if metadata != nil && metadata.SourceURL == normalizedURL {
-			return profile.Name, nil
-		}
-	}
-
-	return "", nil // Not found
+	return profilemeta.FindBySourceURL(pm.profilesDir, repoURL)
 }
 
-// GenerateProfileNameFromRepo generates a unique profile name from a repository URL
-// The format will be: owner-repo or sanitized-url for non-standard URLs
-// If the profile already exists, it appends a short hash suffix
+// GenerateProfileNameFromRepo generates a unique profile name from a repository URL.
 func GenerateProfileNameFromRepo(repoURL string, existingProfiles []string) string {
-	// Remove trailing slashes and .git suffix
-	repoURL = strings.TrimRight(repoURL, "/")
-	repoURL = strings.TrimSuffix(repoURL, ".git")
-
-	var baseName string
-
-	slashCount := strings.Count(repoURL, "/")
-	isShorthand := slashCount == 1 &&
-		!strings.Contains(repoURL, "://") &&
-		!strings.Contains(repoURL, "@") &&
-		!strings.Contains(repoURL, ".") &&
-		!strings.HasPrefix(repoURL, "./") &&
-		!strings.HasPrefix(repoURL, "../")
-
-	if isShorthand {
-		// Handle shorthand format: owner/repo -> owner-repo
-		baseName = sanitizeForProfileName(strings.ReplaceAll(repoURL, "/", "-"))
-	} else if strings.Contains(repoURL, "github.com") || strings.Contains(repoURL, "gitlab.com") || strings.Contains(repoURL, "bitbucket.org") {
-		// Handle URLs like https://github.com/owner/repo or git@github.com:owner/repo
-		parts := strings.Split(repoURL, "/")
-		if len(parts) >= 2 {
-			owner := parts[len(parts)-2]
-			repo := parts[len(parts)-1]
-
-			// Clean up owner name (remove protocol, domain, colon)
-			if strings.Contains(owner, ":") {
-				owner = strings.Split(owner, ":")[1]
-			}
-
-			baseName = fmt.Sprintf("%s-%s", sanitizeForProfileName(owner), sanitizeForProfileName(repo))
-		}
-	} else if filepath.IsAbs(repoURL) || strings.HasPrefix(repoURL, "./") || strings.HasPrefix(repoURL, "../") {
-		// Local path - use the directory name
-		baseName = sanitizeForProfileName(filepath.Base(repoURL))
-	} else {
-		// Fallback for other formats - use last part of URL
-		parts := strings.Split(repoURL, "/")
-		if len(parts) > 0 {
-			baseName = sanitizeForProfileName(parts[len(parts)-1])
-		} else {
-			baseName = "repo"
-		}
-	}
-
-	if baseName == "" {
-		baseName = "repo"
-	}
-
-	profileName := baseName
-	existsMap := make(map[string]bool)
-	for _, p := range existingProfiles {
-		existsMap[p] = true
-	}
-
-	if !existsMap[profileName] {
-		return profileName
-	}
-
-	// If profile exists, append a short hash of the full URL
-	hash := sha256.Sum256([]byte(repoURL))
-	shortHash := hex.EncodeToString(hash[:])[:6]
-	profileName = fmt.Sprintf("%s-%s", baseName, shortHash)
-
-	// If still exists (unlikely), append incrementing number
-	counter := 2
-	originalProfileName := profileName
-	for existsMap[profileName] {
-		profileName = fmt.Sprintf("%s-%d", originalProfileName, counter)
-		counter++
-	}
-
-	return profileName
+	return profilemeta.GenerateNameFromRepo(repoURL, existingProfiles)
 }
 
-// sanitizeForProfileName removes or replaces invalid characters for profile names
-// Profile names must match: ^[a-zA-Z0-9-]+$
-func sanitizeForProfileName(input string) string {
-	// Replace invalid characters with hyphens
-	reg := regexp.MustCompile(`[^a-zA-Z0-9-]+`)
-	sanitized := reg.ReplaceAllString(input, "-")
-
-	// Remove leading/trailing hyphens
-	sanitized = strings.Trim(sanitized, "-")
-
-	if sanitized == "" {
-		return "repo"
-	}
-
-	return sanitized
-}
-
-func validateProfileName(name string) error {
-	if name == "" {
-		return fmt.Errorf("profile name cannot be empty")
-	}
-
-	if strings.Contains(name, "..") || strings.Contains(name, "./") {
-		return fmt.Errorf("profile name cannot contain path traversal patterns (.. or ./)")
-	}
-
-	if strings.HasPrefix(name, ".") {
-		return fmt.Errorf("profile name cannot start with '.' (hidden directories not allowed)")
-	}
-
-	if strings.Contains(name, "/") || strings.Contains(name, "\\") {
-		return fmt.Errorf("profile name cannot contain path separators (/ or \\)")
-	}
-
-	// Validate against regex pattern: only alphanumeric and hyphens
-	validPattern := regexp.MustCompile(`^[a-zA-Z0-9-]+$`)
-	if !validPattern.MatchString(name) {
-		return fmt.Errorf("profile name must contain only letters, numbers, and hyphens (got '%s')", name)
-	}
-
-	return nil
-}
-
-// ScanProfiles discovers all valid profiles in the profiles directory
-// Returns an empty slice if the profiles directory doesn't exist
-// Invalid profiles (those without any component directories) are silently ignored
+// ScanProfiles discovers all valid profiles in the profiles directory.
 func (pm *ProfileManager) ScanProfiles() ([]*Profile, error) {
-	if _, err := os.Stat(pm.profilesDir); os.IsNotExist(err) {
-		return []*Profile{}, nil // No profiles yet, return empty list
-	}
-
-	entries, err := os.ReadDir(pm.profilesDir)
+	scanProfiles, err := scanner.ScanProfiles(pm.profilesDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read profiles directory: %w", err)
+		return nil, err
 	}
-
-	var profiles []*Profile
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), ".") {
-			continue
+	result := make([]*Profile, len(scanProfiles))
+	for i, sp := range scanProfiles {
+		result[i] = &Profile{
+			Name:        sp.Name,
+			BasePath:    sp.BasePath,
+			HasAgents:   sp.HasAgents,
+			HasSkills:   sp.HasSkills,
+			HasCommands: sp.HasCommands,
 		}
-
-		fullPath := filepath.Join(pm.profilesDir, entry.Name())
-		info, err := os.Stat(fullPath)
-		if err != nil {
-			continue
-		}
-
-		if !info.IsDir() {
-			continue
-		}
-
-		profile := pm.loadProfile(entry.Name())
-		if profile.IsValid() {
-			profiles = append(profiles, profile)
-		}
-		// Silently skip invalid profiles (graceful handling)
 	}
-
-	return profiles, nil
+	return result, nil
 }
 
-// loadProfile loads a profile from a directory and checks which component directories exist
+// loadProfile loads a profile from the profiles directory.
 func (pm *ProfileManager) loadProfile(name string) *Profile {
-	basePath := filepath.Join(pm.profilesDir, name)
-
-	profile := &Profile{
-		Name:     name,
-		BasePath: basePath,
+	sp := scanner.LoadProfile(pm.profilesDir, name)
+	return &Profile{
+		Name:        sp.Name,
+		BasePath:    sp.BasePath,
+		HasAgents:   sp.HasAgents,
+		HasSkills:   sp.HasSkills,
+		HasCommands: sp.HasCommands,
 	}
-
-	if _, err := os.Stat(filepath.Join(basePath, paths.AgentsSubDir)); err == nil {
-		profile.HasAgents = true
-	}
-	if _, err := os.Stat(filepath.Join(basePath, paths.SkillsSubDir)); err == nil {
-		profile.HasSkills = true
-	}
-	if _, err := os.Stat(filepath.Join(basePath, paths.CommandsSubDir)); err == nil {
-		profile.HasCommands = true
-	}
-
-	return profile
 }
 
-// GetActiveProfile reads the active profile from the state file
-// Returns empty string if no profile is active or state file doesn't exist
+// GetActiveProfile reads the active profile from the state file.
 func (pm *ProfileManager) GetActiveProfile() (string, error) {
-	agentsDir, err := paths.GetAgentsDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get agents directory: %w", err)
-	}
-
-	activeProfilePath := filepath.Join(agentsDir, ".active-profile")
-
-	if _, err := os.Stat(activeProfilePath); os.IsNotExist(err) {
-		return "", nil // No active profile yet
-	}
-
-	data, err := os.ReadFile(activeProfilePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read active profile file: %w", err)
-	}
-
-	profileName := strings.TrimSpace(string(data))
-	return profileName, nil
+	return activation.GetActiveProfile()
 }
 
-// CountComponents counts the number of component directories in a profile
-// Returns counts for agents, skills, and commands
+// CountComponents counts the number of component directories in a profile.
 func (pm *ProfileManager) CountComponents(profile *Profile) (agents, skills, commands int) {
-	if profile.HasAgents {
-		agentsPath := filepath.Join(profile.BasePath, paths.AgentsSubDir)
-		if entries, err := os.ReadDir(agentsPath); err == nil {
-			for _, entry := range entries {
-				if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
-					agents++
-				}
-			}
-		}
+	sp := &scanner.Profile{
+		Name:        profile.Name,
+		BasePath:    profile.BasePath,
+		HasAgents:   profile.HasAgents,
+		HasSkills:   profile.HasSkills,
+		HasCommands: profile.HasCommands,
 	}
-
-	if profile.HasSkills {
-		skillsPath := filepath.Join(profile.BasePath, paths.SkillsSubDir)
-		if entries, err := os.ReadDir(skillsPath); err == nil {
-			for _, entry := range entries {
-				if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
-					skills++
-				}
-			}
-		}
-	}
-
-	if profile.HasCommands {
-		commandsPath := filepath.Join(profile.BasePath, paths.CommandsSubDir)
-		if entries, err := os.ReadDir(commandsPath); err == nil {
-			for _, entry := range entries {
-				if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
-					commands++
-				}
-			}
-		}
-	}
-
-	return agents, skills, commands
+	return scanner.CountComponents(sp)
 }
 
-// GetComponentNames returns sorted lists of component names in a profile
-// Returns three slices: agent names, skill names, and command names
+// GetComponentNames returns sorted lists of component names in a profile.
 func (pm *ProfileManager) GetComponentNames(profile *Profile) (agents, skills, commands []string) {
-	if profile.HasAgents {
-		agentsPath := filepath.Join(profile.BasePath, paths.AgentsSubDir)
-		if entries, err := os.ReadDir(agentsPath); err == nil {
-			for _, entry := range entries {
-				if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
-					agents = append(agents, entry.Name())
-				}
-			}
-		}
+	sp := &scanner.Profile{
+		Name:        profile.Name,
+		BasePath:    profile.BasePath,
+		HasAgents:   profile.HasAgents,
+		HasSkills:   profile.HasSkills,
+		HasCommands: profile.HasCommands,
 	}
-
-	if profile.HasSkills {
-		skillsPath := filepath.Join(profile.BasePath, paths.SkillsSubDir)
-		if entries, err := os.ReadDir(skillsPath); err == nil {
-			for _, entry := range entries {
-				if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
-					skills = append(skills, entry.Name())
-				}
-			}
-		}
-	}
-
-	if profile.HasCommands {
-		commandsPath := filepath.Join(profile.BasePath, paths.CommandsSubDir)
-		if entries, err := os.ReadDir(commandsPath); err == nil {
-			for _, entry := range entries {
-				if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
-					commands = append(commands, entry.Name())
-				}
-			}
-		}
-	}
-
-	return agents, skills, commands
+	return scanner.GetComponentNames(sp)
 }
 
-// GetComponentSource returns the source URL for a component from its lock file
-// Returns empty string if the component has no source metadata
+// GetComponentSource returns the source URL for a component from its lock file.
 func (pm *ProfileManager) GetComponentSource(profile *Profile, componentType, componentName string) string {
-	sources, err := pm.lockService.FindComponentSources(profile.BasePath, componentType, componentName)
-	if err != nil || len(sources) == 0 {
-		return ""
+	sp := &scanner.Profile{
+		Name:        profile.Name,
+		BasePath:    profile.BasePath,
+		HasAgents:   profile.HasAgents,
+		HasSkills:   profile.HasSkills,
+		HasCommands: profile.HasCommands,
 	}
-
-	// Return the first source (if there are multiple, caller should handle disambiguation)
-	return sources[0]
+	return scanner.GetComponentSource(sp, pm.lockService, componentType, componentName)
 }
 
-// ActivateProfile activates a profile by updating the active profile state
-// This does not immediately affect the editor - use 'agent-smith link all' to apply changes
+// ActivateProfile activates a profile by updating the active profile state.
 func (pm *ProfileManager) ActivateProfile(profileName string) error {
-	_, err := pm.ActivateProfileWithResult(profileName)
-	return err
+	if err := validateProfileName(profileName); err != nil {
+		return err
+	}
+	profile := pm.loadProfile(profileName)
+	return activation.ActivateProfile(profileName, profile.IsValid())
 }
 
 // ActivateProfileWithResult sets the given profile as the active profile and returns detailed result.
-// This does not immediately affect the editor - use 'agent-smith link all' to apply changes
 func (pm *ProfileManager) ActivateProfileWithResult(profileName string) (*ProfileActivationResult, error) {
 	if err := validateProfileName(profileName); err != nil {
 		return nil, err
 	}
-
 	profile := pm.loadProfile(profileName)
-	if !profile.IsValid() {
-		return nil, fmt.Errorf("profile '%s' does not exist or has no components", profileName)
-	}
-
-	agentsDir, err := paths.GetAgentsDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get agents directory: %w", err)
-	}
-
-	currentActive, err := pm.GetActiveProfile()
-	if err != nil {
-		return nil, fmt.Errorf("failed to check current active profile: %w", err)
-	}
-
-	if currentActive == profileName {
-		result := &ProfileActivationResult{
-			PreviousProfile: currentActive,
-			NewProfile:      profileName,
-			Switched:        false, // Not switching since it's already active
-		}
-		return result, nil
-	}
-
-	activeProfilePath := filepath.Join(agentsDir, ".active-profile")
-	if err := os.WriteFile(activeProfilePath, []byte(profileName), 0644); err != nil {
-		return nil, fmt.Errorf("failed to write active profile state: %w", err)
-	}
-
-	result := &ProfileActivationResult{
-		PreviousProfile: currentActive,
-		NewProfile:      profileName,
-		Switched:        currentActive != "",
-	}
-
-	return result, nil
+	return activation.ActivateProfileWithResult(profileName, profile.IsValid())
 }
 
-// copyComponentWithMetadata is a helper that copies a component directory and its lock file entry
-// from sourceBaseDir to targetBaseDir. This ensures the component remains updateable after copying.
-func (pm *ProfileManager) copyComponentWithMetadata(
-	sourceBaseDir, targetBaseDir, componentType, componentName string,
-) error {
-	srcDir := filepath.Join(sourceBaseDir, componentType, componentName)
-	dstDir := filepath.Join(targetBaseDir, componentType, componentName)
-
-	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
-		return fmt.Errorf("component '%s' does not exist in source profile (expected at: %s)", componentName, srcDir)
-	} else if err != nil {
-		return fmt.Errorf("failed to access source component '%s' at %s: %w", componentName, srcDir, err)
-	}
-
-	if _, err := os.Stat(dstDir); err == nil {
-		return fmt.Errorf("component '%s' already exists in target profile at: %s\n\nTo overwrite, first remove the existing component:\n  agent-smith remove %s %s", componentName, dstDir, componentType, componentName)
-	}
-
-	fmt.Printf("Copying component files...\n")
-
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
-		return fmt.Errorf("failed to create destination directory: %w", err)
-	}
-
-	entries, err := os.ReadDir(srcDir)
-	if err != nil {
-		return fmt.Errorf("failed to read source directory: %w", err)
-	}
-
-	for _, entry := range entries {
-		srcPath := filepath.Join(srcDir, entry.Name())
-		dstPath := filepath.Join(dstDir, entry.Name())
-
-		if entry.IsDir() {
-			if err := copyDirectory(srcPath, dstPath); err != nil {
-				return fmt.Errorf("failed to copy directory %s: %w", entry.Name(), err)
-			}
-		} else {
-			data, err := os.ReadFile(srcPath)
-			if err != nil {
-				return fmt.Errorf("failed to read file %s: %w", entry.Name(), err)
-			}
-			if err := os.WriteFile(dstPath, data, 0644); err != nil {
-				return fmt.Errorf("failed to write file %s: %w", entry.Name(), err)
-			}
-		}
-	}
-
-	fmt.Printf("Copying metadata...\n")
-
-	entry, err := pm.lockService.LoadEntry(sourceBaseDir, componentType, componentName)
-	if err != nil {
-		fmt.Printf("Note: No lock file entry found in source (manual component)\n")
-		return nil
-	}
-
-	fmt.Printf("Found metadata for component from source: %s\n", entry.SourceUrl)
-
-	err = pm.lockService.SaveEntry(targetBaseDir, componentType, componentName, entry)
-	if err != nil {
-		fmt.Printf("Warning: Failed to save metadata to target: %v\n", err)
-		return nil
-	}
-
-	fmt.Printf("✓ Metadata copied successfully\n")
-	return nil
+// DeactivateProfile deactivates the currently active profile.
+func (pm *ProfileManager) DeactivateProfile() error {
+	return activation.DeactivateProfile()
 }
 
+// CopyComponentBetweenProfiles copies a component from one profile to another.
 func (pm *ProfileManager) CopyComponentBetweenProfiles(
 	sourceProfile, targetProfile, componentType, componentName string,
 ) error {
@@ -641,7 +218,6 @@ func (pm *ProfileManager) CopyComponentBetweenProfiles(
 
 	componentPath := filepath.Join(srcProfile.BasePath, componentType, componentName)
 	if _, err := os.Stat(componentPath); os.IsNotExist(err) {
-		// List available components in source profile
 		availableComponents := []string{}
 		componentDir := filepath.Join(srcProfile.BasePath, componentType)
 		if entries, err := os.ReadDir(componentDir); err == nil {
@@ -660,57 +236,10 @@ func (pm *ProfileManager) CopyComponentBetweenProfiles(
 		return fmt.Errorf("component '%s' not found in source profile '%s'", componentName, sourceProfile)
 	}
 
-	if err := pm.copyComponentWithMetadata(srcProfile.BasePath, dstProfile.BasePath, componentType, componentName); err != nil {
-		return err
-	}
-
-	var sourceURL string
-	sourceLockPath := filepath.Join(srcProfile.BasePath, fmt.Sprintf(".%s-lock.json", componentType[:len(componentType)-1]))
-	if lockData, err := os.ReadFile(sourceLockPath); err == nil {
-		var lockFile struct {
-			Skills map[string]struct {
-				SourceUrl string `json:"sourceUrl"`
-			} `json:"skills,omitempty"`
-			Agents map[string]struct {
-				SourceUrl string `json:"sourceUrl"`
-			} `json:"agents,omitempty"`
-			Commands map[string]struct {
-				SourceUrl string `json:"sourceUrl"`
-			} `json:"commands,omitempty"`
-		}
-		if json.Unmarshal(lockData, &lockFile) == nil {
-			switch componentType {
-			case "skills":
-				if entry, ok := lockFile.Skills[componentName]; ok {
-					sourceURL = entry.SourceUrl
-				}
-			case "agents":
-				if entry, ok := lockFile.Agents[componentName]; ok {
-					sourceURL = entry.SourceUrl
-				}
-			case "commands":
-				if entry, ok := lockFile.Commands[componentName]; ok {
-					sourceURL = entry.SourceUrl
-				}
-			}
-		}
-	}
-
-	componentSingular := strings.TrimSuffix(componentType, "s")
-	fmt.Printf("\n✓ Successfully copied %s '%s' from '%s' to '%s'\n", componentSingular, componentName, sourceProfile, targetProfile)
-	fmt.Printf("\nComponent details:\n")
-	fmt.Printf("  Type: %s\n", componentType)
-	fmt.Printf("  Name: %s\n", componentName)
-	if sourceURL != "" {
-		fmt.Printf("  Source: %s\n", sourceURL)
-	}
-	fmt.Printf("  Location: %s\n", filepath.Join(dstProfile.BasePath, componentType, componentName))
-	fmt.Printf("\nBoth profiles can now update this component independently.\n")
-
-	return nil
+	return profileCopy.CopyComponentBetweenProfiles(srcProfile.BasePath, dstProfile.BasePath, componentType, componentName, pm.lockService)
 }
 
-// AddComponentToProfile copies an existing component from ~/.agent-smith/ to a profile
+// AddComponentToProfile copies an existing component from ~/.agent-smith/ to a profile.
 func (pm *ProfileManager) AddComponentToProfile(profileName, componentType, componentName string) error {
 	if err := validateProfileName(profileName); err != nil {
 		return err
@@ -732,21 +261,7 @@ func (pm *ProfileManager) AddComponentToProfile(profileName, componentType, comp
 		return fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
-	srcDir := filepath.Join(agentsDir, componentType, componentName)
-
-	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
-		return fmt.Errorf("component '%s' not found in ~/.agent-smith/%s/", componentName, componentType)
-	}
-
-	info, err := os.Lstat(srcDir)
-	if err != nil {
-		return fmt.Errorf("failed to stat component: %w", err)
-	}
-	if info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("cannot add component '%s': it is a symlink from an active profile. Deactivate the profile first.", componentName)
-	}
-
-	if err := pm.copyComponentWithMetadata(agentsDir, profile.BasePath, componentType, componentName); err != nil {
+	if err := profileCopy.AddComponentToProfile(agentsDir, profile.BasePath, componentType, componentName, pm.lockService); err != nil {
 		return err
 	}
 
@@ -754,7 +269,7 @@ func (pm *ProfileManager) AddComponentToProfile(profileName, componentType, comp
 	return nil
 }
 
-// RemoveComponentFromProfile removes a component from a profile
+// RemoveComponentFromProfile removes a component from a profile.
 func (pm *ProfileManager) RemoveComponentFromProfile(profileName, componentType, componentName string) error {
 	if err := validateProfileName(profileName); err != nil {
 		return err
@@ -771,98 +286,31 @@ func (pm *ProfileManager) RemoveComponentFromProfile(profileName, componentType,
 		return fmt.Errorf("profile '%s' does not exist or has no components", profileName)
 	}
 
-	componentPath := filepath.Join(profile.BasePath, componentType, componentName)
-
-	if _, err := os.Stat(componentPath); os.IsNotExist(err) {
-		return fmt.Errorf("component '%s' not found in profile '%s'", componentName, profileName)
-	}
-
 	activeProfile, err := pm.GetActiveProfile()
-	if err == nil && activeProfile == profileName {
+
+	var unlinkFn func() error
+	if err == nil && activeProfile == profileName && pm.linker != nil {
 		fmt.Printf("Unlinking component from active profile...\n")
-		if pm.linker != nil {
-			_ = pm.linker.UnlinkComponent(componentType, componentName, "")
+		linker := pm.linker
+		unlinkFn = func() error {
+			return linker.UnlinkComponent(componentType, componentName, "")
 		}
 	}
 
-	if err := os.RemoveAll(componentPath); err != nil {
-		return fmt.Errorf("failed to remove component: %w", err)
+	if err := profileCopy.RemoveComponentFromProfile(profile.BasePath, componentType, componentName, unlinkFn); err != nil {
+		return err
 	}
 
-	if err := metadata.RemoveComponentEntry(profile.BasePath, componentType, componentName); err != nil {
-		fmt.Printf("Warning: Could not update lock file: %v\n", err)
+	// Remove lock file entry
+	if removeErr := pm.lockService.RemoveEntry(profile.BasePath, componentType, componentName); removeErr != nil {
+		fmt.Printf("Warning: Could not update lock file: %v\n", removeErr)
 	}
 
 	fmt.Printf("✓ Successfully removed %s '%s' from profile '%s'\n", componentType, componentName, profileName)
 	return nil
 }
 
-// copyDirectory recursively copies a directory
-func copyDirectory(src, dst string) error {
-	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return fmt.Errorf("error accessing path %s: %w", path, err)
-		}
-
-		relPath, err := filepath.Rel(src, path)
-		if err != nil {
-			return fmt.Errorf("failed to determine relative path for %s: %w", path, err)
-		}
-
-		dstPath := filepath.Join(dst, relPath)
-
-		if info.IsDir() {
-			if err := os.MkdirAll(dstPath, 0755); err != nil {
-				return fmt.Errorf("failed to create directory %s: %w", dstPath, err)
-			}
-			return nil
-		}
-
-		data, err := os.ReadFile(path)
-		if err != nil {
-			if os.IsPermission(err) {
-				return fmt.Errorf("permission denied reading file %s: %w", path, err)
-			}
-			return fmt.Errorf("failed to read file %s: %w", path, err)
-		}
-
-		if err := os.WriteFile(dstPath, data, 0644); err != nil {
-			if os.IsPermission(err) {
-				return fmt.Errorf("permission denied writing file %s: %w", dstPath, err)
-			}
-			return fmt.Errorf("failed to write file %s: %w", dstPath, err)
-		}
-
-		return nil
-	})
-}
-
-// DeactivateProfile deactivates the currently active profile
-// This only updates the state - use 'agent-smith link all' to apply changes
-func (pm *ProfileManager) DeactivateProfile() error {
-	agentsDir, err := paths.GetAgentsDir()
-	if err != nil {
-		return fmt.Errorf("failed to get agents directory: %w", err)
-	}
-
-	currentActive, err := pm.GetActiveProfile()
-	if err != nil {
-		return fmt.Errorf("failed to check current active profile: %w", err)
-	}
-
-	if currentActive == "" {
-		return fmt.Errorf("no profile is currently active")
-	}
-
-	activeProfilePath := filepath.Join(agentsDir, ".active-profile")
-	if err := os.Remove(activeProfilePath); err != nil {
-		return fmt.Errorf("failed to clear active profile state: %w", err)
-	}
-
-	return nil
-}
-
-// CreateProfile creates a new empty profile with the standard directory structure
+// CreateProfile creates a new empty profile with the standard directory structure.
 func (pm *ProfileManager) CreateProfile(profileName string) error {
 	if err := validateProfileName(profileName); err != nil {
 		return err
@@ -902,18 +350,15 @@ func (pm *ProfileManager) CreateProfile(profileName string) error {
 	fmt.Println("\nYou can now add components to this profile and activate it with:")
 	fmt.Printf("  agent-smith profiles activate %s\n", profileName)
 
-	// Save user-type metadata
 	if err := pm.SaveUserProfileMetadata(profileName); err != nil {
-		// Log warning but don't fail the operation
 		fmt.Printf("Warning: Failed to save profile metadata: %v\n", err)
 	}
 
 	return nil
 }
 
-// CreateProfileWithMetadata creates a new profile with source URL metadata
+// CreateProfileWithMetadata creates a new profile with source URL metadata.
 func (pm *ProfileManager) CreateProfileWithMetadata(profileName, sourceURL string) error {
-	// Create the profile first
 	if err := pm.CreateProfile(profileName); err != nil {
 		return err
 	}
@@ -927,6 +372,7 @@ func (pm *ProfileManager) CreateProfileWithMetadata(profileName, sourceURL strin
 	return nil
 }
 
+// DeleteProfile removes a profile and its components.
 func (pm *ProfileManager) DeleteProfile(profileName string) error {
 	if err := validateProfileName(profileName); err != nil {
 		return err
@@ -977,9 +423,6 @@ func (pm *ProfileManager) DeleteProfile(profileName string) error {
 }
 
 // RenameProfile renames a user-created profile.
-// If the profile is active, existing symlinks are removed, the directory is renamed,
-// the active-profile state file is updated to the new name, and the caller is expected
-// to re-run `link all` to restore symlinks pointing at the new path.
 func (pm *ProfileManager) RenameProfile(oldName, newName string) error {
 	if err := validateProfileName(newName); err != nil {
 		return err
@@ -994,8 +437,8 @@ func (pm *ProfileManager) RenameProfile(oldName, newName string) error {
 		return fmt.Errorf("profile '%s' does not exist", oldName)
 	}
 
-	metadata, err := pm.LoadProfileMetadata(oldName)
-	if err == nil && metadata != nil && metadata.Type == "repo" {
+	meta, err := pm.LoadProfileMetadata(oldName)
+	if err == nil && meta != nil && meta.Type == "repo" {
 		return fmt.Errorf("cannot rename repo profile '%s': only user-created profiles can be renamed", oldName)
 	}
 
@@ -1055,7 +498,225 @@ func (pm *ProfileManager) RenameProfile(oldName, newName string) error {
 	return nil
 }
 
-// unlinkAllComponents removes all symlinks from the agents directory component folders
+// GetAllAvailableComponents returns all components from specified profiles.
+// If sourceProfiles is empty, returns components from all profiles.
+func (pm *ProfileManager) GetAllAvailableComponents(sourceProfiles []string) ([]ComponentItem, error) {
+	var items []ComponentItem
+
+	var profilesToScan []*Profile
+	if len(sourceProfiles) == 0 {
+		allProfiles, err := pm.ScanProfiles()
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan profiles: %w", err)
+		}
+		profilesToScan = allProfiles
+	} else {
+		for _, profileName := range sourceProfiles {
+			profile := pm.loadProfile(profileName)
+			if !profile.IsValid() {
+				return nil, fmt.Errorf("source profile '%s' does not exist or has no components", profileName)
+			}
+			profilesToScan = append(profilesToScan, profile)
+		}
+	}
+
+	for _, profile := range profilesToScan {
+		agents, skills, commands := pm.GetComponentNames(profile)
+
+		for _, name := range agents {
+			items = append(items, ComponentItem{Type: "agents", Name: name, SourceProfile: profile.Name})
+		}
+		for _, name := range skills {
+			items = append(items, ComponentItem{Type: "skills", Name: name, SourceProfile: profile.Name})
+		}
+		for _, name := range commands {
+			items = append(items, ComponentItem{Type: "commands", Name: name, SourceProfile: profile.Name})
+		}
+	}
+
+	return items, nil
+}
+
+// PromptComponentSelection displays an interactive UI for selecting components.
+func (pm *ProfileManager) PromptComponentSelection(components []ComponentItem) ([]ComponentItem, error) {
+	if len(components) == 0 {
+		return nil, fmt.Errorf("no components available for selection")
+	}
+
+	var skills, agents, commands []ComponentItem
+	for _, c := range components {
+		switch c.Type {
+		case "skills":
+			skills = append(skills, c)
+		case "agents":
+			agents = append(agents, c)
+		case "commands":
+			commands = append(commands, c)
+		}
+	}
+
+	fmt.Println("\nAvailable Components:")
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	if len(skills) > 0 {
+		fmt.Printf("\nSkills (%d):\n", len(skills))
+		for i, c := range skills {
+			fmt.Printf("  [%d] %s  (from: %s)\n", i+1, c.Name, c.SourceProfile)
+		}
+	}
+
+	if len(agents) > 0 {
+		fmt.Printf("\nAgents (%d):\n", len(agents))
+		for i, c := range agents {
+			fmt.Printf("  [%d] %s  (from: %s)\n", len(skills)+i+1, c.Name, c.SourceProfile)
+		}
+	}
+
+	if len(commands) > 0 {
+		fmt.Printf("\nCommands (%d):\n", len(commands))
+		for i, c := range commands {
+			fmt.Printf("  [%d] %s  (from: %s)\n", len(skills)+len(agents)+i+1, c.Name, c.SourceProfile)
+		}
+	}
+
+	fmt.Println("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Println("\nSelect components:")
+	fmt.Println("  Enter numbers (e.g., 1,3,5 or 1-3)")
+	fmt.Println("  Keywords: a=all, s=skills, g=agents, c=commands")
+	fmt.Println("  q=quit")
+	fmt.Printf("\nSelection: ")
+
+	var response string
+	fmt.Scanln(&response) //nolint:errcheck
+	response = strings.TrimSpace(response)
+
+	if strings.ToLower(response) == "q" {
+		return nil, fmt.Errorf("selection cancelled")
+	}
+
+	allComponents := append(append(skills, agents...), commands...)
+	indexMap := make(map[int]ComponentItem)
+	for i, c := range allComponents {
+		indexMap[i+1] = c
+	}
+
+	selected := parseSelection(response, indexMap)
+
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("no components selected")
+	}
+
+	fmt.Println("\nSelected:")
+	for _, c := range selected {
+		fmt.Printf("  ✓ %s (%s) from %s\n", c.Name, c.Type, c.SourceProfile)
+	}
+
+	fmt.Printf("\nCopy to profile? [y/n]: ")
+	var confirm string
+	fmt.Scanln(&confirm) //nolint:errcheck
+	if strings.ToLower(strings.TrimSpace(confirm)) != "y" {
+		return nil, fmt.Errorf("cancelled")
+	}
+
+	return selected, nil
+}
+
+// CherryPickComponents copies selected components from source profiles to target profile.
+func (pm *ProfileManager) CherryPickComponents(targetProfile string, components []ComponentItem) error {
+	if err := validateProfileName(targetProfile); err != nil {
+		return fmt.Errorf("invalid target profile name: %w", err)
+	}
+
+	deps := &cherryPickAdapter{pm: pm}
+	cherryItems := make([]cherryPickItem, len(components))
+	for i, c := range components {
+		cherryItems[i] = cherryPickItem{Type: c.Type, Name: c.Name, SourceProfile: c.SourceProfile}
+	}
+
+	return runCherryPick(deps, targetProfile, cherryItems)
+}
+
+// cherryPickItem mirrors ComponentItem for internal use without creating a dependency cycle.
+type cherryPickItem = ComponentItem
+
+// cherryPickAdapter implements the cherry-pick dependencies using ProfileManager.
+type cherryPickAdapter struct {
+	pm *ProfileManager
+}
+
+func (a *cherryPickAdapter) CopyComponentBetweenProfiles(sourceProfile, targetProfile, componentType, componentName string) error {
+	return a.pm.CopyComponentBetweenProfiles(sourceProfile, targetProfile, componentType, componentName)
+}
+
+func (a *cherryPickAdapter) CreateProfile(profileName string) error {
+	return a.pm.CreateProfile(profileName)
+}
+
+func (a *cherryPickAdapter) ProfileExists(profileName string) bool {
+	return a.pm.loadProfile(profileName).IsValid()
+}
+
+func (a *cherryPickAdapter) CountComponents(profileName string) (agents, skills, commands int) {
+	profile := a.pm.loadProfile(profileName)
+	return a.pm.CountComponents(profile)
+}
+
+// runCherryPick is the implementation of cherry-picking without the io.Reader dependency.
+func runCherryPick(deps *cherryPickAdapter, targetProfile string, components []ComponentItem) error {
+	if !deps.ProfileExists(targetProfile) {
+		fmt.Printf("Creating new profile '%s'...\n", targetProfile)
+		if err := deps.CreateProfile(targetProfile); err != nil {
+			return fmt.Errorf("failed to create target profile: %w", err)
+		}
+	}
+
+	fmt.Printf("Cherry-picking %d component(s) to profile '%s'...\n\n", len(components), targetProfile)
+
+	successCount := 0
+	skipCount := 0
+	errorCount := 0
+
+	for _, component := range components {
+		fmt.Printf("Copying %s '%s' from '%s'...\n", component.Type, component.Name, component.SourceProfile)
+
+		err := deps.CopyComponentBetweenProfiles(component.SourceProfile, targetProfile, component.Type, component.Name)
+		if err != nil {
+			if strings.Contains(err.Error(), "already exists") {
+				fmt.Printf("  ⊘ Skipped (already exists)\n\n")
+				skipCount++
+			} else {
+				fmt.Printf("  ✗ Error: %v\n\n", err)
+				errorCount++
+			}
+		} else {
+			fmt.Printf("  ✓ Success\n\n")
+			successCount++
+		}
+	}
+
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Printf("\nCherry-pick Summary:\n")
+	fmt.Printf("  ✓ Successfully copied: %d\n", successCount)
+	if skipCount > 0 {
+		fmt.Printf("  ⊘ Skipped (existing):  %d\n", skipCount)
+	}
+	if errorCount > 0 {
+		fmt.Printf("  ✗ Failed:              %d\n", errorCount)
+	}
+	fmt.Printf("\nTotal components in '%s': ", targetProfile)
+
+	agents, skills, commands := deps.CountComponents(targetProfile)
+	total := agents + skills + commands
+	fmt.Printf("%d (%d agents, %d skills, %d commands)\n", total, agents, skills, commands)
+
+	if errorCount > 0 {
+		return fmt.Errorf("some components failed to copy")
+	}
+
+	return nil
+}
+
+// unlinkAllComponents removes all symlinks from the agents directory component folders.
 func (pm *ProfileManager) unlinkAllComponents(agentsDir string) error {
 	componentDirs := []string{
 		filepath.Join(agentsDir, paths.AgentsSubDir),
@@ -1096,141 +757,16 @@ func (pm *ProfileManager) unlinkAllComponents(agentsDir string) error {
 	return nil
 }
 
-// ComponentItem represents a component available for cherry-picking
-type ComponentItem struct {
-	Type          string // "skills", "agents", or "commands"
-	Name          string
-	SourceProfile string
+// validateProfileName delegates to profilemeta for name validation.
+func validateProfileName(name string) error {
+	return profilemeta.ValidateProfileName(name)
 }
 
-// GetAllAvailableComponents returns all components from specified profiles
-// If sourceProfiles is empty, returns components from all profiles
-func (pm *ProfileManager) GetAllAvailableComponents(sourceProfiles []string) ([]ComponentItem, error) {
-	var items []ComponentItem
-
-	var profilesToScan []*Profile
-	if len(sourceProfiles) == 0 {
-		allProfiles, err := pm.ScanProfiles()
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan profiles: %w", err)
-		}
-		profilesToScan = allProfiles
-	} else {
-		for _, profileName := range sourceProfiles {
-			profile := pm.loadProfile(profileName)
-			if !profile.IsValid() {
-				return nil, fmt.Errorf("source profile '%s' does not exist or has no components", profileName)
-			}
-			profilesToScan = append(profilesToScan, profile)
-		}
-	}
-
-	for _, profile := range profilesToScan {
-		agents, skills, commands := pm.GetComponentNames(profile)
-
-		for _, name := range agents {
-			items = append(items, ComponentItem{
-				Type:          "agents",
-				Name:          name,
-				SourceProfile: profile.Name,
-			})
-		}
-
-		for _, name := range skills {
-			items = append(items, ComponentItem{
-				Type:          "skills",
-				Name:          name,
-				SourceProfile: profile.Name,
-			})
-		}
-
-		for _, name := range commands {
-			items = append(items, ComponentItem{
-				Type:          "commands",
-				Name:          name,
-				SourceProfile: profile.Name,
-			})
-		}
-	}
-
-	return items, nil
-}
-
-// PromptComponentSelection displays an interactive UI for selecting components
-// Returns the selected components, or error if cancelled
-func (pm *ProfileManager) PromptComponentSelection(components []ComponentItem) ([]ComponentItem, error) {
-	if len(components) == 0 {
-		return nil, fmt.Errorf("no components available for selection")
-	}
-
-	var skills, agents, commands []ComponentItem
-	for _, c := range components {
-		switch c.Type {
-		case "skills":
-			skills = append(skills, c)
-		case "agents":
-			agents = append(agents, c)
-		case "commands":
-			commands = append(commands, c)
-		}
-	}
-
-	// Display available components
-	fmt.Println("\nAvailable Components:")
-	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
-	if len(skills) > 0 {
-		fmt.Printf("\nSkills (%d):\n", len(skills))
-		for i, c := range skills {
-			fmt.Printf("  [%d] %s  (from: %s)\n", i+1, c.Name, c.SourceProfile)
-		}
-	}
-
-	if len(agents) > 0 {
-		fmt.Printf("\nAgents (%d):\n", len(agents))
-		for i, c := range agents {
-			idx := len(skills) + i + 1
-			fmt.Printf("  [%d] %s  (from: %s)\n", idx, c.Name, c.SourceProfile)
-		}
-	}
-
-	if len(commands) > 0 {
-		fmt.Printf("\nCommands (%d):\n", len(commands))
-		for i, c := range commands {
-			idx := len(skills) + len(agents) + i + 1
-			fmt.Printf("  [%d] %s  (from: %s)\n", idx, c.Name, c.SourceProfile)
-		}
-	}
-
-	fmt.Println("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	fmt.Println("\nSelect components:")
-	fmt.Println("  Enter numbers (e.g., 1,3,5 or 1-3)")
-	fmt.Println("  Keywords: a=all, s=skills, g=agents, c=commands")
-	fmt.Println("  q=quit")
-	fmt.Printf("\nSelection: ")
-
-	var response string
-	fmt.Scanln(&response)
-	response = strings.TrimSpace(response)
-
-	if strings.ToLower(response) == "q" {
-		return nil, fmt.Errorf("selection cancelled")
-	}
-
+// parseSelection parses user input like "1,3,5" or "1-3" into ComponentItems.
+func parseSelection(response string, indexMap map[int]ComponentItem) []ComponentItem {
 	selected := make(map[int]ComponentItem)
 
-	indexMap := make(map[int]ComponentItem)
-	allComponents := [][]ComponentItem{skills, agents, commands}
-	idx := 1
-	for _, group := range allComponents {
-		for _, c := range group {
-			indexMap[idx] = c
-			idx++
-		}
-	}
-
-	parts := strings.Split(response, ",")
-	for _, part := range parts {
+	for _, part := range strings.Split(response, ",") {
 		part = strings.TrimSpace(part)
 
 		switch strings.ToLower(part) {
@@ -1263,10 +799,10 @@ func (pm *ProfileManager) PromptComponentSelection(components []ComponentItem) (
 		}
 
 		if strings.Contains(part, "-") {
-			rangeParts := strings.Split(part, "-")
+			rangeParts := strings.SplitN(part, "-", 2)
 			if len(rangeParts) == 2 {
-				start, err1 := strconv.Atoi(strings.TrimSpace(rangeParts[0]))
-				end, err2 := strconv.Atoi(strings.TrimSpace(rangeParts[1]))
+				start, err1 := parseInt(rangeParts[0])
+				end, err2 := parseInt(rangeParts[1])
 				if err1 == nil && err2 == nil && start <= end {
 					for i := start; i <= end; i++ {
 						if c, ok := indexMap[i]; ok {
@@ -1278,95 +814,33 @@ func (pm *ProfileManager) PromptComponentSelection(components []ComponentItem) (
 			continue
 		}
 
-		num, err := strconv.Atoi(part)
-		if err == nil {
+		if num, err := parseInt(part); err == nil {
 			if c, ok := indexMap[num]; ok {
 				selected[num] = c
 			}
 		}
 	}
 
-	if len(selected) == 0 {
-		return nil, fmt.Errorf("no components selected")
-	}
-
-	fmt.Println("\nSelected:")
-	for _, c := range selected {
-		fmt.Printf("  ✓ %s (%s) from %s\n", c.Name, c.Type, c.SourceProfile)
-	}
-
-	fmt.Printf("\nCopy to profile? [y/n]: ")
-	var confirm string
-	fmt.Scanln(&confirm)
-	if strings.ToLower(strings.TrimSpace(confirm)) != "y" {
-		return nil, fmt.Errorf("cancelled")
-	}
-
 	result := make([]ComponentItem, 0, len(selected))
 	for _, c := range selected {
 		result = append(result, c)
 	}
-
-	return result, nil
+	return result
 }
 
-// CherryPickComponents copies selected components from source profiles to target profile
-func (pm *ProfileManager) CherryPickComponents(targetProfile string, components []ComponentItem) error {
-	if err := validateProfileName(targetProfile); err != nil {
-		return fmt.Errorf("invalid target profile name: %w", err)
+func parseInt(s string) (int, error) {
+	s = strings.TrimSpace(s)
+	n := 0
+	if len(s) == 0 {
+		return 0, fmt.Errorf("empty string")
 	}
-
-	profile := pm.loadProfile(targetProfile)
-	if !profile.IsValid() {
-		fmt.Printf("Creating new profile '%s'...\n", targetProfile)
-		if err := pm.CreateProfile(targetProfile); err != nil {
-			return fmt.Errorf("failed to create target profile: %w", err)
+	for _, ch := range s {
+		if ch < '0' || ch > '9' {
+			return 0, fmt.Errorf("not a number: %s", s)
 		}
+		n = n*10 + int(ch-'0')
 	}
-
-	fmt.Printf("Cherry-picking %d component(s) to profile '%s'...\n\n", len(components), targetProfile)
-
-	successCount := 0
-	skipCount := 0
-	errorCount := 0
-
-	for _, component := range components {
-		fmt.Printf("Copying %s '%s' from '%s'...\n", component.Type, component.Name, component.SourceProfile)
-
-		err := pm.CopyComponentBetweenProfiles(component.SourceProfile, targetProfile, component.Type, component.Name)
-		if err != nil {
-			if strings.Contains(err.Error(), "already exists") {
-				fmt.Printf("  ⊘ Skipped (already exists)\n\n")
-				skipCount++
-			} else {
-				fmt.Printf("  ✗ Error: %v\n\n", err)
-				errorCount++
-			}
-		} else {
-			fmt.Printf("  ✓ Success\n\n")
-			successCount++
-		}
-	}
-
-	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	fmt.Printf("\nCherry-pick Summary:\n")
-	fmt.Printf("  ✓ Successfully copied: %d\n", successCount)
-	if skipCount > 0 {
-		fmt.Printf("  ⊘ Skipped (existing):  %d\n", skipCount)
-	}
-	if errorCount > 0 {
-		fmt.Printf("  ✗ Failed:              %d\n", errorCount)
-	}
-	fmt.Printf("\nTotal components in '%s': ", targetProfile)
-
-	finalProfile := pm.loadProfile(targetProfile)
-	agents, skills, commands := pm.CountComponents(finalProfile)
-	total := agents + skills + commands
-	fmt.Printf("%d (%d agents, %d skills, %d commands)\n", total, agents, skills, commands)
-
-	if errorCount > 0 {
-		return fmt.Errorf("some components failed to copy")
-	}
-
-	return nil
+	return n, nil
 }
+
+// removeComponentEntry removes a lock file entry; thin wrapper around metadata package.

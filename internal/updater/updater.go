@@ -12,10 +12,8 @@ import (
 	metadataPkg "github.com/tjg184/agent-smith/internal/metadata"
 	"github.com/tjg184/agent-smith/internal/models"
 	"github.com/tjg184/agent-smith/pkg/colors"
-	"github.com/tjg184/agent-smith/pkg/logger"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
-	locksvc "github.com/tjg184/agent-smith/pkg/services/lock"
 	"github.com/tjg184/agent-smith/pkg/styles"
 )
 
@@ -25,17 +23,50 @@ type UpdateDetector struct {
 	profileName string // If non-empty, we're working with a profile
 }
 
-func NewUpdateDetector() *UpdateDetector {
+func NewUpdateDetector() (*UpdateDetector, error) {
 	baseDir, err := paths.GetAgentsDir()
 	if err != nil {
-		panic(fmt.Sprintf("Failed to get agents directory: %v", err))
+		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
 	var profileName string
 
-	pm, err := profiles.NewProfileManager(nil, locksvc.NewService(logger.New(logger.LevelError)))
-	if err == nil {
-		activeProfile, err := pm.GetActiveProfile()
+	activeProfile, err := profiles.ResolveActiveProfile()
+	if err == nil && activeProfile != "" {
+		profilesDir, err := paths.GetProfilesDir()
+		if err == nil {
+			baseDir = filepath.Join(profilesDir, activeProfile)
+			profileName = activeProfile
+			fmt.Printf("Using active profile for updates: %s\n", activeProfile)
+		}
+	}
+
+	return &UpdateDetector{
+		baseDir:     baseDir,
+		detector:    newDetector(),
+		profileName: profileName,
+	}, nil
+}
+
+func NewUpdateDetectorWithProfile(profile string) (*UpdateDetector, error) {
+	baseDir, err := paths.GetAgentsDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get agents directory: %w", err)
+	}
+
+	var profileName string
+
+	if profile != "" {
+		// Use explicit profile (bypasses active profile logic)
+		profilesDir, err := paths.GetProfilesDir()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
+		}
+		baseDir = filepath.Join(profilesDir, profile)
+		profileName = profile
+		fmt.Printf("Using specified profile for updates: %s\n", profile)
+	} else {
+		activeProfile, err := profiles.ResolveActiveProfile()
 		if err == nil && activeProfile != "" {
 			profilesDir, err := paths.GetProfilesDir()
 			if err == nil {
@@ -50,47 +81,7 @@ func NewUpdateDetector() *UpdateDetector {
 		baseDir:     baseDir,
 		detector:    newDetector(),
 		profileName: profileName,
-	}
-}
-
-func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
-	baseDir, err := paths.GetAgentsDir()
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get agents directory: %v", err))
-	}
-
-	var profileName string
-
-	if profile != "" {
-		// Use explicit profile (bypasses active profile logic)
-		profilesDir, err := paths.GetProfilesDir()
-		if err != nil {
-			panic(fmt.Sprintf("Failed to get profiles directory: %v", err))
-		}
-		baseDir = filepath.Join(profilesDir, profile)
-		profileName = profile
-		fmt.Printf("Using specified profile for updates: %s\n", profile)
-	} else {
-		pm, err := profiles.NewProfileManager(nil, locksvc.NewService(logger.New(logger.LevelError)))
-		if err == nil {
-			activeProfile, err := pm.GetActiveProfile()
-			if err == nil && activeProfile != "" {
-				// Use the active profile directory instead
-				profilesDir, err := paths.GetProfilesDir()
-				if err == nil {
-					baseDir = filepath.Join(profilesDir, activeProfile)
-					profileName = activeProfile
-					fmt.Printf("Using active profile for updates: %s\n", activeProfile)
-				}
-			}
-		}
-	}
-
-	return &UpdateDetector{
-		baseDir:     baseDir,
-		detector:    newDetector(),
-		profileName: profileName,
-	}
+	}, nil
 }
 
 func NewUpdateDetectorWithBaseDir(baseDir string) *UpdateDetector {
@@ -191,36 +182,24 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 		}
 	}
 
-	var downloadErr error
-	if ud.profileName != "" {
-		switch componentType {
-		case "skills":
-			dl := downloader.NewSkillDownloaderForProfile(ud.profileName)
-			downloadErr = dl.DownloadSkill(repoURL, componentName)
-		case "agents":
-			dl := downloader.NewAgentDownloaderForProfile(ud.profileName)
-			downloadErr = dl.DownloadAgent(repoURL, componentName)
-		case "commands":
-			dl := downloader.NewCommandDownloaderForProfile(ud.profileName)
-			downloadErr = dl.DownloadCommand(repoURL, componentName)
-		default:
-			return fmt.Errorf("unknown component type: %s", componentType)
-		}
-	} else {
-		switch componentType {
-		case "skills":
-			dl := downloader.NewSkillDownloader()
-			downloadErr = dl.DownloadSkill(repoURL, componentName)
-		case "agents":
-			dl := downloader.NewAgentDownloader()
-			downloadErr = dl.DownloadAgent(repoURL, componentName)
-		case "commands":
-			dl := downloader.NewCommandDownloader()
-			downloadErr = dl.DownloadCommand(repoURL, componentName)
-		default:
-			return fmt.Errorf("unknown component type: %s", componentType)
-		}
+	ct, err := models.ComponentTypeFromPlural(componentType)
+	if err != nil {
+		return err
 	}
+
+	var dl downloader.Downloader
+	var dlErr error
+	if ud.profileName != "" {
+		dl, dlErr = downloader.ForTypeWithProfile(ct, ud.profileName)
+	} else {
+		dl, dlErr = downloader.ForType(ct)
+	}
+	if dlErr != nil {
+		return fmt.Errorf("failed to create downloader: %w", dlErr)
+	}
+
+	var downloadErr error
+	downloadErr = dl.Download(repoURL, componentName)
 
 	if downloadErr != nil {
 		fmt.Printf("  %s\n\n", styles.IndentedErrorFormat(fmt.Sprintf("Update failed: %v", downloadErr)))
@@ -352,15 +331,8 @@ func (ud *UpdateDetector) UpdateAll() error {
 				}
 			}
 
-			// Download using *WithRepo methods to reuse the cloned repository
-			var downloadErr error
-			if ud.profileName != "" {
-				// Use profile-aware downloaders
-				downloadErr = ud.downloadComponentWithRepoForProfile(comp.Type, comp.Name, fullURL, repoURL, tempDir, allDetectedComponents)
-			} else {
-				// Use standard downloaders
-				downloadErr = ud.downloadComponentWithRepo(comp.Type, comp.Name, fullURL, repoURL, tempDir, allDetectedComponents)
-			}
+			// Download using DownloadWithRepo to reuse the cloned repository
+			downloadErr := ud.downloadComponentWithRepo(comp.Type, comp.Name, fullURL, repoURL, tempDir, allDetectedComponents)
 
 			if downloadErr != nil {
 				fmt.Printf("%s\n", styles.IndentedErrorFormat(downloadErr.Error()))
@@ -417,36 +389,24 @@ func (ud *UpdateDetector) groupComponentsByRepository() (map[string][]componentU
 	return componentsByRepo, totalComponents, nil
 }
 
-// downloadComponentWithRepo downloads a component using the *WithRepo methods to reuse a cloned repository
+// downloadComponentWithRepo downloads a component using DownloadWithRepo to reuse a cloned repository.
+// Uses ForTypeWithProfile when a profile is active, otherwise ForType.
 func (ud *UpdateDetector) downloadComponentWithRepo(componentType, componentName, fullURL, repoURL, tempDir string, detectedComponents []models.DetectedComponent) error {
-	switch componentType {
-	case "skills":
-		dl := downloader.NewSkillDownloader()
-		return dl.DownloadSkillWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
-	case "agents":
-		dl := downloader.NewAgentDownloader()
-		return dl.DownloadAgentWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
-	case "commands":
-		dl := downloader.NewCommandDownloader()
-		return dl.DownloadCommandWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
-	default:
-		return fmt.Errorf("unknown component type: %s", componentType)
+	ct, err := models.ComponentTypeFromPlural(componentType)
+	if err != nil {
+		return err
 	}
-}
 
-// downloadComponentWithRepoForProfile downloads a component using profile-aware downloaders with *WithRepo methods
-func (ud *UpdateDetector) downloadComponentWithRepoForProfile(componentType, componentName, fullURL, repoURL, tempDir string, detectedComponents []models.DetectedComponent) error {
-	switch componentType {
-	case "skills":
-		dl := downloader.NewSkillDownloaderForProfile(ud.profileName)
-		return dl.DownloadSkillWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
-	case "agents":
-		dl := downloader.NewAgentDownloaderForProfile(ud.profileName)
-		return dl.DownloadAgentWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
-	case "commands":
-		dl := downloader.NewCommandDownloaderForProfile(ud.profileName)
-		return dl.DownloadCommandWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
-	default:
-		return fmt.Errorf("unknown component type: %s", componentType)
+	var dl downloader.Downloader
+	var dlErr error
+	if ud.profileName != "" {
+		dl, dlErr = downloader.ForTypeWithProfile(ct, ud.profileName)
+	} else {
+		dl, dlErr = downloader.ForType(ct)
 	}
+	if dlErr != nil {
+		return fmt.Errorf("failed to create downloader: %w", dlErr)
+	}
+
+	return dl.DownloadWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
 }

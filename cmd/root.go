@@ -8,10 +8,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/tjg184/agent-smith/pkg/help"
-	"github.com/tjg184/agent-smith/pkg/logger"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
-	locksvc "github.com/tjg184/agent-smith/pkg/services/lock"
 )
 
 // Version is the current version of agent-smith.
@@ -88,8 +86,7 @@ func showWelcomeScreen() {
 }
 
 func showSystemStatus(bold func(...interface{}) string, cyan func(...interface{}) string, gray func(...interface{}) string) {
-	pm, _ := profiles.NewProfileManager(nil, locksvc.NewService(logger.New(logger.LevelError)))
-	activeProfile, _ := pm.GetActiveProfile()
+	activeProfile, _ := profiles.ResolveActiveProfile()
 
 	skillsDir, _ := paths.GetSkillsDir()
 	agentsDir, _ := paths.GetAgentsDir()

@@ -30,7 +30,10 @@ func TestNewUpdateDetectorWithProfile_ExplicitProfile(t *testing.T) {
 	}
 
 	// When explicit profile is provided, it should use that profile
-	detector := NewUpdateDetectorWithProfile(testProfileName)
+	detector, err := NewUpdateDetectorWithProfile(testProfileName)
+	if err != nil {
+		t.Fatalf("Failed to create update detector: %v", err)
+	}
 
 	expectedBaseDir := filepath.Join(tempDir, ".agent-smith", "profiles", testProfileName)
 	if detector.baseDir != expectedBaseDir {
@@ -64,7 +67,10 @@ func TestNewUpdateDetectorWithProfile_NoProfileNoActive(t *testing.T) {
 	}
 
 	// When no profile is provided and no active profile, should use base directory
-	detector := NewUpdateDetectorWithProfile("")
+	detector, err := NewUpdateDetectorWithProfile("")
+	if err != nil {
+		t.Fatalf("Failed to create update detector: %v", err)
+	}
 
 	expectedBaseDir := filepath.Join(tempDir, ".agent-smith")
 	if detector.baseDir != expectedBaseDir {
@@ -109,7 +115,10 @@ func TestNewUpdateDetectorWithProfile_NoProfileWithActive(t *testing.T) {
 	}
 
 	// When no profile is provided but active profile exists, should use active profile
-	detector := NewUpdateDetectorWithProfile("")
+	detector, err := NewUpdateDetectorWithProfile("")
+	if err != nil {
+		t.Fatalf("Failed to create update detector: %v", err)
+	}
 
 	expectedBaseDir := filepath.Join(tempDir, ".agent-smith", "profiles", testProfileName)
 	if detector.baseDir != expectedBaseDir {
@@ -161,7 +170,10 @@ func TestNewUpdateDetectorWithProfile_ExplicitProfileOverridesActive(t *testing.
 	}
 
 	// Create detector with explicit profile (should override active profile)
-	detector := NewUpdateDetectorWithProfile(explicitProfileName)
+	detector, err := NewUpdateDetectorWithProfile(explicitProfileName)
+	if err != nil {
+		t.Fatalf("Failed to create update detector: %v", err)
+	}
 
 	expectedBaseDir := filepath.Join(tempDir, ".agent-smith", "profiles", explicitProfileName)
 	if detector.baseDir != expectedBaseDir {

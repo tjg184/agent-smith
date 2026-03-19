@@ -1,6 +1,105 @@
 package cmd
 
-// These functions will be implemented in main.go to keep existing logic
+// InstallHandlers groups handler functions for install commands.
+type InstallHandlers struct {
+	AddSkill   func(repoURL, name, profile, targetDir string)
+	AddAgent   func(repoURL, name, profile, targetDir string)
+	AddCommand func(repoURL, name, profile, targetDir string)
+	AddAll     func(repoURL, profile, targetDir string)
+}
+
+// UpdateHandlers groups handler functions for update commands.
+type UpdateHandlers struct {
+	Update    func(componentType, componentName, profile string)
+	UpdateAll func(profile string)
+}
+
+// LinkHandlers groups handler functions for link commands.
+type LinkHandlers struct {
+	Link       func(componentType, componentName, targetFilter, profile string)
+	LinkAll    func(targetFilter, profile string, allProfiles bool)
+	LinkType   func(componentType, targetFilter, profile string)
+	AutoLink   func()
+	ListLinks  func()
+	LinkStatus func(allProfiles bool, profileFilter []string, linkedOnly bool)
+}
+
+// UnlinkHandlers groups handler functions for unlink commands.
+type UnlinkHandlers struct {
+	Unlink                func(componentType, componentName, targetFilter string)
+	UnlinkWithProfile     func(componentType, componentName, targetFilter, profile string)
+	UnlinkAll             func(targetFilter string, force bool, allProfiles bool)
+	UnlinkAllWithProfile  func(targetFilter string, force bool, allProfiles bool, profile string)
+	UnlinkType            func(componentType, targetFilter string, force bool)
+	UnlinkTypeWithProfile func(componentType, targetFilter string, force bool, profile string)
+}
+
+// UninstallHandlers groups handler functions for uninstall commands.
+type UninstallHandlers struct {
+	Uninstall    func(componentType, componentName, profile, source string)
+	UninstallAll func(repoURL string, force bool)
+}
+
+// ProfileHandlers groups handler functions for profile commands.
+type ProfileHandlers struct {
+	List       func(profileFilter []string, activeOnly bool, typeFilter string)
+	Show       func(profileName string)
+	Create     func(profileName string)
+	Delete     func(profileName string)
+	Activate   func(profileName string)
+	Deactivate func()
+	Add        func(componentType, profileName, componentName string)
+	Copy       func(componentType, sourceProfile, targetProfile, componentName string)
+	Remove     func(componentType, profileName, componentName string)
+	CherryPick func(targetProfile string, sourceProfiles []string)
+	Share      func(profileName, outputFile string)
+	Rename     func(oldName, newName string)
+}
+
+// StatusHandlers groups handler functions for status commands.
+type StatusHandlers struct {
+	Status func()
+}
+
+// TargetHandlers groups handler functions for target commands.
+type TargetHandlers struct {
+	Add    func(name, path string)
+	Remove func(name string)
+	List   func()
+}
+
+// MaterializeHandlers groups handler functions for materialize commands.
+type MaterializeHandlers struct {
+	Component func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile, source string)
+	Type      func(componentType, target, projectDir string, force, dryRun bool, fromProfile string)
+	All       func(target, projectDir string, force, dryRun bool, fromProfile string)
+	List      func(projectDir string)
+	Info      func(componentType, componentName, target, projectDir, source string)
+	Status    func(target, projectDir string)
+	Update    func(target, projectDir, source string, force, dryRun bool)
+}
+
+// FindHandlers groups handler functions for find commands.
+type FindHandlers struct {
+	FindSkill func(query string, limit int, jsonOutput bool)
+}
+
+// Handlers is the root struct grouping all command handler functions by domain.
+// Construct it in the container and pass it to Register.
+type Handlers struct {
+	Install     InstallHandlers
+	Update      UpdateHandlers
+	Link        LinkHandlers
+	Unlink      UnlinkHandlers
+	Uninstall   UninstallHandlers
+	Profile     ProfileHandlers
+	Status      StatusHandlers
+	Target      TargetHandlers
+	Materialize MaterializeHandlers
+	Find        FindHandlers
+}
+
+// Package-level vars referenced by all cmd/*.go files — do not rename.
 var (
 	handleAddSkill              func(repoURL, name, profile, targetDir string)
 	handleAddAgent              func(repoURL, name, profile, targetDir string)
@@ -48,95 +147,50 @@ var (
 	handleFindSkill             func(query string, limit int, jsonOutput bool)
 )
 
-// SetHandlers assigns the handler functions that implement the command logic
-func SetHandlers(
-	addSkill func(repoURL, name, profile, targetDir string),
-	addAgent func(repoURL, name, profile, targetDir string),
-	addCommand func(repoURL, name, profile, targetDir string),
-	addAll func(repoURL, profile, targetDir string),
-	update func(componentType, componentName, profile string),
-	updateAll func(profile string),
-	link func(componentType, componentName, targetFilter, profile string),
-	linkAll func(targetFilter, profile string, allProfiles bool),
-	linkType func(componentType, targetFilter, profile string),
-	autoLink func(),
-	listLinks func(),
-	linkStatus func(allProfiles bool, profileFilter []string, linkedOnly bool),
-	unlink func(componentType, componentName, targetFilter string),
-	unlinkWithProfile func(componentType, componentName, targetFilter, profile string),
-	unlinkAll func(targetFilter string, force bool, allProfiles bool),
-	unlinkAllWithProfile func(targetFilter string, force bool, allProfiles bool, profile string),
-	unlinkType func(componentType, targetFilter string, force bool),
-	unlinkTypeWithProfile func(componentType, targetFilter string, force bool, profile string),
-	uninstall func(componentType, componentName, profile, source string),
-	uninstallAll func(repoURL string, force bool),
-	profilesList func(profileFilter []string, activeOnly bool, typeFilter string),
-	profilesShow func(profileName string),
-	profilesCreate func(profileName string),
-	profilesDelete func(profileName string),
-	profilesActivate func(profileName string),
-	profilesDeactivate func(),
-	profilesAdd func(componentType, profileName, componentName string),
-	profilesCopy func(componentType, sourceProfile, targetProfile, componentName string),
-	profilesRemove func(componentType, profileName, componentName string),
-	profilesCherryPick func(targetProfile string, sourceProfiles []string),
-	profilesShare func(profileName, outputFile string),
-	profilesRename func(oldName, newName string),
-	status func(),
-	targetAdd func(name, path string),
-	targetRemove func(name string),
-	targetList func(),
-	materializeComponent func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile, source string),
-	materializeType func(componentType, target, projectDir string, force, dryRun bool, fromProfile string),
-	materializeAll func(target, projectDir string, force, dryRun bool, fromProfile string),
-	materializeList func(projectDir string),
-	materializeInfo func(componentType, componentName, target, projectDir, source string),
-	materializeStatus func(target, projectDir string),
-	materializeUpdate func(target, projectDir, source string, force, dryRun bool),
-	findSkill func(query string, limit int, jsonOutput bool),
-) {
-	handleAddSkill = addSkill
-	handleAddAgent = addAgent
-	handleAddCommand = addCommand
-	handleAddAll = addAll
-	handleUpdate = update
-	handleUpdateAll = updateAll
-	handleLink = link
-	handleLinkAll = linkAll
-	handleLinkType = linkType
-	handleAutoLink = autoLink
-	handleListLinks = listLinks
-	handleLinkStatus = linkStatus
-	handleUnlink = unlink
-	handleUnlinkWithProfile = unlinkWithProfile
-	handleUnlinkAll = unlinkAll
-	handleUnlinkAllWithProfile = unlinkAllWithProfile
-	handleUnlinkType = unlinkType
-	handleUnlinkTypeWithProfile = unlinkTypeWithProfile
-	handleUninstall = uninstall
-	handleUninstallAll = uninstallAll
-	handleProfilesList = profilesList
-	handleProfilesShow = profilesShow
-	handleProfilesCreate = profilesCreate
-	handleProfilesDelete = profilesDelete
-	handleProfilesActivate = profilesActivate
-	handleProfilesDeactivate = profilesDeactivate
-	handleProfilesAdd = profilesAdd
-	handleProfilesCopy = profilesCopy
-	handleProfilesRemove = profilesRemove
-	handleProfilesCherryPick = profilesCherryPick
-	handleProfilesShare = profilesShare
-	handleProfilesRename = profilesRename
-	handleStatus = status
-	handleTargetAdd = targetAdd
-	handleTargetRemove = targetRemove
-	handleTargetList = targetList
-	handleMaterializeComponent = materializeComponent
-	handleMaterializeType = materializeType
-	handleMaterializeAll = materializeAll
-	handleMaterializeList = materializeList
-	handleMaterializeInfo = materializeInfo
-	handleMaterializeStatus = materializeStatus
-	handleMaterializeUpdate = materializeUpdate
-	handleFindSkill = findSkill
+// Register assigns all package-level handler vars from h.
+func Register(h *Handlers) {
+	handleAddSkill = h.Install.AddSkill
+	handleAddAgent = h.Install.AddAgent
+	handleAddCommand = h.Install.AddCommand
+	handleAddAll = h.Install.AddAll
+	handleUpdate = h.Update.Update
+	handleUpdateAll = h.Update.UpdateAll
+	handleLink = h.Link.Link
+	handleLinkAll = h.Link.LinkAll
+	handleLinkType = h.Link.LinkType
+	handleAutoLink = h.Link.AutoLink
+	handleListLinks = h.Link.ListLinks
+	handleLinkStatus = h.Link.LinkStatus
+	handleUnlink = h.Unlink.Unlink
+	handleUnlinkWithProfile = h.Unlink.UnlinkWithProfile
+	handleUnlinkAll = h.Unlink.UnlinkAll
+	handleUnlinkAllWithProfile = h.Unlink.UnlinkAllWithProfile
+	handleUnlinkType = h.Unlink.UnlinkType
+	handleUnlinkTypeWithProfile = h.Unlink.UnlinkTypeWithProfile
+	handleUninstall = h.Uninstall.Uninstall
+	handleUninstallAll = h.Uninstall.UninstallAll
+	handleProfilesList = h.Profile.List
+	handleProfilesShow = h.Profile.Show
+	handleProfilesCreate = h.Profile.Create
+	handleProfilesDelete = h.Profile.Delete
+	handleProfilesActivate = h.Profile.Activate
+	handleProfilesDeactivate = h.Profile.Deactivate
+	handleProfilesAdd = h.Profile.Add
+	handleProfilesCopy = h.Profile.Copy
+	handleProfilesRemove = h.Profile.Remove
+	handleProfilesCherryPick = h.Profile.CherryPick
+	handleProfilesShare = h.Profile.Share
+	handleProfilesRename = h.Profile.Rename
+	handleStatus = h.Status.Status
+	handleTargetAdd = h.Target.Add
+	handleTargetRemove = h.Target.Remove
+	handleTargetList = h.Target.List
+	handleMaterializeComponent = h.Materialize.Component
+	handleMaterializeType = h.Materialize.Type
+	handleMaterializeAll = h.Materialize.All
+	handleMaterializeList = h.Materialize.List
+	handleMaterializeInfo = h.Materialize.Info
+	handleMaterializeStatus = h.Materialize.Status
+	handleMaterializeUpdate = h.Materialize.Update
+	handleFindSkill = h.Find.FindSkill
 }

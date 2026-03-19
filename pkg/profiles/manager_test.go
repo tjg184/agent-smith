@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/tjg184/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/pkg/profiles/profilemeta"
 )
 
 func TestProfileManager_ScanProfiles(t *testing.T) {
@@ -725,7 +726,7 @@ func TestSanitizeForProfileName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := sanitizeForProfileName(tt.input)
+			result := profilemeta.SanitizeForProfileName(tt.input)
 			if result != tt.expected {
 				t.Errorf("sanitizeForProfileName(%q) = %q, want %q", tt.input, result, tt.expected)
 			}

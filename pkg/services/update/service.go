@@ -25,7 +25,10 @@ func NewService(
 }
 
 func (s *Service) UpdateComponent(componentType, componentName string, opts services.UpdateOptions) error {
-	detector := s.createUpdateDetector(opts.Profile)
+	detector, err := s.createUpdateDetector(opts.Profile)
+	if err != nil {
+		return fmt.Errorf("failed to create update detector: %w", err)
+	}
 
 	metadata, err := detector.LoadMetadata(componentType, componentName)
 	if err != nil {
@@ -40,7 +43,10 @@ func (s *Service) UpdateComponent(componentType, componentName string, opts serv
 }
 
 func (s *Service) UpdateAll(opts services.UpdateOptions) error {
-	detector := s.createUpdateDetector(opts.Profile)
+	detector, err := s.createUpdateDetector(opts.Profile)
+	if err != nil {
+		return fmt.Errorf("failed to create update detector: %w", err)
+	}
 
 	if err := detector.UpdateAll(); err != nil {
 		return fmt.Errorf("failed to update components: %w", err)
@@ -58,7 +64,7 @@ func (s *Service) CheckForUpdates(opts services.UpdateOptions) ([]services.Updat
 	return []services.UpdateInfo{}, fmt.Errorf("CheckForUpdates not yet implemented")
 }
 
-func (s *Service) createUpdateDetector(profile string) *updater.UpdateDetector {
+func (s *Service) createUpdateDetector(profile string) (*updater.UpdateDetector, error) {
 	if profile != "" {
 		s.logger.Debug("[DEBUG] Creating UpdateDetector with profile: %s", profile)
 		return updater.NewUpdateDetectorWithProfile(profile)
