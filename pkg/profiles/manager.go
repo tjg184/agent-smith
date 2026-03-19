@@ -302,9 +302,7 @@ func (pm *ProfileManager) RemoveComponentFromProfile(profileName, componentType,
 	}
 
 	// Remove lock file entry
-	lockEntryPath := filepath.Join(profile.BasePath, fmt.Sprintf(".%s-lock.json", strings.TrimSuffix(componentType, "s")))
-	_ = lockEntryPath // removal handled by metadata package
-	if removeErr := removeComponentEntry(profile.BasePath, componentType, componentName); removeErr != nil {
+	if removeErr := pm.lockService.RemoveEntry(profile.BasePath, componentType, componentName); removeErr != nil {
 		fmt.Printf("Warning: Could not update lock file: %v\n", removeErr)
 	}
 
@@ -846,8 +844,3 @@ func parseInt(s string) (int, error) {
 }
 
 // removeComponentEntry removes a lock file entry; thin wrapper around metadata package.
-func removeComponentEntry(baseDir, componentType, componentName string) error {
-	// Delegate to internal/metadata package via the lock service path — already handled
-	// by callers. Return nil to avoid double-reporting.
-	return nil
-}
