@@ -147,17 +147,14 @@ func (b *SummaryTableBuilder) AddRowWithSymbol(symbol, label string, value inter
 	return b
 }
 
-// Build constructs the final table string
 func (b *SummaryTableBuilder) Build() string {
 	var result strings.Builder
 
-	// Top border
 	innerWidth := b.width - 2
 	result.WriteString("┌")
 	result.WriteString(strings.Repeat("─", innerWidth))
 	result.WriteString("┐\n")
 
-	// Title row (centered)
 	if b.title != "" {
 		titlePadding := (innerWidth - len(b.title)) / 2
 		remainingPadding := innerWidth - len(b.title) - titlePadding
@@ -167,19 +164,16 @@ func (b *SummaryTableBuilder) Build() string {
 		result.WriteString(strings.Repeat(" ", remainingPadding))
 		result.WriteString("│\n")
 
-		// Separator after title
 		result.WriteString("├")
 		result.WriteString(strings.Repeat("─", innerWidth))
 		result.WriteString("┤\n")
 	}
 
-	// Rows
 	for _, row := range b.rows {
 		result.WriteString(row)
 		result.WriteString("\n")
 	}
 
-	// Bottom border
 	result.WriteString("└")
 	result.WriteString(strings.Repeat("─", innerWidth))
 	result.WriteString("┘")

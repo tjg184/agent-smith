@@ -87,7 +87,6 @@ func GetUniversalDir() (string, error) {
 	return ExpandHome(UniversalDir)
 }
 
-// GetSkillsDir returns the full path to the skills directory
 func GetSkillsDir() (string, error) {
 	baseDir, err := GetAgentsDir()
 	if err != nil {
@@ -96,7 +95,6 @@ func GetSkillsDir() (string, error) {
 	return filepath.Join(baseDir, SkillsSubDir), nil
 }
 
-// GetAgentsSubDir returns the full path to the agents subdirectory
 func GetAgentsSubDir() (string, error) {
 	baseDir, err := GetAgentsDir()
 	if err != nil {
@@ -105,7 +103,6 @@ func GetAgentsSubDir() (string, error) {
 	return filepath.Join(baseDir, AgentsSubDir), nil
 }
 
-// GetCommandsDir returns the full path to the commands directory
 func GetCommandsDir() (string, error) {
 	baseDir, err := GetAgentsDir()
 	if err != nil {
@@ -114,7 +111,6 @@ func GetCommandsDir() (string, error) {
 	return filepath.Join(baseDir, CommandsSubDir), nil
 }
 
-// GetDetectionConfigPath returns the full path to the detection config file
 func GetDetectionConfigPath() (string, error) {
 	configDir, err := GetOpencodeDir()
 	if err != nil {
@@ -123,22 +119,18 @@ func GetDetectionConfigPath() (string, error) {
 	return filepath.Join(configDir, DetectionConfigFile), nil
 }
 
-// GetComponentLockPath returns the full path to the unified component lock file
 func GetComponentLockPath(baseDir, componentType string) string {
 	return filepath.Join(baseDir, ComponentLockFile)
 }
 
-// GetComponentTypes returns the list of valid component types
 func GetComponentTypes() []string {
 	return []string{SkillsSubDir, AgentsSubDir, CommandsSubDir}
 }
 
-// GetComponentTypeNames returns the list of component type names for display
 func GetComponentTypeNames() []string {
 	return []string{AgentsSubDir, CommandsSubDir, SkillsSubDir}
 }
 
-// GetProfilesDir returns the full path to the profiles directory
 func GetProfilesDir() (string, error) {
 	baseDir, err := GetAgentsDir()
 	if err != nil {
@@ -147,7 +139,6 @@ func GetProfilesDir() (string, error) {
 	return filepath.Join(baseDir, ProfilesSubDir), nil
 }
 
-// GetProfileDir returns the full path to a specific profile directory
 func GetProfileDir(profileName string) (string, error) {
 	profilesDir, err := GetProfilesDir()
 	if err != nil {
@@ -156,8 +147,6 @@ func GetProfileDir(profileName string) (string, error) {
 	return filepath.Join(profilesDir, profileName), nil
 }
 
-// ResolveTargetDir resolves a custom target directory path
-// Supports relative paths, absolute paths, and tilde expansion
 func ResolveTargetDir(targetDir string) (string, error) {
 	if targetDir == "" {
 		return "", fmt.Errorf("target directory cannot be empty")

@@ -9,7 +9,6 @@ import (
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
-// Service implements the UpdateService interface
 type Service struct {
 	logger    *logger.Logger
 	formatter *formatter.Formatter
@@ -28,7 +27,6 @@ func NewService(
 func (s *Service) UpdateComponent(componentType, componentName string, opts services.UpdateOptions) error {
 	detector := s.createUpdateDetector(opts.Profile)
 
-	// Load metadata to get source URL
 	metadata, err := detector.LoadMetadata(componentType, componentName)
 	if err != nil {
 		return fmt.Errorf("failed to load component metadata: %w", err)
@@ -60,7 +58,6 @@ func (s *Service) CheckForUpdates(opts services.UpdateOptions) ([]services.Updat
 	return []services.UpdateInfo{}, fmt.Errorf("CheckForUpdates not yet implemented")
 }
 
-// createUpdateDetector creates an UpdateDetector with the appropriate profile
 func (s *Service) createUpdateDetector(profile string) *updater.UpdateDetector {
 	if profile != "" {
 		s.logger.Debug("[DEBUG] Creating UpdateDetector with profile: %s", profile)

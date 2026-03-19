@@ -23,7 +23,6 @@ import (
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
-// Service implements the MaterializeService interface
 type Service struct {
 	profileManager        *profiles.ProfileManager
 	logger                *logger.Logger
@@ -40,7 +39,6 @@ func NewService(pm *profiles.ProfileManager, logger *logger.Logger, formatter *f
 	}
 }
 
-// getSourceDir determines the source directory based on profile settings
 func (s *Service) getSourceDir(profile string) (string, string, error) {
 	baseDir, err := paths.GetAgentsDir()
 	if err != nil {
@@ -76,7 +74,6 @@ func (s *Service) getSourceDir(profile string) (string, string, error) {
 		return filepath.Join(profilesDir, profile), profile, nil
 	}
 
-	// Check active profile
 	activeProfile, err := s.profileManager.GetActiveProfile()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to check active profile: %w", err)
@@ -93,16 +90,12 @@ func (s *Service) getSourceDir(profile string) (string, string, error) {
 	return baseDir, "", nil
 }
 
-// componentInfo holds information about a component from the lock file
 type componentInfo struct {
 	ComponentName string
 	ComponentType string
 	SourceUrl     string
 }
 
-// buildFilesystemNameMap creates a mapping from filesystem names to component info.
-// filesystemName can differ from componentName due to conflicts or category nesting
-// (e.g. "kotlin/convert-groovy-kotlin").
 func (s *Service) buildFilesystemNameMap(baseDir string) (map[string]componentInfo, error) {
 	lockFile, err := s.loadLockFile(baseDir)
 	if err != nil {
@@ -151,9 +144,7 @@ func (s *Service) loadLockFile(baseDir string) (models.ComponentLockFile, error)
 	return lockFile, nil
 }
 
-// MaterializeComponent materializes a single component to a target
 func (s *Service) MaterializeComponent(componentType, componentName string, opts services.MaterializeOptions) error {
-	// Validate target
 	targetName := opts.Target
 	if targetName == "" {
 		targetName = config.GetTargetFromEnv()
@@ -163,32 +154,27 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 		return fmt.Errorf("target not specified")
 	}
 
-	// Show dry-run header if enabled
 	if opts.DryRun {
 		s.formatter.Info("=== DRY RUN MODE ===")
 		s.formatter.Info("No changes will be made to the filesystem")
 		s.formatter.EmptyLine()
 	}
 
-	// Determine project root
 	projectRoot, err := s.getProjectRoot(opts.ProjectDir)
 	if err != nil {
 		s.logger.Error("Failed to determine project root: %v", err)
 		return err
 	}
 
-	// Get source directory
 	baseDir, sourceProfile, err := s.getSourceDir(opts.Profile)
 	if err != nil {
 		s.logger.Error("Failed to get source directory: %v", err)
 		return err
 	}
 
-	// Get lock file entry for provenance FIRST (we need the FilesystemName)
 	var lockEntry *models.ComponentEntry
 
 	if opts.Source != "" {
-		// Use specific source if provided
 		var loadErr error
 		lockEntry, loadErr = metadataPkg.LoadLockFileEntryBySource(baseDir, componentType, componentName, opts.Source)
 		if loadErr != nil {
@@ -196,13 +182,10 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			return fmt.Errorf("failed to load component metadata from source %s: %w", opts.Source, loadErr)
 		}
 	} else {
-		// Try to load from any source
 		var loadErr error
 		lockEntry, loadErr = metadataPkg.LoadLockFileEntry(baseDir, componentType, componentName)
 		if loadErr != nil {
-			// Check if it's an ambiguous component error
 			if strings.Contains(loadErr.Error(), "found in multiple sources") {
-				// Extract source URLs from error and show nice disambiguation message
 				sources, findErr := metadataPkg.FindComponentSources(baseDir, componentType, componentName)
 				if findErr == nil && len(sources) > 0 {
 					fmt.Println(errors.NewAmbiguousComponentError(componentType, componentName, sources).Format())
@@ -214,14 +197,11 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 		}
 	}
 
-	// Determine the actual directory name to use
-	// Use FilesystemName from lock file if available, otherwise use componentName
 	dirName := componentName
 	if lockEntry != nil && lockEntry.FilesystemName != "" {
 		dirName = lockEntry.FilesystemName
 	}
 
-	// Get component source path using the filesystem name
 	componentSourceDir := filepath.Join(baseDir, componentType, dirName)
 	if _, err := os.Stat(componentSourceDir); os.IsNotExist(err) {
 		var sourcePath string
@@ -234,13 +214,11 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 		return fmt.Errorf("component not found")
 	}
 
-	// Calculate source hash
 	sourceHash, err := materializer.CalculateDirectoryHash(componentSourceDir)
 	if err != nil {
 		return fmt.Errorf("failed to calculate source hash: %w", err)
 	}
 
-	// Determine targets
 	var targets []string
 	if targetName == "all" {
 		targets = config.GetAvailableTargets()
@@ -248,11 +226,9 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 		targets = []string{targetName}
 	}
 
-	// Materialize to each target
 	successCount := 0
 	skipCount := 0
 
-	// Initialize symlink registry for tracking conflicts across all targets
 	symlinkRegistry := make(map[string]string)
 
 	for _, tgt := range targets {
@@ -263,13 +239,11 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 		}
 		targetDir := target.GetProjectBaseDir(projectRoot)
 
-		// Load materialization metadata to check for filesystem name conflicts
 		matMetadata, err := project.LoadMaterializationMetadata(targetDir)
 		if err != nil {
 			return fmt.Errorf("failed to load materialization metadata: %w", err)
 		}
 
-		// Get source URL for idempotency check
 		sourceUrl := ""
 		if lockEntry != nil {
 			sourceUrl = lockEntry.SourceUrl
@@ -337,7 +311,6 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 			} else {
 				s.formatter.Info("⚠ Overwriting %s '%s' in %s (--force)", componentType, componentName, tgt)
 
-				// Run cleanup postprocessors before removing
 				cleanupCtx := PostprocessContext{
 					ComponentType:  componentType,
 					ComponentName:  componentName,
@@ -373,7 +346,6 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 				s.formatter.Info("  Provenance:  %s", lockEntry.SourceUrl)
 			}
 
-			// Run postprocessors in dry-run mode
 			postprocessCtx := PostprocessContext{
 				ComponentType:   componentType,
 				ComponentName:   componentName,
@@ -391,7 +363,6 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 
 			successCount++
 		} else {
-			// Ensure component directory exists (only create the specific component type directory)
 			structureCreated, err := project.EnsureComponentDirectory(targetDir, componentType)
 			if err != nil {
 				return fmt.Errorf("failed to create target structure: %w", err)
@@ -400,7 +371,6 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 				s.formatter.Info("%s Created directory: %s/%s/", formatter.SymbolSuccess, targetDir, componentType)
 			}
 
-			// Copy component
 			if useFlatCopy {
 				if err := materializer.CopyFlatMdFiles(componentSourceDir, destPath); err != nil {
 					return fmt.Errorf("failed to copy component: %w", err)
@@ -409,7 +379,6 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 				return fmt.Errorf("failed to copy component: %w", err)
 			}
 
-			// Run postprocessors after copying
 			postprocessCtx := PostprocessContext{
 				ComponentType:   componentType,
 				ComponentName:   componentName,
@@ -425,7 +394,6 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 				return fmt.Errorf("postprocessing failed: %w", err)
 			}
 
-			// Load/update metadata (already loaded earlier, reuse it)
 			project.AddMaterializationEntry(
 				matMetadata,
 				componentType,
@@ -444,7 +412,6 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 				return fmt.Errorf("failed to save materialization metadata: %w", err)
 			}
 
-			// Display success message
 			if filesystemName != componentName {
 				s.formatter.Info("%s Materialized %s '%s' as '%s' to %s", formatter.SymbolSuccess, componentType, componentName, filesystemName, tgt)
 			} else {
@@ -459,7 +426,6 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 		}
 	}
 
-	// Print summary
 	if len(targets) > 0 {
 		green := color.New(color.FgGreen).SprintFunc()
 		fmt.Println()
@@ -475,7 +441,6 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 	return nil
 }
 
-// MaterializeAll materializes all components to a target
 func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
 	baseDir, sourceProfile, err := s.getSourceDir(opts.Profile)
 	if err != nil {
@@ -533,7 +498,6 @@ func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
 	return nil
 }
 
-// MaterializeByType materializes all components of a specific type to a target
 func (s *Service) MaterializeByType(componentType string, opts services.MaterializeOptions) error {
 	validTypes := map[string]bool{
 		"skills":   true,
@@ -600,7 +564,6 @@ func (s *Service) MaterializeByType(componentType string, opts services.Material
 		}
 	}
 
-	// Display summary if we processed any components
 	if successCount > 0 || failureCount > 0 {
 		s.formatter.EmptyLine()
 		if failureCount == 0 {
@@ -615,21 +578,17 @@ func (s *Service) MaterializeByType(componentType string, opts services.Material
 	return nil
 }
 
-// ListMaterialized lists all materialized components in a project
 func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error {
 	projectRoot, err := s.getProjectRoot(opts.ProjectDir)
 	if err != nil {
 		return err
 	}
 
-	// Display project information
 	s.formatter.Info("Materialized Components in %s:", projectRoot)
 	s.formatter.EmptyLine()
 
-	// Track if any components were found
 	foundAny := false
 
-	// Check each target
 	for _, targetName := range config.GetAvailableTargets() {
 		target, err := config.NewTargetForProject(targetName, projectRoot)
 		if err != nil {
@@ -638,19 +597,16 @@ func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error 
 		}
 		targetDir := target.GetProjectBaseDir(projectRoot)
 
-		// Check if target directory exists
 		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 			continue
 		}
 
-		// Load materialization metadata
 		metadata, err := project.LoadMaterializationMetadata(targetDir)
 		if err != nil {
 			s.logger.Debug("Failed to load metadata for %s: %v", targetName, err)
 			continue
 		}
 
-		// Count total components
 		totalComponents := len(metadata.Skills) + len(metadata.Agents) + len(metadata.Commands)
 
 		if totalComponents == 0 {
@@ -659,12 +615,10 @@ func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error 
 
 		foundAny = true
 
-		// Display target header
 		targetLabel := fmt.Sprintf("%s (%s/)", target.GetDisplayName(), target.GetProjectDirName())
 		green := color.New(color.FgGreen).SprintFunc()
 		s.formatter.Info("%s %s", green(formatter.SymbolSuccess), targetLabel)
 
-		// Display skills
 		totalSkills := 0
 		for _, components := range metadata.Skills {
 			totalSkills += len(components)
@@ -686,7 +640,6 @@ func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error 
 			}
 		}
 
-		// Display agents
 		totalAgents := 0
 		for _, components := range metadata.Agents {
 			totalAgents += len(components)
@@ -708,7 +661,6 @@ func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error 
 			}
 		}
 
-		// Display commands
 		totalCommands := 0
 		for _, components := range metadata.Commands {
 			totalCommands += len(components)
@@ -747,7 +699,6 @@ func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error 
 	return nil
 }
 
-// ShowComponentInfo shows information about a materialized component
 func (s *Service) ShowComponentInfo(componentType, componentName string, opts services.MaterializeInfoOptions) error {
 	projectRoot, err := s.getProjectRoot(opts.ProjectDir)
 	if err != nil {
@@ -760,10 +711,8 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 	cyan := color.New(color.FgCyan).SprintFunc()
 	bold := color.New(color.Bold).SprintFunc()
 
-	// Track if we found the component in any target
 	foundInAnyTarget := false
 
-	// Determine which targets to check
 	var targetsToCheck []string
 	if opts.Target != "" {
 		targetsToCheck = []string{opts.Target}
@@ -771,7 +720,6 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 		targetsToCheck = config.GetAvailableTargets()
 	}
 
-	// Check each target
 	for _, targetName := range targetsToCheck {
 		target, err := config.NewTargetForProject(targetName, projectRoot)
 		if err != nil {
@@ -780,30 +728,25 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 		}
 		targetDir := target.GetProjectBaseDir(projectRoot)
 
-		// Check if target directory exists
 		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 			if opts.Target != "" {
-				// User specified a target that doesn't exist
 				fmt.Println(errors.NewTargetDirectoryNotFoundError(target).Format())
 				return fmt.Errorf("target directory not found")
 			}
 			continue
 		}
 
-		// Load materialization metadata
 		metadata, err := project.LoadMaterializationMetadata(targetDir)
 		if err != nil {
 			s.logger.Debug("Failed to load metadata for %s: %v", targetName, err)
 			continue
 		}
 
-		// Get the component map for the given type
 		componentMap := project.GetMaterializationComponentMap(metadata, componentType)
 		if componentMap == nil {
 			return fmt.Errorf("invalid component type: %s (must be skills, agents, or commands)", componentType)
 		}
 
-		// Look up the component across all sources
 		var foundMeta *models.ComponentEntry
 		for _, components := range componentMap {
 			if meta, exists := components[componentName]; exists {
@@ -814,7 +757,6 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 
 		if foundMeta == nil {
 			if opts.Target != "" {
-				// User specified a target but component not found
 				s.formatter.Info("%s Component '%s' not found in %s target", red(formatter.SymbolError), componentName, targetName)
 			}
 			continue
@@ -823,19 +765,16 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 		foundInAnyTarget = true
 		meta := *foundMeta
 
-		// Display target header
 		targetLabel := fmt.Sprintf("%s (%s/)", target.GetDisplayName(), target.GetProjectDirName())
 
 		s.formatter.EmptyLine()
 		s.formatter.Info("%s Provenance Information - %s", green(formatter.SymbolSuccess), bold(targetLabel))
 		s.formatter.EmptyLine()
 
-		// Display component information
 		s.formatter.Info("  %s: %s", cyan("Component"), componentName)
 		s.formatter.Info("  %s: %s", cyan("Type"), componentType)
 		s.formatter.EmptyLine()
 
-		// Display source information
 		s.formatter.Info("  %s", bold("Source Information:"))
 		s.formatter.Info("    %s: %s", cyan("Repository"), meta.Source)
 		s.formatter.Info("    %s: %s", cyan("Source Type"), meta.SourceType)
@@ -846,28 +785,23 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 		s.formatter.Info("    %s: %s", cyan("Original Path"), meta.OriginalPath)
 		s.formatter.EmptyLine()
 
-		// Display materialization information
 		s.formatter.Info("  %s", bold("Materialization:"))
 		s.formatter.Info("    %s: %s", cyan("Materialized At"), meta.MaterializedAt)
 		s.formatter.Info("    %s: %s", cyan("Target Directory"), targetDir)
 		s.formatter.EmptyLine()
 
-		// Display hash information for sync status
 		s.formatter.Info("  %s", bold("Sync Status:"))
 		s.formatter.Info("    %s: %s", cyan("Source Hash"), meta.SourceHash)
 
-		// Recalculate current hash from the actual directory
 		componentPath := filepath.Join(targetDir, componentType, componentName)
 		actualCurrentHash, err := materializer.CalculateDirectoryHash(componentPath)
 		if err != nil {
 			s.logger.Debug("Failed to calculate current hash: %v", err)
-			// Fall back to stored hash
 			actualCurrentHash = meta.CurrentHash
 		}
 
 		s.formatter.Info("    %s: %s", cyan("Current Hash"), actualCurrentHash)
 
-		// Check if hashes match
 		if meta.SourceHash == actualCurrentHash {
 			s.formatter.Info("    %s: %s (component is unchanged)", cyan("Status"), green("In Sync"))
 		} else {
@@ -879,15 +813,12 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 
 	if !foundInAnyTarget {
 		if opts.Target != "" {
-			// Specific target was requested but component not found
 			if t, err := config.NewTarget(opts.Target); err == nil {
 				fmt.Println(errors.NewTargetDirectoryNotFoundError(t).Format())
 			} else {
 				fmt.Println(errors.NewInvalidTargetError(opts.Target).Format())
 			}
 		} else {
-			// No target specified and component not found in any target
-			// Collect available components from all targets
 			var availableComponents []string
 			for _, targetName := range config.GetAvailableTargets() {
 				target, err := config.NewTargetForProject(targetName, projectRoot)
@@ -919,7 +850,6 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 	return nil
 }
 
-// ShowStatus shows the materialization status of a project
 func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 	projectRoot, err := s.getProjectRoot(opts.ProjectDir)
 	if err != nil {
@@ -933,7 +863,6 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 
 	fmt.Printf("\n%s %s\n\n", bold("Project:"), projectRoot)
 
-	// Determine which targets to check
 	var targetsToCheck []string
 	if opts.Target != "" {
 		targetsToCheck = []string{opts.Target}
@@ -941,13 +870,11 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 		targetsToCheck = config.GetAvailableTargets()
 	}
 
-	// Track overall statistics
 	totalInSync := 0
 	totalOutOfSync := 0
 	totalMissing := 0
 	foundAny := false
 
-	// Check each target
 	for _, targetName := range targetsToCheck {
 		target, err := config.NewTargetForProject(targetName, projectRoot)
 		if err != nil {
@@ -956,23 +883,19 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 		}
 		targetDir := target.GetProjectBaseDir(projectRoot)
 
-		// Check if target directory exists
 		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 			if opts.Target != "" {
-				// User specified a target that doesn't exist
 				fmt.Println(errors.NewTargetDirectoryNotFoundError(target).Format())
 				return fmt.Errorf("target directory not found")
 			}
 			continue
 		}
 
-		// Load materialization metadata
 		metadata, err := project.LoadMaterializationMetadata(targetDir)
 		if err != nil {
 			return fmt.Errorf("failed to load materialization metadata: %w", err)
 		}
 
-		// Get all components
 		components := project.GetAllMaterializedComponents(metadata)
 		if len(components) == 0 {
 			continue
@@ -980,35 +903,29 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 
 		foundAny = true
 
-		// Display target header
 		targetLabel := fmt.Sprintf("%s (%s/)", target.GetDisplayName(), target.GetProjectDirName())
 		fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
 
-		// Use batched sync check for better performance (one clone per repo instead of per component)
 		baseDir, _ := paths.GetAgentsDir()
 		syncResults, err := project.CheckMultipleComponentsSyncStatusBatched(baseDir, components)
 		if err != nil {
 			return fmt.Errorf("failed to check sync status: %w", err)
 		}
 
-		// Group by component type
 		componentsByType := make(map[string][]project.ComponentInfo)
 		for _, comp := range components {
 			componentsByType[comp.Type] = append(componentsByType[comp.Type], comp)
 		}
 
-		// Display each type
 		for _, componentType := range []string{"skills", "agents", "commands"} {
 			comps := componentsByType[componentType]
 			if len(comps) == 0 {
 				continue
 			}
 
-			// Display type header
 			typeLabel := strings.Title(componentType)
 			fmt.Printf("%s:\n", typeLabel)
 
-			// Display sync status for each component
 			for _, comp := range comps {
 				key := fmt.Sprintf("%s/%s", comp.Type, comp.Name)
 				result, ok := syncResults[key]
@@ -1022,7 +939,6 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 					continue
 				}
 
-				// Truncate commit hash to first 7 characters for display
 				shortHash := comp.Metadata.CommitHash
 				if len(shortHash) > 7 {
 					shortHash = shortHash[:7]
@@ -1033,7 +949,6 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 					fmt.Printf("  %s %s (in sync - %s)\n", green("✓"), comp.Name, shortHash)
 					totalInSync++
 				case project.SyncStatusOutOfSync:
-					// Get current remote commit hash to show the change
 					ud := updater.NewUpdateDetectorWithBaseDir(baseDir)
 					currentCommit, err := ud.GetCurrentRepoSHA(comp.Metadata.Source)
 					shortCurrent := currentCommit
@@ -1067,7 +982,6 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 		return nil
 	}
 
-	// Display summary
 	fmt.Printf("%s: ", bold("Summary"))
 	var parts []string
 	if totalInSync > 0 {
@@ -1084,7 +998,6 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 	return nil
 }
 
-// UpdateMaterialized updates materialized components
 func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) error {
 	projectRoot, err := s.getProjectRoot(opts.ProjectDir)
 	if err != nil {
@@ -1102,7 +1015,6 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 		fmt.Printf("\nUpdating materialized components in: %s\n\n", projectRoot)
 	}
 
-	// Determine which targets to update
 	var targetsToUpdate []string
 	if opts.Target != "" {
 		targetsToUpdate = []string{opts.Target}
@@ -1110,16 +1022,13 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 		targetsToUpdate = config.GetAvailableTargets()
 	}
 
-	// Track overall statistics
 	totalUpdated := 0
 	totalSkippedInSync := 0
 	totalSkippedMissing := 0
 	foundAny := false
 
-	// Initialize symlink registry for tracking conflicts across all targets
 	symlinkRegistry := make(map[string]string)
 
-	// Update each target
 	for _, targetName := range targetsToUpdate {
 		target, err := config.NewTargetForProject(targetName, projectRoot)
 		if err != nil {
@@ -1128,23 +1037,19 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 		}
 		targetDir := target.GetProjectBaseDir(projectRoot)
 
-		// Check if target directory exists
 		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 			if opts.Target != "" {
-				// User specified a target that doesn't exist
 				fmt.Println(errors.NewTargetDirectoryNotFoundError(target).Format())
 				return fmt.Errorf("target directory not found")
 			}
 			continue
 		}
 
-		// Load materialization metadata
 		metadata, err := project.LoadMaterializationMetadata(targetDir)
 		if err != nil {
 			return fmt.Errorf("failed to load materialization metadata: %w", err)
 		}
 
-		// Get all components
 		components := project.GetAllMaterializedComponents(metadata)
 		if len(components) == 0 {
 			continue
@@ -1152,17 +1057,11 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 
 		foundAny = true
 
-		// Display target header
 		targetLabel := fmt.Sprintf("%s (%s/)", target.GetDisplayName(), target.GetProjectDirName())
 		fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
 
-		// Resolve the local agent-smith installation directory (respects active profile)
 		localBaseDir, _, _ := s.getSourceDir(opts.Profile)
 
-		// Process each component using a local-first strategy:
-		// 1. Check if component exists in the local ~/.agent-smith directory
-		// 2. If local copy exists, compare it to the project copy and update if different
-		// 3. Only fall back to downloading from GitHub if local copy is absent
 		for _, comp := range components {
 			filesystemName := comp.Name
 			if comp.Metadata.FilesystemName != "" {
@@ -1186,13 +1085,11 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 			}
 
 			if !localExists {
-				// Local component not installed — skip; user should run `agent-smith update` first
 				fmt.Printf("  %s Skipped %s (source no longer installed)\n", yellow("⚠"), comp.Name)
 				totalSkippedMissing++
 				continue
 			}
 
-			// Compare local source to the materialized copy to decide whether an update is needed
 			var match bool
 			var err error
 			if useFlatCopy {
@@ -1217,7 +1114,6 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 				continue
 			}
 
-			// Remove existing materialized component and replace with local version
 			if useFlatCopy {
 				if err := materializer.RemoveFlatMdFiles(localSourceDir, destDir); err != nil {
 					fmt.Printf("  %s Failed to remove existing %s: %v\n", red("✗"), comp.Name, err)
@@ -1238,7 +1134,6 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 				}
 			}
 
-			// Run postprocessors after updating component
 			postprocessCtx := PostprocessContext{
 				ComponentType:   comp.Type,
 				ComponentName:   comp.Name,
@@ -1310,7 +1205,6 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 			totalUpdated++
 		}
 
-		// Save metadata
 		if !opts.DryRun && totalUpdated > 0 {
 			if err := project.SaveMaterializationMetadata(targetDir, metadata); err != nil {
 				return fmt.Errorf("failed to save materialization metadata: %w", err)
@@ -1331,7 +1225,6 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 		return nil
 	}
 
-	// Display summary
 	fmt.Printf("%s: ", bold("Summary"))
 	var parts []string
 	if totalUpdated > 0 {
@@ -1352,7 +1245,6 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 	return nil
 }
 
-// getProjectRoot determines the project root directory
 func (s *Service) getProjectRoot(projectDir string) (string, error) {
 	if projectDir != "" {
 		abs, err := filepath.Abs(projectDir)

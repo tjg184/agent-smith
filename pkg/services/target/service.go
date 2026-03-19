@@ -11,13 +11,11 @@ import (
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
-// Service implements the TargetService interface
 type Service struct {
 	logger    *logger.Logger
 	formatter *formatter.Formatter
 }
 
-// NewService creates a new TargetService with dependencies injected
 func NewService(
 	logger *logger.Logger,
 	formatter *formatter.Formatter,
@@ -28,15 +26,12 @@ func NewService(
 	}
 }
 
-// AddCustomTarget adds a new custom target to the configuration
 func (s *Service) AddCustomTarget(name, path string) error {
-	// Load existing config
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Validate that target name doesn't already exist
 	for _, target := range cfg.CustomTargets {
 		if target.Name == name {
 			return fmt.Errorf("target '%s' already exists in config", name)
@@ -51,10 +46,8 @@ func (s *Service) AddCustomTarget(name, path string) error {
 		CommandsDir: "commands",
 	}
 
-	// Add to config
 	cfg.CustomTargets = append(cfg.CustomTargets, newTarget)
 
-	// Save config
 	if err := config.SaveConfig(cfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
@@ -71,9 +64,7 @@ func (s *Service) AddCustomTarget(name, path string) error {
 	return nil
 }
 
-// RemoveCustomTarget removes a custom target from the configuration
 func (s *Service) RemoveCustomTarget(name string) error {
-	// Load existing config
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -93,10 +84,8 @@ func (s *Service) RemoveCustomTarget(name string) error {
 		return fmt.Errorf("target '%s' not found in custom targets", name)
 	}
 
-	// Remove the target from the slice
 	cfg.CustomTargets = append(cfg.CustomTargets[:targetIndex], cfg.CustomTargets[targetIndex+1:]...)
 
-	// Save config
 	if err := config.SaveConfig(cfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
@@ -108,9 +97,7 @@ func (s *Service) RemoveCustomTarget(name string) error {
 	return nil
 }
 
-// ListTargets lists all available targets (built-in and custom)
 func (s *Service) ListTargets() error {
-	// Load config to distinguish between built-in and custom targets
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -123,10 +110,8 @@ func (s *Service) ListTargets() error {
 	red := color.New(color.FgRed).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
 
-	// Section header
 	f.SectionHeader("Available Targets")
 
-	// Collect all target data
 	type targetInfo struct {
 		name     string
 		baseDir  string
@@ -136,7 +121,6 @@ func (s *Service) ListTargets() error {
 	}
 	var allTargets []targetInfo
 
-	// Collect built-in targets
 	for _, name := range builtInNames {
 		target, err := config.NewTarget(name)
 
@@ -166,7 +150,6 @@ func (s *Service) ListTargets() error {
 		})
 	}
 
-	// Collect custom targets
 	for _, customTargetConfig := range cfg.CustomTargets {
 		customTarget, err := config.NewCustomTarget(customTargetConfig)
 		if err != nil {
@@ -195,10 +178,8 @@ func (s *Service) ListTargets() error {
 		})
 	}
 
-	// Create table with box-drawing characters
 	table := formatter.NewBoxTable(os.Stdout, []string{"Status", "Target", "Type", "Location"})
 
-	// Add rows to table
 	availableCount := 0
 	for _, target := range allTargets {
 		var statusSymbol string
@@ -222,10 +203,8 @@ func (s *Service) ListTargets() error {
 		table.AddRow([]string{statusSymbol, target.name, targetType, target.baseDir})
 	}
 
-	// Render the table
 	table.Render()
 
-	// Display summary
 	s.formatter.EmptyLine()
 	totalCount := len(allTargets)
 	if availableCount == totalCount {
@@ -236,7 +215,6 @@ func (s *Service) ListTargets() error {
 		s.formatter.Info("%s No targets currently available", red(formatter.SymbolError))
 	}
 
-	// Display legend
 	s.formatter.EmptyLine()
 	s.formatter.Info("Legend:")
 	s.formatter.Info("  %s Available  %s Not found  %s Error",

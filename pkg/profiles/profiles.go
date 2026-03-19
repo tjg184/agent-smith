@@ -70,11 +70,9 @@ func GetProfileNameFromSymlink(symlinkPath string) (string, error) {
 	for {
 		parent := filepath.Dir(dir)
 		if filepath.Base(parent) == "profiles" {
-			// This is a profile directory - return the profile name
 			return filepath.Base(dir), nil
 		}
 		if parent == dir || parent == "." || parent == "/" {
-			// Reached root without finding "profiles" - this is base installation
 			return "base", nil
 		}
 		dir = parent

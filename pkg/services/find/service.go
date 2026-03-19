@@ -18,7 +18,6 @@ const (
 	defaultLimit = 20
 )
 
-// Service handles finding components in remote registries
 type Service struct {
 	logger    *logger.Logger
 	formatter *formatter.Formatter
@@ -63,7 +62,6 @@ type SkillResult struct {
 	Source   string `json:"source"`
 }
 
-// APIResponse represents the response from skills.sh API
 type APIResponse struct {
 	Query      string        `json:"query"`
 	SearchType string        `json:"searchType"`
@@ -72,7 +70,6 @@ type APIResponse struct {
 	Error      string        `json:"error,omitempty"`
 }
 
-// FormattedResult represents a result formatted for output
 type FormattedResult struct {
 	Source            string `json:"source"`
 	SkillID           string `json:"skillId"`
@@ -83,9 +80,7 @@ type FormattedResult struct {
 	InstallAllCommand string `json:"installAllCommand"`
 }
 
-// FindSkills searches for skills in the skills.sh registry
 func (s *Service) FindSkills(query string, opts services.FindOptions) error {
-	// Validate query length
 	if len(query) < 2 {
 		return fmt.Errorf("Query must be at least 2 characters")
 	}
@@ -112,15 +107,12 @@ func (s *Service) FindSkills(query string, opts services.FindOptions) error {
 		return nil
 	}
 
-	// Apply limit
 	if len(results.Skills) > opts.Limit {
 		results.Skills = results.Skills[:opts.Limit]
 	}
 
-	// Format results
 	formatted := s.formatResults(results.Skills)
 
-	// Output
 	if opts.JSON {
 		return s.outputJSON(query, formatted)
 	}
@@ -128,7 +120,6 @@ func (s *Service) FindSkills(query string, opts services.FindOptions) error {
 	return s.outputTerminal(formatted)
 }
 
-// queryAPI makes the HTTP request to skills.sh API
 func (s *Service) queryAPI(query string) (*APIResponse, error) {
 	url := fmt.Sprintf("%s?q=%s", s.apiURL, query)
 
@@ -155,7 +146,6 @@ func (s *Service) queryAPI(query string) (*APIResponse, error) {
 	return &apiResp, nil
 }
 
-// formatResults converts API results to formatted results
 func (s *Service) formatResults(skills []SkillResult) []FormattedResult {
 	results := make([]FormattedResult, len(skills))
 	for i, skill := range skills {
@@ -172,7 +162,6 @@ func (s *Service) formatResults(skills []SkillResult) []FormattedResult {
 	return results
 }
 
-// outputJSON outputs results as JSON
 func (s *Service) outputJSON(query string, results []FormattedResult) error {
 	output := map[string]interface{}{
 		"query":   query,
@@ -189,34 +178,23 @@ func (s *Service) outputJSON(query string, results []FormattedResult) error {
 	return nil
 }
 
-// outputTerminal outputs results with colored terminal formatting
 func (s *Service) outputTerminal(results []FormattedResult) error {
-	// Color definitions
 	cyan := color.New(color.FgCyan).SprintFunc()
 	gray := color.New(color.FgHiBlack).SprintFunc()
 	brightWhite := color.New(color.FgHiWhite).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
 
-	// Print Agent Smith banner
 	fmt.Print(getBanner())
 	fmt.Println()
-
-	// Print installation instructions header
 	fmt.Printf("%s  agent-smith install skill <owner/repo> <skill-name>\n", gray("Install with:"))
 	fmt.Printf("%s  agent-smith install all <owner/repo>\n", gray("          or:"))
 	fmt.Println()
 
-	// Print each result
 	for _, result := range results {
-		// Line 1: source@skillId and install count
 		identifier := fmt.Sprintf("%s@%s", result.Source, result.SkillID)
 		installCount := formatInstallCount(result.Installs)
 		fmt.Printf("%s %s\n", brightWhite(identifier), cyan(installCount))
-
-		// Line 2: skills.sh URL
 		fmt.Printf("%s %s\n", gray("└"), gray(result.URL))
-
-		// Line 3: install command (dimmed)
 		fmt.Printf("  %s\n", yellow(result.InstallCommand))
 		fmt.Println()
 	}
@@ -224,7 +202,6 @@ func (s *Service) outputTerminal(results []FormattedResult) error {
 	return nil
 }
 
-// getBanner returns the Agent Smith ASCII art banner
 func getBanner() string {
 	return `  ___                   _     _____           _ _   _     
  / _ \                 | |   /  ___|         (_) | | |    
@@ -236,7 +213,6 @@ func getBanner() string {
        |___/                                              `
 }
 
-// formatInstallCount formats install count with K/M suffixes
 func formatInstallCount(count int) string {
 	if count >= 1000000 {
 		return fmt.Sprintf("%.1fM installs", float64(count)/1000000)

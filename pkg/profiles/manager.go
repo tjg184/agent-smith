@@ -183,7 +183,6 @@ func (pm *ProfileManager) FindProfileBySourceURL(repoURL string) (string, error)
 		return "", fmt.Errorf("failed to scan profiles: %w", err)
 	}
 
-	// Check each profile's metadata
 	for _, profile := range profiles {
 		metadata, err := pm.LoadProfileMetadata(profile.Name)
 		if err != nil {
@@ -209,8 +208,6 @@ func GenerateProfileNameFromRepo(repoURL string, existingProfiles []string) stri
 
 	var baseName string
 
-	// Check for shorthand format first (e.g., "owner/repo" or "org/repo")
-	// This should be a simple format without protocols, domains, or multiple slashes
 	slashCount := strings.Count(repoURL, "/")
 	isShorthand := slashCount == 1 &&
 		!strings.Contains(repoURL, "://") &&
@@ -249,12 +246,10 @@ func GenerateProfileNameFromRepo(repoURL string, existingProfiles []string) stri
 		}
 	}
 
-	// Ensure baseName is not empty
 	if baseName == "" {
 		baseName = "repo"
 	}
 
-	// Check if profile name already exists
 	profileName := baseName
 	existsMap := make(map[string]bool)
 	for _, p := range existingProfiles {
@@ -291,7 +286,6 @@ func sanitizeForProfileName(input string) string {
 	// Remove leading/trailing hyphens
 	sanitized = strings.Trim(sanitized, "-")
 
-	// Ensure not empty
 	if sanitized == "" {
 		return "repo"
 	}
@@ -299,25 +293,19 @@ func sanitizeForProfileName(input string) string {
 	return sanitized
 }
 
-// validateProfileName validates a profile name to prevent file system issues
-// Returns an error if the name is invalid
 func validateProfileName(name string) error {
-	// Check for empty name
 	if name == "" {
 		return fmt.Errorf("profile name cannot be empty")
 	}
 
-	// Check for path traversal attempts (check before hidden directory check)
 	if strings.Contains(name, "..") || strings.Contains(name, "./") {
 		return fmt.Errorf("profile name cannot contain path traversal patterns (.. or ./)")
 	}
 
-	// Check for hidden directories (names starting with .)
 	if strings.HasPrefix(name, ".") {
 		return fmt.Errorf("profile name cannot start with '.' (hidden directories not allowed)")
 	}
 
-	// Check for path separators
 	if strings.Contains(name, "/") || strings.Contains(name, "\\") {
 		return fmt.Errorf("profile name cannot contain path separators (/ or \\)")
 	}
@@ -625,7 +613,6 @@ func (pm *ProfileManager) copyComponentWithMetadata(
 	return nil
 }
 
-// CopyComponentBetweenProfiles copies a component from one profile to another
 func (pm *ProfileManager) CopyComponentBetweenProfiles(
 	sourceProfile, targetProfile, componentType, componentName string,
 ) error {
@@ -652,7 +639,6 @@ func (pm *ProfileManager) CopyComponentBetweenProfiles(
 		return fmt.Errorf("target profile '%s' does not exist or has no components", targetProfile)
 	}
 
-	// Check if component exists in source profile
 	componentPath := filepath.Join(srcProfile.BasePath, componentType, componentName)
 	if _, err := os.Stat(componentPath); os.IsNotExist(err) {
 		// List available components in source profile
@@ -941,8 +927,6 @@ func (pm *ProfileManager) CreateProfileWithMetadata(profileName, sourceURL strin
 	return nil
 }
 
-// DeleteProfile deletes a profile and all its contents
-// Returns an error if the profile is currently active or doesn't exist
 func (pm *ProfileManager) DeleteProfile(profileName string) error {
 	if err := validateProfileName(profileName); err != nil {
 		return err
@@ -1096,7 +1080,6 @@ func (pm *ProfileManager) unlinkAllComponents(agentsDir string) error {
 
 			entryPath := filepath.Join(dir, entry.Name())
 
-			// Check if it's a symlink
 			info, err := os.Lstat(entryPath)
 			if err != nil {
 				continue

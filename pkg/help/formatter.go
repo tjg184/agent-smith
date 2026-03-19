@@ -175,7 +175,6 @@ func colorizeURLs(line string) string {
 
 // colorizeMultiPattern handles lines with multiple patterns (e.g., comments + commands)
 func colorizeMultiPattern(line string) string {
-	// First handle the comment part
 	indent := getIndentation(line)
 	trimmed := strings.TrimSpace(line)
 

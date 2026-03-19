@@ -14,14 +14,12 @@ import (
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
-// Service implements the StatusService interface
 type Service struct {
 	profileManager *profiles.ProfileManager
 	logger         *logger.Logger
 	formatter      *formatter.Formatter
 }
 
-// NewService creates a new StatusService with dependencies injected
 func NewService(
 	profileManager *profiles.ProfileManager,
 	logger *logger.Logger,
@@ -34,19 +32,15 @@ func NewService(
 	}
 }
 
-// ShowSystemStatus displays the current system status including active profile,
-// detected targets, and component counts
 func (s *Service) ShowSystemStatus() error {
 	s.logger.Debug("[DEBUG] ShowSystemStatus called")
 
-	// Get active profile
 	activeProfile, err := s.profileManager.GetActiveProfile()
 	if err != nil {
 		return fmt.Errorf("failed to get active profile: %w", err)
 	}
 	s.logger.Debug("[DEBUG] Active profile: %s", activeProfile)
 
-	// Detect all available targets
 	s.logger.Debug("[DEBUG] Detecting targets")
 	targets, err := config.DetectAllTargets()
 	if err != nil {
@@ -54,21 +48,17 @@ func (s *Service) ShowSystemStatus() error {
 	}
 	s.logger.Debug("[DEBUG] Detected %d target(s)", len(targets))
 
-	// Get agents directory
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
 		return fmt.Errorf("failed to get agents directory: %w", err)
 	}
 	s.logger.Debug("[DEBUG] Agents directory: %s", agentsDir)
 
-	// Count components in ~/.agent-smith/
 	agentsCount, skillsCount, commandsCount := s.countBaseComponents(agentsDir)
 
-	// Display status with modern formatting
 	f := formatter.New()
 	f.SectionHeader("Agent Smith Status")
 
-	// Show active profile
 	if activeProfile != "" {
 		green := color.New(color.FgGreen).SprintFunc()
 		s.formatter.Info("  Active Profile:     %s %s", green(activeProfile), formatter.ColoredSuccess())
@@ -77,7 +67,6 @@ func (s *Service) ShowSystemStatus() error {
 		s.formatter.Info("  Active Profile:     %s", gray("None"))
 	}
 
-	// Show detected targets
 	if len(targets) > 0 {
 		var targetNames []string
 		for _, target := range targets {
@@ -90,7 +79,6 @@ func (s *Service) ShowSystemStatus() error {
 		s.formatter.Info("  Detected Targets:   %s", gray("None"))
 	}
 
-	// Show base components count
 	s.formatter.EmptyLine()
 	bold := color.New(color.Bold).SprintFunc()
 	s.formatter.Info("%s", bold("Base Components (~/.agent-smith/)"))
@@ -98,7 +86,6 @@ func (s *Service) ShowSystemStatus() error {
 	s.formatter.Info("  • Skills:           %d", skillsCount)
 	s.formatter.Info("  • Commands:         %d", commandsCount)
 
-	// If there's an active profile, show its components
 	if activeProfile != "" {
 		profilesList, err := s.profileManager.ScanProfiles()
 		if err == nil {
@@ -117,7 +104,6 @@ func (s *Service) ShowSystemStatus() error {
 		}
 	}
 
-	// Show helpful commands
 	s.formatter.EmptyLine()
 	dim := color.New(color.Faint).SprintFunc()
 	s.formatter.Info("%s", dim("Quick Actions:"))
@@ -128,7 +114,6 @@ func (s *Service) ShowSystemStatus() error {
 	return nil
 }
 
-// countBaseComponents counts the number of components in the base directory
 func (s *Service) countBaseComponents(baseDir string) (agents, skills, commands int) {
 	agentsPath := filepath.Join(baseDir, "agents")
 	skillsPath := filepath.Join(baseDir, "skills")
@@ -161,7 +146,6 @@ func (s *Service) countBaseComponents(baseDir string) (agents, skills, commands 
 	return agents, skills, commands
 }
 
-// joinStrings joins a slice of strings with a separator
 func (s *Service) joinStrings(strings []string, separator string) string {
 	if len(strings) == 0 {
 		return ""
