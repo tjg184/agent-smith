@@ -58,3 +58,12 @@ func (t *baseTarget) GetProjectBaseDir(projectRoot string) string {
 func (t *baseTarget) GetProjectComponentDir(projectRoot, componentType string) (string, error) {
 	return filepath.Join(projectRoot, t.projectDirName, componentType), nil
 }
+
+// GetDisplayName provides a default title-cased display name for targets that don't override it.
+// Concrete built-in targets should override this with their canonical display name.
+func (t *baseTarget) GetDisplayName() string {
+	// baseTarget has no name field; concrete types embed baseTarget and implement GetName().
+	// This default is intentionally unreachable for built-in targets (they all override it),
+	// and serves as a fallback only if a future embedded type forgets to implement GetDisplayName.
+	return ""
+}

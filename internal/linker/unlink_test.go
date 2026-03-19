@@ -20,6 +20,10 @@ func (m *mockTarget) GetName() string {
 	return m.name
 }
 
+func (m *mockTarget) GetDisplayName() string {
+	return m.name
+}
+
 func (m *mockTarget) GetGlobalBaseDir() (string, error) {
 	return m.baseDir, nil
 }

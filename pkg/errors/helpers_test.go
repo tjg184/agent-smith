@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/tjg184/agent-smith/pkg/config"
 )
 
 // TestNewAgentsDirectoryError verifies helpful error messages for agents directory issues
@@ -514,7 +516,7 @@ func TestNewTargetDirectoryNotFoundError(t *testing.T) {
 			targetName: "claudecode",
 			expectedPhrases: []string{
 				"Target directory not found",
-				"claudecode",
+				"Claude Code",
 				".claude/",
 				"mkdir",
 			},
@@ -523,8 +525,12 @@ func TestNewTargetDirectoryNotFoundError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := NewTargetDirectoryNotFoundError(tt.targetName)
-			errMsg := err.Format()
+			target, err := config.NewTarget(tt.targetName)
+			if err != nil {
+				t.Fatalf("failed to create target %q: %v", tt.targetName, err)
+			}
+			em := NewTargetDirectoryNotFoundError(target)
+			errMsg := em.Format()
 
 			for _, phrase := range tt.expectedPhrases {
 				if !strings.Contains(errMsg, phrase) {

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/tjg184/agent-smith/pkg/paths"
 )
@@ -91,9 +92,21 @@ func (t *CustomTarget) GetDetectionConfigPath() (string, error) {
 	return filepath.Join(t.baseDir, "detection-config.json"), nil
 }
 
-// GetName returns the human-readable name of this target
 func (t *CustomTarget) GetName() string {
 	return t.name
+}
+
+// GetDisplayName returns a title-cased display name derived from the custom target's machine name.
+func (t *CustomTarget) GetDisplayName() string {
+	replaced := strings.ReplaceAll(t.name, "-", " ")
+	replaced = strings.ReplaceAll(replaced, "_", " ")
+	words := strings.Fields(replaced)
+	for i, word := range words {
+		if len(word) > 0 {
+			words[i] = strings.ToUpper(word[:1]) + word[1:]
+		}
+	}
+	return strings.Join(words, " ")
 }
 
 // GetProjectDirName returns the directory name used in projects

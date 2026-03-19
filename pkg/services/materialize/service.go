@@ -243,7 +243,7 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 	// Determine targets
 	var targets []string
 	if targetName == "all" {
-		targets = []string{"opencode", "claudecode", "copilot"}
+		targets = config.GetAvailableTargets()
 	} else {
 		targets = []string{targetName}
 	}
@@ -630,7 +630,7 @@ func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error 
 	foundAny := false
 
 	// Check each target
-	for _, targetName := range []string{"opencode", "claudecode", "copilot"} {
+	for _, targetName := range config.GetAvailableTargets() {
 		target, err := config.NewTargetForProject(targetName, projectRoot)
 		if err != nil {
 			s.logger.Debug("Failed to create target %s: %v", targetName, err)
@@ -660,16 +660,7 @@ func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error 
 		foundAny = true
 
 		// Display target header
-		var targetLabel string
-		if targetName == "opencode" {
-			targetLabel = "OpenCode (.opencode/)"
-		} else if targetName == "claudecode" {
-			targetLabel = "Claude Code (.claude/)"
-		} else if targetName == "copilot" {
-			targetLabel = "GitHub Copilot (.github/)"
-		} else {
-			targetLabel = "Universal (.agents/)"
-		}
+		targetLabel := fmt.Sprintf("%s (%s/)", target.GetDisplayName(), target.GetProjectDirName())
 		green := color.New(color.FgGreen).SprintFunc()
 		s.formatter.Info("%s %s", green(formatter.SymbolSuccess), targetLabel)
 
@@ -777,7 +768,7 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 	if opts.Target != "" {
 		targetsToCheck = []string{opts.Target}
 	} else {
-		targetsToCheck = []string{"opencode", "claudecode", "copilot"}
+		targetsToCheck = config.GetAvailableTargets()
 	}
 
 	// Check each target
@@ -793,7 +784,7 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 			if opts.Target != "" {
 				// User specified a target that doesn't exist
-				fmt.Println(errors.NewTargetDirectoryNotFoundError(targetName).Format())
+				fmt.Println(errors.NewTargetDirectoryNotFoundError(target).Format())
 				return fmt.Errorf("target directory not found")
 			}
 			continue
@@ -833,16 +824,7 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 		meta := *foundMeta
 
 		// Display target header
-		var targetLabel string
-		if targetName == "opencode" {
-			targetLabel = "OpenCode (.opencode/)"
-		} else if targetName == "claudecode" {
-			targetLabel = "Claude Code (.claude/)"
-		} else if targetName == "copilot" {
-			targetLabel = "GitHub Copilot (.github/)"
-		} else {
-			targetLabel = "Universal (.agents/)"
-		}
+		targetLabel := fmt.Sprintf("%s (%s/)", target.GetDisplayName(), target.GetProjectDirName())
 
 		s.formatter.EmptyLine()
 		s.formatter.Info("%s Provenance Information - %s", green(formatter.SymbolSuccess), bold(targetLabel))
@@ -898,12 +880,16 @@ func (s *Service) ShowComponentInfo(componentType, componentName string, opts se
 	if !foundInAnyTarget {
 		if opts.Target != "" {
 			// Specific target was requested but component not found
-			fmt.Println(errors.NewTargetDirectoryNotFoundError(opts.Target).Format())
+			if t, err := config.NewTarget(opts.Target); err == nil {
+				fmt.Println(errors.NewTargetDirectoryNotFoundError(t).Format())
+			} else {
+				fmt.Println(errors.NewInvalidTargetError(opts.Target).Format())
+			}
 		} else {
 			// No target specified and component not found in any target
 			// Collect available components from all targets
 			var availableComponents []string
-			for _, targetName := range []string{"opencode", "claudecode", "copilot"} {
+			for _, targetName := range config.GetAvailableTargets() {
 				target, err := config.NewTargetForProject(targetName, projectRoot)
 				if err != nil {
 					continue
@@ -952,7 +938,7 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 	if opts.Target != "" {
 		targetsToCheck = []string{opts.Target}
 	} else {
-		targetsToCheck = []string{"opencode", "claudecode", "copilot"}
+		targetsToCheck = config.GetAvailableTargets()
 	}
 
 	// Track overall statistics
@@ -974,7 +960,7 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 			if opts.Target != "" {
 				// User specified a target that doesn't exist
-				fmt.Println(errors.NewTargetDirectoryNotFoundError(targetName).Format())
+				fmt.Println(errors.NewTargetDirectoryNotFoundError(target).Format())
 				return fmt.Errorf("target directory not found")
 			}
 			continue
@@ -995,16 +981,7 @@ func (s *Service) ShowStatus(opts services.MaterializeStatusOptions) error {
 		foundAny = true
 
 		// Display target header
-		var targetLabel string
-		if targetName == "opencode" {
-			targetLabel = "OpenCode (.opencode/)"
-		} else if targetName == "claudecode" {
-			targetLabel = "Claude Code (.claude/)"
-		} else if targetName == "copilot" {
-			targetLabel = "GitHub Copilot (.github/)"
-		} else {
-			targetLabel = "Universal (.agents/)"
-		}
+		targetLabel := fmt.Sprintf("%s (%s/)", target.GetDisplayName(), target.GetProjectDirName())
 		fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
 
 		// Use batched sync check for better performance (one clone per repo instead of per component)
@@ -1130,7 +1107,7 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 	if opts.Target != "" {
 		targetsToUpdate = []string{opts.Target}
 	} else {
-		targetsToUpdate = []string{"opencode", "claudecode", "copilot"}
+		targetsToUpdate = config.GetAvailableTargets()
 	}
 
 	// Track overall statistics
@@ -1155,7 +1132,7 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 		if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 			if opts.Target != "" {
 				// User specified a target that doesn't exist
-				fmt.Println(errors.NewTargetDirectoryNotFoundError(targetName).Format())
+				fmt.Println(errors.NewTargetDirectoryNotFoundError(target).Format())
 				return fmt.Errorf("target directory not found")
 			}
 			continue
@@ -1176,16 +1153,7 @@ func (s *Service) UpdateMaterialized(opts services.MaterializeUpdateOptions) err
 		foundAny = true
 
 		// Display target header
-		var targetLabel string
-		if targetName == "opencode" {
-			targetLabel = "OpenCode (.opencode/)"
-		} else if targetName == "claudecode" {
-			targetLabel = "Claude Code (.claude/)"
-		} else if targetName == "copilot" {
-			targetLabel = "GitHub Copilot (.github/)"
-		} else {
-			targetLabel = "Universal (.agents/)"
-		}
+		targetLabel := fmt.Sprintf("%s (%s/)", target.GetDisplayName(), target.GetProjectDirName())
 		fmt.Printf("%s %s\n\n", bold("Target:"), targetLabel)
 
 		// Resolve the local agent-smith installation directory (respects active profile)

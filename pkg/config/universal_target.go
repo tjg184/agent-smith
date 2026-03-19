@@ -32,6 +32,10 @@ func (t *UniversalTarget) GetName() string {
 	return "universal"
 }
 
+func (t *UniversalTarget) GetDisplayName() string {
+	return "Universal"
+}
+
 func (t *UniversalTarget) IsUniversalTarget() bool {
 	return true
 }

@@ -315,8 +315,10 @@ func validateConfig(config *Config) error {
 		}
 		seenNames[nameLower] = true
 
-		if nameLower == "opencode" || nameLower == "claudecode" {
-			return fmt.Errorf("target name %s conflicts with built-in target", target.Name)
+		for _, reserved := range builtInTargetNames() {
+			if nameLower == reserved {
+				return fmt.Errorf("target name %s conflicts with built-in target", target.Name)
+			}
 		}
 	}
 
@@ -417,8 +419,6 @@ func validateSubdirectoryName(name, fieldName string) error {
 
 	return nil
 }
-
-
 
 // validateDisplaySettings validates and applies defaults to display settings.
 //

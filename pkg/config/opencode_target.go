@@ -29,9 +29,12 @@ func NewOpencodeTargetWithDir(dir string) *OpencodeTarget {
 	return &OpencodeTarget{baseTarget{baseDir: dir, projectDirName: opencodeProjectDirName}}
 }
 
-// GetName returns the human-readable name of this target
 func (t *OpencodeTarget) GetName() string {
 	return "opencode"
+}
+
+func (t *OpencodeTarget) GetDisplayName() string {
+	return "OpenCode"
 }
 
 // IsUniversalTarget returns false for opencode (it's editor-specific)

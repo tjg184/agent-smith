@@ -116,7 +116,7 @@ func (s *Service) ListTargets() error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	builtInNames := []string{"opencode", "claudecode"}
+	builtInNames := config.GetAllTargetTypes()
 
 	f := formatter.New()
 	green := color.New(color.FgGreen).SprintFunc()
@@ -138,14 +138,7 @@ func (s *Service) ListTargets() error {
 
 	// Collect built-in targets
 	for _, name := range builtInNames {
-		var target config.Target
-		var err error
-
-		if name == "opencode" {
-			target, err = config.NewOpencodeTarget()
-		} else if name == "claudecode" {
-			target, err = config.NewClaudeCodeTarget()
-		}
+		target, err := config.NewTarget(name)
 
 		if err != nil {
 			allTargets = append(allTargets, targetInfo{
