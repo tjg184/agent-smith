@@ -24,7 +24,10 @@ func TestAgentDownloadErrorCleanup(t *testing.T) {
 	}
 
 	// Create downloader with test base directory
-	ad := ForTypeWithTargetDir(models.ComponentAgent, tempDir)
+	ad, err := ForTypeWithTargetDir(models.ComponentAgent, tempDir)
+	if err != nil {
+		t.Fatalf("Failed to create downloader: %v", err)
+	}
 
 	// Test case: Invalid repository URL should not leave empty directories
 	t.Run("InvalidRepoURL", func(t *testing.T) {
@@ -103,7 +106,10 @@ func TestCommandDownloadErrorCleanup(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create downloader with test base directory (constructor will create commands subdir)
-	cd := ForTypeWithTargetDir(models.ComponentCommand, tempDir)
+	cd, err := ForTypeWithTargetDir(models.ComponentCommand, tempDir)
+	if err != nil {
+		t.Fatalf("Failed to create downloader: %v", err)
+	}
 	baseDir := filepath.Join(tempDir, "commands")
 
 	// Test case: Invalid repository URL should not leave empty directories
@@ -135,7 +141,10 @@ func TestSkillDownloadErrorCleanup(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create downloader with test base directory (constructor will create skills subdir)
-	sd := ForTypeWithTargetDir(models.ComponentSkill, tempDir)
+	sd, err := ForTypeWithTargetDir(models.ComponentSkill, tempDir)
+	if err != nil {
+		t.Fatalf("Failed to create downloader: %v", err)
+	}
 	baseDir := filepath.Join(tempDir, "skills")
 
 	// Test case: Invalid repository URL should not leave empty directories

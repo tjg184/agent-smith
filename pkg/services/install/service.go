@@ -139,7 +139,10 @@ func (s *Service) installToTargetDir(ct models.ComponentType, repoURL, name, tar
 	}
 
 	s.logger.Info("Installing to custom directory: %s", resolvedPath)
-	dl := downloader.ForTypeWithTargetDir(ct, resolvedPath)
+	dl, err := downloader.ForTypeWithTargetDir(ct, resolvedPath)
+	if err != nil {
+		return fmt.Errorf("failed to create downloader: %w", err)
+	}
 	if err := dl.Download(repoURL, name); err != nil {
 		return fmt.Errorf("failed to download %s: %w", ct, err)
 	}
@@ -150,7 +153,10 @@ func (s *Service) installToProfile(ct models.ComponentType, repoURL, name, profi
 	if err := s.validateProfileExists(profile); err != nil {
 		return err
 	}
-	dl := downloader.ForTypeWithProfile(ct, profile)
+	dl, err := downloader.ForTypeWithProfile(ct, profile)
+	if err != nil {
+		return fmt.Errorf("failed to create downloader: %w", err)
+	}
 	if err := dl.Download(repoURL, name); err != nil {
 		return fmt.Errorf("failed to download %s: %w", ct, err)
 	}
@@ -158,7 +164,10 @@ func (s *Service) installToProfile(ct models.ComponentType, repoURL, name, profi
 }
 
 func (s *Service) installToBase(ct models.ComponentType, repoURL, name string) error {
-	dl := downloader.ForType(ct)
+	dl, err := downloader.ForType(ct)
+	if err != nil {
+		return fmt.Errorf("failed to create downloader: %w", err)
+	}
 	if err := dl.Download(repoURL, name); err != nil {
 		return fmt.Errorf("failed to download %s: %w", ct, err)
 	}
@@ -176,7 +185,10 @@ func (s *Service) installBulkToTargetDir(repoURL, targetDir string) error {
 	}
 
 	s.logger.Info("Installing to custom directory: %s", resolvedPath)
-	bulkDownloader := downloader.NewBulkDownloaderWithTargetDir(resolvedPath)
+	bulkDownloader, err := downloader.NewBulkDownloaderWithTargetDir(resolvedPath)
+	if err != nil {
+		return fmt.Errorf("failed to create downloader: %w", err)
+	}
 
 	if err := bulkDownloader.AddAll(repoURL); err != nil {
 		return fmt.Errorf("failed to bulk download components: %w", err)
@@ -187,7 +199,10 @@ func (s *Service) installBulkToTargetDir(repoURL, targetDir string) error {
 
 func (s *Service) installBulkToProfile(repoURL, profile string) error {
 	s.logger.Info("Validating repository: %s", repoURL)
-	validationDownloader := downloader.NewBulkDownloader()
+	validationDownloader, err := downloader.NewBulkDownloader()
+	if err != nil {
+		return fmt.Errorf("failed to create downloader: %w", err)
+	}
 	tempDir, components, err := validationDownloader.ValidateRepo(repoURL)
 	if err != nil {
 		return fmt.Errorf("repository validation failed: %w", err)
@@ -256,7 +271,11 @@ func (s *Service) installBulkToProfile(repoURL, profile string) error {
 	}
 
 	s.logger.Info("Installing components to profile: %s", profileName)
-	bulkDownloader := downloader.NewBulkDownloaderForProfile(profileName)
+	bulkDownloader, err := downloader.NewBulkDownloaderForProfile(profileName)
+	if err != nil {
+		os.RemoveAll(tempDir)
+		return fmt.Errorf("failed to create downloader: %w", err)
+	}
 
 	if err := bulkDownloader.AddAllFromTemp(repoURL, components, tempDir); err != nil {
 		if isNewProfile {

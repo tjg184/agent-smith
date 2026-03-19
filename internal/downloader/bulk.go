@@ -19,42 +19,78 @@ type BulkDownloader struct {
 }
 
 // NewBulkDownloader creates a new BulkDownloader instance
-func NewBulkDownloader() *BulkDownloader {
+func NewBulkDownloader() (*BulkDownloader, error) {
+	skillDl, err := ForType(models.ComponentSkill)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create skill downloader: %w", err)
+	}
+	agentDl, err := ForType(models.ComponentAgent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create agent downloader: %w", err)
+	}
+	commandDl, err := ForType(models.ComponentCommand)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create command downloader: %w", err)
+	}
 	return &BulkDownloader{
 		downloaders: map[models.ComponentType]Downloader{
-			models.ComponentSkill:   ForType(models.ComponentSkill),
-			models.ComponentAgent:   ForType(models.ComponentAgent),
-			models.ComponentCommand: ForType(models.ComponentCommand),
+			models.ComponentSkill:   skillDl,
+			models.ComponentAgent:   agentDl,
+			models.ComponentCommand: commandDl,
 		},
 		detector:  detector.NewRepositoryDetector(),
 		formatter: formatter.New(),
-	}
+	}, nil
 }
 
 // NewBulkDownloaderWithTargetDir creates a new BulkDownloader instance that installs to a custom target directory
-func NewBulkDownloaderWithTargetDir(targetDir string) *BulkDownloader {
+func NewBulkDownloaderWithTargetDir(targetDir string) (*BulkDownloader, error) {
+	skillDl, err := ForTypeWithTargetDir(models.ComponentSkill, targetDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create skill downloader: %w", err)
+	}
+	agentDl, err := ForTypeWithTargetDir(models.ComponentAgent, targetDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create agent downloader: %w", err)
+	}
+	commandDl, err := ForTypeWithTargetDir(models.ComponentCommand, targetDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create command downloader: %w", err)
+	}
 	return &BulkDownloader{
 		downloaders: map[models.ComponentType]Downloader{
-			models.ComponentSkill:   ForTypeWithTargetDir(models.ComponentSkill, targetDir),
-			models.ComponentAgent:   ForTypeWithTargetDir(models.ComponentAgent, targetDir),
-			models.ComponentCommand: ForTypeWithTargetDir(models.ComponentCommand, targetDir),
+			models.ComponentSkill:   skillDl,
+			models.ComponentAgent:   agentDl,
+			models.ComponentCommand: commandDl,
 		},
 		detector:  detector.NewRepositoryDetector(),
 		formatter: formatter.New(),
-	}
+	}, nil
 }
 
 // NewBulkDownloaderForProfile creates a new BulkDownloader instance that installs to a profile
-func NewBulkDownloaderForProfile(profileName string) *BulkDownloader {
+func NewBulkDownloaderForProfile(profileName string) (*BulkDownloader, error) {
+	skillDl, err := ForTypeWithProfile(models.ComponentSkill, profileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create skill downloader: %w", err)
+	}
+	agentDl, err := ForTypeWithProfile(models.ComponentAgent, profileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create agent downloader: %w", err)
+	}
+	commandDl, err := ForTypeWithProfile(models.ComponentCommand, profileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create command downloader: %w", err)
+	}
 	return &BulkDownloader{
 		downloaders: map[models.ComponentType]Downloader{
-			models.ComponentSkill:   ForTypeWithProfile(models.ComponentSkill, profileName),
-			models.ComponentAgent:   ForTypeWithProfile(models.ComponentAgent, profileName),
-			models.ComponentCommand: ForTypeWithProfile(models.ComponentCommand, profileName),
+			models.ComponentSkill:   skillDl,
+			models.ComponentAgent:   agentDl,
+			models.ComponentCommand: commandDl,
 		},
 		detector:  detector.NewRepositoryDetector(),
 		formatter: formatter.New(),
-	}
+	}, nil
 }
 
 // ValidateRepo clones a repository and detects components without installing.

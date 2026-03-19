@@ -2,7 +2,6 @@ package downloader
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,49 +37,52 @@ type componentDownloader struct {
 }
 
 // ForType creates a downloader for the default (base) installation directory.
-func ForType(ct models.ComponentType) Downloader {
+func ForType(ct models.ComponentType) (Downloader, error) {
 	meta := componentMetaTable[ct]
-	baseDir := baseDirForType(ct)
+	baseDir, err := baseDirForType(ct)
+	if err != nil {
+		return nil, err
+	}
 	return &componentDownloader{
 		baseDownloader: newBaseDownloader(baseDir),
 		ct:             ct,
 		meta:           meta,
-	}
+	}, nil
 }
 
 // ForTypeWithProfile creates a downloader that installs into a named profile.
-func ForTypeWithProfile(ct models.ComponentType, profile string) Downloader {
+func ForTypeWithProfile(ct models.ComponentType, profile string) (Downloader, error) {
 	meta := componentMetaTable[ct]
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
-		log.Fatal("Failed to get profiles directory:", err)
+		return nil, fmt.Errorf("failed to get profiles directory: %w", err)
 	}
 	baseDir := filepath.Join(profilesDir, profile, meta.dir)
 	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
-		log.Fatal("Failed to create profile component directory:", err)
+		return nil, fmt.Errorf("failed to create profile component directory: %w", err)
 	}
 	return &componentDownloader{
 		baseDownloader: newBaseDownloader(baseDir),
 		ct:             ct,
 		meta:           meta,
-	}
+	}, nil
 }
 
 // ForTypeWithTargetDir creates a downloader that installs into a custom target directory.
-func ForTypeWithTargetDir(ct models.ComponentType, targetDir string) Downloader {
+func ForTypeWithTargetDir(ct models.ComponentType, targetDir string) (Downloader, error) {
 	meta := componentMetaTable[ct]
 	baseDir := filepath.Join(targetDir, meta.dir)
 	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
-		log.Fatal("Failed to create target component directory:", err)
+		return nil, fmt.Errorf("failed to create target component directory: %w", err)
 	}
 	return &componentDownloader{
 		baseDownloader: newBaseDownloader(baseDir),
 		ct:             ct,
 		meta:           meta,
-	}
+	}, nil
 }
 
-func baseDirForType(ct models.ComponentType) string {
+func baseDirForType(ct models.ComponentType) (string, error) {
 	var baseDir string
 	var err error
 	switch ct {
@@ -91,15 +93,15 @@ func baseDirForType(ct models.ComponentType) string {
 	case models.ComponentCommand:
 		baseDir, err = paths.GetCommandsDir()
 	default:
-		log.Fatalf("unknown component type: %s", ct)
+		return "", fmt.Errorf("unknown component type: %s", ct)
 	}
 	if err != nil {
-		log.Fatalf("failed to get directory for %s: %v", ct, err)
+		return "", fmt.Errorf("failed to get directory for %s: %w", ct, err)
 	}
 	if err := fileutil.CreateDirectoryWithPermissions(baseDir); err != nil {
-		log.Fatalf("failed to create directory for %s: %v", ct, err)
+		return "", fmt.Errorf("failed to create directory for %s: %w", ct, err)
 	}
-	return baseDir
+	return baseDir, nil
 }
 
 // Download implements Downloader.

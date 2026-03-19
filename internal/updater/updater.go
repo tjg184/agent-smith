@@ -25,10 +25,10 @@ type UpdateDetector struct {
 	profileName string // If non-empty, we're working with a profile
 }
 
-func NewUpdateDetector() *UpdateDetector {
+func NewUpdateDetector() (*UpdateDetector, error) {
 	baseDir, err := paths.GetAgentsDir()
 	if err != nil {
-		panic(fmt.Sprintf("Failed to get agents directory: %v", err))
+		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
 	var profileName string
@@ -50,13 +50,13 @@ func NewUpdateDetector() *UpdateDetector {
 		baseDir:     baseDir,
 		detector:    newDetector(),
 		profileName: profileName,
-	}
+	}, nil
 }
 
-func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
+func NewUpdateDetectorWithProfile(profile string) (*UpdateDetector, error) {
 	baseDir, err := paths.GetAgentsDir()
 	if err != nil {
-		panic(fmt.Sprintf("Failed to get agents directory: %v", err))
+		return nil, fmt.Errorf("failed to get agents directory: %w", err)
 	}
 
 	var profileName string
@@ -65,7 +65,7 @@ func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
 		// Use explicit profile (bypasses active profile logic)
 		profilesDir, err := paths.GetProfilesDir()
 		if err != nil {
-			panic(fmt.Sprintf("Failed to get profiles directory: %v", err))
+			return nil, fmt.Errorf("failed to get profiles directory: %w", err)
 		}
 		baseDir = filepath.Join(profilesDir, profile)
 		profileName = profile
@@ -90,7 +90,7 @@ func NewUpdateDetectorWithProfile(profile string) *UpdateDetector {
 		baseDir:     baseDir,
 		detector:    newDetector(),
 		profileName: profileName,
-	}
+	}, nil
 }
 
 func NewUpdateDetectorWithBaseDir(baseDir string) *UpdateDetector {
@@ -197,10 +197,14 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 	}
 
 	var dl downloader.Downloader
+	var dlErr error
 	if ud.profileName != "" {
-		dl = downloader.ForTypeWithProfile(ct, ud.profileName)
+		dl, dlErr = downloader.ForTypeWithProfile(ct, ud.profileName)
 	} else {
-		dl = downloader.ForType(ct)
+		dl, dlErr = downloader.ForType(ct)
+	}
+	if dlErr != nil {
+		return fmt.Errorf("failed to create downloader: %w", dlErr)
 	}
 
 	var downloadErr error
@@ -418,10 +422,14 @@ func (ud *UpdateDetector) downloadComponentWithRepo(componentType, componentName
 	}
 
 	var dl downloader.Downloader
+	var dlErr error
 	if ud.profileName != "" {
-		dl = downloader.ForTypeWithProfile(ct, ud.profileName)
+		dl, dlErr = downloader.ForTypeWithProfile(ct, ud.profileName)
 	} else {
-		dl = downloader.ForType(ct)
+		dl, dlErr = downloader.ForType(ct)
+	}
+	if dlErr != nil {
+		return fmt.Errorf("failed to create downloader: %w", dlErr)
 	}
 
 	return dl.DownloadWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
