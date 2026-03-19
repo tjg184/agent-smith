@@ -1,7 +1,6 @@
 package materialize
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -97,7 +96,7 @@ type componentInfo struct {
 }
 
 func (s *Service) buildFilesystemNameMap(baseDir string) (map[string]componentInfo, error) {
-	lockFile, err := s.loadLockFile(baseDir)
+	lockFile, err := metadataPkg.LoadLockFile(baseDir)
 	if err != nil {
 		return nil, err
 	}
@@ -122,26 +121,6 @@ func (s *Service) buildFilesystemNameMap(baseDir string) (map[string]componentIn
 	addEntries("commands", lockFile.Commands)
 
 	return mapping, nil
-}
-
-func (s *Service) loadLockFile(baseDir string) (models.ComponentLockFile, error) {
-	lockFilePath := filepath.Join(baseDir, ".component-lock.json")
-
-	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
-		return models.ComponentLockFile{}, nil
-	}
-
-	lockData, err := os.ReadFile(lockFilePath)
-	if err != nil {
-		return models.ComponentLockFile{}, fmt.Errorf("failed to read lock file: %w", err)
-	}
-
-	var lockFile models.ComponentLockFile
-	if err := json.Unmarshal(lockData, &lockFile); err != nil {
-		return models.ComponentLockFile{}, fmt.Errorf("failed to unmarshal lock file: %w", err)
-	}
-
-	return lockFile, nil
 }
 
 func (s *Service) MaterializeComponent(componentType, componentName string, opts services.MaterializeOptions) error {
@@ -448,7 +427,7 @@ func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
 		return err
 	}
 
-	lockFile, err := s.loadLockFile(baseDir)
+	lockFile, err := metadataPkg.LoadLockFile(baseDir)
 	if err != nil {
 		return fmt.Errorf("failed to load lock file: %w", err)
 	}
@@ -514,7 +493,7 @@ func (s *Service) MaterializeByType(componentType string, opts services.Material
 		return err
 	}
 
-	lockFile, err := s.loadLockFile(baseDir)
+	lockFile, err := metadataPkg.LoadLockFile(baseDir)
 	if err != nil {
 		return fmt.Errorf("failed to load lock file: %w", err)
 	}
