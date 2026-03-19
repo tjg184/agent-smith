@@ -227,11 +227,20 @@ func DetectAllTargets() ([]Target, error) {
 func GetAllTargetProjectDirNames() []string {
 	names := make([]string, 0, len(builtInTargetDefs))
 	for _, def := range builtInTargetDefs {
-		t, err := def.constructor()
-		if err != nil {
-			continue
+		var dir string
+		switch def.targetType {
+		case TargetUniversal:
+			// The universal target uses the ".agents" project directory.
+			dir = ".agents"
+		default:
+			if def.targetType != "" {
+				// For other targets, use "." + machine name (e.g., ".opencode", ".copilot").
+				dir = "." + string(def.targetType)
+			}
 		}
-		names = append(names, t.GetProjectDirName())
+		if dir != "" {
+			names = append(names, dir)
+		}
 	}
 	return names
 }
