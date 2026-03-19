@@ -12,10 +12,8 @@ import (
 	metadataPkg "github.com/tjg184/agent-smith/internal/metadata"
 	"github.com/tjg184/agent-smith/internal/models"
 	"github.com/tjg184/agent-smith/pkg/colors"
-	"github.com/tjg184/agent-smith/pkg/logger"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
-	locksvc "github.com/tjg184/agent-smith/pkg/services/lock"
 	"github.com/tjg184/agent-smith/pkg/styles"
 )
 
@@ -33,16 +31,13 @@ func NewUpdateDetector() (*UpdateDetector, error) {
 
 	var profileName string
 
-	pm, err := profiles.NewProfileManager(nil, locksvc.NewService(logger.New(logger.LevelError)))
-	if err == nil {
-		activeProfile, err := pm.GetActiveProfile()
-		if err == nil && activeProfile != "" {
-			profilesDir, err := paths.GetProfilesDir()
-			if err == nil {
-				baseDir = filepath.Join(profilesDir, activeProfile)
-				profileName = activeProfile
-				fmt.Printf("Using active profile for updates: %s\n", activeProfile)
-			}
+	activeProfile, err := profiles.ResolveActiveProfile()
+	if err == nil && activeProfile != "" {
+		profilesDir, err := paths.GetProfilesDir()
+		if err == nil {
+			baseDir = filepath.Join(profilesDir, activeProfile)
+			profileName = activeProfile
+			fmt.Printf("Using active profile for updates: %s\n", activeProfile)
 		}
 	}
 
@@ -71,17 +66,13 @@ func NewUpdateDetectorWithProfile(profile string) (*UpdateDetector, error) {
 		profileName = profile
 		fmt.Printf("Using specified profile for updates: %s\n", profile)
 	} else {
-		pm, err := profiles.NewProfileManager(nil, locksvc.NewService(logger.New(logger.LevelError)))
-		if err == nil {
-			activeProfile, err := pm.GetActiveProfile()
-			if err == nil && activeProfile != "" {
-				// Use the active profile directory instead
-				profilesDir, err := paths.GetProfilesDir()
-				if err == nil {
-					baseDir = filepath.Join(profilesDir, activeProfile)
-					profileName = activeProfile
-					fmt.Printf("Using active profile for updates: %s\n", activeProfile)
-				}
+		activeProfile, err := profiles.ResolveActiveProfile()
+		if err == nil && activeProfile != "" {
+			profilesDir, err := paths.GetProfilesDir()
+			if err == nil {
+				baseDir = filepath.Join(profilesDir, activeProfile)
+				profileName = activeProfile
+				fmt.Printf("Using active profile for updates: %s\n", activeProfile)
 			}
 		}
 	}

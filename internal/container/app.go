@@ -366,14 +366,9 @@ func (a *App) Run() {
 
 // resolveActiveProfile returns the active profile name, fataling if none is set.
 func (a *App) resolveActiveProfile() string {
-	lockService := locksvc.NewService(a.logger)
-	pm, err := profiles.NewProfileManager(nil, lockService)
+	activeProfile, err := profiles.ResolveActiveProfile()
 	if err != nil {
-		log.Fatal("Failed to initialize profile manager:", err)
-	}
-	activeProfile, err := pm.GetActiveProfile()
-	if err != nil {
-		log.Fatal("Failed to get active profile:", err)
+		log.Fatal("Failed to resolve active profile:", err)
 	}
 	if activeProfile == "" {
 		log.Fatal("No profile specified and no active profile set")
