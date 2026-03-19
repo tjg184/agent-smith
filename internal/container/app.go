@@ -82,264 +82,284 @@ func (a *App) Run() {
 	materializeService := materializesvc.NewService(profileManager, a.logger, a.formatter)
 	findService := findsvc.NewService(a.logger, a.formatter)
 
-	cmd.SetHandlers(
-		func(repoURL, name, profile, installDir string) {
-			opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
-			if err := installService.InstallSkill(repoURL, name, opts); err != nil {
-				log.Fatal("Failed to install skill:", err)
-			}
+	cmd.Register(&cmd.Handlers{
+		Install: cmd.InstallHandlers{
+			AddSkill: func(repoURL, name, profile, installDir string) {
+				opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
+				if err := installService.InstallSkill(repoURL, name, opts); err != nil {
+					log.Fatal("Failed to install skill:", err)
+				}
+			},
+			AddAgent: func(repoURL, name, profile, installDir string) {
+				opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
+				if err := installService.InstallAgent(repoURL, name, opts); err != nil {
+					log.Fatal("Failed to install agent:", err)
+				}
+			},
+			AddCommand: func(repoURL, name, profile, installDir string) {
+				opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
+				if err := installService.InstallCommand(repoURL, name, opts); err != nil {
+					log.Fatal("Failed to install command:", err)
+				}
+			},
+			AddAll: func(repoURL, profile, installDir string) {
+				opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
+				if err := installService.InstallBulk(repoURL, opts); err != nil {
+					log.Fatal("Failed to bulk install:", err)
+				}
+			},
 		},
-		func(repoURL, name, profile, installDir string) {
-			opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
-			if err := installService.InstallAgent(repoURL, name, opts); err != nil {
-				log.Fatal("Failed to install agent:", err)
-			}
+		Update: cmd.UpdateHandlers{
+			Update: func(componentType, componentName, profile string) {
+				opts := services.UpdateOptions{Profile: profile}
+				if err := updateService.UpdateComponent(componentType, componentName, opts); err != nil {
+					log.Fatal("Failed to update component:", err)
+				}
+			},
+			UpdateAll: func(profile string) {
+				opts := services.UpdateOptions{Profile: profile}
+				if err := updateService.UpdateAll(opts); err != nil {
+					log.Fatal("Failed to update all components:", err)
+				}
+			},
 		},
-		func(repoURL, name, profile, installDir string) {
-			opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
-			if err := installService.InstallCommand(repoURL, name, opts); err != nil {
-				log.Fatal("Failed to install command:", err)
-			}
+		Link: cmd.LinkHandlers{
+			Link: func(componentType, componentName, targetFilter, profile string) {
+				opts := services.LinkOptions{TargetFilter: targetFilter, Profile: profile}
+				if err := linkService.LinkComponent(componentType, componentName, opts); err != nil {
+					log.Fatal("Failed to link component:", err)
+				}
+			},
+			LinkAll: func(targetFilter, profile string, allProfiles bool) {
+				opts := services.LinkOptions{TargetFilter: targetFilter, Profile: profile, AllProfiles: allProfiles}
+				if err := linkService.LinkAll(opts); err != nil {
+					log.Fatal("Failed to link all components:", err)
+				}
+			},
+			LinkType: func(componentType, targetFilter, profile string) {
+				opts := services.LinkOptions{TargetFilter: targetFilter, Profile: profile}
+				if err := linkService.LinkByType(componentType, opts); err != nil {
+					log.Fatal("Failed to link components:", err)
+				}
+			},
+			AutoLink: func() {
+				if err := linkService.AutoLinkRepositories(); err != nil {
+					log.Fatal("Failed to auto-link repositories:", err)
+				}
+			},
+			ListLinks: func() {
+				if err := linkService.ListLinked(); err != nil {
+					log.Fatal("Failed to list linked components:", err)
+				}
+			},
+			LinkStatus: func(allProfiles bool, profileFilter []string, linkedOnly bool) {
+				opts := services.LinkStatusOptions{AllProfiles: allProfiles, ProfileFilter: profileFilter, LinkedOnly: linkedOnly}
+				if err := linkService.ShowStatus(opts); err != nil {
+					log.Fatal("Failed to show link status:", err)
+				}
+			},
 		},
-		func(repoURL, profile, installDir string) {
-			opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
-			if err := installService.InstallBulk(repoURL, opts); err != nil {
-				log.Fatal("Failed to bulk install:", err)
-			}
+		Unlink: cmd.UnlinkHandlers{
+			Unlink: func(componentType, componentName, targetFilter string) {
+				opts := services.UnlinkOptions{TargetFilter: targetFilter}
+				if err := linkService.UnlinkComponent(componentType, componentName, opts); err != nil {
+					log.Fatal("Failed to unlink component:", err)
+				}
+			},
+			UnlinkWithProfile: func(componentType, componentName, targetFilter, profile string) {
+				opts := services.UnlinkOptions{TargetFilter: targetFilter, Profile: profile}
+				if err := linkService.UnlinkComponent(componentType, componentName, opts); err != nil {
+					log.Fatal("Failed to unlink component:", err)
+				}
+			},
+			UnlinkAll: func(targetFilter string, force bool, allProfiles bool) {
+				opts := services.UnlinkOptions{TargetFilter: targetFilter, Force: force, AllProfiles: allProfiles}
+				if err := linkService.UnlinkAll(opts); err != nil {
+					log.Fatal("Failed to unlink all components:", err)
+				}
+			},
+			UnlinkAllWithProfile: func(targetFilter string, force bool, allProfiles bool, profile string) {
+				opts := services.UnlinkOptions{TargetFilter: targetFilter, Force: force, AllProfiles: allProfiles, Profile: profile}
+				if err := linkService.UnlinkAll(opts); err != nil {
+					log.Fatal("Failed to unlink all components:", err)
+				}
+			},
+			UnlinkType: func(componentType, targetFilter string, force bool) {
+				opts := services.UnlinkOptions{TargetFilter: targetFilter, Force: force}
+				if err := linkService.UnlinkByType(componentType, opts); err != nil {
+					log.Fatal("Failed to unlink components:", err)
+				}
+			},
+			UnlinkTypeWithProfile: func(componentType, targetFilter string, force bool, profile string) {
+				opts := services.UnlinkOptions{TargetFilter: targetFilter, Force: force, Profile: profile}
+				if err := linkService.UnlinkByType(componentType, opts); err != nil {
+					log.Fatal("Failed to unlink components:", err)
+				}
+			},
 		},
-		func(componentType, componentName, profile string) {
-			opts := services.UpdateOptions{Profile: profile}
-			if err := updateService.UpdateComponent(componentType, componentName, opts); err != nil {
-				log.Fatal("Failed to update component:", err)
-			}
+		Uninstall: cmd.UninstallHandlers{
+			Uninstall: func(componentType, componentName, profile, source string) {
+				opts := services.UninstallOptions{Profile: profile, Source: source}
+				if err := uninstallService.UninstallComponent(componentType, componentName, opts); err != nil {
+					log.Fatal("Failed to uninstall component:", err)
+				}
+			},
+			UninstallAll: func(repoURL string, force bool) {
+				opts := services.UninstallOptions{Force: force}
+				if err := uninstallService.UninstallAllFromSource(repoURL, opts); err != nil {
+					log.Fatal("Failed to uninstall components:", err)
+				}
+			},
 		},
-		func(profile string) {
-			opts := services.UpdateOptions{Profile: profile}
-			if err := updateService.UpdateAll(opts); err != nil {
-				log.Fatal("Failed to update all components:", err)
-			}
+		Profile: cmd.ProfileHandlers{
+			List: func(profileFilter []string, activeOnly bool, typeFilter string) {
+				opts := services.ListProfileOptions{ProfileFilter: profileFilter, ActiveOnly: activeOnly, TypeFilter: typeFilter}
+				if err := profileService.ListProfiles(opts); err != nil {
+					log.Fatal("Failed to list profiles:", err)
+				}
+			},
+			Show: func(profileName string) {
+				if profileName == "" {
+					profileName = a.resolveActiveProfile()
+				}
+				if err := profileService.ShowProfile(profileName); err != nil {
+					log.Fatal("Failed to show profile:", err)
+				}
+			},
+			Create: func(profileName string) {
+				if err := profileService.CreateProfile(profileName); err != nil {
+					log.Fatal("Failed to create profile:", err)
+				}
+			},
+			Delete: func(profileName string) {
+				if err := profileService.DeleteProfile(profileName); err != nil {
+					log.Fatal("Failed to delete profile:", err)
+				}
+			},
+			Activate: func(profileName string) {
+				if err := profileService.ActivateProfile(profileName); err != nil {
+					log.Fatal("Failed to activate profile:", err)
+				}
+			},
+			Deactivate: func() {
+				if err := profileService.DeactivateProfile(); err != nil {
+					log.Fatal("Failed to deactivate profile:", err)
+				}
+			},
+			Add: func(componentType, profileName, componentName string) {
+				if err := profileService.AddComponent(componentType, profileName, componentName); err != nil {
+					log.Fatal("Failed to add component:", err)
+				}
+			},
+			Copy: func(componentType, sourceProfile, targetProfile, componentName string) {
+				if err := profileService.CopyComponent(sourceProfile, targetProfile, componentType, componentName); err != nil {
+					log.Fatal("Failed to copy component:", err)
+				}
+			},
+			Remove: func(componentType, profileName, componentName string) {
+				if err := profileService.RemoveComponent(profileName, componentType, componentName); err != nil {
+					log.Fatal("Failed to remove component:", err)
+				}
+			},
+			CherryPick: func(targetProfile string, sourceProfiles []string) {
+				if err := profileService.CherryPickComponents(targetProfile, sourceProfiles); err != nil {
+					log.Fatal("Failed to cherry-pick components:", err)
+				}
+			},
+			Share: func(profileName, outputFile string) {
+				if profileName == "" {
+					profileName = a.resolveActiveProfile()
+				}
+				if profileName == "base" {
+					profileName = paths.BaseProfileName
+				}
+				if err := profileService.ShareProfile(profileName, outputFile); err != nil {
+					log.Fatal("Failed to share profile:", err)
+				}
+			},
+			Rename: func(oldName, newName string) {
+				if err := profileService.RenameProfile(oldName, newName); err != nil {
+					log.Fatal("Failed to rename profile:", err)
+				}
+			},
 		},
-		func(componentType, componentName, targetFilter, profile string) {
-			opts := services.LinkOptions{TargetFilter: targetFilter, Profile: profile}
-			if err := linkService.LinkComponent(componentType, componentName, opts); err != nil {
-				log.Fatal("Failed to link component:", err)
-			}
+		Status: cmd.StatusHandlers{
+			Status: func() {
+				if err := statusService.ShowSystemStatus(); err != nil {
+					log.Fatal("Failed to show system status:", err)
+				}
+			},
 		},
-		func(targetFilter, profile string, allProfiles bool) {
-			opts := services.LinkOptions{TargetFilter: targetFilter, Profile: profile, AllProfiles: allProfiles}
-			if err := linkService.LinkAll(opts); err != nil {
-				log.Fatal("Failed to link all components:", err)
-			}
+		Target: cmd.TargetHandlers{
+			Add: func(name, path string) {
+				if err := targetService.AddCustomTarget(name, path); err != nil {
+					log.Fatal("Failed to add custom target:", err)
+				}
+			},
+			Remove: func(name string) {
+				if err := targetService.RemoveCustomTarget(name); err != nil {
+					log.Fatal("Failed to remove custom target:", err)
+				}
+			},
+			List: func() {
+				if err := targetService.ListTargets(); err != nil {
+					log.Fatal("Failed to list targets:", err)
+				}
+			},
 		},
-		func(componentType, targetFilter, profile string) {
-			opts := services.LinkOptions{TargetFilter: targetFilter, Profile: profile}
-			if err := linkService.LinkByType(componentType, opts); err != nil {
-				log.Fatal("Failed to link components:", err)
-			}
+		Materialize: cmd.MaterializeHandlers{
+			Component: func(componentType, componentName, target, projectDir string, force, dryRun bool, profile, source string) {
+				opts := services.MaterializeOptions{Target: target, ProjectDir: projectDir, Profile: profile, Source: source, Force: force, DryRun: dryRun}
+				if err := materializeService.MaterializeComponent(componentType, componentName, opts); err != nil {
+					os.Exit(1)
+				}
+			},
+			Type: func(componentType, target, projectDir string, force, dryRun bool, profile string) {
+				opts := services.MaterializeOptions{Target: target, ProjectDir: projectDir, Profile: profile, Force: force, DryRun: dryRun}
+				if err := materializeService.MaterializeByType(componentType, opts); err != nil {
+					os.Exit(1)
+				}
+			},
+			All: func(target, projectDir string, force, dryRun bool, profile string) {
+				opts := services.MaterializeOptions{Target: target, ProjectDir: projectDir, Profile: profile, Force: force, DryRun: dryRun}
+				if err := materializeService.MaterializeAll(opts); err != nil {
+					os.Exit(1)
+				}
+			},
+			List: func(projectDir string) {
+				opts := services.ListMaterializedOptions{ProjectDir: projectDir}
+				if err := materializeService.ListMaterialized(opts); err != nil {
+					log.Fatal("Failed to list materialized components:", err)
+				}
+			},
+			Info: func(componentType, componentName, target, projectDir, source string) {
+				opts := services.MaterializeInfoOptions{Target: target, ProjectDir: projectDir, Source: source}
+				if err := materializeService.ShowComponentInfo(componentType, componentName, opts); err != nil {
+					os.Exit(1)
+				}
+			},
+			Status: func(target, projectDir string) {
+				opts := services.MaterializeStatusOptions{Target: target, ProjectDir: projectDir}
+				if err := materializeService.ShowStatus(opts); err != nil {
+					os.Exit(1)
+				}
+			},
+			Update: func(target, projectDir, source string, force, dryRun bool) {
+				opts := services.MaterializeUpdateOptions{Target: target, ProjectDir: projectDir, Source: source, Force: force, DryRun: dryRun}
+				if err := materializeService.UpdateMaterialized(opts); err != nil {
+					os.Exit(1)
+				}
+			},
 		},
-		func() {
-			if err := linkService.AutoLinkRepositories(); err != nil {
-				log.Fatal("Failed to auto-link repositories:", err)
-			}
+		Find: cmd.FindHandlers{
+			FindSkill: func(query string, limit int, jsonOutput bool) {
+				opts := services.FindOptions{Limit: limit, JSON: jsonOutput}
+				if err := findService.FindSkills(query, opts); err != nil {
+					log.Fatal("Failed to search skills:", err)
+				}
+			},
 		},
-		func() {
-			if err := linkService.ListLinked(); err != nil {
-				log.Fatal("Failed to list linked components:", err)
-			}
-		},
-		func(allProfiles bool, profileFilter []string, linkedOnly bool) {
-			opts := services.LinkStatusOptions{AllProfiles: allProfiles, ProfileFilter: profileFilter, LinkedOnly: linkedOnly}
-			if err := linkService.ShowStatus(opts); err != nil {
-				log.Fatal("Failed to show link status:", err)
-			}
-		},
-		func(componentType, componentName, targetFilter string) {
-			opts := services.UnlinkOptions{TargetFilter: targetFilter}
-			if err := linkService.UnlinkComponent(componentType, componentName, opts); err != nil {
-				log.Fatal("Failed to unlink component:", err)
-			}
-		},
-		func(componentType, componentName, targetFilter, profile string) {
-			opts := services.UnlinkOptions{TargetFilter: targetFilter, Profile: profile}
-			if err := linkService.UnlinkComponent(componentType, componentName, opts); err != nil {
-				log.Fatal("Failed to unlink component:", err)
-			}
-		},
-		func(targetFilter string, force bool, allProfiles bool) {
-			opts := services.UnlinkOptions{TargetFilter: targetFilter, Force: force, AllProfiles: allProfiles}
-			if err := linkService.UnlinkAll(opts); err != nil {
-				log.Fatal("Failed to unlink all components:", err)
-			}
-		},
-		func(targetFilter string, force bool, allProfiles bool, profile string) {
-			opts := services.UnlinkOptions{TargetFilter: targetFilter, Force: force, AllProfiles: allProfiles, Profile: profile}
-			if err := linkService.UnlinkAll(opts); err != nil {
-				log.Fatal("Failed to unlink all components:", err)
-			}
-		},
-		func(componentType, targetFilter string, force bool) {
-			opts := services.UnlinkOptions{TargetFilter: targetFilter, Force: force}
-			if err := linkService.UnlinkByType(componentType, opts); err != nil {
-				log.Fatal("Failed to unlink components:", err)
-			}
-		},
-		func(componentType, targetFilter string, force bool, profile string) {
-			opts := services.UnlinkOptions{TargetFilter: targetFilter, Force: force, Profile: profile}
-			if err := linkService.UnlinkByType(componentType, opts); err != nil {
-				log.Fatal("Failed to unlink components:", err)
-			}
-		},
-		func(componentType, componentName, profile, source string) {
-			opts := services.UninstallOptions{Profile: profile, Source: source}
-			if err := uninstallService.UninstallComponent(componentType, componentName, opts); err != nil {
-				log.Fatal("Failed to uninstall component:", err)
-			}
-		},
-		func(repoURL string, force bool) {
-			opts := services.UninstallOptions{Force: force}
-			if err := uninstallService.UninstallAllFromSource(repoURL, opts); err != nil {
-				log.Fatal("Failed to uninstall components:", err)
-			}
-		},
-		func(profileFilter []string, activeOnly bool, typeFilter string) {
-			opts := services.ListProfileOptions{ProfileFilter: profileFilter, ActiveOnly: activeOnly, TypeFilter: typeFilter}
-			if err := profileService.ListProfiles(opts); err != nil {
-				log.Fatal("Failed to list profiles:", err)
-			}
-		},
-		func(profileName string) {
-			if profileName == "" {
-				profileName = a.resolveActiveProfile()
-			}
-			if err := profileService.ShowProfile(profileName); err != nil {
-				log.Fatal("Failed to show profile:", err)
-			}
-		},
-		func(profileName string) {
-			if err := profileService.CreateProfile(profileName); err != nil {
-				log.Fatal("Failed to create profile:", err)
-			}
-		},
-		func(profileName string) {
-			if err := profileService.DeleteProfile(profileName); err != nil {
-				log.Fatal("Failed to delete profile:", err)
-			}
-		},
-		func(profileName string) {
-			if err := profileService.ActivateProfile(profileName); err != nil {
-				log.Fatal("Failed to activate profile:", err)
-			}
-		},
-		func() {
-			if err := profileService.DeactivateProfile(); err != nil {
-				log.Fatal("Failed to deactivate profile:", err)
-			}
-		},
-		func(componentType, profileName, componentName string) {
-			if err := profileService.AddComponent(componentType, profileName, componentName); err != nil {
-				log.Fatal("Failed to add component:", err)
-			}
-		},
-		func(componentType, sourceProfile, targetProfile, componentName string) {
-			if err := profileService.CopyComponent(sourceProfile, targetProfile, componentType, componentName); err != nil {
-				log.Fatal("Failed to copy component:", err)
-			}
-		},
-		func(componentType, profileName, componentName string) {
-			if err := profileService.RemoveComponent(profileName, componentType, componentName); err != nil {
-				log.Fatal("Failed to remove component:", err)
-			}
-		},
-		func(targetProfile string, sourceProfiles []string) {
-			if err := profileService.CherryPickComponents(targetProfile, sourceProfiles); err != nil {
-				log.Fatal("Failed to cherry-pick components:", err)
-			}
-		},
-		func(profileName, outputFile string) {
-			if profileName == "" {
-				profileName = a.resolveActiveProfile()
-			}
-			if profileName == "base" {
-				profileName = paths.BaseProfileName
-			}
-			if err := profileService.ShareProfile(profileName, outputFile); err != nil {
-				log.Fatal("Failed to share profile:", err)
-			}
-		},
-		func(oldName, newName string) {
-			if err := profileService.RenameProfile(oldName, newName); err != nil {
-				log.Fatal("Failed to rename profile:", err)
-			}
-		},
-		func() {
-			if err := statusService.ShowSystemStatus(); err != nil {
-				log.Fatal("Failed to show system status:", err)
-			}
-		},
-		func(name, path string) {
-			if err := targetService.AddCustomTarget(name, path); err != nil {
-				log.Fatal("Failed to add custom target:", err)
-			}
-		},
-		func(name string) {
-			if err := targetService.RemoveCustomTarget(name); err != nil {
-				log.Fatal("Failed to remove custom target:", err)
-			}
-		},
-		func() {
-			if err := targetService.ListTargets(); err != nil {
-				log.Fatal("Failed to list targets:", err)
-			}
-		},
-		func(componentType, componentName, target, projectDir string, force, dryRun bool, profile, source string) {
-			opts := services.MaterializeOptions{Target: target, ProjectDir: projectDir, Profile: profile, Source: source, Force: force, DryRun: dryRun}
-			if err := materializeService.MaterializeComponent(componentType, componentName, opts); err != nil {
-				os.Exit(1)
-			}
-		},
-		func(componentType, target, projectDir string, force, dryRun bool, profile string) {
-			opts := services.MaterializeOptions{Target: target, ProjectDir: projectDir, Profile: profile, Force: force, DryRun: dryRun}
-			if err := materializeService.MaterializeByType(componentType, opts); err != nil {
-				os.Exit(1)
-			}
-		},
-		func(target, projectDir string, force, dryRun bool, profile string) {
-			opts := services.MaterializeOptions{Target: target, ProjectDir: projectDir, Profile: profile, Force: force, DryRun: dryRun}
-			if err := materializeService.MaterializeAll(opts); err != nil {
-				os.Exit(1)
-			}
-		},
-		func(projectDir string) {
-			opts := services.ListMaterializedOptions{ProjectDir: projectDir}
-			if err := materializeService.ListMaterialized(opts); err != nil {
-				log.Fatal("Failed to list materialized components:", err)
-			}
-		},
-		func(componentType, componentName, target, projectDir, source string) {
-			opts := services.MaterializeInfoOptions{Target: target, ProjectDir: projectDir, Source: source}
-			if err := materializeService.ShowComponentInfo(componentType, componentName, opts); err != nil {
-				os.Exit(1)
-			}
-		},
-		func(target, projectDir string) {
-			opts := services.MaterializeStatusOptions{Target: target, ProjectDir: projectDir}
-			if err := materializeService.ShowStatus(opts); err != nil {
-				os.Exit(1)
-			}
-		},
-		func(target, projectDir, source string, force, dryRun bool) {
-			opts := services.MaterializeUpdateOptions{Target: target, ProjectDir: projectDir, Source: source, Force: force, DryRun: dryRun}
-			if err := materializeService.UpdateMaterialized(opts); err != nil {
-				os.Exit(1)
-			}
-		},
-		func(query string, limit int, jsonOutput bool) {
-			opts := services.FindOptions{Limit: limit, JSON: jsonOutput}
-			if err := findService.FindSkills(query, opts); err != nil {
-				log.Fatal("Failed to search skills:", err)
-			}
-		},
-	)
+	})
 
 	cmd.Execute()
 }
