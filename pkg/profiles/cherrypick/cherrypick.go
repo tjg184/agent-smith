@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-// ComponentItem represents a component available for cherry-picking.
 type ComponentItem struct {
 	Type          string // "skills", "agents", or "commands"
 	Name          string
@@ -102,7 +101,6 @@ func PromptComponentSelection(components []ComponentItem, in io.Reader, out io.W
 	return selected, nil
 }
 
-// CherryPickComponents copies selectedComponents to targetProfile using deps.
 func CherryPickComponents(deps CherryPickDeps, targetProfile string, selectedComponents []ComponentItem) error {
 	if !deps.ProfileExists(targetProfile) {
 		fmt.Printf("Creating new profile '%s'...\n", targetProfile)

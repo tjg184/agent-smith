@@ -20,7 +20,6 @@ type Profile struct {
 	HasCommands bool
 }
 
-// IsValid returns true if the profile has at least one component directory.
 func (p *Profile) IsValid() bool {
 	return p.HasAgents || p.HasSkills || p.HasCommands
 }
@@ -58,7 +57,6 @@ func ScanProfiles(profilesDir string) ([]*Profile, error) {
 	return profiles, nil
 }
 
-// LoadProfile loads a single profile from profilesDir/name.
 func LoadProfile(profilesDir, name string) *Profile {
 	basePath := filepath.Join(profilesDir, name)
 	profile := &Profile{Name: name, BasePath: basePath}
@@ -76,7 +74,6 @@ func LoadProfile(profilesDir, name string) *Profile {
 	return profile
 }
 
-// CountComponents counts agent, skill, and command directories in a profile.
 func CountComponents(profile *Profile) (agents, skills, commands int) {
 	if profile.HasAgents {
 		agents = countDirs(filepath.Join(profile.BasePath, paths.AgentsSubDir))
@@ -90,7 +87,6 @@ func CountComponents(profile *Profile) (agents, skills, commands int) {
 	return agents, skills, commands
 }
 
-// GetComponentNames returns sorted lists of component names in a profile.
 func GetComponentNames(profile *Profile) (agents, skills, commands []string) {
 	if profile.HasAgents {
 		agents = listDirs(filepath.Join(profile.BasePath, paths.AgentsSubDir))
@@ -104,7 +100,6 @@ func GetComponentNames(profile *Profile) (agents, skills, commands []string) {
 	return agents, skills, commands
 }
 
-// GetComponentSource returns the source URL for a component from its lock file.
 func GetComponentSource(profile *Profile, lockService services.ComponentLockService, componentType, componentName string) string {
 	sources, err := lockService.FindComponentSources(profile.BasePath, componentType, componentName)
 	if err != nil || len(sources) == 0 {

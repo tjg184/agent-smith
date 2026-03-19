@@ -18,7 +18,6 @@ import (
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
-// Deps is the set of dependencies the status functions need from the parent service.
 type Deps struct {
 	Logger interface {
 		Debug(format string, args ...interface{})

@@ -32,13 +32,11 @@ type PostprocessContext struct {
 	SymlinkRegistry map[string]string
 }
 
-// PostprocessorRegistry is the minimal interface the sync package needs.
 type PostprocessorRegistry interface {
 	RunPostprocessors(ctx PostprocessContext) error
 	RunCleanup(ctx PostprocessContext) error
 }
 
-// Deps is the set of dependencies the sync functions need from the parent service.
 type Deps struct {
 	Logger interface {
 		Error(format string, args ...interface{})

@@ -13,7 +13,6 @@ import (
 	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
-// DisplayProfileManager is the minimal interface needed for display operations.
 type DisplayProfileManager interface {
 	ScanProfiles() ([]*Profile, error)
 	GetActiveProfile() (string, error)
@@ -28,7 +27,6 @@ type Profile struct {
 	HasCommands bool
 }
 
-// LinkStatus represents the status of a linked component for display purposes.
 type LinkStatus struct {
 	Name       string
 	Type       string
@@ -39,7 +37,6 @@ type LinkStatus struct {
 	Profile    string
 }
 
-// ListLinkedComponents lists all components linked to the configured targets.
 func ListLinkedComponents(agentsDir string, targets []config.Target, f *formatter.Formatter) error {
 	componentTypes := paths.GetComponentTypes()
 
@@ -357,7 +354,6 @@ func ShowLinkStatus(agentsDir string, targets []config.Target, f *formatter.Form
 	return nil
 }
 
-// ShowAllProfilesLinkStatus displays link status for components across all profiles.
 func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *formatter.Formatter, pm DisplayProfileManager, profileFilter []string, linkedOnly bool) error {
 	componentTypes := paths.GetComponentTypes()
 
@@ -681,7 +677,6 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 	return nil
 }
 
-// LinkStatusLegendItems returns legend items for link status tables.
 func LinkStatusLegendItems() []formatter.LegendItem {
 	return []formatter.LegendItem{
 		{Symbol: colors.Success("✓"), Description: colors.Success("Valid symlink")},

@@ -12,7 +12,6 @@ import (
 	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
-// ProfileMatch represents a profile that contains a specific component.
 type ProfileMatch struct {
 	ProfileName string
 	ProfilePath string
@@ -34,7 +33,6 @@ func GetProfileNameFromSymlink(symlinkPath string) string {
 	return getProfileFromPath(target)
 }
 
-// getProfileFromPath extracts the profile name from a filesystem path.
 func getProfileFromPath(path string) string {
 	path = filepath.Clean(path)
 
@@ -56,7 +54,6 @@ func getProfileFromPath(path string) string {
 	}
 }
 
-// SearchComponentInProfiles searches all profiles for a component and returns matching profiles.
 func SearchComponentInProfiles(componentType, componentName string) ([]ProfileMatch, error) {
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {

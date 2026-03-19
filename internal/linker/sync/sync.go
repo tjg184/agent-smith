@@ -211,7 +211,6 @@ func linkComponentInternal(agentsDir string, targets []config.Target, f *formatt
 	return nil
 }
 
-// LinkComponentsByType links all components of a given type.
 func LinkComponentsByType(agentsDir string, targets []config.Target, f *formatter.Formatter, componentType string) error {
 	typeDir := filepath.Join(agentsDir, componentType)
 
@@ -261,7 +260,6 @@ func LinkComponentsByType(agentsDir string, targets []config.Target, f *formatte
 	return nil
 }
 
-// LinkAllComponents links all components of all types.
 func LinkAllComponents(agentsDir string, targets []config.Target, f *formatter.Formatter) error {
 	componentTypes := paths.GetComponentTypes()
 
@@ -314,7 +312,6 @@ func LinkAllComponents(agentsDir string, targets []config.Target, f *formatter.F
 	return nil
 }
 
-// DetectAndLinkLocalRepositories detects components in the current git repo and links them.
 func DetectAndLinkLocalRepositories(agentsDir string, targets []config.Target, f *formatter.Formatter, det *detector.RepositoryDetector) error {
 	cwd, err := os.Getwd()
 	if err != nil {

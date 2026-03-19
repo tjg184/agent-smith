@@ -9,15 +9,13 @@ import (
 	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
-// ProfileActivationResult contains information about a profile activation operation.
 type ProfileActivationResult struct {
 	PreviousProfile string // empty if no profile was active
 	NewProfile      string
 	Switched        bool // true if switching from another profile
 }
 
-// GetActiveProfile reads the active profile from the state file.
-// Returns empty string if no profile is active or the state file doesn't exist.
+// GetActiveProfile returns the name of the currently active profile, or empty string if none.
 func GetActiveProfile() (string, error) {
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {
@@ -38,13 +36,11 @@ func GetActiveProfile() (string, error) {
 	return strings.TrimSpace(string(data)), nil
 }
 
-// ActivateProfile activates a profile by updating the active profile state.
 func ActivateProfile(profileName string, profileIsValid bool) error {
 	_, err := ActivateProfileWithResult(profileName, profileIsValid)
 	return err
 }
 
-// ActivateProfileWithResult sets the given profile as the active profile and returns detailed result.
 func ActivateProfileWithResult(profileName string, profileIsValid bool) (*ProfileActivationResult, error) {
 	if !profileIsValid {
 		return nil, fmt.Errorf("profile '%s' does not exist or has no components", profileName)
@@ -80,7 +76,6 @@ func ActivateProfileWithResult(profileName string, profileIsValid bool) (*Profil
 	}, nil
 }
 
-// DeactivateProfile deactivates the currently active profile.
 func DeactivateProfile() error {
 	agentsDir, err := paths.GetAgentsDir()
 	if err != nil {

@@ -155,7 +155,6 @@ func UnlinkComponent(agentsDir string, targets []config.Target, f *formatter.For
 	return nil
 }
 
-// UnlinkComponentsByType removes all linked components of a specific type.
 func UnlinkComponentsByType(agentsDir string, targets []config.Target, f *formatter.Formatter, componentType, targetFilter string, force bool) error {
 	targetsToUnlink := filterTargets(targets, targetFilter)
 	if len(targetsToUnlink) == 0 {

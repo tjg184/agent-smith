@@ -107,7 +107,6 @@ func RemoveComponentFromProfile(
 	return nil
 }
 
-// CopyDirectory recursively copies a source directory to dst.
 func CopyDirectory(src, dst string) error {
 	return copyDirectory(src, dst)
 }
