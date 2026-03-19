@@ -109,14 +109,13 @@ func NewTargetForProject(targetType, projectRoot string) (Target, error) {
 
 	for _, def := range builtInTargetDefs {
 		if string(def.targetType) == targetType {
-			// Construct a temporary project-scoped instance to get the project dir name
-			// without relying on the global constructor (which may require global base dirs).
-			tmp := def.projectConstructor(projectRoot)
+			tmp, err := def.constructor()
+			if err != nil {
+				return nil, fmt.Errorf("failed to create %s target: %w", targetType, err)
+			}
 			return def.projectConstructor(filepath.Join(projectRoot, tmp.GetProjectDirName())), nil
 		}
 	}
-
-	config, err := LoadConfig()
 
 	config, err := LoadConfig()
 	if err != nil {
@@ -227,20 +226,11 @@ func DetectAllTargets() ([]Target, error) {
 func GetAllTargetProjectDirNames() []string {
 	names := make([]string, 0, len(builtInTargetDefs))
 	for _, def := range builtInTargetDefs {
-		var dir string
-		switch def.targetType {
-		case TargetUniversal:
-			// The universal target uses the ".agents" project directory.
-			dir = ".agents"
-		default:
-			if def.targetType != "" {
-				// For other targets, use "." + machine name (e.g., ".opencode", ".copilot").
-				dir = "." + string(def.targetType)
-			}
+		t, err := def.constructor()
+		if err != nil {
+			continue
 		}
-		if dir != "" {
-			names = append(names, dir)
-		}
+		names = append(names, t.GetProjectDirName())
 	}
 	return names
 }
