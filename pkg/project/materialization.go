@@ -21,7 +21,7 @@ func LoadMaterializationMetadata(targetDir string) (*models.ComponentLockFile, e
 	if err != nil {
 		if os.IsNotExist(err) {
 			return &models.ComponentLockFile{
-				Version:  5,
+				Version:  models.CurrentLockFileVersion,
 				Skills:   make(map[string]map[string]models.ComponentEntry),
 				Agents:   make(map[string]map[string]models.ComponentEntry),
 				Commands: make(map[string]map[string]models.ComponentEntry),
@@ -36,7 +36,7 @@ func LoadMaterializationMetadata(targetDir string) (*models.ComponentLockFile, e
 	}
 
 	// Ensure maps are initialized and update version
-	lockFile.Version = 5
+	lockFile.Version = models.CurrentLockFileVersion
 	if lockFile.Skills == nil {
 		lockFile.Skills = make(map[string]map[string]models.ComponentEntry)
 	}
@@ -75,7 +75,7 @@ func AddMaterializationEntry(metadata *models.ComponentLockFile, componentType, 
 		SourceHash:     sourceHash,
 		CurrentHash:    currentHash,
 		FilesystemName: filesystemName,
-		Version:        5,
+		Version:        models.CurrentLockFileVersion,
 	}
 
 	var targetMap map[string]map[string]models.ComponentEntry

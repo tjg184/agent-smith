@@ -10,7 +10,7 @@ import (
 
 func emptyLockFile() *models.ComponentLockFile {
 	return &models.ComponentLockFile{
-		Version:  5,
+		Version:  models.CurrentLockFileVersion,
 		Skills:   make(map[string]map[string]models.ComponentEntry),
 		Agents:   make(map[string]map[string]models.ComponentEntry),
 		Commands: make(map[string]map[string]models.ComponentEntry),
@@ -33,7 +33,7 @@ func addEntryToLockFile(lf *models.ComponentLockFile, componentType, sourceURL, 
 	targetMap[sourceURL][name] = models.ComponentEntry{
 		FilesystemName: filesystemName,
 		SourceUrl:      sourceURL,
-		Version:        5,
+		Version:        models.CurrentLockFileVersion,
 	}
 }
 

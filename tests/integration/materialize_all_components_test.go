@@ -154,7 +154,7 @@ func TestMaterializeAllComponentTypes(t *testing.T) {
 		testutil.AssertNoError(t, err, "Failed to parse metadata")
 
 		// Verify metadata structure (version 5 with nested maps)
-		testutil.AssertEqual(t, 5, metadata.Version, "Incorrect metadata version")
+		testutil.AssertEqual(t, 1, metadata.Version, "Incorrect metadata version")
 
 		// Verify each component type has entries
 		testutil.AssertEqual(t, 1, len(metadata.Skills), "Expected 1 skill source in metadata")
