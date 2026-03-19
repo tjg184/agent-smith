@@ -58,3 +58,7 @@ func (t *baseTarget) GetProjectBaseDir(projectRoot string) string {
 func (t *baseTarget) GetProjectComponentDir(projectRoot, componentType string) (string, error) {
 	return filepath.Join(projectRoot, t.projectDirName, componentType), nil
 }
+
+func (t *baseTarget) GetDisplayName() string {
+	return ""
+}

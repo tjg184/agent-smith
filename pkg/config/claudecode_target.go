@@ -29,9 +29,12 @@ func NewClaudeCodeTargetWithDir(dir string) *ClaudeCodeTarget {
 	return &ClaudeCodeTarget{baseTarget{baseDir: dir, projectDirName: claudeCodeProjectDirName}}
 }
 
-// GetName returns the human-readable name of this target
 func (t *ClaudeCodeTarget) GetName() string {
 	return "claudecode"
+}
+
+func (t *ClaudeCodeTarget) GetDisplayName() string {
+	return "Claude Code"
 }
 
 // IsUniversalTarget returns false for claudecode (it's editor-specific)

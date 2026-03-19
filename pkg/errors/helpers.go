@@ -3,6 +3,8 @@ package errors
 
 import (
 	"fmt"
+
+	"github.com/tjg184/agent-smith/pkg/config"
 )
 
 // NewProfileNotFoundError creates an error for when a profile doesn't exist.
@@ -342,22 +344,10 @@ func NewInvalidTargetError(targetName string) *ErrorMessage {
 }
 
 // NewTargetDirectoryNotFoundError creates an error for when a target directory doesn't exist.
-func NewTargetDirectoryNotFoundError(targetName string) *ErrorMessage {
-	var dirName string
-	switch targetName {
-	case "opencode":
-		dirName = ".opencode/"
-	case "claudecode":
-		dirName = ".claude/"
-	case "copilot":
-		dirName = ".github/"
-	case "universal":
-		dirName = ".agents/"
-	default:
-		dirName = targetName
-	}
+func NewTargetDirectoryNotFoundError(target config.Target) *ErrorMessage {
+	dirName := target.GetProjectDirName() + "/"
 
-	return New(fmt.Sprintf("Target directory not found: %s", targetName)).
+	return New(fmt.Sprintf("Target directory not found: %s", target.GetDisplayName())).
 		WithContext(fmt.Sprintf("The %s directory does not exist in this project", dirName)).
 		WithSuggestion("Create the directory or materialize to a different target").
 		WithExample(fmt.Sprintf("mkdir -p %s", dirName))

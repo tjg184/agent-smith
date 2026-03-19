@@ -21,8 +21,11 @@ type Target interface {
 	// GetDetectionConfigPath returns the path to the detection config file
 	GetDetectionConfigPath() (string, error)
 
-	// GetName returns the human-readable name of this target
+	// GetName returns the machine name of this target (e.g. "opencode", "claudecode")
 	GetName() string
+
+	// GetDisplayName returns the human-readable display name (e.g. "OpenCode", "Claude Code")
+	GetDisplayName() string
 
 	// GetProjectDirName returns the directory name used in projects (e.g., ".opencode", ".claude")
 	GetProjectDirName() string

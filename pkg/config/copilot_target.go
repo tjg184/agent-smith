@@ -29,9 +29,12 @@ func NewCopilotTargetWithDir(dir string) *CopilotTarget {
 	return &CopilotTarget{baseTarget{baseDir: dir, projectDirName: copilotProjectDirName}}
 }
 
-// GetName returns the human-readable name of this target
 func (t *CopilotTarget) GetName() string {
 	return "copilot"
+}
+
+func (t *CopilotTarget) GetDisplayName() string {
+	return "GitHub Copilot"
 }
 
 // IsUniversalTarget returns false for copilot (it's editor-specific)

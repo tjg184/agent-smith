@@ -32,26 +32,13 @@ type ProfileManager interface {
 	GetActiveProfile() (string, error)
 }
 
-func displayName(name string) string {
-	if name == "" {
-		return ""
+// targetDisplayNames builds a name→display-name map from the linker's target list.
+func (cl *ComponentLinker) targetDisplayNames() map[string]string {
+	m := make(map[string]string, len(cl.targets))
+	for _, t := range cl.targets {
+		m[t.GetName()] = t.GetDisplayName()
 	}
-	displayNames := map[string]string{
-		"opencode":   "OpenCode",
-		"claudecode": "ClaudeCode",
-		"copilot":    "Copilot",
-		"universal":  "Universal",
-	}
-	if d, ok := displayNames[name]; ok {
-		return d
-	}
-	replaced := strings.ReplaceAll(name, "-", " ")
-	replaced = strings.ReplaceAll(replaced, "_", " ")
-	words := strings.Fields(replaced)
-	for i, word := range words {
-		words[i] = strings.ToUpper(word[:1]) + word[1:]
-	}
-	return strings.Join(words, "")
+	return m
 }
 
 // Profile must match the Profile struct from pkg/profiles/profiles.go
@@ -549,7 +536,7 @@ func (cl *ComponentLinker) ListLinkedComponents() error {
 		targetName := target.GetName()
 		targetDir, _ := target.GetGlobalBaseDir()
 
-		fmt.Printf("\n=== %s ===\n", displayName(targetName))
+		fmt.Printf("\n=== %s ===\n", target.GetDisplayName())
 		fmt.Printf("%s\n", cl.getSourceDescription())
 
 		if totalCount == 0 {
@@ -726,13 +713,14 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 	cl.formatter.EmptyLine()
 
 	targetNames := make([]string, 0, len(cl.targets))
+	displayNames := cl.targetDisplayNames()
 	for _, target := range cl.targets {
 		targetNames = append(targetNames, target.GetName())
 	}
 
 	headers := []string{"Component", "Profile"}
 	for _, targetName := range targetNames {
-		headers = append(headers, displayName(targetName))
+		headers = append(headers, displayNames[targetName])
 	}
 
 	table := formatter.NewBoxTable(cl.formatter.Writer(), headers)
@@ -795,7 +783,7 @@ func (cl *ComponentLinker) ShowLinkStatus(linkedOnly bool) error {
 				linkedCount++
 			}
 		}
-		cl.formatter.ListItem("%s: %d/%d components linked", displayName(targetName), linkedCount, len(statuses))
+		cl.formatter.ListItem("%s: %d/%d components linked", displayNames[targetName], linkedCount, len(statuses))
 	}
 
 	return nil
@@ -1028,13 +1016,14 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 	cl.formatter.EmptyLine()
 
 	targetNames := make([]string, 0, len(cl.targets))
+	displayNames := cl.targetDisplayNames()
 	for _, target := range cl.targets {
 		targetNames = append(targetNames, target.GetName())
 	}
 
 	headers := []string{"Component", "Type", "Profile"}
 	for _, targetName := range targetNames {
-		headers = append(headers, displayName(targetName))
+		headers = append(headers, displayNames[targetName])
 	}
 
 	table := formatter.NewBoxTable(cl.formatter.Writer(), headers)
@@ -1119,7 +1108,7 @@ func (cl *ComponentLinker) ShowAllProfilesLinkStatus(profileFilter []string, lin
 		if len(statuses) > 0 {
 			percentage = (linkedCount * 100) / len(statuses)
 		}
-		cl.formatter.ListItem("%s: %d/%d linked (%d%%)", displayName(targetName), linkedCount, len(statuses), percentage)
+		cl.formatter.ListItem("%s: %d/%d linked (%d%%)", displayNames[targetName], linkedCount, len(statuses), percentage)
 	}
 
 	activeProfile, err := cl.profileManager.GetActiveProfile()
