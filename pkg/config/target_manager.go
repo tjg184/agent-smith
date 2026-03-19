@@ -6,18 +6,13 @@ import (
 	"path/filepath"
 )
 
-// TargetType represents the type of target environment
 type TargetType string
 
 const (
-	// TargetOpenCode represents the OpenCode environment
-	TargetOpenCode TargetType = "opencode"
-	// TargetClaudeCode represents the Claude Code environment
+	TargetOpenCode   TargetType = "opencode"
 	TargetClaudeCode TargetType = "claudecode"
-	// TargetCopilot represents the GitHub Copilot environment
-	TargetCopilot TargetType = "copilot"
-	// TargetUniversal represents the universal (.agents) environment
-	TargetUniversal TargetType = "universal"
+	TargetCopilot    TargetType = "copilot"
+	TargetUniversal  TargetType = "universal"
 )
 
 // builtInTargetDef holds constructor functions for a single built-in target.
@@ -55,7 +50,6 @@ var builtInTargetDefs = []builtInTargetDef{
 	},
 }
 
-// builtInTargetNames returns the machine name of every registered built-in target.
 func builtInTargetNames() []string {
 	names := make([]string, 0, len(builtInTargetDefs))
 	for _, def := range builtInTargetDefs {
@@ -64,15 +58,10 @@ func builtInTargetNames() []string {
 	return names
 }
 
-// GetTargetFromEnv returns the target specified by the AGENT_SMITH_TARGET environment variable.
-// Returns empty string if not set.
 func GetTargetFromEnv() string {
 	return os.Getenv("AGENT_SMITH_TARGET")
 }
 
-// NewTarget creates a new Target based on the specified target type.
-// If targetType is empty, defaults to OpenCode.
-// Also checks custom targets from config file.
 func NewTarget(targetType string) (Target, error) {
 	if targetType == "" {
 		targetType = string(TargetOpenCode)
@@ -98,10 +87,6 @@ func NewTarget(targetType string) (Target, error) {
 	return nil, fmt.Errorf("unknown target type: %s (valid options: opencode, claudecode, copilot, universal, or custom targets from config)", targetType)
 }
 
-// NewTargetForProject creates a Target configured for a specific project.
-// The returned Target will use project-relative paths based on the provided projectRoot.
-// For built-in targets, this returns a Target with the appropriate project directory name.
-// For custom targets, this validates that ProjectDir is configured.
 func NewTargetForProject(targetType, projectRoot string) (Target, error) {
 	if targetType == "" {
 		targetType = string(TargetOpenCode)
@@ -132,7 +117,6 @@ func NewTargetForProject(targetType, projectRoot string) (Target, error) {
 	return nil, fmt.Errorf("unknown target type: %s (valid options: opencode, claudecode, copilot, universal, or custom targets from config)", targetType)
 }
 
-// DetectTarget attempts to detect which target environment is available.
 // Priority: AGENT_SMITH_TARGET env var > auto-detection > default to OpenCode.
 func DetectTarget() (Target, error) {
 	envTarget := GetTargetFromEnv()
@@ -158,7 +142,6 @@ func DetectTarget() (Target, error) {
 	return NewOpencodeTarget()
 }
 
-// GetAvailableTargets returns the machine names of all non-universal built-in targets.
 func GetAvailableTargets() []string {
 	var names []string
 	for _, def := range builtInTargetDefs {
@@ -169,8 +152,6 @@ func GetAvailableTargets() []string {
 	return names
 }
 
-// GetAllTargetTypes returns the machine names of all registered built-in targets,
-// including universal.
 func GetAllTargetTypes() []string {
 	names := make([]string, 0, len(builtInTargetDefs))
 	for _, def := range builtInTargetDefs {
@@ -179,8 +160,6 @@ func GetAllTargetTypes() []string {
 	return names
 }
 
-// DetectAllTargets returns all detected target environments that exist on the system.
-// Also includes custom targets from the config file.
 func DetectAllTargets() ([]Target, error) {
 	var targets []Target
 
@@ -221,8 +200,6 @@ func DetectAllTargets() ([]Target, error) {
 	return targets, nil
 }
 
-// GetAllTargetProjectDirNames returns the project directory name (e.g. ".opencode")
-// for every registered built-in target, including universal.
 func GetAllTargetProjectDirNames() []string {
 	names := make([]string, 0, len(builtInTargetDefs))
 	for _, def := range builtInTargetDefs {
@@ -235,8 +212,6 @@ func GetAllTargetProjectDirNames() []string {
 	return names
 }
 
-// GetAllTargets returns all non-universal built-in targets regardless of whether
-// their directories exist. Used for operations like "materialize --target all".
 func GetAllTargets() ([]Target, error) {
 	var targets []Target
 	for _, def := range builtInTargetDefs {
