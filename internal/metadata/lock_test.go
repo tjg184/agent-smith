@@ -224,8 +224,8 @@ func TestUnifiedComponentEntry(t *testing.T) {
 			t.Fatalf("Failed to unmarshal lock file: %v", err)
 		}
 
-		if lockFile.Version != 5 {
-			t.Errorf("Expected version 5, got %d", lockFile.Version)
+		if lockFile.Version != 1 {
+			t.Errorf("Expected version 1, got %d", lockFile.Version)
 		}
 	})
 }

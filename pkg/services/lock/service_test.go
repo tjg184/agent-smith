@@ -148,7 +148,7 @@ func TestRemoveEntry(t *testing.T) {
 		SourceType: "git",
 		SourceUrl:  "https://github.com/test/repo",
 		CommitHash: "abc123",
-		Version:    5,
+		Version:    models.CurrentLockFileVersion,
 	}
 
 	err = service.SaveEntry(tmpDir, "skills", "test-skill", entry)
@@ -192,7 +192,7 @@ func TestFindComponentSources(t *testing.T) {
 		SourceType: "git",
 		SourceUrl:  "https://github.com/test/repo1",
 		CommitHash: "abc123",
-		Version:    5,
+		Version:    models.CurrentLockFileVersion,
 	}
 
 	entry2 := &models.ComponentEntry{
@@ -200,7 +200,7 @@ func TestFindComponentSources(t *testing.T) {
 		SourceType: "git",
 		SourceUrl:  "https://github.com/test/repo2",
 		CommitHash: "def456",
-		Version:    5,
+		Version:    models.CurrentLockFileVersion,
 	}
 
 	// Save same component from two different sources
@@ -253,7 +253,7 @@ func TestGetAllComponentNames(t *testing.T) {
 			SourceType: "git",
 			SourceUrl:  "https://github.com/test/repo",
 			CommitHash: string(rune('a' + i)),
-			Version:    5,
+			Version:    models.CurrentLockFileVersion,
 		}
 
 		err = service.SaveEntry(tmpDir, "skills", name, entry)

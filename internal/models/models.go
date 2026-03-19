@@ -9,6 +9,8 @@ const (
 	ComponentCommand ComponentType = "command"
 )
 
+const CurrentLockFileVersion = 1
+
 // ComponentDetectionPattern defines how to detect a component type
 type ComponentDetectionPattern struct {
 	Name           string   `json:"name"`
@@ -43,7 +45,6 @@ type ComponentFrontmatter struct {
 // ComponentEntry represents a single component entry in unified lock files
 // Used for both installs (~/.agent-smith/.component-lock.json) and
 // materializations (project/.component-lock.json)
-// Version 5+ unified format
 type ComponentEntry struct {
 	// Core metadata
 	Source       string `json:"source"`
@@ -73,7 +74,6 @@ type ComponentEntry struct {
 }
 
 // ComponentLockFile tracks all components (installs and materializations)
-// Version 5+ uses unified ComponentEntry structure
 type ComponentLockFile struct {
 	Version  int                                  `json:"version"`
 	Skills   map[string]map[string]ComponentEntry `json:"skills"`

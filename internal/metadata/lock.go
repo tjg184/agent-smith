@@ -30,7 +30,6 @@ type ComponentEntryOptions struct {
 }
 
 // SaveComponentEntry saves a unified component entry for both installs and materializations
-// Version 5 unified format
 func SaveComponentEntry(baseDir, componentType, componentName, source, sourceType, sourceUrl, commitHash, originalPath string, opts ComponentEntryOptions) error {
 	lockFilePath := paths.GetComponentLockPath(baseDir, componentType)
 
@@ -67,7 +66,7 @@ func SaveComponentEntry(baseDir, componentType, componentName, source, sourceTyp
 		SourceUrl:    sourceUrl,
 		OriginalPath: originalPath,
 		CommitHash:   commitHash,
-		Version:      5,
+		Version:      models.CurrentLockFileVersion,
 
 		// Timestamps
 		InstalledAt:    installedAt,
@@ -410,7 +409,7 @@ func loadOrCreateLockFile(lockFilePath string) (models.ComponentLockFile, error)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return models.ComponentLockFile{
-				Version:  5,
+				Version:  models.CurrentLockFileVersion,
 				Skills:   make(map[string]map[string]models.ComponentEntry),
 				Agents:   make(map[string]map[string]models.ComponentEntry),
 				Commands: make(map[string]map[string]models.ComponentEntry),
@@ -423,7 +422,7 @@ func loadOrCreateLockFile(lockFilePath string) (models.ComponentLockFile, error)
 	if err := json.Unmarshal(lockData, &lockFile); err != nil {
 		// If lock file is corrupted, create new one
 		return models.ComponentLockFile{
-			Version:  5,
+			Version:  models.CurrentLockFileVersion,
 			Skills:   make(map[string]map[string]models.ComponentEntry),
 			Agents:   make(map[string]map[string]models.ComponentEntry),
 			Commands: make(map[string]map[string]models.ComponentEntry),
@@ -431,7 +430,7 @@ func loadOrCreateLockFile(lockFilePath string) (models.ComponentLockFile, error)
 	}
 
 	// Ensure version is current and maps are initialized
-	lockFile.Version = 5
+	lockFile.Version = models.CurrentLockFileVersion
 	if lockFile.Skills == nil {
 		lockFile.Skills = make(map[string]map[string]models.ComponentEntry)
 	}
