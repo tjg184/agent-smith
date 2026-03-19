@@ -404,6 +404,12 @@ func FindAllComponentInstances(baseDir, componentType, componentName string) ([]
 
 // Helper functions
 
+// LoadLockFile reads (or creates an empty) component lock file for the given base directory.
+func LoadLockFile(baseDir string) (models.ComponentLockFile, error) {
+	lockFilePath := filepath.Join(baseDir, ".component-lock.json")
+	return loadOrCreateLockFile(lockFilePath)
+}
+
 func loadOrCreateLockFile(lockFilePath string) (models.ComponentLockFile, error) {
 	lockData, err := os.ReadFile(lockFilePath)
 	if err != nil {
