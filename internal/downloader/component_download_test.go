@@ -246,7 +246,7 @@ func TestGroupedComponentDownload(t *testing.T) {
 
 	// Create downloader
 	detect := detector.NewRepositoryDetector()
-	dl := NewAgentDownloaderWithParams(agentsDir, detect)
+	dl := ForTypeWithTargetDir(models.ComponentAgent, installDir)
 
 	// Detect components first
 	components, err := detect.DetectComponentsInRepo(repoPath)
@@ -255,7 +255,7 @@ func TestGroupedComponentDownload(t *testing.T) {
 	}
 
 	// Download first agent from grouped structure
-	err = dl.DownloadAgentWithRepo(
+	err = dl.DownloadWithRepo(
 		"file://"+repoPath,
 		"accessibility-expert",
 		"file://"+repoPath,
@@ -292,7 +292,7 @@ func TestMultipleComponentsFromSameGroup(t *testing.T) {
 
 	// Create downloader
 	detect := detector.NewRepositoryDetector()
-	dl := NewAgentDownloaderWithParams(agentsDir, detect)
+	dl := ForTypeWithTargetDir(models.ComponentAgent, installDir)
 
 	// Detect components first
 	components, err := detect.DetectComponentsInRepo(repoPath)
@@ -301,7 +301,7 @@ func TestMultipleComponentsFromSameGroup(t *testing.T) {
 	}
 
 	// Download first agent
-	err = dl.DownloadAgentWithRepo(
+	err = dl.DownloadWithRepo(
 		"file://"+repoPath,
 		"accessibility-expert",
 		"file://"+repoPath,
@@ -319,7 +319,7 @@ func TestMultipleComponentsFromSameGroup(t *testing.T) {
 	helper.VerifyFileExists(filepath.Join(agentDir1, "accessibility-expert.md"), "First agent file")
 
 	// Download second agent from same group
-	err = dl.DownloadAgentWithRepo(
+	err = dl.DownloadWithRepo(
 		"file://"+repoPath,
 		"design-system-architect",
 		"file://"+repoPath,
@@ -351,7 +351,7 @@ func TestBackwardCompatibilityFlatStructure(t *testing.T) {
 
 	// Create downloader
 	detect := detector.NewRepositoryDetector()
-	dl := NewAgentDownloaderWithParams(agentsDir, detect)
+	dl := ForTypeWithTargetDir(models.ComponentAgent, installDir)
 
 	// Detect components first
 	components, err := detect.DetectComponentsInRepo(repoPath)
@@ -360,7 +360,7 @@ func TestBackwardCompatibilityFlatStructure(t *testing.T) {
 	}
 
 	// Download agent from flat repository
-	err = dl.DownloadAgentWithRepo(
+	err = dl.DownloadWithRepo(
 		"file://"+repoPath,
 		"chatbot",
 		"file://"+repoPath,
@@ -411,7 +411,7 @@ func TestLinkingComponents(t *testing.T) {
 
 	// Create downloader and download agent
 	detect := detector.NewRepositoryDetector()
-	dl := NewAgentDownloaderWithParams(agentsDir, detect)
+	dl := ForTypeWithTargetDir(models.ComponentAgent, installDir)
 
 	// Detect components first
 	components, err := detect.DetectComponentsInRepo(repoPath)
@@ -419,7 +419,7 @@ func TestLinkingComponents(t *testing.T) {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
 
-	err = dl.DownloadAgentWithRepo(
+	err = dl.DownloadWithRepo(
 		"file://"+repoPath,
 		"accessibility-expert",
 		"file://"+repoPath,
@@ -473,7 +473,7 @@ func TestCrossPlatformPathHandling(t *testing.T) {
 
 	// Create downloader
 	detect := detector.NewRepositoryDetector()
-	dl := NewAgentDownloaderWithParams(agentsDir, detect)
+	dl := ForTypeWithTargetDir(models.ComponentAgent, installDir)
 
 	// Detect components first
 	components, err := detect.DetectComponentsInRepo(repoPath)
@@ -482,7 +482,7 @@ func TestCrossPlatformPathHandling(t *testing.T) {
 	}
 
 	// Download agent
-	err = dl.DownloadAgentWithRepo(
+	err = dl.DownloadWithRepo(
 		"file://"+repoPath,
 		"accessibility-expert",
 		"file://"+repoPath,
@@ -522,11 +522,10 @@ func TestErrorHandlingMissingComponent(t *testing.T) {
 	}
 	repoPath := helper.CreateMockRepo("broken-repo", files)
 	installDir := helper.CreateInstallDir()
-	agentsDir := filepath.Join(installDir, "agents")
 
 	// Create downloader
 	detect := detector.NewRepositoryDetector()
-	dl := NewAgentDownloaderWithParams(agentsDir, detect)
+	dl := ForTypeWithTargetDir(models.ComponentAgent, installDir)
 
 	// Detect components first
 	components, err := detect.DetectComponentsInRepo(repoPath)
@@ -535,7 +534,7 @@ func TestErrorHandlingMissingComponent(t *testing.T) {
 	}
 
 	// Attempt to download non-existent agent
-	err = dl.DownloadAgentWithRepo(
+	err = dl.DownloadWithRepo(
 		"file://"+repoPath,
 		"non-existent-agent",
 		"file://"+repoPath,
@@ -635,10 +634,9 @@ func BenchmarkComponentDownload(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		installDir := filepath.Join(tempDir, "install", "run"+string(rune(i)))
-		agentsDir := filepath.Join(installDir, "agents")
 
 		detect := detector.NewRepositoryDetector()
-		dl := NewAgentDownloaderWithParams(agentsDir, detect)
+		dl := ForTypeWithTargetDir(models.ComponentAgent, installDir)
 
 		// Detect components first
 		components, err := detect.DetectComponentsInRepo(repoPath)
@@ -646,7 +644,7 @@ func BenchmarkComponentDownload(b *testing.B) {
 			b.Fatalf("Failed to detect components: %v", err)
 		}
 
-		err = dl.DownloadAgentWithRepo(
+		err = dl.DownloadWithRepo(
 			"file://"+repoPath,
 			"accessibility-expert",
 			"file://"+repoPath,
@@ -672,11 +670,10 @@ func TestGitOperations(t *testing.T) {
 	// Create repository
 	repoPath := helper.CreatePluginRepo()
 	installDir := helper.CreateInstallDir()
-	agentsDir := filepath.Join(installDir, "agents")
 
 	// Download agent
 	detect := detector.NewRepositoryDetector()
-	dl := NewAgentDownloaderWithParams(agentsDir, detect)
+	dl := ForTypeWithTargetDir(models.ComponentAgent, installDir)
 
 	// Detect components first
 	components, err := detect.DetectComponentsInRepo(repoPath)
@@ -684,7 +681,7 @@ func TestGitOperations(t *testing.T) {
 		t.Fatalf("Failed to detect components: %v", err)
 	}
 
-	err = dl.DownloadAgentWithRepo(
+	err = dl.DownloadWithRepo(
 		"file://"+repoPath,
 		"accessibility-expert",
 		"file://"+repoPath,
@@ -782,10 +779,10 @@ Third skill`,
 	installDir := filepath.Join(tempDir, "install")
 
 	// Create downloader
-	dl := NewSkillDownloaderWithTargetDir(installDir)
+	dl := ForTypeWithTargetDir(models.ComponentSkill, installDir)
 
 	// Try to download a non-existent skill (use repo path directly for local repos)
-	err = dl.DownloadSkill(repoPath, "non-existent-skill", repoPath)
+	err = dl.Download(repoPath, "non-existent-skill", repoPath)
 
 	// Verify error message
 	if err == nil {
@@ -972,10 +969,10 @@ func TestComponentDownloadPreservesResources(t *testing.T) {
 	installDir := helper.CreateInstallDir()
 
 	// Create downloader (it will create skills subdirectory automatically)
-	dl := NewSkillDownloaderWithTargetDir(installDir)
+	dl := ForTypeWithTargetDir(models.ComponentSkill, installDir)
 
 	// Download skill (use repoPath directly for local repos, not file:// URL)
-	err := dl.DownloadSkill(repoPath, "my-skill", repoPath)
+	err := dl.Download(repoPath, "my-skill", repoPath)
 	if err != nil {
 		t.Fatalf("Failed to download skill: %v", err)
 	}
@@ -1024,12 +1021,12 @@ func TestMultipleComponentsWithResources(t *testing.T) {
 	installDir := helper.CreateInstallDir()
 
 	// Create downloader (it will create skills subdirectory automatically)
-	dl := NewSkillDownloaderWithTargetDir(installDir)
+	dl := ForTypeWithTargetDir(models.ComponentSkill, installDir)
 
 	// Download all three skills
 	skills := []string{"skill-a", "skill-b", "skill-c"}
 	for _, skillName := range skills {
-		err := dl.DownloadSkill(repoPath, skillName, repoPath)
+		err := dl.Download(repoPath, skillName, repoPath)
 		if err != nil {
 			t.Fatalf("Failed to download skill %s: %v", skillName, err)
 		}
@@ -1072,10 +1069,10 @@ func TestCopyComponentFilesRecursive(t *testing.T) {
 	installDir := helper.CreateInstallDir()
 
 	// Create downloader (it will create skills subdirectory automatically)
-	dl := NewSkillDownloaderWithTargetDir(installDir)
+	dl := ForTypeWithTargetDir(models.ComponentSkill, installDir)
 
 	// Download skill (use repoPath directly for local repos)
-	err := dl.DownloadSkill(repoPath, "test-skill", repoPath)
+	err := dl.Download(repoPath, "test-skill", repoPath)
 	if err != nil {
 		t.Fatalf("Failed to download skill: %v", err)
 	}
@@ -1131,7 +1128,7 @@ func TestDownloadSkillWithRepoPreservesHierarchy(t *testing.T) {
 	})
 
 	installDir := helper.CreateInstallDir()
-	dl := NewSkillDownloaderWithTargetDir(installDir)
+	dl := ForTypeWithTargetDir(models.ComponentSkill, installDir)
 
 	det := detector.NewRepositoryDetector()
 	components, err := det.DetectComponentsInRepo(repoPath)
@@ -1140,8 +1137,8 @@ func TestDownloadSkillWithRepoPreservesHierarchy(t *testing.T) {
 	}
 
 	for _, comp := range components {
-		if err := dl.DownloadSkillWithRepo(repoPath, comp.Name, repoPath, repoPath, components); err != nil {
-			t.Fatalf("DownloadSkillWithRepo(%q) failed: %v", comp.Name, err)
+		if err := dl.DownloadWithRepo(repoPath, comp.Name, repoPath, repoPath, components); err != nil {
+			t.Fatalf("DownloadWithRepo(%q) failed: %v", comp.Name, err)
 		}
 	}
 
@@ -1181,7 +1178,7 @@ name: flat-agent
 	})
 
 	installDir := helper.CreateInstallDir()
-	dl := NewAgentDownloaderWithTargetDir(installDir)
+	dl := ForTypeWithTargetDir(models.ComponentAgent, installDir)
 
 	det := detector.NewRepositoryDetector()
 	components, err := det.DetectComponentsInRepo(repoPath)
@@ -1190,8 +1187,8 @@ name: flat-agent
 	}
 
 	for _, comp := range components {
-		if err := dl.DownloadAgentWithRepo(repoPath, comp.Name, repoPath, repoPath, components); err != nil {
-			t.Fatalf("DownloadAgentWithRepo(%q) failed: %v", comp.Name, err)
+		if err := dl.DownloadWithRepo(repoPath, comp.Name, repoPath, repoPath, components); err != nil {
+			t.Fatalf("DownloadWithRepo(%q) failed: %v", comp.Name, err)
 		}
 	}
 
@@ -1230,7 +1227,7 @@ name: flat-command
 	})
 
 	installDir := helper.CreateInstallDir()
-	dl := NewCommandDownloaderWithTargetDir(installDir)
+	dl := ForTypeWithTargetDir(models.ComponentCommand, installDir)
 
 	det := detector.NewRepositoryDetector()
 	components, err := det.DetectComponentsInRepo(repoPath)
@@ -1239,8 +1236,8 @@ name: flat-command
 	}
 
 	for _, comp := range components {
-		if err := dl.DownloadCommandWithRepo(repoPath, comp.Name, repoPath, repoPath, components); err != nil {
-			t.Fatalf("DownloadCommandWithRepo(%q) failed: %v", comp.Name, err)
+		if err := dl.DownloadWithRepo(repoPath, comp.Name, repoPath, repoPath, components); err != nil {
+			t.Fatalf("DownloadWithRepo(%q) failed: %v", comp.Name, err)
 		}
 	}
 

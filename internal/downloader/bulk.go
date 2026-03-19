@@ -13,43 +13,47 @@ import (
 
 // BulkDownloader handles bulk downloading of all components from a repository
 type BulkDownloader struct {
-	skillDownloader   *SkillDownloader
-	agentDownloader   *AgentDownloader
-	commandDownloader *CommandDownloader
-	detector          *detector.RepositoryDetector
-	formatter         *formatter.Formatter
+	downloaders map[models.ComponentType]Downloader
+	detector    *detector.RepositoryDetector
+	formatter   *formatter.Formatter
 }
 
 // NewBulkDownloader creates a new BulkDownloader instance
 func NewBulkDownloader() *BulkDownloader {
 	return &BulkDownloader{
-		skillDownloader:   NewSkillDownloader(),
-		agentDownloader:   NewAgentDownloader(),
-		commandDownloader: NewCommandDownloader(),
-		detector:          detector.NewRepositoryDetector(),
-		formatter:         formatter.New(),
+		downloaders: map[models.ComponentType]Downloader{
+			models.ComponentSkill:   ForType(models.ComponentSkill),
+			models.ComponentAgent:   ForType(models.ComponentAgent),
+			models.ComponentCommand: ForType(models.ComponentCommand),
+		},
+		detector:  detector.NewRepositoryDetector(),
+		formatter: formatter.New(),
 	}
 }
 
 // NewBulkDownloaderWithTargetDir creates a new BulkDownloader instance that installs to a custom target directory
 func NewBulkDownloaderWithTargetDir(targetDir string) *BulkDownloader {
 	return &BulkDownloader{
-		skillDownloader:   NewSkillDownloaderWithTargetDir(targetDir),
-		agentDownloader:   NewAgentDownloaderWithTargetDir(targetDir),
-		commandDownloader: NewCommandDownloaderWithTargetDir(targetDir),
-		detector:          detector.NewRepositoryDetector(),
-		formatter:         formatter.New(),
+		downloaders: map[models.ComponentType]Downloader{
+			models.ComponentSkill:   ForTypeWithTargetDir(models.ComponentSkill, targetDir),
+			models.ComponentAgent:   ForTypeWithTargetDir(models.ComponentAgent, targetDir),
+			models.ComponentCommand: ForTypeWithTargetDir(models.ComponentCommand, targetDir),
+		},
+		detector:  detector.NewRepositoryDetector(),
+		formatter: formatter.New(),
 	}
 }
 
 // NewBulkDownloaderForProfile creates a new BulkDownloader instance that installs to a profile
 func NewBulkDownloaderForProfile(profileName string) *BulkDownloader {
 	return &BulkDownloader{
-		skillDownloader:   NewSkillDownloaderForProfile(profileName),
-		agentDownloader:   NewAgentDownloaderForProfile(profileName),
-		commandDownloader: NewCommandDownloaderForProfile(profileName),
-		detector:          detector.NewRepositoryDetector(),
-		formatter:         formatter.New(),
+		downloaders: map[models.ComponentType]Downloader{
+			models.ComponentSkill:   ForTypeWithProfile(models.ComponentSkill, profileName),
+			models.ComponentAgent:   ForTypeWithProfile(models.ComponentAgent, profileName),
+			models.ComponentCommand: ForTypeWithProfile(models.ComponentCommand, profileName),
+		},
+		detector:  detector.NewRepositoryDetector(),
+		formatter: formatter.New(),
 	}
 }
 
@@ -62,19 +66,16 @@ func (bd *BulkDownloader) ValidateRepo(repoURL string) (tempDir string, componen
 		return "", nil, fmt.Errorf("failed to normalize repository URL: %w", err)
 	}
 
-	// Create temporary directory for repository detection
 	tempDir, err = os.MkdirTemp("", "agent-smith-bulk-*")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temporary directory: %w", err)
 	}
 
-	// Clone repository to temporary location for detection
 	if _, err = gitpkg.CloneShallow(gitpkg.NewDefaultCloner(), tempDir, fullURL); err != nil {
 		os.RemoveAll(tempDir)
 		return "", nil, fmt.Errorf("failed to clone repository for bulk detection: %w", err)
 	}
 
-	// Detect all components in the repository from root
 	components, err = bd.detector.DetectComponentsInRepo(tempDir)
 	if err != nil {
 		os.RemoveAll(tempDir)
@@ -98,10 +99,8 @@ func (bd *BulkDownloader) AddAllFromTemp(repoURL string, components []models.Det
 		return fmt.Errorf("failed to normalize repository URL: %w", err)
 	}
 
-	// Display installation header
 	bd.formatter.SectionHeader(fmt.Sprintf("Installing components from %s", repoURL))
 
-	// Clean up temp directory when done
 	defer os.RemoveAll(tempDir)
 
 	return bd.processComponents(components, fullURL, repoURL, tempDir)
@@ -109,38 +108,19 @@ func (bd *BulkDownloader) AddAllFromTemp(repoURL string, components []models.Det
 
 // AddAll downloads all components from a repository
 func (bd *BulkDownloader) AddAll(repoURL string) error {
-	// Validate repository and get components
 	tempDir, components, err := bd.ValidateRepo(repoURL)
 	if err != nil {
 		return err
 	}
 
-	// Install from the temp directory (ValidateRepo already created it)
 	return bd.AddAllFromTemp(repoURL, components, tempDir)
 }
 
 // processComponents handles downloading components from the repository
 func (bd *BulkDownloader) processComponents(components []models.DetectedComponent, fullURL, repoURL, tempDir string) error {
-	// Group components by type
-	skillComponents := []models.DetectedComponent{}
-	agentComponents := []models.DetectedComponent{}
-	commandComponents := []models.DetectedComponent{}
-
-	for _, comp := range components {
-		switch comp.Type {
-		case models.ComponentSkill:
-			skillComponents = append(skillComponents, comp)
-		case models.ComponentAgent:
-			agentComponents = append(agentComponents, comp)
-		case models.ComponentCommand:
-			commandComponents = append(commandComponents, comp)
-		}
-	}
-
 	totalComponents := len(components)
 	fmt.Printf("\nInstalling %d components...\n", totalComponents)
 
-	// Create progress bar
 	bar := progressbar.NewOptions(totalComponents,
 		progressbar.OptionSetDescription("Progress"),
 		progressbar.OptionSetWidth(50),
@@ -155,57 +135,33 @@ func (bd *BulkDownloader) processComponents(components []models.DetectedComponen
 	)
 
 	var results []formatter.InstallResult
+	typeCounts := map[models.ComponentType]int{}
 
-	// Download skills using optimized method with shared repository
-	for _, comp := range skillComponents {
+	for _, comp := range components {
+		dl, ok := bd.downloaders[comp.Type]
+		if !ok {
+			continue
+		}
 		result := formatter.InstallResult{
 			Name:    comp.Name,
-			Type:    "skill",
+			Type:    string(comp.Type),
 			Success: true,
 		}
-		if err := bd.skillDownloader.DownloadSkillWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
+		if err := dl.DownloadWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
 			result.Success = false
 			result.Error = err.Error()
 		}
 		results = append(results, result)
+		typeCounts[comp.Type]++
 		bar.Add(1)
 	}
 
-	// Download agents using optimized method with shared repository
-	for _, comp := range agentComponents {
-		result := formatter.InstallResult{
-			Name:    comp.Name,
-			Type:    "agent",
-			Success: true,
-		}
-		if err := bd.agentDownloader.DownloadAgentWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
-			result.Success = false
-			result.Error = err.Error()
-		}
-		results = append(results, result)
-		bar.Add(1)
-	}
-
-	// Download commands using optimized method with shared repository
-	for _, comp := range commandComponents {
-		result := formatter.InstallResult{
-			Name:    comp.Name,
-			Type:    "command",
-			Success: true,
-		}
-		if err := bd.commandDownloader.DownloadCommandWithRepo(fullURL, comp.Name, repoURL, tempDir, components); err != nil {
-			result.Success = false
-			result.Error = err.Error()
-		}
-		results = append(results, result)
-		bar.Add(1)
-	}
-
-	// Finish the progress bar
 	bar.Finish()
 
-	// Display summary table
-	bd.formatter.DisplaySummaryTable(results, len(skillComponents), len(agentComponents), len(commandComponents))
-
+	bd.formatter.DisplaySummaryTable(results,
+		typeCounts[models.ComponentSkill],
+		typeCounts[models.ComponentAgent],
+		typeCounts[models.ComponentCommand],
+	)
 	return nil
 }

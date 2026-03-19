@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/tjg184/agent-smith/internal/detector"
 	"github.com/tjg184/agent-smith/internal/fileutil"
+	"github.com/tjg184/agent-smith/internal/models"
 )
 
 // TestAgentDownloadErrorCleanup tests that directories are cleaned up on errors
@@ -24,7 +24,7 @@ func TestAgentDownloadErrorCleanup(t *testing.T) {
 	}
 
 	// Create downloader with test base directory
-	ad := NewAgentDownloaderWithParams(baseDir, detector.NewRepositoryDetector())
+	ad := ForTypeWithTargetDir(models.ComponentAgent, tempDir)
 
 	// Test case: Invalid repository URL should not leave empty directories
 	t.Run("InvalidRepoURL", func(t *testing.T) {
@@ -32,7 +32,7 @@ func TestAgentDownloadErrorCleanup(t *testing.T) {
 		invalidRepoURL := "https://github.com/nonexistent/invalid-repo-xyz123"
 
 		// Attempt download with invalid URL
-		err := ad.DownloadAgent(invalidRepoURL, agentName)
+		err := ad.Download(invalidRepoURL, agentName)
 		if err == nil {
 			t.Fatal("Expected error for invalid repository, got nil")
 		}
@@ -79,7 +79,7 @@ func TestAgentDownloadErrorCleanup(t *testing.T) {
 
 		// Try to download a non-existent agent (should fail and clean up)
 		nonExistentAgent := "agent3"
-		err = ad.DownloadAgent(mockRepoDir, nonExistentAgent, mockRepoDir)
+		err = ad.Download(mockRepoDir, nonExistentAgent, mockRepoDir)
 
 		if err == nil {
 			t.Fatal("Expected error for non-existent agent, got nil")
@@ -103,7 +103,7 @@ func TestCommandDownloadErrorCleanup(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create downloader with test base directory (constructor will create commands subdir)
-	cd := NewCommandDownloaderWithTargetDir(tempDir)
+	cd := ForTypeWithTargetDir(models.ComponentCommand, tempDir)
 	baseDir := filepath.Join(tempDir, "commands")
 
 	// Test case: Invalid repository URL should not leave empty directories
@@ -112,7 +112,7 @@ func TestCommandDownloadErrorCleanup(t *testing.T) {
 		invalidRepoURL := "https://github.com/nonexistent/invalid-repo-xyz123"
 
 		// Attempt download with invalid URL
-		err := cd.DownloadCommand(invalidRepoURL, commandName)
+		err := cd.Download(invalidRepoURL, commandName)
 		if err == nil {
 			t.Fatal("Expected error for invalid repository, got nil")
 		}
@@ -135,7 +135,7 @@ func TestSkillDownloadErrorCleanup(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create downloader with test base directory (constructor will create skills subdir)
-	sd := NewSkillDownloaderWithTargetDir(tempDir)
+	sd := ForTypeWithTargetDir(models.ComponentSkill, tempDir)
 	baseDir := filepath.Join(tempDir, "skills")
 
 	// Test case: Invalid repository URL should not leave empty directories
@@ -144,7 +144,7 @@ func TestSkillDownloadErrorCleanup(t *testing.T) {
 		invalidRepoURL := "https://github.com/nonexistent/invalid-repo-xyz123"
 
 		// Attempt download with invalid URL
-		err := sd.DownloadSkill(invalidRepoURL, skillName)
+		err := sd.Download(invalidRepoURL, skillName)
 		if err == nil {
 			t.Fatal("Expected error for invalid repository, got nil")
 		}

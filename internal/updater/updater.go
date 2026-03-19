@@ -191,36 +191,20 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 		}
 	}
 
-	var downloadErr error
-	if ud.profileName != "" {
-		switch componentType {
-		case "skills":
-			dl := downloader.NewSkillDownloaderForProfile(ud.profileName)
-			downloadErr = dl.DownloadSkill(repoURL, componentName)
-		case "agents":
-			dl := downloader.NewAgentDownloaderForProfile(ud.profileName)
-			downloadErr = dl.DownloadAgent(repoURL, componentName)
-		case "commands":
-			dl := downloader.NewCommandDownloaderForProfile(ud.profileName)
-			downloadErr = dl.DownloadCommand(repoURL, componentName)
-		default:
-			return fmt.Errorf("unknown component type: %s", componentType)
-		}
-	} else {
-		switch componentType {
-		case "skills":
-			dl := downloader.NewSkillDownloader()
-			downloadErr = dl.DownloadSkill(repoURL, componentName)
-		case "agents":
-			dl := downloader.NewAgentDownloader()
-			downloadErr = dl.DownloadAgent(repoURL, componentName)
-		case "commands":
-			dl := downloader.NewCommandDownloader()
-			downloadErr = dl.DownloadCommand(repoURL, componentName)
-		default:
-			return fmt.Errorf("unknown component type: %s", componentType)
-		}
+	ct, err := pluralToComponentType(componentType)
+	if err != nil {
+		return err
 	}
+
+	var dl downloader.Downloader
+	if ud.profileName != "" {
+		dl = downloader.ForTypeWithProfile(ct, ud.profileName)
+	} else {
+		dl = downloader.ForType(ct)
+	}
+
+	var downloadErr error
+	downloadErr = dl.Download(repoURL, componentName)
 
 	if downloadErr != nil {
 		fmt.Printf("  %s\n\n", styles.IndentedErrorFormat(fmt.Sprintf("Update failed: %v", downloadErr)))
@@ -352,15 +336,8 @@ func (ud *UpdateDetector) UpdateAll() error {
 				}
 			}
 
-			// Download using *WithRepo methods to reuse the cloned repository
-			var downloadErr error
-			if ud.profileName != "" {
-				// Use profile-aware downloaders
-				downloadErr = ud.downloadComponentWithRepoForProfile(comp.Type, comp.Name, fullURL, repoURL, tempDir, allDetectedComponents)
-			} else {
-				// Use standard downloaders
-				downloadErr = ud.downloadComponentWithRepo(comp.Type, comp.Name, fullURL, repoURL, tempDir, allDetectedComponents)
-			}
+			// Download using DownloadWithRepo to reuse the cloned repository
+			downloadErr := ud.downloadComponentWithRepo(comp.Type, comp.Name, fullURL, repoURL, tempDir, allDetectedComponents)
 
 			if downloadErr != nil {
 				fmt.Printf("%s\n", styles.IndentedErrorFormat(downloadErr.Error()))
@@ -417,36 +394,35 @@ func (ud *UpdateDetector) groupComponentsByRepository() (map[string][]componentU
 	return componentsByRepo, totalComponents, nil
 }
 
-// downloadComponentWithRepo downloads a component using the *WithRepo methods to reuse a cloned repository
-func (ud *UpdateDetector) downloadComponentWithRepo(componentType, componentName, fullURL, repoURL, tempDir string, detectedComponents []models.DetectedComponent) error {
-	switch componentType {
+// pluralToComponentType converts a lock-file plural key ("skills" / "agents" / "commands")
+// to a models.ComponentType. Returns an error for unknown strings.
+func pluralToComponentType(plural string) (models.ComponentType, error) {
+	switch plural {
 	case "skills":
-		dl := downloader.NewSkillDownloader()
-		return dl.DownloadSkillWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
+		return models.ComponentSkill, nil
 	case "agents":
-		dl := downloader.NewAgentDownloader()
-		return dl.DownloadAgentWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
+		return models.ComponentAgent, nil
 	case "commands":
-		dl := downloader.NewCommandDownloader()
-		return dl.DownloadCommandWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
+		return models.ComponentCommand, nil
 	default:
-		return fmt.Errorf("unknown component type: %s", componentType)
+		return "", fmt.Errorf("unknown component type: %s", plural)
 	}
 }
 
-// downloadComponentWithRepoForProfile downloads a component using profile-aware downloaders with *WithRepo methods
-func (ud *UpdateDetector) downloadComponentWithRepoForProfile(componentType, componentName, fullURL, repoURL, tempDir string, detectedComponents []models.DetectedComponent) error {
-	switch componentType {
-	case "skills":
-		dl := downloader.NewSkillDownloaderForProfile(ud.profileName)
-		return dl.DownloadSkillWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
-	case "agents":
-		dl := downloader.NewAgentDownloaderForProfile(ud.profileName)
-		return dl.DownloadAgentWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
-	case "commands":
-		dl := downloader.NewCommandDownloaderForProfile(ud.profileName)
-		return dl.DownloadCommandWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
-	default:
-		return fmt.Errorf("unknown component type: %s", componentType)
+// downloadComponentWithRepo downloads a component using DownloadWithRepo to reuse a cloned repository.
+// Uses ForTypeWithProfile when a profile is active, otherwise ForType.
+func (ud *UpdateDetector) downloadComponentWithRepo(componentType, componentName, fullURL, repoURL, tempDir string, detectedComponents []models.DetectedComponent) error {
+	ct, err := pluralToComponentType(componentType)
+	if err != nil {
+		return err
 	}
+
+	var dl downloader.Downloader
+	if ud.profileName != "" {
+		dl = downloader.ForTypeWithProfile(ct, ud.profileName)
+	} else {
+		dl = downloader.ForType(ct)
+	}
+
+	return dl.DownloadWithRepo(fullURL, componentName, repoURL, tempDir, detectedComponents)
 }

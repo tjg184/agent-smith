@@ -7,6 +7,7 @@ import (
 	"github.com/tjg184/agent-smith/internal/downloader"
 	"github.com/tjg184/agent-smith/internal/fileutil"
 	"github.com/tjg184/agent-smith/internal/formatter"
+	"github.com/tjg184/agent-smith/internal/models"
 	"github.com/tjg184/agent-smith/pkg/logger"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
@@ -39,9 +40,9 @@ func (s *Service) InstallSkill(repoURL, name string, opts services.InstallOption
 	}
 
 	if opts.InstallDir != "" {
-		return s.installSkillToTargetDir(repoURL, name, opts.InstallDir)
+		return s.installToTargetDir(models.ComponentSkill, repoURL, name, opts.InstallDir)
 	} else if opts.Profile != "" {
-		return s.installSkillToProfile(repoURL, name, opts.Profile)
+		return s.installToProfile(models.ComponentSkill, repoURL, name, opts.Profile)
 	}
 
 	profile, err := s.getOrCreateRepoProfile(repoURL)
@@ -50,10 +51,10 @@ func (s *Service) InstallSkill(repoURL, name string, opts services.InstallOption
 	}
 
 	if profile != "" {
-		return s.installSkillToProfile(repoURL, name, profile)
+		return s.installToProfile(models.ComponentSkill, repoURL, name, profile)
 	}
 
-	return s.installSkillToBase(repoURL, name)
+	return s.installToBase(models.ComponentSkill, repoURL, name)
 }
 
 func (s *Service) InstallAgent(repoURL, name string, opts services.InstallOptions) error {
@@ -64,9 +65,9 @@ func (s *Service) InstallAgent(repoURL, name string, opts services.InstallOption
 	}
 
 	if opts.InstallDir != "" {
-		return s.installAgentToTargetDir(repoURL, name, opts.InstallDir)
+		return s.installToTargetDir(models.ComponentAgent, repoURL, name, opts.InstallDir)
 	} else if opts.Profile != "" {
-		return s.installAgentToProfile(repoURL, name, opts.Profile)
+		return s.installToProfile(models.ComponentAgent, repoURL, name, opts.Profile)
 	}
 
 	profile, err := s.getOrCreateRepoProfile(repoURL)
@@ -75,10 +76,10 @@ func (s *Service) InstallAgent(repoURL, name string, opts services.InstallOption
 	}
 
 	if profile != "" {
-		return s.installAgentToProfile(repoURL, name, profile)
+		return s.installToProfile(models.ComponentAgent, repoURL, name, profile)
 	}
 
-	return s.installAgentToBase(repoURL, name)
+	return s.installToBase(models.ComponentAgent, repoURL, name)
 }
 
 func (s *Service) InstallCommand(repoURL, name string, opts services.InstallOptions) error {
@@ -89,9 +90,9 @@ func (s *Service) InstallCommand(repoURL, name string, opts services.InstallOpti
 	}
 
 	if opts.InstallDir != "" {
-		return s.installCommandToTargetDir(repoURL, name, opts.InstallDir)
+		return s.installToTargetDir(models.ComponentCommand, repoURL, name, opts.InstallDir)
 	} else if opts.Profile != "" {
-		return s.installCommandToProfile(repoURL, name, opts.Profile)
+		return s.installToProfile(models.ComponentCommand, repoURL, name, opts.Profile)
 	}
 
 	profile, err := s.getOrCreateRepoProfile(repoURL)
@@ -100,10 +101,10 @@ func (s *Service) InstallCommand(repoURL, name string, opts services.InstallOpti
 	}
 
 	if profile != "" {
-		return s.installCommandToProfile(repoURL, name, profile)
+		return s.installToProfile(models.ComponentCommand, repoURL, name, profile)
 	}
 
-	return s.installCommandToBase(repoURL, name)
+	return s.installToBase(models.ComponentCommand, repoURL, name)
 }
 
 func (s *Service) InstallBulk(repoURL string, opts services.InstallOptions) error {
@@ -127,56 +128,7 @@ func (s *Service) validateInstallOptions(opts services.InstallOptions) error {
 	return nil
 }
 
-func (s *Service) installSkillToTargetDir(repoURL, name, targetDir string) error {
-	s.logger.Debug("[DEBUG] Installing skill to custom target directory")
-	resolvedPath, err := paths.ResolveTargetDir(targetDir)
-	if err != nil {
-		return fmt.Errorf("failed to resolve target directory: %w", err)
-	}
-	s.logger.Debug("[DEBUG] Resolved target directory: %s", resolvedPath)
-
-	if err := fileutil.CreateDirectoryWithPermissions(resolvedPath); err != nil {
-		return fmt.Errorf("failed to create target directory: %w", err)
-	}
-
-	s.logger.Info("Installing to custom directory: %s", resolvedPath)
-	dl := downloader.NewSkillDownloaderWithTargetDir(resolvedPath)
-	if err := dl.DownloadSkill(repoURL, name); err != nil {
-		return fmt.Errorf("failed to download skill: %w", err)
-	}
-	s.logger.Debug("[DEBUG] Skill download completed successfully")
-
-	return nil
-}
-
-func (s *Service) installSkillToProfile(repoURL, name, profile string) error {
-	s.logger.Debug("[DEBUG] Installing skill to profile: %s", profile)
-
-	if err := s.validateProfileExists(profile); err != nil {
-		return err
-	}
-
-	dl := downloader.NewSkillDownloaderForProfile(profile)
-	if err := dl.DownloadSkill(repoURL, name); err != nil {
-		return fmt.Errorf("failed to download skill: %w", err)
-	}
-	s.logger.Debug("[DEBUG] Skill download to profile completed successfully")
-
-	return s.activateProfileWithFeedback(profile)
-}
-
-func (s *Service) installSkillToBase(repoURL, name string) error {
-	s.logger.Debug("[DEBUG] Installing skill to standard directory (~/.agent-smith/)")
-	dl := downloader.NewSkillDownloader()
-	if err := dl.DownloadSkill(repoURL, name); err != nil {
-		return fmt.Errorf("failed to download skill: %w", err)
-	}
-	s.logger.Debug("[DEBUG] Skill download completed successfully")
-
-	return nil
-}
-
-func (s *Service) installAgentToTargetDir(repoURL, name, targetDir string) error {
+func (s *Service) installToTargetDir(ct models.ComponentType, repoURL, name, targetDir string) error {
 	resolvedPath, err := paths.ResolveTargetDir(targetDir)
 	if err != nil {
 		return fmt.Errorf("failed to resolve target directory: %w", err)
@@ -187,74 +139,29 @@ func (s *Service) installAgentToTargetDir(repoURL, name, targetDir string) error
 	}
 
 	s.logger.Info("Installing to custom directory: %s", resolvedPath)
-	dl := downloader.NewAgentDownloaderWithTargetDir(resolvedPath)
-	if err := dl.DownloadAgent(repoURL, name); err != nil {
-		return fmt.Errorf("failed to download agent: %w", err)
+	dl := downloader.ForTypeWithTargetDir(ct, resolvedPath)
+	if err := dl.Download(repoURL, name); err != nil {
+		return fmt.Errorf("failed to download %s: %w", ct, err)
 	}
-
 	return nil
 }
 
-func (s *Service) installAgentToProfile(repoURL, name, profile string) error {
+func (s *Service) installToProfile(ct models.ComponentType, repoURL, name, profile string) error {
 	if err := s.validateProfileExists(profile); err != nil {
 		return err
 	}
-
-	dl := downloader.NewAgentDownloaderForProfile(profile)
-	if err := dl.DownloadAgent(repoURL, name); err != nil {
-		return fmt.Errorf("failed to download agent: %w", err)
+	dl := downloader.ForTypeWithProfile(ct, profile)
+	if err := dl.Download(repoURL, name); err != nil {
+		return fmt.Errorf("failed to download %s: %w", ct, err)
 	}
-
 	return s.activateProfileWithFeedback(profile)
 }
 
-func (s *Service) installAgentToBase(repoURL, name string) error {
-	dl := downloader.NewAgentDownloader()
-	if err := dl.DownloadAgent(repoURL, name); err != nil {
-		return fmt.Errorf("failed to download agent: %w", err)
+func (s *Service) installToBase(ct models.ComponentType, repoURL, name string) error {
+	dl := downloader.ForType(ct)
+	if err := dl.Download(repoURL, name); err != nil {
+		return fmt.Errorf("failed to download %s: %w", ct, err)
 	}
-
-	return nil
-}
-
-func (s *Service) installCommandToTargetDir(repoURL, name, targetDir string) error {
-	resolvedPath, err := paths.ResolveTargetDir(targetDir)
-	if err != nil {
-		return fmt.Errorf("failed to resolve target directory: %w", err)
-	}
-
-	if err := fileutil.CreateDirectoryWithPermissions(resolvedPath); err != nil {
-		return fmt.Errorf("failed to create target directory: %w", err)
-	}
-
-	s.logger.Info("Installing to custom directory: %s", resolvedPath)
-	dl := downloader.NewCommandDownloaderWithTargetDir(resolvedPath)
-	if err := dl.DownloadCommand(repoURL, name); err != nil {
-		return fmt.Errorf("failed to download command: %w", err)
-	}
-
-	return nil
-}
-
-func (s *Service) installCommandToProfile(repoURL, name, profile string) error {
-	if err := s.validateProfileExists(profile); err != nil {
-		return err
-	}
-
-	dl := downloader.NewCommandDownloaderForProfile(profile)
-	if err := dl.DownloadCommand(repoURL, name); err != nil {
-		return fmt.Errorf("failed to download command: %w", err)
-	}
-
-	return s.activateProfileWithFeedback(profile)
-}
-
-func (s *Service) installCommandToBase(repoURL, name string) error {
-	dl := downloader.NewCommandDownloader()
-	if err := dl.DownloadCommand(repoURL, name); err != nil {
-		return fmt.Errorf("failed to download command: %w", err)
-	}
-
 	return nil
 }
 
