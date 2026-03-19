@@ -191,7 +191,7 @@ func (ud *UpdateDetector) UpdateComponent(componentType, componentName, repoURL 
 		}
 	}
 
-	ct, err := pluralToComponentType(componentType)
+	ct, err := models.ComponentTypeFromPlural(componentType)
 	if err != nil {
 		return err
 	}
@@ -398,25 +398,10 @@ func (ud *UpdateDetector) groupComponentsByRepository() (map[string][]componentU
 	return componentsByRepo, totalComponents, nil
 }
 
-// pluralToComponentType converts a lock-file plural key ("skills" / "agents" / "commands")
-// to a models.ComponentType. Returns an error for unknown strings.
-func pluralToComponentType(plural string) (models.ComponentType, error) {
-	switch plural {
-	case "skills":
-		return models.ComponentSkill, nil
-	case "agents":
-		return models.ComponentAgent, nil
-	case "commands":
-		return models.ComponentCommand, nil
-	default:
-		return "", fmt.Errorf("unknown component type: %s", plural)
-	}
-}
-
 // downloadComponentWithRepo downloads a component using DownloadWithRepo to reuse a cloned repository.
 // Uses ForTypeWithProfile when a profile is active, otherwise ForType.
 func (ud *UpdateDetector) downloadComponentWithRepo(componentType, componentName, fullURL, repoURL, tempDir string, detectedComponents []models.DetectedComponent) error {
-	ct, err := pluralToComponentType(componentType)
+	ct, err := models.ComponentTypeFromPlural(componentType)
 	if err != nil {
 		return err
 	}

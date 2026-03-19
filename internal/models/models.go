@@ -1,5 +1,7 @@
 package models
 
+import "fmt"
+
 // ComponentType represents the type of component
 type ComponentType string
 
@@ -8,6 +10,36 @@ const (
 	ComponentAgent   ComponentType = "agent"
 	ComponentCommand ComponentType = "command"
 )
+
+// PluralDir returns the plural directory name for this component type
+// (e.g. ComponentSkill → "skills").
+func (ct ComponentType) PluralDir() string {
+	switch ct {
+	case ComponentSkill:
+		return "skills"
+	case ComponentAgent:
+		return "agents"
+	case ComponentCommand:
+		return "commands"
+	default:
+		return string(ct) + "s"
+	}
+}
+
+// ComponentTypeFromPlural converts a plural directory name ("skills", "agents", "commands")
+// to a ComponentType. Returns an error for unknown strings.
+func ComponentTypeFromPlural(plural string) (ComponentType, error) {
+	switch plural {
+	case "skills":
+		return ComponentSkill, nil
+	case "agents":
+		return ComponentAgent, nil
+	case "commands":
+		return ComponentCommand, nil
+	default:
+		return "", fmt.Errorf("unknown component type: %s", plural)
+	}
+}
 
 const CurrentLockFileVersion = 1
 
