@@ -63,37 +63,43 @@ func linkComponentInternal(agentsDir string, targets []config.Target, f *formatt
 	selectedProfileName := ""
 
 	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
-		matches, searchErr := profilepicker.SearchComponentInProfiles(componentType, componentName)
-		if searchErr != nil {
-			return fmt.Errorf("failed to search profiles: %w", searchErr)
-		}
-
-		if len(matches) == 0 {
-			return fmt.Errorf("component %s/%s does not exist in any profile", componentType, componentName)
-		}
-
-		if len(matches) > 1 {
-			profilePath, profileName, err := profilepicker.PromptProfileSelection(componentType, componentName, matches, os.Stdin, os.Stdout)
-			if err != nil {
-				return err
-			}
-			selectedFilesystemName := effectiveName
-			for _, m := range matches {
-				if m.ProfilePath == profilePath && componentType == "skills" && m.FilesystemName != "" {
-					selectedFilesystemName = m.FilesystemName
-					break
-				}
-			}
-			effectiveName = selectedFilesystemName
-			srcDir = filepath.Join(profilePath, componentType, effectiveName)
-			selectedProfileName = profileName
+		resolved, resolvedSrcDir := resolveSkillViaLockFile(agentsDir, componentType, componentName)
+		if resolvedSrcDir != "" {
+			effectiveName = resolved
+			srcDir = resolvedSrcDir
 		} else {
-			if componentType == "skills" && matches[0].FilesystemName != "" {
-				effectiveName = matches[0].FilesystemName
+			matches, searchErr := profilepicker.SearchComponentInProfiles(componentType, componentName)
+			if searchErr != nil {
+				return fmt.Errorf("failed to search profiles: %w", searchErr)
 			}
-			srcDir = filepath.Join(matches[0].ProfilePath, componentType, effectiveName)
-			selectedProfileName = matches[0].ProfileName
-			fmt.Printf("  %s Component found in profile: %s\n", colors.Muted("→"), selectedProfileName)
+
+			if len(matches) == 0 {
+				return fmt.Errorf("component %s/%s does not exist in any profile", componentType, componentName)
+			}
+
+			if len(matches) > 1 {
+				profilePath, profileName, err := profilepicker.PromptProfileSelection(componentType, componentName, matches, os.Stdin, os.Stdout)
+				if err != nil {
+					return err
+				}
+				selectedFilesystemName := effectiveName
+				for _, m := range matches {
+					if m.ProfilePath == profilePath && componentType == "skills" && m.FilesystemName != "" {
+						selectedFilesystemName = m.FilesystemName
+						break
+					}
+				}
+				effectiveName = selectedFilesystemName
+				srcDir = filepath.Join(profilePath, componentType, effectiveName)
+				selectedProfileName = profileName
+			} else {
+				if componentType == "skills" && matches[0].FilesystemName != "" {
+					effectiveName = matches[0].FilesystemName
+				}
+				srcDir = filepath.Join(matches[0].ProfilePath, componentType, effectiveName)
+				selectedProfileName = matches[0].ProfileName
+				fmt.Printf("  %s Component found in profile: %s\n", colors.Muted("→"), selectedProfileName)
+			}
 		}
 	} else {
 		selectedProfileName = linkutil.ProfileFromPath(srcDir)
@@ -519,4 +525,25 @@ func collectLeafSkillNames(typeDir, prefix string) ([]string, error) {
 		names = append(names, nested...)
 	}
 	return names, nil
+}
+
+func resolveSkillViaLockFile(agentsDir, componentType, componentName string) (effectiveName, srcDir string) {
+	all, err := metadataPkg.LoadAllComponents(agentsDir, componentType)
+	if err != nil {
+		return "", ""
+	}
+	for _, ncs := range all {
+		if ncs.Name != componentName {
+			continue
+		}
+		fsName := ncs.Entry.FilesystemName
+		if fsName == "" || fsName == componentName {
+			continue
+		}
+		candidate := filepath.Join(agentsDir, componentType, fsName)
+		if _, statErr := os.Stat(candidate); statErr == nil {
+			return fsName, candidate
+		}
+	}
+	return "", ""
 }
