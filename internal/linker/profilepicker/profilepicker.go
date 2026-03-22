@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/tjg184/agent-smith/internal/linker/linkutil"
 	metadataPkg "github.com/tjg184/agent-smith/internal/metadata"
 	"github.com/tjg184/agent-smith/pkg/paths"
 )
@@ -31,28 +32,7 @@ func GetProfileNameFromSymlink(symlinkPath string) string {
 		target = filepath.Join(filepath.Dir(symlinkPath), target)
 	}
 
-	return getProfileFromPath(target)
-}
-
-func getProfileFromPath(path string) string {
-	path = filepath.Clean(path)
-
-	parent := filepath.Dir(path)
-	if filepath.Base(parent) == "profiles" {
-		return filepath.Base(path)
-	}
-
-	dir := parent
-	for {
-		grandparent := filepath.Dir(dir)
-		if filepath.Base(grandparent) == "profiles" {
-			return filepath.Base(dir)
-		}
-		if grandparent == dir || grandparent == "." || grandparent == "/" {
-			return paths.BaseProfileName
-		}
-		dir = grandparent
-	}
+	return linkutil.ProfileFromPath(target)
 }
 
 func SearchComponentInProfiles(componentType, componentName string) ([]ProfileMatch, error) {

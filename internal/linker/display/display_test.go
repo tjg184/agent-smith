@@ -64,7 +64,7 @@ func TestCollectLeafSkills_Flat(t *testing.T) {
 	makeSkill(t, filepath.Join(skillsDir, "alpha"))
 	makeSkill(t, filepath.Join(skillsDir, "beta"))
 
-	got := collectLeafSkills(skillsDir, "", tmp, "myprofile", "skills")
+	got := collectLeafSkills(skillsDir, "", tmp, "skills", func(_ string) string { return "myprofile" })
 
 	if len(got) != 2 {
 		t.Fatalf("expected 2 skills, got %d: %v", len(got), got)
@@ -88,7 +88,7 @@ func TestCollectLeafSkills_Nested(t *testing.T) {
 	makeSkill(t, filepath.Join(skillsDir, "sdlc-pipeline", "draft-architecture"))
 	makeSkill(t, filepath.Join(skillsDir, "planning", "prd"))
 
-	got := collectLeafSkills(skillsDir, "", tmp, "myprofile", "skills")
+	got := collectLeafSkills(skillsDir, "", tmp, "skills", func(_ string) string { return "myprofile" })
 
 	if len(got) != 3 {
 		t.Fatalf("expected 3 skills, got %d: %v", len(got), got)
@@ -118,7 +118,7 @@ func TestCollectLeafSkills_Mixed(t *testing.T) {
 	makeSkill(t, filepath.Join(skillsDir, "flat-skill"))
 	makeSkill(t, filepath.Join(skillsDir, "category", "nested-skill"))
 
-	got := collectLeafSkills(skillsDir, "", tmp, "myprofile", "skills")
+	got := collectLeafSkills(skillsDir, "", tmp, "skills", func(_ string) string { return "myprofile" })
 
 	if len(got) != 2 {
 		t.Fatalf("expected 2 skills, got %d: %v", len(got), got)

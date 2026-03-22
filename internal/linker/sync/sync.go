@@ -10,6 +10,7 @@ import (
 	"github.com/tjg184/agent-smith/internal/detector"
 	"github.com/tjg184/agent-smith/internal/fileutil"
 	"github.com/tjg184/agent-smith/internal/formatter"
+	"github.com/tjg184/agent-smith/internal/linker/linkutil"
 	"github.com/tjg184/agent-smith/internal/linker/profilepicker"
 	metadataPkg "github.com/tjg184/agent-smith/internal/metadata"
 	"github.com/tjg184/agent-smith/internal/models"
@@ -20,7 +21,6 @@ import (
 )
 
 // CreateSymlink creates a relative symlink from dst pointing to src.
-// On Windows, if os.Symlink fails it falls back to a directory copy.
 func CreateSymlink(src, dst string) error {
 	if info, err := os.Lstat(dst); err == nil {
 		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
@@ -53,7 +53,6 @@ func CreateSymlink(src, dst string) error {
 }
 
 // LinkComponent links a single component to all provided targets.
-// It searches profiles when the component is not found in agentsDir.
 func LinkComponent(agentsDir string, targets []config.Target, f *formatter.Formatter, componentType, componentName string) error {
 	return linkComponentInternal(agentsDir, targets, f, componentType, componentName, true)
 }
@@ -91,15 +90,13 @@ func linkComponentInternal(agentsDir string, targets []config.Target, f *formatt
 		} else {
 			if componentType == "skills" && matches[0].FilesystemName != "" {
 				effectiveName = matches[0].FilesystemName
-				srcDir = filepath.Join(matches[0].ProfilePath, componentType, effectiveName)
-			} else {
-				srcDir = filepath.Join(matches[0].ProfilePath, componentType, effectiveName)
 			}
+			srcDir = filepath.Join(matches[0].ProfilePath, componentType, effectiveName)
 			selectedProfileName = matches[0].ProfileName
 			fmt.Printf("  %s Component found in profile: %s\n", colors.Muted("→"), selectedProfileName)
 		}
 	} else {
-		selectedProfileName = getProfileFromPath(srcDir)
+		selectedProfileName = linkutil.ProfileFromPath(srcDir)
 	}
 
 	_ = loadComponentMetadata(agentsDir, componentType, componentName)
@@ -407,30 +404,7 @@ func renderLinkSummary(f *formatter.Formatter, successCount, failedCount int, fa
 	}
 }
 
-// getProfileFromPath extracts the profile name from a filesystem path.
-func getProfileFromPath(path string) string {
-	path = filepath.Clean(path)
-
-	parent := filepath.Dir(path)
-	if filepath.Base(parent) == "profiles" {
-		return filepath.Base(path)
-	}
-
-	dir := parent
-	for {
-		grandparent := filepath.Dir(dir)
-		if filepath.Base(grandparent) == "profiles" {
-			return filepath.Base(dir)
-		}
-		if grandparent == dir || grandparent == "." || grandparent == "/" {
-			return paths.BaseProfileName
-		}
-		dir = grandparent
-	}
-}
-
-// linkFlatMdFiles walks srcDir recursively and creates a flat symlink in targetBaseDir
-// for each .md file.
+// linkFlatMdFiles creates a flat symlink in targetBaseDir for each .md file in srcDir.
 func linkFlatMdFiles(srcDir, targetBaseDir string) ([]string, error) {
 	var linked []string
 
@@ -509,8 +483,6 @@ func collectComponentNames(typeDir, componentType string) ([]string, error) {
 	return names, nil
 }
 
-// collectLeafSkillNames recursively walks typeDir and returns the relative paths
-// of all leaf skill directories (directories that contain SKILL.md directly).
 // prefix is the accumulated relative path from typeDir (empty at the top level).
 func collectLeafSkillNames(typeDir, prefix string) ([]string, error) {
 	searchDir := typeDir
@@ -547,25 +519,4 @@ func collectLeafSkillNames(typeDir, prefix string) ([]string, error) {
 		names = append(names, nested...)
 	}
 	return names, nil
-}
-
-// dirContainsOnlySymlinks reports whether every entry in dir (recursively) is a
-// symlink. Returns false if dir is empty or if any non-symlink entry exists.
-// Used to determine whether a real directory was created by a previous broken
-// link attempt and is safe to replace with a category-level symlink.
-func dirContainsOnlySymlinks(dir string) bool {
-	entries, err := os.ReadDir(dir)
-	if err != nil || len(entries) == 0 {
-		return false
-	}
-	for _, e := range entries {
-		info, err := e.Info()
-		if err != nil {
-			return false
-		}
-		if info.Mode()&os.ModeSymlink == 0 {
-			return false
-		}
-	}
-	return true
 }
