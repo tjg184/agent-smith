@@ -772,50 +772,57 @@ func unlinkFlatMdFiles(componentName, componentTypeDir, targetBaseDir string) er
 	})
 }
 
-// Contains at least one symlink and no regular files at the top level.
+// Contains at least one symlink (at any depth) and no regular files at any depth.
 func isManagedCategoryDir(dir string) bool {
-	entries, err := os.ReadDir(dir)
-	if err != nil || len(entries) == 0 {
-		return false
-	}
 	hasSymlink := false
-	for _, e := range entries {
-		info, err := e.Info()
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			return false
+			return err
+		}
+		if path == dir {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
 			hasSymlink = true
-		} else if !e.IsDir() {
-			return false
+			return nil
 		}
+		if !d.IsDir() {
+			return fmt.Errorf("regular file found")
+		}
+		return nil
+	})
+	if err != nil {
+		return false
 	}
 	return hasSymlink
 }
 
 // agentsDir non-empty: only symlinks that point into agent-smith are counted.
 func countManagedLeafSymlinks(categoryDir, agentsDir string) (count int, err error) {
-	entries, err := os.ReadDir(categoryDir)
-	if err != nil {
-		return 0, err
-	}
-	for _, e := range entries {
-		info, err := e.Info()
-		if err != nil {
-			continue
+	err = filepath.WalkDir(categoryDir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		info, infoErr := d.Info()
+		if infoErr != nil {
+			return nil
 		}
 		if info.Mode()&os.ModeSymlink == 0 {
-			continue
+			return nil
 		}
-		fullPath := filepath.Join(categoryDir, e.Name())
 		if agentsDir != "" {
-			if ok, err := isSymlinkFromAgentSmith(agentsDir, fullPath); err != nil || !ok {
-				continue
+			if ok, checkErr := isSymlinkFromAgentSmith(agentsDir, path); checkErr != nil || !ok {
+				return nil
 			}
 		}
 		count++
-	}
-	return count, nil
+		return nil
+	})
+	return count, err
 }
 
 // Cleans up the directory if it becomes empty. Returns the number of removed and skipped symlinks.
@@ -829,49 +836,51 @@ func removeManagedLeafSymlinks(
 	profilesExist bool,
 	skippedByProfile map[string][]string,
 ) (removed, skipped int) {
-	entries, err := os.ReadDir(categoryDir)
-	if err != nil {
-		return 0, 0
-	}
+	var dirs []string
 
-	categoryName := filepath.Base(categoryDir)
-
-	for _, e := range entries {
-		info, err := e.Info()
+	_ = filepath.WalkDir(categoryDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			continue
+			return nil
+		}
+		if d.IsDir() {
+			dirs = append(dirs, path)
+			return nil
+		}
+		info, infoErr := d.Info()
+		if infoErr != nil {
+			return nil
 		}
 		if info.Mode()&os.ModeSymlink == 0 {
 			skipped++
-			continue
+			return nil
 		}
 
-		fullPath := filepath.Join(categoryDir, e.Name())
-
 		if agentsDir != "" {
-			if ok, err := isSymlinkFromAgentSmith(agentsDir, fullPath); err != nil || !ok {
+			if ok, checkErr := isSymlinkFromAgentSmith(agentsDir, path); checkErr != nil || !ok {
 				skipped++
-				continue
+				return nil
 			}
 		}
 
 		if !allProfiles && agentsDir != "" {
-			if ok, err := isSymlinkFromCurrentProfile(agentsDir, fullPath); err != nil || !ok {
-				profileName := profilepicker.GetProfileNameFromSymlink(fullPath)
+			if ok, checkErr := isSymlinkFromCurrentProfile(agentsDir, path); checkErr != nil || !ok {
+				profileName := profilepicker.GetProfileNameFromSymlink(path)
 				if profileName != "" && skippedByProfile != nil {
-					key := fmt.Sprintf("%s/%s/%s", componentType, categoryName, e.Name())
+					rel, _ := filepath.Rel(filepath.Dir(categoryDir), path)
+					key := fmt.Sprintf("%s/%s", componentType, rel)
 					skippedByProfile[profileName] = append(skippedByProfile[profileName], key)
 				}
 				skipped++
-				continue
+				return nil
 			}
 		}
 
-		displayName := categoryName + "/" + e.Name()
+		rel, _ := filepath.Rel(filepath.Dir(categoryDir), path)
+		displayName := rel
 
 		profileNote := ""
 		if profilesExist && agentsDir != "" {
-			profileName := profilepicker.GetProfileNameFromSymlink(fullPath)
+			profileName := profilepicker.GetProfileNameFromSymlink(path)
 			if profileName != "" && profileName != paths.BaseProfileName {
 				profileNote = fmt.Sprintf(" [%s]", profileName)
 			}
@@ -879,19 +888,21 @@ func removeManagedLeafSymlinks(
 
 		f.ProgressMsg(fmt.Sprintf("Unlinking %s from %s%s", componentType, targetName, profileNote), displayName)
 
-		if err := os.Remove(fullPath); err != nil {
+		if removeErr := os.Remove(path); removeErr != nil {
 			f.ProgressFailed()
-			f.WarningMsg("Failed to unlink %s: %v", fullPath, err)
+			f.WarningMsg("Failed to unlink %s: %v", path, removeErr)
 		} else {
 			f.ProgressComplete()
 			removed++
 		}
-	}
+		return nil
+	})
 
-	// Remove the category directory if it is now empty.
-	remaining, _ := os.ReadDir(categoryDir)
-	if len(remaining) == 0 {
-		_ = os.Remove(categoryDir)
+	for i := len(dirs) - 1; i >= 0; i-- {
+		remaining, _ := os.ReadDir(dirs[i])
+		if len(remaining) == 0 {
+			_ = os.Remove(dirs[i])
+		}
 	}
 
 	return removed, skipped
