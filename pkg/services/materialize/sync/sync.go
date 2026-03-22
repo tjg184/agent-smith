@@ -129,8 +129,21 @@ func MaterializeComponent(d Deps, componentType, componentName string, opts serv
 				}
 				return fmt.Errorf("ambiguous component name")
 			}
-			d.Logger.Error("Failed to load component metadata: %v", loadErr)
-			return fmt.Errorf("failed to load component metadata: %w", loadErr)
+
+			if containsStr(loadErr.Error(), "not found in lock file") {
+				resolved, resolveErr := resolveNestedComponentName(baseDir, componentType, componentName)
+				if resolveErr == nil {
+					lockEntry, loadErr = metadataPkg.LoadLockFileEntryBySource(baseDir, componentType, resolved.ComponentName, resolved.SourceUrl)
+					if loadErr != nil {
+						loadErr = fmt.Errorf("failed to load component metadata: %w", loadErr)
+					}
+				}
+			}
+
+			if lockEntry == nil && loadErr != nil {
+				d.Logger.Error("Failed to load component metadata: %v", loadErr)
+				return fmt.Errorf("failed to load component metadata: %w", loadErr)
+			}
 		}
 	}
 
@@ -776,6 +789,20 @@ func resolveProjectRoot(projectDir string) (string, error) {
 		return "", fmt.Errorf("failed to find project root: %w", err)
 	}
 	return root, nil
+}
+
+func resolveNestedComponentName(baseDir, componentType, filesystemName string) (componentInfo, error) {
+	fsMap, err := buildFilesystemNameMap(baseDir)
+	if err != nil {
+		return componentInfo{}, err
+	}
+
+	key := componentType + "/" + filesystemName
+	if info, ok := fsMap[key]; ok {
+		return info, nil
+	}
+
+	return componentInfo{}, fmt.Errorf("no lock entry with filesystemName %q for type %s", filesystemName, componentType)
 }
 
 func containsStr(s, substr string) bool {
