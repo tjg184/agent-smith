@@ -204,7 +204,12 @@ func UnlinkComponentsByType(agentsDir string, targets []config.Target, f *format
 			linkType, _, _ := analyzeLinkStatus(fullPath)
 
 			if linkType == "copied" {
-				copiedDirs++
+				if componentType == "skills" && isManagedCategoryDir(fullPath) {
+					leafCount, _ := countManagedLeafSymlinks(fullPath, "")
+					totalLinks += leafCount
+				} else {
+					copiedDirs++
+				}
 				continue
 			}
 			totalLinks++
@@ -288,7 +293,13 @@ func UnlinkComponentsByType(agentsDir string, targets []config.Target, f *format
 			linkType, _, _ := analyzeLinkStatus(fullPath)
 
 			if linkType == "copied" {
-				skippedCount++
+				if componentType == "skills" && isManagedCategoryDir(fullPath) {
+					removed, skipped := removeManagedLeafSymlinks(f, fullPath, "", false, target.GetName(), componentType, false, nil)
+					removedCount += removed
+					skippedCount += skipped
+				} else {
+					skippedCount++
+				}
 				continue
 			}
 
@@ -368,7 +379,14 @@ func UnlinkAllComponents(agentsDir string, targets []config.Target, f *formatter
 				linkType, _, _ := analyzeLinkStatus(fullPath)
 
 				if linkType == "copied" {
-					copiedDirs++
+					// A real directory may be a managed category dir containing
+					// individual leaf symlinks rather than a true copy.
+					if componentType == "skills" && isManagedCategoryDir(fullPath) {
+						leafCount, _ := countManagedLeafSymlinks(fullPath, agentsDir)
+						totalLinks += leafCount
+					} else {
+						copiedDirs++
+					}
 					continue
 				}
 
@@ -506,7 +524,13 @@ func UnlinkAllComponents(agentsDir string, targets []config.Target, f *formatter
 				linkType, _, _ := analyzeLinkStatus(fullPath)
 
 				if linkType == "copied" {
-					skippedCount++
+					if componentType == "skills" && isManagedCategoryDir(fullPath) {
+						removed, skipped := removeManagedLeafSymlinks(f, fullPath, agentsDir, allProfiles, target.GetName(), componentType, profilesExist, skippedByProfile)
+						removedCount += removed
+						skippedCount += skipped
+					} else {
+						skippedCount++
+					}
 					continue
 				}
 
@@ -833,4 +857,134 @@ func unlinkFlatMdFiles(componentName, componentTypeDir, targetBaseDir string) er
 
 		return nil
 	})
+}
+
+// isManagedCategoryDir reports whether dir is a real directory that looks like
+// it was created by `link skill` (contains at least one symlink and no regular
+// files at the top level).
+func isManagedCategoryDir(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) == 0 {
+		return false
+	}
+	hasSymlink := false
+	for _, e := range entries {
+		info, err := e.Info()
+		if err != nil {
+			return false
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			hasSymlink = true
+		} else if !e.IsDir() {
+			return false
+		}
+	}
+	return hasSymlink
+}
+
+// countManagedLeafSymlinks counts symlinks inside a managed category dir. When
+// agentsDir is non-empty, only symlinks that point into agent-smith are counted.
+func countManagedLeafSymlinks(categoryDir, agentsDir string) (count int, err error) {
+	entries, err := os.ReadDir(categoryDir)
+	if err != nil {
+		return 0, err
+	}
+	for _, e := range entries {
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		if info.Mode()&os.ModeSymlink == 0 {
+			continue
+		}
+		fullPath := filepath.Join(categoryDir, e.Name())
+		if agentsDir != "" {
+			if ok, err := isSymlinkFromAgentSmith(agentsDir, fullPath); err != nil || !ok {
+				continue
+			}
+		}
+		count++
+	}
+	return count, nil
+}
+
+// removeManagedLeafSymlinks removes agent-smith-managed leaf symlinks from a
+// managed category directory and cleans up the directory if it becomes empty.
+// Returns the number of removed and skipped symlinks.
+func removeManagedLeafSymlinks(
+	f *formatter.Formatter,
+	categoryDir string,
+	agentsDir string,
+	allProfiles bool,
+	targetName string,
+	componentType string,
+	profilesExist bool,
+	skippedByProfile map[string][]string,
+) (removed, skipped int) {
+	entries, err := os.ReadDir(categoryDir)
+	if err != nil {
+		return 0, 0
+	}
+
+	categoryName := filepath.Base(categoryDir)
+
+	for _, e := range entries {
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		if info.Mode()&os.ModeSymlink == 0 {
+			skipped++
+			continue
+		}
+
+		fullPath := filepath.Join(categoryDir, e.Name())
+
+		if agentsDir != "" {
+			if ok, err := isSymlinkFromAgentSmith(agentsDir, fullPath); err != nil || !ok {
+				skipped++
+				continue
+			}
+		}
+
+		if !allProfiles && agentsDir != "" {
+			if ok, err := isSymlinkFromCurrentProfile(agentsDir, fullPath); err != nil || !ok {
+				profileName := profilepicker.GetProfileNameFromSymlink(fullPath)
+				if profileName != "" && skippedByProfile != nil {
+					key := fmt.Sprintf("%s/%s/%s", componentType, categoryName, e.Name())
+					skippedByProfile[profileName] = append(skippedByProfile[profileName], key)
+				}
+				skipped++
+				continue
+			}
+		}
+
+		displayName := categoryName + "/" + e.Name()
+
+		profileNote := ""
+		if profilesExist && agentsDir != "" {
+			profileName := profilepicker.GetProfileNameFromSymlink(fullPath)
+			if profileName != "" && profileName != paths.BaseProfileName {
+				profileNote = fmt.Sprintf(" [%s]", profileName)
+			}
+		}
+
+		f.ProgressMsg(fmt.Sprintf("Unlinking %s from %s%s", componentType, targetName, profileNote), displayName)
+
+		if err := os.Remove(fullPath); err != nil {
+			f.ProgressFailed()
+			f.WarningMsg("Failed to unlink %s: %v", fullPath, err)
+		} else {
+			f.ProgressComplete()
+			removed++
+		}
+	}
+
+	// Remove the category directory if it is now empty.
+	remaining, _ := os.ReadDir(categoryDir)
+	if len(remaining) == 0 {
+		_ = os.Remove(categoryDir)
+	}
+
+	return removed, skipped
 }

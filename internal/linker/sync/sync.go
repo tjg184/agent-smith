@@ -22,8 +22,14 @@ import (
 // CreateSymlink creates a relative symlink from dst pointing to src.
 // On Windows, if os.Symlink fails it falls back to a directory copy.
 func CreateSymlink(src, dst string) error {
-	if _, err := os.Lstat(dst); err == nil {
-		os.Remove(dst)
+	if info, err := os.Lstat(dst); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			os.Remove(dst)
+		} else {
+			// dst is a real directory — do not replace it with a symlink.
+			// It may contain individually-linked leaf skills.
+			return nil
+		}
 	}
 
 	dstDir := filepath.Dir(dst)
@@ -53,7 +59,8 @@ func LinkComponent(agentsDir string, targets []config.Target, f *formatter.Forma
 }
 
 func linkComponentInternal(agentsDir string, targets []config.Target, f *formatter.Formatter, componentType, componentName string, verbose bool) error {
-	srcDir := filepath.Join(agentsDir, componentType, componentName)
+	effectiveName := componentName
+	srcDir := filepath.Join(agentsDir, componentType, effectiveName)
 	selectedProfileName := ""
 
 	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
@@ -71,10 +78,23 @@ func linkComponentInternal(agentsDir string, targets []config.Target, f *formatt
 			if err != nil {
 				return err
 			}
-			srcDir = filepath.Join(profilePath, componentType, componentName)
+			selectedFilesystemName := effectiveName
+			for _, m := range matches {
+				if m.ProfilePath == profilePath && componentType == "skills" && m.FilesystemName != "" {
+					selectedFilesystemName = m.FilesystemName
+					break
+				}
+			}
+			effectiveName = selectedFilesystemName
+			srcDir = filepath.Join(profilePath, componentType, effectiveName)
 			selectedProfileName = profileName
 		} else {
-			srcDir = filepath.Join(matches[0].ProfilePath, componentType, componentName)
+			if componentType == "skills" && matches[0].FilesystemName != "" {
+				effectiveName = matches[0].FilesystemName
+				srcDir = filepath.Join(matches[0].ProfilePath, componentType, effectiveName)
+			} else {
+				srcDir = filepath.Join(matches[0].ProfilePath, componentType, effectiveName)
+			}
 			selectedProfileName = matches[0].ProfileName
 			fmt.Printf("  %s Component found in profile: %s\n", colors.Muted("→"), selectedProfileName)
 		}
@@ -136,7 +156,7 @@ func linkComponentInternal(agentsDir string, targets []config.Target, f *formatt
 			continue
 		}
 
-		dstDir := filepath.Join(componentDir, componentName)
+		dstDir := filepath.Join(componentDir, effectiveName)
 
 		if err := fileutil.CreateDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
 			linkResults = append(linkResults, linkResult{
@@ -219,11 +239,6 @@ func LinkComponentsByType(agentsDir string, targets []config.Target, f *formatte
 		return nil
 	}
 
-	entries, err := os.ReadDir(typeDir)
-	if err != nil {
-		return fmt.Errorf("failed to read %s directory: %w", componentType, err)
-	}
-
 	var successCount, failedCount int
 	var failedComponents []string
 
@@ -237,21 +252,22 @@ func LinkComponentsByType(agentsDir string, targets []config.Target, f *formatte
 	fmt.Printf("%s\n", colors.InfoBold(fmt.Sprintf("Linking %s to: %s", componentType, targetList)))
 	f.EmptyLine()
 
-	for _, entry := range entries {
-		if entry.IsDir() {
-			componentName := entry.Name()
+	componentNames, err := collectComponentNames(typeDir, componentType)
+	if err != nil {
+		return fmt.Errorf("failed to read %s directory: %w", componentType, err)
+	}
 
-			fmt.Printf("Linking %s: %s... ", componentType, componentName)
+	for _, componentName := range componentNames {
+		fmt.Printf("Linking %s: %s... ", componentType, componentName)
 
-			if err := linkComponentInternal(agentsDir, targets, f, componentType, componentName, false); err != nil {
-				fmt.Printf("%s\n", colors.Error(formatter.SymbolError+" Failed"))
-				fmt.Printf("  %s %v\n", colors.Muted("→"), err)
-				failedCount++
-				failedComponents = append(failedComponents, fmt.Sprintf("%s/%s", componentType, componentName))
-			} else {
-				fmt.Printf("%s\n", colors.Success(formatter.SymbolSuccess+" Done"))
-				successCount++
-			}
+		if err := linkComponentInternal(agentsDir, targets, f, componentType, componentName, false); err != nil {
+			fmt.Printf("%s\n", colors.Error(formatter.SymbolError+" Failed"))
+			fmt.Printf("  %s %v\n", colors.Muted("→"), err)
+			failedCount++
+			failedComponents = append(failedComponents, fmt.Sprintf("%s/%s", componentType, componentName))
+		} else {
+			fmt.Printf("%s\n", colors.Success(formatter.SymbolSuccess+" Done"))
+			successCount++
 		}
 	}
 
@@ -282,27 +298,23 @@ func LinkAllComponents(agentsDir string, targets []config.Target, f *formatter.F
 			continue
 		}
 
-		entries, err := os.ReadDir(typeDir)
+		componentNames, err := collectComponentNames(typeDir, componentType)
 		if err != nil {
 			f.WarningMsg("Failed to read %s directory: %v", componentType, err)
 			continue
 		}
 
-		for _, entry := range entries {
-			if entry.IsDir() {
-				componentName := entry.Name()
+		for _, componentName := range componentNames {
+			fmt.Printf("Linking %s: %s... ", componentType, componentName)
 
-				fmt.Printf("Linking %s: %s... ", componentType, componentName)
-
-				if err := linkComponentInternal(agentsDir, targets, f, componentType, componentName, false); err != nil {
-					fmt.Printf("%s\n", colors.Error(formatter.SymbolError+" Failed"))
-					fmt.Printf("  %s %v\n", colors.Muted("→"), err)
-					failedCount++
-					failedComponents = append(failedComponents, fmt.Sprintf("%s/%s", componentType, componentName))
-				} else {
-					fmt.Printf("%s\n", colors.Success(formatter.SymbolSuccess+" Done"))
-					successCount++
-				}
+			if err := linkComponentInternal(agentsDir, targets, f, componentType, componentName, false); err != nil {
+				fmt.Printf("%s\n", colors.Error(formatter.SymbolError+" Failed"))
+				fmt.Printf("  %s %v\n", colors.Muted("→"), err)
+				failedCount++
+				failedComponents = append(failedComponents, fmt.Sprintf("%s/%s", componentType, componentName))
+			} else {
+				fmt.Printf("%s\n", colors.Success(formatter.SymbolSuccess+" Done"))
+				successCount++
 			}
 		}
 	}
@@ -471,4 +483,89 @@ func linkFlatMdFiles(srcDir, targetBaseDir string) ([]string, error) {
 	})
 
 	return linked, err
+}
+
+// collectComponentNames returns the names to use when iterating a component type
+// directory for bulk-link operations. For skills, it recursively finds all leaf
+// skill directories (those containing SKILL.md) and returns their relative paths
+// (e.g. "sdlc-pipeline/record-completion"). For other types, it returns the
+// names of the top-level subdirectories.
+func collectComponentNames(typeDir, componentType string) ([]string, error) {
+	if componentType == "skills" {
+		return collectLeafSkillNames(typeDir, "")
+	}
+
+	entries, err := os.ReadDir(typeDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() {
+			names = append(names, e.Name())
+		}
+	}
+	return names, nil
+}
+
+// collectLeafSkillNames recursively walks typeDir and returns the relative paths
+// of all leaf skill directories (directories that contain SKILL.md directly).
+// prefix is the accumulated relative path from typeDir (empty at the top level).
+func collectLeafSkillNames(typeDir, prefix string) ([]string, error) {
+	searchDir := typeDir
+	if prefix != "" {
+		searchDir = filepath.Join(typeDir, prefix)
+	}
+
+	entries, err := os.ReadDir(searchDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		relName := e.Name()
+		if prefix != "" {
+			relName = prefix + "/" + e.Name()
+		}
+
+		skillMd := filepath.Join(typeDir, relName, "SKILL.md")
+		if _, err := os.Stat(skillMd); err == nil {
+			names = append(names, relName)
+			continue
+		}
+
+		// Not a leaf — recurse into it.
+		nested, err := collectLeafSkillNames(typeDir, relName)
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, nested...)
+	}
+	return names, nil
+}
+
+// dirContainsOnlySymlinks reports whether every entry in dir (recursively) is a
+// symlink. Returns false if dir is empty or if any non-symlink entry exists.
+// Used to determine whether a real directory was created by a previous broken
+// link attempt and is safe to replace with a category-level symlink.
+func dirContainsOnlySymlinks(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) == 0 {
+		return false
+	}
+	for _, e := range entries {
+		info, err := e.Info()
+		if err != nil {
+			return false
+		}
+		if info.Mode()&os.ModeSymlink == 0 {
+			return false
+		}
+	}
+	return true
 }
