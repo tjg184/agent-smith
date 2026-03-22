@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/tjg184/agent-smith/compare/v1.7.0...v1.8.0) (2026-03-22)
+
+
+### Features
+
+* handle deep nested skills ([#86](https://github.com/tjg184/agent-smith/issues/86)) ([54843ae](https://github.com/tjg184/agent-smith/commit/54843ae5cbab7d3658a92a6aca2acb03f6e0ac8f))
+
 ## [1.7.0](https://github.com/tjg184/agent-smith/compare/v1.6.3...v1.7.0) (2026-03-18)
 
 
