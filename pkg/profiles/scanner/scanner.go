@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	metadataPkg "github.com/tjg184/agent-smith/internal/metadata"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/services"
 )
@@ -79,7 +80,12 @@ func CountComponents(profile *Profile) (agents, skills, commands int) {
 		agents = countDirs(filepath.Join(profile.BasePath, paths.AgentsSubDir))
 	}
 	if profile.HasSkills {
-		skills = countDirs(filepath.Join(profile.BasePath, paths.SkillsSubDir))
+		components, err := metadataPkg.LoadAllComponents(profile.BasePath, "skills")
+		if err == nil && len(components) > 0 {
+			skills = len(components)
+		} else {
+			skills = countDirs(filepath.Join(profile.BasePath, paths.SkillsSubDir))
+		}
 	}
 	if profile.HasCommands {
 		commands = countDirs(filepath.Join(profile.BasePath, paths.CommandsSubDir))
@@ -92,7 +98,18 @@ func GetComponentNames(profile *Profile) (agents, skills, commands []string) {
 		agents = listDirs(filepath.Join(profile.BasePath, paths.AgentsSubDir))
 	}
 	if profile.HasSkills {
-		skills = listDirs(filepath.Join(profile.BasePath, paths.SkillsSubDir))
+		components, err := metadataPkg.LoadAllComponents(profile.BasePath, "skills")
+		if err == nil && len(components) > 0 {
+			for _, c := range components {
+				name := c.Entry.FilesystemName
+				if name == "" {
+					name = c.Name
+				}
+				skills = append(skills, name)
+			}
+		} else {
+			skills = listDirs(filepath.Join(profile.BasePath, paths.SkillsSubDir))
+		}
 	}
 	if profile.HasCommands {
 		commands = listDirs(filepath.Join(profile.BasePath, paths.CommandsSubDir))
@@ -101,7 +118,13 @@ func GetComponentNames(profile *Profile) (agents, skills, commands []string) {
 }
 
 func GetComponentSource(profile *Profile, lockService services.ComponentLockService, componentType, componentName string) string {
-	sources, err := lockService.FindComponentSources(profile.BasePath, componentType, componentName)
+	lookupName := componentName
+	if componentType == "skills" {
+		// GetComponentNames returns FilesystemName values (e.g. "sdlc-pipeline/brainstorm-vision")
+		// but FindComponentSources looks up by the short lock-file key ("brainstorm-vision").
+		lookupName = filepath.Base(componentName)
+	}
+	sources, err := lockService.FindComponentSources(profile.BasePath, componentType, lookupName)
 	if err != nil || len(sources) == 0 {
 		return ""
 	}

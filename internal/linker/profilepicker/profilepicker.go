@@ -8,15 +8,17 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/tjg184/agent-smith/internal/linker/linkutil"
 	metadataPkg "github.com/tjg184/agent-smith/internal/metadata"
 	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
 type ProfileMatch struct {
-	ProfileName string
-	ProfilePath string
-	IsActive    bool
-	SourceUrl   string
+	ProfileName    string
+	ProfilePath    string
+	IsActive       bool
+	SourceUrl      string
+	FilesystemName string // populated for nested skills (e.g. "sdlc-pipeline/record-completion")
 }
 
 // GetProfileNameFromSymlink reads the symlink target and extracts the profile name from its path.
@@ -30,28 +32,7 @@ func GetProfileNameFromSymlink(symlinkPath string) string {
 		target = filepath.Join(filepath.Dir(symlinkPath), target)
 	}
 
-	return getProfileFromPath(target)
-}
-
-func getProfileFromPath(path string) string {
-	path = filepath.Clean(path)
-
-	parent := filepath.Dir(path)
-	if filepath.Base(parent) == "profiles" {
-		return filepath.Base(path)
-	}
-
-	dir := parent
-	for {
-		grandparent := filepath.Dir(dir)
-		if filepath.Base(grandparent) == "profiles" {
-			return filepath.Base(dir)
-		}
-		if grandparent == dir || grandparent == "." || grandparent == "/" {
-			return paths.BaseProfileName
-		}
-		dir = grandparent
-	}
+	return linkutil.ProfileFromPath(target)
 }
 
 func SearchComponentInProfiles(componentType, componentName string) ([]ProfileMatch, error) {
@@ -100,14 +81,51 @@ func SearchComponentInProfiles(componentType, componentName string) ([]ProfileMa
 				IsActive:    profileName == activeProfile,
 				SourceUrl:   sourceUrl,
 			})
+			continue
+		}
+
+		// For skills, the component may be nested under a category dir.
+		// Fall back to searching the lock file by short name.
+		if componentType != "skills" {
+			continue
+		}
+
+		allComponents, err := metadataPkg.LoadAllComponents(profilePath, componentType)
+		if err != nil {
+			continue
+		}
+
+		for _, comp := range allComponents {
+			if comp.Name != componentName {
+				continue
+			}
+			anchorDir := filepath.Join(profilePath, componentType, skillAnchor(comp.Entry.FilesystemName))
+			if _, err := os.Stat(anchorDir); err != nil {
+				continue
+			}
+			matches = append(matches, ProfileMatch{
+				ProfileName:    profileName,
+				ProfilePath:    profilePath,
+				IsActive:       profileName == activeProfile,
+				SourceUrl:      comp.SourceUrl,
+				FilesystemName: comp.Entry.FilesystemName,
+			})
+			break
 		}
 	}
 
 	return matches, nil
 }
 
+// skillAnchor returns the top-level category directory from a skill filesystem
+// name. For "sdlc-pipeline/record-completion" it returns "sdlc-pipeline". For a
+// flat name it returns the name unchanged.
+func skillAnchor(filesystemName string) string {
+	parts := strings.SplitN(filesystemName, string(filepath.Separator), 2)
+	return parts[0]
+}
+
 // PromptProfileSelection displays an interactive prompt for the user to select a profile.
-// Returns the selected profile path and name. Reads from in, writes to out.
 func PromptProfileSelection(componentType, componentName string, matches []ProfileMatch, in io.Reader, out io.Writer) (profilePath string, profileName string, err error) {
 	if len(matches) == 0 {
 		return "", "", fmt.Errorf("no profiles contain component %s", componentName)

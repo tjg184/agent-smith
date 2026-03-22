@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/tjg184/agent-smith/internal/formatter"
+	"github.com/tjg184/agent-smith/internal/linker/linkutil"
 	"github.com/tjg184/agent-smith/internal/linker/profilepicker"
 	"github.com/tjg184/agent-smith/pkg/colors"
 	"github.com/tjg184/agent-smith/pkg/config"
@@ -35,6 +36,13 @@ type LinkStatus struct {
 	Valid      bool
 	TargetPath string
 	Profile    string
+}
+
+type ComponentInfo struct {
+	Name     string
+	Type     string
+	Profile  string
+	BasePath string
 }
 
 func ListLinkedComponents(agentsDir string, targets []config.Target, f *formatter.Formatter) error {
@@ -69,11 +77,11 @@ func ListLinkedComponents(agentsDir string, targets []config.Target, f *formatte
 				}
 
 				fullPath := filepath.Join(componentDir, entry.Name())
-				linkType, targetPath, valid := analyzeLinkStatus(fullPath)
+				linkType, targetPath, valid := linkutil.AnalyzeLinkStatus(fullPath)
 
 				profile := paths.BaseProfileName
 				if targetPath != "" {
-					profile = getProfileFromPath(targetPath)
+					profile = linkutil.ProfileFromPath(targetPath)
 				}
 
 				status := LinkStatus{
@@ -161,21 +169,19 @@ func ListLinkedComponents(agentsDir string, targets []config.Target, f *formatte
 	return nil
 }
 
-// ShowLinkStatus displays a matrix view of components and their status across all targets.
 func ShowLinkStatus(agentsDir string, targets []config.Target, f *formatter.Formatter, linkedOnly bool) error {
 	componentTypes := paths.GetComponentTypes()
 
-	type ComponentInfo struct {
-		Name     string
-		Type     string
-		Profile  string
-		BasePath string
-	}
 	allComponents := make([]ComponentInfo, 0)
 
 	for _, componentType := range componentTypes {
 		sourceDir := filepath.Join(agentsDir, componentType)
 		if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
+			continue
+		}
+
+		if componentType == "skills" {
+			allComponents = append(allComponents, collectLeafSkills(sourceDir, "", agentsDir, componentType, resolveProfileForPath)...)
 			continue
 		}
 
@@ -195,10 +201,10 @@ func ShowLinkStatus(agentsDir string, targets []config.Target, f *formatter.Form
 			if err == nil && info.Mode()&os.ModeSymlink != 0 {
 				profile = profilepicker.GetProfileNameFromSymlink(componentPath)
 				if profile == "" {
-					profile = getProfileFromPath(componentPath)
+					profile = linkutil.ProfileFromPath(componentPath)
 				}
 			} else {
-				profile = getProfileFromPath(componentPath)
+				profile = linkutil.ProfileFromPath(componentPath)
 			}
 
 			allComponents = append(allComponents, ComponentInfo{
@@ -237,7 +243,7 @@ func ShowLinkStatus(agentsDir string, targets []config.Target, f *formatter.Form
 
 			if comp.Type == "commands" || comp.Type == "agents" {
 				componentTypeDir := filepath.Join(comp.BasePath, comp.Type)
-				if isFlatMdLinked(comp.Name, componentTypeDir, componentDir) {
+				if linkutil.IsFlatMdLinked(comp.Name, componentTypeDir, componentDir) {
 					status.Targets[target.GetName()] = colors.Success("✓")
 				} else {
 					status.Targets[target.GetName()] = colors.Muted("-")
@@ -245,28 +251,9 @@ func ShowLinkStatus(agentsDir string, targets []config.Target, f *formatter.Form
 				continue
 			}
 
-			linkPath := filepath.Join(componentDir, comp.Name)
-
-			if _, err := os.Lstat(linkPath); os.IsNotExist(err) {
-				status.Targets[target.GetName()] = colors.Muted("-")
-				continue
-			}
-
-			linkType, targetPath, valid := analyzeLinkStatus(linkPath)
-
 			expectedSource := filepath.Join(comp.BasePath, comp.Type, comp.Name)
-
-			if linkType == "symlink" && valid {
-				expectedSource, _ = filepath.EvalSymlinks(expectedSource)
-				targetPath, _ = filepath.EvalSymlinks(targetPath)
-
-				if expectedSource != targetPath {
-					status.Targets[target.GetName()] = colors.Muted("-")
-					continue
-				}
-			}
-
-			status.Targets[target.GetName()] = linkStatusSymbol(linkType, valid)
+			symbol := skillLinkSymbol(componentDir, comp.Name, expectedSource)
+			status.Targets[target.GetName()] = symbol
 		}
 
 		statuses = append(statuses, status)
@@ -357,12 +344,6 @@ func ShowLinkStatus(agentsDir string, targets []config.Target, f *formatter.Form
 func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *formatter.Formatter, pm DisplayProfileManager, profileFilter []string, linkedOnly bool) error {
 	componentTypes := paths.GetComponentTypes()
 
-	type ComponentInfo struct {
-		Name     string
-		Type     string
-		Profile  string
-		BasePath string
-	}
 	allComponents := make([]ComponentInfo, 0)
 
 	baseDir, err := paths.GetAgentsDir()
@@ -374,6 +355,11 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 	for _, componentType := range componentTypes {
 		sourceDir := filepath.Join(baseDir, componentType)
 		if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
+			continue
+		}
+
+		if componentType == "skills" {
+			baseComponents = append(baseComponents, collectLeafSkills(sourceDir, "", baseDir, componentType, resolveProfileForPath)...)
 			continue
 		}
 
@@ -472,6 +458,12 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 				continue
 			}
 
+			if componentType == "skills" {
+				fixedProfile := profile.Name
+				profileComponents = append(profileComponents, collectLeafSkills(sourceDir, "", profile.BasePath, componentType, func(_ string) string { return fixedProfile })...)
+				continue
+			}
+
 			entries, err := os.ReadDir(sourceDir)
 			if err != nil {
 				continue
@@ -529,7 +521,7 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 
 			if comp.Type == "commands" || comp.Type == "agents" {
 				componentTypeDir := filepath.Join(comp.BasePath, comp.Type)
-				if isFlatMdLinked(comp.Name, componentTypeDir, componentDir) {
+				if linkutil.IsFlatMdLinked(comp.Name, componentTypeDir, componentDir) {
 					status.Targets[target.GetName()] = colors.Success("✓")
 				} else {
 					status.Targets[target.GetName()] = colors.Muted("-")
@@ -537,33 +529,9 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 				continue
 			}
 
-			linkPath := filepath.Join(componentDir, comp.Name)
-
-			if _, err := os.Lstat(linkPath); os.IsNotExist(err) {
-				status.Targets[target.GetName()] = colors.Muted("-")
-				continue
-			}
-
-			linkType, linkTarget, valid := analyzeLinkStatus(linkPath)
-
-			if linkType == "symlink" && valid {
-				expectedSource := filepath.Join(comp.BasePath, comp.Type, comp.Name)
-
-				absTarget, err1 := filepath.Abs(linkTarget)
-				absExpected, err2 := filepath.Abs(expectedSource)
-
-				if err1 == nil && err2 == nil {
-					absTarget = filepath.Clean(absTarget)
-					absExpected = filepath.Clean(absExpected)
-
-					if absTarget != absExpected {
-						status.Targets[target.GetName()] = colors.Muted("-")
-						continue
-					}
-				}
-			}
-
-			status.Targets[target.GetName()] = linkStatusSymbol(linkType, valid)
+			expectedSource := filepath.Join(comp.BasePath, comp.Type, comp.Name)
+			symbol := skillLinkSymbol(componentDir, comp.Name, expectedSource)
+			status.Targets[target.GetName()] = symbol
 		}
 
 		statuses = append(statuses, status)
@@ -711,27 +679,6 @@ func getSourceDescription(agentsDir string) string {
 	return fmt.Sprintf("Source: %s (base installation)", agentsDir)
 }
 
-func getProfileFromPath(path string) string {
-	path = filepath.Clean(path)
-
-	parent := filepath.Dir(path)
-	if filepath.Base(parent) == "profiles" {
-		return filepath.Base(path)
-	}
-
-	dir := parent
-	for {
-		grandparent := filepath.Dir(dir)
-		if filepath.Base(grandparent) == "profiles" {
-			return filepath.Base(dir)
-		}
-		if grandparent == dir || grandparent == "." || grandparent == "/" {
-			return paths.BaseProfileName
-		}
-		dir = grandparent
-	}
-}
-
 func targetDisplayNames(targets []config.Target) map[string]string {
 	m := make(map[string]string, len(targets))
 	for _, t := range targets {
@@ -740,66 +687,100 @@ func targetDisplayNames(targets []config.Target) map[string]string {
 	return m
 }
 
-func analyzeLinkStatus(path string) (linkType string, target string, valid bool) {
-	info, err := os.Lstat(path)
+// resolveProfile is called with the absolute path of each leaf to determine its
+// profile name — pass a closure over a fixed string for profile-scoped calls, or
+// resolveProfileForPath when the profile must be inferred from disk.
+func collectLeafSkills(dir, relPrefix, basePath, componentType string, resolveProfile func(string) string) []ComponentInfo {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return "missing", "", false
+		return nil
 	}
 
-	if info.Mode()&os.ModeSymlink != 0 {
-		target, err := os.Readlink(path)
-		if err != nil {
-			return "broken", "", false
+	var results []ComponentInfo
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".") || !entry.IsDir() {
+			continue
 		}
 
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(filepath.Dir(path), target)
+		relName := entry.Name()
+		if relPrefix != "" {
+			relName = relPrefix + string(filepath.Separator) + entry.Name()
 		}
 
-		if _, err := os.Stat(target); err == nil {
-			return "symlink", target, true
+		entryPath := filepath.Join(dir, entry.Name())
+		skillMD := filepath.Join(entryPath, "SKILL.md")
+		if _, err := os.Stat(skillMD); err == nil {
+			results = append(results, ComponentInfo{
+				Name:     relName,
+				Type:     componentType,
+				Profile:  resolveProfile(entryPath),
+				BasePath: basePath,
+			})
+		} else {
+			results = append(results, collectLeafSkills(entryPath, relName, basePath, componentType, resolveProfile)...)
 		}
-		return "broken", target, false
 	}
-
-	if info.IsDir() {
-		return "copied", path, true
-	}
-
-	return "unknown", "", false
+	return results
 }
 
-func isFlatMdLinked(componentName, componentTypeDir, targetBaseDir string) bool {
-	componentRoot := filepath.Clean(filepath.Join(componentTypeDir, componentName))
-	expectedPrefix := componentRoot + string(filepath.Separator)
-
-	found := false
-	_ = filepath.WalkDir(targetBaseDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() || found {
-			return nil
+func resolveProfileForPath(path string) string {
+	info, err := os.Lstat(path)
+	if err == nil && info.Mode()&os.ModeSymlink != 0 {
+		profile := profilepicker.GetProfileNameFromSymlink(path)
+		if profile != "" {
+			return profile
 		}
+		return linkutil.ProfileFromPath(path)
+	}
+	return linkutil.ProfileFromPath(path)
+}
 
-		info, err := os.Lstat(path)
-		if err != nil || info.Mode()&os.ModeSymlink == 0 {
-			return nil
+// expectedSource is the absolute path of the skill in the profile
+// (e.g. ~/.agent-smith/profiles/foo/skills/sdlc-pipeline/record-completion).
+func skillLinkSymbol(componentDir, compName, expectedSource string) string {
+	parts := strings.SplitN(compName, string(filepath.Separator), 2)
+	categoryPath := filepath.Join(componentDir, parts[0])
+
+	// Check category-level symlink first. If it exists as a symlink the whole
+	// category directory is managed — verify it points to the right source.
+	if info, err := os.Lstat(categoryPath); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		categorySource := filepath.Join(filepath.Dir(expectedSource), parts[0])
+		return symlinkMatchSymbol(categoryPath, categorySource)
+	}
+
+	// No category symlink — check for a leaf symlink inside a real category dir.
+	leafPath := filepath.Join(componentDir, compName)
+	if info, err := os.Lstat(leafPath); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return symlinkMatchSymbol(leafPath, expectedSource)
 		}
-
-		target, err := os.Readlink(path)
-		if err != nil {
-			return nil
+		// Real directory at the leaf level — genuinely copied.
+		if info.IsDir() {
+			return colors.Success("◆")
 		}
+	}
 
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(filepath.Dir(path), target)
-		}
-		target = filepath.Clean(target)
+	return colors.Muted("-")
+}
 
-		if target == componentRoot || strings.HasPrefix(target, expectedPrefix) {
-			found = true
-		}
-
-		return nil
-	})
-
-	return found
+func symlinkMatchSymbol(linkPath, expectedSource string) string {
+	target, err := os.Readlink(linkPath)
+	if err != nil {
+		return colors.Error("✗")
+	}
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(filepath.Dir(linkPath), target)
+	}
+	if _, err := os.Stat(target); err != nil {
+		return colors.Error("✗")
+	}
+	resolvedTarget, err1 := filepath.EvalSymlinks(target)
+	resolvedExpected, err2 := filepath.EvalSymlinks(expectedSource)
+	if err1 != nil || err2 != nil {
+		return colors.Success("✓")
+	}
+	if resolvedTarget != resolvedExpected {
+		return colors.Muted("-")
+	}
+	return colors.Success("✓")
 }

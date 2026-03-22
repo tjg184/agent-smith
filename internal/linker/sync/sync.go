@@ -10,6 +10,7 @@ import (
 	"github.com/tjg184/agent-smith/internal/detector"
 	"github.com/tjg184/agent-smith/internal/fileutil"
 	"github.com/tjg184/agent-smith/internal/formatter"
+	"github.com/tjg184/agent-smith/internal/linker/linkutil"
 	"github.com/tjg184/agent-smith/internal/linker/profilepicker"
 	metadataPkg "github.com/tjg184/agent-smith/internal/metadata"
 	"github.com/tjg184/agent-smith/internal/models"
@@ -20,10 +21,15 @@ import (
 )
 
 // CreateSymlink creates a relative symlink from dst pointing to src.
-// On Windows, if os.Symlink fails it falls back to a directory copy.
 func CreateSymlink(src, dst string) error {
-	if _, err := os.Lstat(dst); err == nil {
-		os.Remove(dst)
+	if info, err := os.Lstat(dst); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			os.Remove(dst)
+		} else {
+			// dst is a real directory — do not replace it with a symlink.
+			// It may contain individually-linked leaf skills.
+			return nil
+		}
 	}
 
 	dstDir := filepath.Dir(dst)
@@ -47,39 +53,56 @@ func CreateSymlink(src, dst string) error {
 }
 
 // LinkComponent links a single component to all provided targets.
-// It searches profiles when the component is not found in agentsDir.
 func LinkComponent(agentsDir string, targets []config.Target, f *formatter.Formatter, componentType, componentName string) error {
 	return linkComponentInternal(agentsDir, targets, f, componentType, componentName, true)
 }
 
 func linkComponentInternal(agentsDir string, targets []config.Target, f *formatter.Formatter, componentType, componentName string, verbose bool) error {
-	srcDir := filepath.Join(agentsDir, componentType, componentName)
+	effectiveName := componentName
+	srcDir := filepath.Join(agentsDir, componentType, effectiveName)
 	selectedProfileName := ""
 
 	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
-		matches, searchErr := profilepicker.SearchComponentInProfiles(componentType, componentName)
-		if searchErr != nil {
-			return fmt.Errorf("failed to search profiles: %w", searchErr)
-		}
-
-		if len(matches) == 0 {
-			return fmt.Errorf("component %s/%s does not exist in any profile", componentType, componentName)
-		}
-
-		if len(matches) > 1 {
-			profilePath, profileName, err := profilepicker.PromptProfileSelection(componentType, componentName, matches, os.Stdin, os.Stdout)
-			if err != nil {
-				return err
-			}
-			srcDir = filepath.Join(profilePath, componentType, componentName)
-			selectedProfileName = profileName
+		resolved, resolvedSrcDir := resolveSkillViaLockFile(agentsDir, componentType, componentName)
+		if resolvedSrcDir != "" {
+			effectiveName = resolved
+			srcDir = resolvedSrcDir
 		} else {
-			srcDir = filepath.Join(matches[0].ProfilePath, componentType, componentName)
-			selectedProfileName = matches[0].ProfileName
-			fmt.Printf("  %s Component found in profile: %s\n", colors.Muted("→"), selectedProfileName)
+			matches, searchErr := profilepicker.SearchComponentInProfiles(componentType, componentName)
+			if searchErr != nil {
+				return fmt.Errorf("failed to search profiles: %w", searchErr)
+			}
+
+			if len(matches) == 0 {
+				return fmt.Errorf("component %s/%s does not exist in any profile", componentType, componentName)
+			}
+
+			if len(matches) > 1 {
+				profilePath, profileName, err := profilepicker.PromptProfileSelection(componentType, componentName, matches, os.Stdin, os.Stdout)
+				if err != nil {
+					return err
+				}
+				selectedFilesystemName := effectiveName
+				for _, m := range matches {
+					if m.ProfilePath == profilePath && componentType == "skills" && m.FilesystemName != "" {
+						selectedFilesystemName = m.FilesystemName
+						break
+					}
+				}
+				effectiveName = selectedFilesystemName
+				srcDir = filepath.Join(profilePath, componentType, effectiveName)
+				selectedProfileName = profileName
+			} else {
+				if componentType == "skills" && matches[0].FilesystemName != "" {
+					effectiveName = matches[0].FilesystemName
+				}
+				srcDir = filepath.Join(matches[0].ProfilePath, componentType, effectiveName)
+				selectedProfileName = matches[0].ProfileName
+				fmt.Printf("  %s Component found in profile: %s\n", colors.Muted("→"), selectedProfileName)
+			}
 		}
 	} else {
-		selectedProfileName = getProfileFromPath(srcDir)
+		selectedProfileName = linkutil.ProfileFromPath(srcDir)
 	}
 
 	_ = loadComponentMetadata(agentsDir, componentType, componentName)
@@ -136,7 +159,7 @@ func linkComponentInternal(agentsDir string, targets []config.Target, f *formatt
 			continue
 		}
 
-		dstDir := filepath.Join(componentDir, componentName)
+		dstDir := filepath.Join(componentDir, effectiveName)
 
 		if err := fileutil.CreateDirectoryWithPermissions(filepath.Dir(dstDir)); err != nil {
 			linkResults = append(linkResults, linkResult{
@@ -219,11 +242,6 @@ func LinkComponentsByType(agentsDir string, targets []config.Target, f *formatte
 		return nil
 	}
 
-	entries, err := os.ReadDir(typeDir)
-	if err != nil {
-		return fmt.Errorf("failed to read %s directory: %w", componentType, err)
-	}
-
 	var successCount, failedCount int
 	var failedComponents []string
 
@@ -237,21 +255,22 @@ func LinkComponentsByType(agentsDir string, targets []config.Target, f *formatte
 	fmt.Printf("%s\n", colors.InfoBold(fmt.Sprintf("Linking %s to: %s", componentType, targetList)))
 	f.EmptyLine()
 
-	for _, entry := range entries {
-		if entry.IsDir() {
-			componentName := entry.Name()
+	componentNames, err := collectComponentNames(typeDir, componentType)
+	if err != nil {
+		return fmt.Errorf("failed to read %s directory: %w", componentType, err)
+	}
 
-			fmt.Printf("Linking %s: %s... ", componentType, componentName)
+	for _, componentName := range componentNames {
+		fmt.Printf("Linking %s: %s... ", componentType, componentName)
 
-			if err := linkComponentInternal(agentsDir, targets, f, componentType, componentName, false); err != nil {
-				fmt.Printf("%s\n", colors.Error(formatter.SymbolError+" Failed"))
-				fmt.Printf("  %s %v\n", colors.Muted("→"), err)
-				failedCount++
-				failedComponents = append(failedComponents, fmt.Sprintf("%s/%s", componentType, componentName))
-			} else {
-				fmt.Printf("%s\n", colors.Success(formatter.SymbolSuccess+" Done"))
-				successCount++
-			}
+		if err := linkComponentInternal(agentsDir, targets, f, componentType, componentName, false); err != nil {
+			fmt.Printf("%s\n", colors.Error(formatter.SymbolError+" Failed"))
+			fmt.Printf("  %s %v\n", colors.Muted("→"), err)
+			failedCount++
+			failedComponents = append(failedComponents, fmt.Sprintf("%s/%s", componentType, componentName))
+		} else {
+			fmt.Printf("%s\n", colors.Success(formatter.SymbolSuccess+" Done"))
+			successCount++
 		}
 	}
 
@@ -282,27 +301,23 @@ func LinkAllComponents(agentsDir string, targets []config.Target, f *formatter.F
 			continue
 		}
 
-		entries, err := os.ReadDir(typeDir)
+		componentNames, err := collectComponentNames(typeDir, componentType)
 		if err != nil {
 			f.WarningMsg("Failed to read %s directory: %v", componentType, err)
 			continue
 		}
 
-		for _, entry := range entries {
-			if entry.IsDir() {
-				componentName := entry.Name()
+		for _, componentName := range componentNames {
+			fmt.Printf("Linking %s: %s... ", componentType, componentName)
 
-				fmt.Printf("Linking %s: %s... ", componentType, componentName)
-
-				if err := linkComponentInternal(agentsDir, targets, f, componentType, componentName, false); err != nil {
-					fmt.Printf("%s\n", colors.Error(formatter.SymbolError+" Failed"))
-					fmt.Printf("  %s %v\n", colors.Muted("→"), err)
-					failedCount++
-					failedComponents = append(failedComponents, fmt.Sprintf("%s/%s", componentType, componentName))
-				} else {
-					fmt.Printf("%s\n", colors.Success(formatter.SymbolSuccess+" Done"))
-					successCount++
-				}
+			if err := linkComponentInternal(agentsDir, targets, f, componentType, componentName, false); err != nil {
+				fmt.Printf("%s\n", colors.Error(formatter.SymbolError+" Failed"))
+				fmt.Printf("  %s %v\n", colors.Muted("→"), err)
+				failedCount++
+				failedComponents = append(failedComponents, fmt.Sprintf("%s/%s", componentType, componentName))
+			} else {
+				fmt.Printf("%s\n", colors.Success(formatter.SymbolSuccess+" Done"))
+				successCount++
 			}
 		}
 	}
@@ -395,30 +410,7 @@ func renderLinkSummary(f *formatter.Formatter, successCount, failedCount int, fa
 	}
 }
 
-// getProfileFromPath extracts the profile name from a filesystem path.
-func getProfileFromPath(path string) string {
-	path = filepath.Clean(path)
-
-	parent := filepath.Dir(path)
-	if filepath.Base(parent) == "profiles" {
-		return filepath.Base(path)
-	}
-
-	dir := parent
-	for {
-		grandparent := filepath.Dir(dir)
-		if filepath.Base(grandparent) == "profiles" {
-			return filepath.Base(dir)
-		}
-		if grandparent == dir || grandparent == "." || grandparent == "/" {
-			return paths.BaseProfileName
-		}
-		dir = grandparent
-	}
-}
-
-// linkFlatMdFiles walks srcDir recursively and creates a flat symlink in targetBaseDir
-// for each .md file.
+// linkFlatMdFiles creates a flat symlink in targetBaseDir for each .md file in srcDir.
 func linkFlatMdFiles(srcDir, targetBaseDir string) ([]string, error) {
 	var linked []string
 
@@ -471,4 +463,87 @@ func linkFlatMdFiles(srcDir, targetBaseDir string) ([]string, error) {
 	})
 
 	return linked, err
+}
+
+// collectComponentNames returns the names to use when iterating a component type
+// directory for bulk-link operations. For skills, it recursively finds all leaf
+// skill directories (those containing SKILL.md) and returns their relative paths
+// (e.g. "sdlc-pipeline/record-completion"). For other types, it returns the
+// names of the top-level subdirectories.
+func collectComponentNames(typeDir, componentType string) ([]string, error) {
+	if componentType == "skills" {
+		return collectLeafSkillNames(typeDir, "")
+	}
+
+	entries, err := os.ReadDir(typeDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() {
+			names = append(names, e.Name())
+		}
+	}
+	return names, nil
+}
+
+// prefix is the accumulated relative path from typeDir (empty at the top level).
+func collectLeafSkillNames(typeDir, prefix string) ([]string, error) {
+	searchDir := typeDir
+	if prefix != "" {
+		searchDir = filepath.Join(typeDir, prefix)
+	}
+
+	entries, err := os.ReadDir(searchDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		relName := e.Name()
+		if prefix != "" {
+			relName = prefix + "/" + e.Name()
+		}
+
+		skillMd := filepath.Join(typeDir, relName, "SKILL.md")
+		if _, err := os.Stat(skillMd); err == nil {
+			names = append(names, relName)
+			continue
+		}
+
+		// Not a leaf — recurse into it.
+		nested, err := collectLeafSkillNames(typeDir, relName)
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, nested...)
+	}
+	return names, nil
+}
+
+func resolveSkillViaLockFile(agentsDir, componentType, componentName string) (effectiveName, srcDir string) {
+	all, err := metadataPkg.LoadAllComponents(agentsDir, componentType)
+	if err != nil {
+		return "", ""
+	}
+	for _, ncs := range all {
+		if ncs.Name != componentName {
+			continue
+		}
+		fsName := ncs.Entry.FilesystemName
+		if fsName == "" || fsName == componentName {
+			continue
+		}
+		candidate := filepath.Join(agentsDir, componentType, fsName)
+		if _, statErr := os.Stat(candidate); statErr == nil {
+			return fsName, candidate
+		}
+	}
+	return "", ""
 }
