@@ -1,15 +1,6 @@
 # Agent Smith
 
-```
-  ___                   _     _____           _ _   _
- / _ \                 | |   /  ___|         (_) | | |
-/ /_\ \ __ _  ___ _ __ | |_  \ `--. _ __ ___  _| |_| |__
-|  _  |/ _` |/ _ \ '_ \| __|  `--. \ '_ ` _ \| | __| '_ \
-| | | | (_| |  __/ | | | |_  /\__/ / | | | | | | |_| | | |
-\_| |_/\__, |\___|_| |_|\__| \____/|_| |_| |_|_|\__|_| |_|
-        __/ |
-       |___/
-```
+![Agent Smith](./agent-smith.jpg)
 
 Agent Smith is a CLI tool for downloading, managing, and linking AI agents, skills, and commands from git repositories.
 
