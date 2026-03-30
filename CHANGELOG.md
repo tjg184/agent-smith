@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/tjg184/agent-smith/compare/v1.8.1...v1.9.0) (2026-03-30)
+
+
+### Features
+
+* **install:** add --global flag to install without creating a profile ([#92](https://github.com/tjg184/agent-smith/issues/92)) ([69f904e](https://github.com/tjg184/agent-smith/commit/69f904ece71fc9a72e54a6dacde5512bd4ee67ce))
+
 ## [1.8.1](https://github.com/tjg184/agent-smith/compare/v1.8.0...v1.8.1) (2026-03-30)
 
 
