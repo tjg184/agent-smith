@@ -12,6 +12,7 @@ type InstallService interface {
 type InstallOptions struct {
 	Profile    string
 	InstallDir string
+	Global     bool
 }
 
 type LinkService interface {
