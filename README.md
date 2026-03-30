@@ -147,6 +147,8 @@ agent-smith status                       # System overview: profile, targets, co
 
 ## Profiles
 
+Profiles are optional. If you just want components available globally without any organisation overhead, use `--global` on install commands and skip this section entirely.
+
 Profiles let you organize and switch between different component sets — useful for separating work, personal, and project-specific toolsets.
 
 Two profile types:
