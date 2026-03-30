@@ -31,6 +31,7 @@ func addForceFlag(cmd *cobra.Command) {
 func addInstallFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP("profile", "p", "", "Force creation of a new profile with a custom name")
 	cmd.Flags().StringP("install-dir", "i", "", "Install to a custom directory (isolated from ~/.agent-smith/)")
+	cmd.Flags().BoolP("global", "g", false, "Install to ~/.agent-smith/ base without creating a profile")
 }
 
 func addUninstallComponentFlags(cmd *cobra.Command) {

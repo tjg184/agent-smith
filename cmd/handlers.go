@@ -2,10 +2,10 @@ package cmd
 
 // InstallHandlers groups handler functions for install commands.
 type InstallHandlers struct {
-	AddSkill   func(repoURL, name, profile, targetDir string)
-	AddAgent   func(repoURL, name, profile, targetDir string)
-	AddCommand func(repoURL, name, profile, targetDir string)
-	AddAll     func(repoURL, profile, targetDir string)
+	AddSkill   func(repoURL, name, profile, targetDir string, global bool)
+	AddAgent   func(repoURL, name, profile, targetDir string, global bool)
+	AddCommand func(repoURL, name, profile, targetDir string, global bool)
+	AddAll     func(repoURL, profile, targetDir string, global bool)
 }
 
 // UpdateHandlers groups handler functions for update commands.
@@ -101,10 +101,10 @@ type Handlers struct {
 
 // Package-level vars referenced by all cmd/*.go files — do not rename.
 var (
-	handleAddSkill              func(repoURL, name, profile, targetDir string)
-	handleAddAgent              func(repoURL, name, profile, targetDir string)
-	handleAddCommand            func(repoURL, name, profile, targetDir string)
-	handleAddAll                func(repoURL, profile, targetDir string)
+	handleAddSkill              func(repoURL, name, profile, targetDir string, global bool)
+	handleAddAgent              func(repoURL, name, profile, targetDir string, global bool)
+	handleAddCommand            func(repoURL, name, profile, targetDir string, global bool)
+	handleAddAll                func(repoURL, profile, targetDir string, global bool)
 	handleUpdate                func(componentType, componentName, profile string)
 	handleUpdateAll             func(profile string)
 	handleLink                  func(componentType, componentName, targetFilter, profile string)

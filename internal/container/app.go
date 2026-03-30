@@ -84,26 +84,26 @@ func (a *App) Run() {
 
 	cmd.Register(&cmd.Handlers{
 		Install: cmd.InstallHandlers{
-			AddSkill: func(repoURL, name, profile, installDir string) {
-				opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
+			AddSkill: func(repoURL, name, profile, installDir string, global bool) {
+				opts := services.InstallOptions{Profile: profile, InstallDir: installDir, Global: global}
 				if err := installService.InstallSkill(repoURL, name, opts); err != nil {
 					log.Fatal("Failed to install skill:", err)
 				}
 			},
-			AddAgent: func(repoURL, name, profile, installDir string) {
-				opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
+			AddAgent: func(repoURL, name, profile, installDir string, global bool) {
+				opts := services.InstallOptions{Profile: profile, InstallDir: installDir, Global: global}
 				if err := installService.InstallAgent(repoURL, name, opts); err != nil {
 					log.Fatal("Failed to install agent:", err)
 				}
 			},
-			AddCommand: func(repoURL, name, profile, installDir string) {
-				opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
+			AddCommand: func(repoURL, name, profile, installDir string, global bool) {
+				opts := services.InstallOptions{Profile: profile, InstallDir: installDir, Global: global}
 				if err := installService.InstallCommand(repoURL, name, opts); err != nil {
 					log.Fatal("Failed to install command:", err)
 				}
 			},
-			AddAll: func(repoURL, profile, installDir string) {
-				opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
+			AddAll: func(repoURL, profile, installDir string, global bool) {
+				opts := services.InstallOptions{Profile: profile, InstallDir: installDir, Global: global}
 				if err := installService.InstallBulk(repoURL, opts); err != nil {
 					log.Fatal("Failed to bulk install:", err)
 				}

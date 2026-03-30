@@ -39,6 +39,10 @@ func (s *Service) InstallSkill(repoURL, name string, opts services.InstallOption
 		return err
 	}
 
+	if opts.Global {
+		return s.installToBase(models.ComponentSkill, repoURL, name)
+	}
+
 	if opts.InstallDir != "" {
 		return s.installToTargetDir(models.ComponentSkill, repoURL, name, opts.InstallDir)
 	} else if opts.Profile != "" {
@@ -62,6 +66,10 @@ func (s *Service) InstallAgent(repoURL, name string, opts services.InstallOption
 
 	if err := s.validateInstallOptions(opts); err != nil {
 		return err
+	}
+
+	if opts.Global {
+		return s.installToBase(models.ComponentAgent, repoURL, name)
 	}
 
 	if opts.InstallDir != "" {
@@ -89,6 +97,10 @@ func (s *Service) InstallCommand(repoURL, name string, opts services.InstallOpti
 		return err
 	}
 
+	if opts.Global {
+		return s.installToBase(models.ComponentCommand, repoURL, name)
+	}
+
 	if opts.InstallDir != "" {
 		return s.installToTargetDir(models.ComponentCommand, repoURL, name, opts.InstallDir)
 	} else if opts.Profile != "" {
@@ -114,6 +126,10 @@ func (s *Service) InstallBulk(repoURL string, opts services.InstallOptions) erro
 		return err
 	}
 
+	if opts.Global {
+		return s.installBulkToBase(repoURL)
+	}
+
 	if opts.InstallDir != "" {
 		return s.installBulkToTargetDir(repoURL, opts.InstallDir)
 	}
@@ -124,6 +140,12 @@ func (s *Service) InstallBulk(repoURL string, opts services.InstallOptions) erro
 func (s *Service) validateInstallOptions(opts services.InstallOptions) error {
 	if opts.Profile != "" && opts.InstallDir != "" {
 		return fmt.Errorf("cannot specify both --profile and --install-dir flags")
+	}
+	if opts.Global && opts.Profile != "" {
+		return fmt.Errorf("cannot specify both --global and --profile flags")
+	}
+	if opts.Global && opts.InstallDir != "" {
+		return fmt.Errorf("cannot specify both --global and --install-dir flags")
 	}
 	return nil
 }
@@ -170,6 +192,17 @@ func (s *Service) installToBase(ct models.ComponentType, repoURL, name string) e
 	}
 	if err := dl.Download(repoURL, name); err != nil {
 		return fmt.Errorf("failed to download %s: %w", ct, err)
+	}
+	return nil
+}
+
+func (s *Service) installBulkToBase(repoURL string) error {
+	bulkDownloader, err := downloader.NewBulkDownloader()
+	if err != nil {
+		return fmt.Errorf("failed to create downloader: %w", err)
+	}
+	if err := bulkDownloader.AddAll(repoURL); err != nil {
+		return fmt.Errorf("failed to bulk download components: %w", err)
 	}
 	return nil
 }
