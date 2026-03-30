@@ -157,11 +157,39 @@ func (cd *componentDownloader) Download(repoURL, name string, providedRepoPath .
 		return cd.downloadDirect(fullURL, name, repoURL)
 	}
 
+	// Resolve the matching component first so we can use its canonical Name as the
+	// lock-file key. The user-supplied name is a selector and may be either the short
+	// detected name ("visual-explainer") or a path-style name ("plugins/visual-explainer");
+	// both must resolve to the same canonical entry.
+	var matchingComponent *models.DetectedComponent
+	if len(matching) == 1 {
+		matchingComponent = &matching[0]
+	} else {
+		matchingComponent = findComponentByName(matching, name)
+	}
+
+	if matchingComponent == nil && len(matching) > 1 {
+		var names []string
+		for _, comp := range matching {
+			names = append(names, comp.Name)
+		}
+		return fmt.Errorf("%s '%s' not found in repository. Available %ss: %s",
+			cd.ct, name, cd.ct, strings.Join(names, ", "))
+	}
+
+	// Use the canonical detected name as the lock key so that both "install all"
+	// (which stores entries under comp.Name) and "install skill/agent/command"
+	// (which receives a user-supplied selector) produce the same lock entry.
+	canonicalName := name
+	if matchingComponent != nil {
+		canonicalName = matchingComponent.Name
+	}
+
 	lockBaseDir := filepath.Dir(cd.baseDir)
-	filesystemName, err := metadataPkg.ResolveInstallFilesystemName(lockBaseDir, cd.meta.dir, name, fullURL)
+	filesystemName, err := metadataPkg.ResolveInstallFilesystemName(lockBaseDir, cd.meta.dir, canonicalName, fullURL)
 	if err != nil {
 		cd.formatter.Warning("failed to resolve filesystem name, using component name: %v", err)
-		filesystemName = name
+		filesystemName = canonicalName
 	}
 
 	componentDir := filepath.Join(cd.baseDir, filesystemName)
@@ -176,28 +204,12 @@ func (cd *componentDownloader) Download(repoURL, name string, providedRepoPath .
 		}
 	}()
 
-	var matchingComponent *models.DetectedComponent
-	for _, comp := range matching {
-		if comp.Name == name {
-			matchingComponent = &comp
-			break
-		}
-	}
-
-	if matchingComponent != nil && len(matching) > 1 {
-		for _, comp := range matching {
-			if comp.Name == name && comp.Path != matchingComponent.Path {
-				matchingComponent = &comp
-				break
-			}
-		}
-	}
-
-	if len(matching) == 1 {
-		if err = fileutil.CopyComponentFiles(repoPath, matching[0], componentDir); err != nil {
+	if matchingComponent == nil || len(matching) == 1 {
+		comp := matching[0]
+		if err = fileutil.CopyComponentFiles(repoPath, comp, componentDir); err != nil {
 			return fmt.Errorf("failed to copy component files: %w", err)
 		}
-	} else if matchingComponent != nil {
+	} else {
 		destFolderName := DetermineDestinationFolderName(matchingComponent.FilePath)
 
 		if destFolderName != filesystemName {
@@ -212,13 +224,6 @@ func (cd *componentDownloader) Download(repoURL, name string, providedRepoPath .
 		if err = fileutil.CopyComponentFiles(repoPath, *matchingComponent, componentDir); err != nil {
 			return fmt.Errorf("failed to copy component files: %w", err)
 		}
-	} else {
-		var names []string
-		for _, comp := range matching {
-			names = append(names, comp.Name)
-		}
-		return fmt.Errorf("%s '%s' not found in repository. Available %ss: %s",
-			cd.ct, name, cd.ct, strings.Join(names, ", "))
 	}
 
 	sourceType := cd.detectSourceType(fullURL)
@@ -241,7 +246,7 @@ func (cd *componentDownloader) Download(repoURL, name string, providedRepoPath .
 		originalPath = matchingComponent.FilePath
 	}
 
-	if err := cd.saveLockFile(cd.meta.dir, name, filesystemName, fullURL, sourceType, fullURL, commitHash, len(matching), detectionType, originalPath); err != nil {
+	if err := cd.saveLockFile(cd.meta.dir, canonicalName, filesystemName, fullURL, sourceType, fullURL, commitHash, len(matching), detectionType, originalPath); err != nil {
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -322,6 +327,36 @@ func (cd *componentDownloader) DownloadWithRepo(fullURL, name, repoURL, repoPath
 		return cd.downloadDirect(fullURL, name, repoURL)
 	}
 
+	// Check whether this component is already installed (idempotency guard).
+	// "install all" may be re-run, or "install skill/agent/command" may be called
+	// after "install all" for the same repo — both must produce a single entry.
+	lockBaseDir := filepath.Dir(cd.baseDir)
+	existingFilesystemName, err := metadataPkg.ResolveInstallFilesystemName(lockBaseDir, cd.meta.dir, target.Name, fullURL)
+	if err == nil && existingFilesystemName != "" {
+		existingDir := filepath.Join(cd.baseDir, existingFilesystemName)
+		if _, statErr := os.Stat(existingDir); statErr == nil {
+			// Already on disk under the resolved name — overwrite in place rather than
+			// creating a duplicate directory.
+			if err := fileutil.CopyComponentFiles(repoPath, *target, existingDir); err != nil {
+				return fmt.Errorf("failed to update component files: %w", err)
+			}
+			sourceType := cd.detectSourceType(fullURL)
+			var commitHash string
+			if hash, err := gitpkg.GetCommitHashFromPath(cd.cloner, repoPath); err == nil {
+				commitHash = hash
+			} else {
+				cd.formatter.Warning("failed to get commit hash: %v", err)
+			}
+			if err := cd.saveLockFile(cd.meta.dir, target.Name, existingFilesystemName, fullURL, sourceType, fullURL, commitHash, 1, "single", target.FilePath); err != nil {
+				cd.formatter.Warning("failed to save lock file: %v", err)
+			}
+			if _, err := os.Stat(existingDir + ".git"); err == nil {
+				os.RemoveAll(existingDir + ".git")
+			}
+			return nil
+		}
+	}
+
 	destFolderName := DetermineDestinationFolderName(target.FilePath)
 	componentDir := filepath.Join(cd.baseDir, destFolderName)
 	if err := fileutil.CreateDirectoryWithPermissions(componentDir); err != nil {
@@ -348,7 +383,9 @@ func (cd *componentDownloader) DownloadWithRepo(fullURL, name, repoURL, repoPath
 		cd.formatter.Warning("failed to get commit hash: %v", err)
 	}
 
-	if err := cd.saveLockFile(cd.meta.dir, name, destFolderName, fullURL, sourceType, fullURL, commitHash, 1, "single", target.FilePath); err != nil {
+	// Use target.Name (canonical detected name) as the lock key so it matches
+	// the entry written by "install skill/agent/command".
+	if err := cd.saveLockFile(cd.meta.dir, target.Name, destFolderName, fullURL, sourceType, fullURL, commitHash, 1, "single", target.FilePath); err != nil {
 		cd.formatter.Warning("failed to save lock file: %v", err)
 	}
 
@@ -357,5 +394,24 @@ func (cd *componentDownloader) DownloadWithRepo(fullURL, name, repoURL, repoPath
 	}
 
 	shouldCleanup = false
+	return nil
+}
+
+// findComponentByName finds a component by matching the user-supplied name against both the
+// canonical detected name and the path-style destination folder name. This lets users pass
+// either "visual-explainer" or "plugins/visual-explainer" to refer to the same component.
+func findComponentByName(components []models.DetectedComponent, name string) *models.DetectedComponent {
+	// First pass: exact match on canonical detected name.
+	for i := range components {
+		if components[i].Name == name {
+			return &components[i]
+		}
+	}
+	// Second pass: match on path-style destination folder name (e.g. "plugins/visual-explainer").
+	for i := range components {
+		if DetermineDestinationFolderName(components[i].FilePath) == name {
+			return &components[i]
+		}
+	}
 	return nil
 }
