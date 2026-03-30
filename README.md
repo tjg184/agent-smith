@@ -86,6 +86,15 @@ agent-smith uninstall skill <name>
 agent-smith uninstall all owner/repo
 ```
 
+By default `install` auto-creates a repository-sourced profile to namespace the components. Use `--global` to skip profile creation and install directly to `~/.agent-smith/`:
+
+```bash
+agent-smith install skill owner/repo <name> --global
+agent-smith install all owner/repo --global
+```
+
+`--global` is mutually exclusive with `--profile` and `--install-dir`.
+
 **URL formats:** `owner/repo`, `https://github.com/owner/repo`, `git@github.com:owner/repo.git`, `/path/to/local/repo`
 
 ### Link
@@ -220,6 +229,12 @@ agent-smith target remove cursor
 ---
 
 ## Common Workflows
+
+**Install and use components (profile-free):**
+```bash
+agent-smith install all owner/repo --global
+agent-smith link all
+```
 
 **Install and use components:**
 ```bash
