@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/tjg184/agent-smith/compare/v1.8.0...v1.8.1) (2026-03-30)
+
+
+### Bug Fixes
+
+* dedup install skill names ([#90](https://github.com/tjg184/agent-smith/issues/90)) ([1216531](https://github.com/tjg184/agent-smith/commit/1216531f373a3d00499919936b8406ea0a200ee7))
+
 ## [1.8.0](https://github.com/tjg184/agent-smith/compare/v1.7.0...v1.8.0) (2026-03-22)
 
 
