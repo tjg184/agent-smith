@@ -40,3 +40,16 @@ release:
     name: agent-smith 
   prerelease: auto
   name_template: "v{{.Version}}"
+
+brews:
+  - id: agent-smith
+    github:
+      owner: tjg184
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    tap:
+      owner: tjg184
+      name: homebrew-tap
+    license: MIT
+    homepage: "https://github.com/tjg184/agent-smith"
+    description: "A CLI tool for managing profiles and components"
