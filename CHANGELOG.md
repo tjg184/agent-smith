@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.1](https://github.com/tjg184/agent-smith/compare/v1.10.0...v1.10.1) (2026-03-31)
+
+
+### Bug Fixes
+
+* update github id ([#97](https://github.com/tjg184/agent-smith/issues/97)) ([987b391](https://github.com/tjg184/agent-smith/commit/987b3910aadebf6d583084a3d7af5dcafece19f3))
+
 ## [1.10.0](https://github.com/tjg184/agent-smith/compare/v1.9.0...v1.10.0) (2026-03-31)
 
 
