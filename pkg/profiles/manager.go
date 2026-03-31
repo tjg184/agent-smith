@@ -391,7 +391,9 @@ func (pm *ProfileManager) DeleteProfile(profileName string) error {
 	}
 
 	if activeProfile == profileName {
-		return fmt.Errorf("cannot delete active profile '%s'. Deactivate it first with: agent-smith profiles deactivate", profileName)
+		if err := pm.DeactivateProfile(); err != nil {
+			return fmt.Errorf("failed to deactivate profile before deletion: %w", err)
+		}
 	}
 
 	fmt.Printf("Cleaning up components...\n")
