@@ -13,6 +13,20 @@ import (
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
+func collectProfileDirs(profilesDir string) []string {
+	entries, err := os.ReadDir(profilesDir)
+	if err != nil {
+		return nil
+	}
+	var dirs []string
+	for _, e := range entries {
+		if e.IsDir() {
+			dirs = append(dirs, filepath.Join(profilesDir, e.Name()))
+		}
+	}
+	return dirs
+}
+
 type Service struct {
 	linker    *linker.ComponentLinker
 	logger    *logger.Logger
@@ -64,9 +78,15 @@ func (s *Service) UninstallAllFromSource(repoURL string, opts services.Uninstall
 		return fmt.Errorf("failed to get base directory: %w", err)
 	}
 
+	profilesDir, err := paths.GetProfilesDir()
+	if err != nil {
+		return fmt.Errorf("failed to get profiles directory: %w", err)
+	}
+	extraDirs := collectProfileDirs(profilesDir)
+
 	uninstallerService := uninstaller.NewUninstaller(baseDir, s.linker)
 
-	if err := uninstallerService.UninstallAllFromSource(repoURL, opts.Force); err != nil {
+	if err := uninstallerService.UninstallAllFromSourceAcrossDirs(repoURL, extraDirs, opts.Force); err != nil {
 		return fmt.Errorf("failed to uninstall components: %w", err)
 	}
 

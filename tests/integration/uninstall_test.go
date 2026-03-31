@@ -162,10 +162,8 @@ func TestE2E_InstallLinkUninstallWorkflow(t *testing.T) {
 }
 
 // TestE2E_UninstallAllFromRepoWorkflow tests: install all → uninstall all from repo
-// NOTE: This test documents a current limitation: 'uninstall all' only works with components
-// in ~/.agent-smith/ (base directory), but new installations automatically go to profiles.
-// This test verifies that 'uninstall all' correctly reports no components found when
-// components are in profiles.
+// Components installed via 'install skill' go into a profile directory. 'uninstall all'
+// must find and remove them there.
 func TestE2E_UninstallAllFromRepoWorkflow(t *testing.T) {
 	tempDir := testutil.CreateTempDir(t, "agent-smith-e2e-uninstall-all-*")
 	oldHome := os.Getenv("HOME")
@@ -198,7 +196,7 @@ func TestE2E_UninstallAllFromRepoWorkflow(t *testing.T) {
 		t.Logf("Successfully installed %s to profile directory", skillName)
 	})
 
-	// Step 2: Uninstall all components from the repo (should find none in base directory)
+	// Step 2: Uninstall all components from the repo (should find them in the profile)
 	t.Run("Step2_UninstallAll", func(t *testing.T) {
 		cmd := exec.Command(binaryPath, "uninstall", "all", testRepo, "--force")
 		output, err := cmd.CombinedOutput()
@@ -210,20 +208,20 @@ func TestE2E_UninstallAllFromRepoWorkflow(t *testing.T) {
 			t.Fatalf("Uninstall all failed: %v\nOutput: %s", err, outputStr)
 		}
 
-		// Verify output shows no components found (because they're in profiles, not base)
-		if !strings.Contains(outputStr, "No components found") {
-			t.Errorf("Output should show 'No components found', got: %s", outputStr)
+		// Should show the uninstall preview and removal, not "no components found"
+		if strings.Contains(outputStr, "No components found") {
+			t.Errorf("Uninstall all should have found components in profiles, got: %s", outputStr)
 		}
 
-		t.Logf("Correctly reported no components in base directory")
+		t.Logf("Successfully uninstalled all components from profiles")
 	})
 
-	// Step 3: Verify component still exists in profile (uninstall all doesn't affect profiles)
-	t.Run("Step3_VerifyStillInProfile", func(t *testing.T) {
+	// Step 3: Verify component was removed from profile
+	t.Run("Step3_VerifyRemovedFromProfile", func(t *testing.T) {
 		skillsDir := filepath.Join(tempDir, ".agent-smith", "profiles", profileName, "skills", skillName)
-		testutil.AssertDirectoryExists(t, skillsDir)
+		testutil.AssertFileNotExists(t, skillsDir)
 
-		t.Logf("Verified component still exists in profile (uninstall all doesn't affect profiles)")
+		t.Logf("Verified component was removed from profile")
 	})
 }
 
