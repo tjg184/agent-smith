@@ -165,6 +165,13 @@ func (cl *ComponentLinker) UnlinkComponent(componentType, componentName, targetF
 	return linkerUnlink.UnlinkComponent(cl.agentsDir, cl.targets, cl.formatter, componentType, componentName, targetFilter)
 }
 
+// UnlinkComponentFromDir removes a linked component using sourceDir as the component
+// root instead of the linker's default agentsDir. Required when the component lives
+// in a profile directory rather than the global agents directory.
+func (cl *ComponentLinker) UnlinkComponentFromDir(sourceDir, componentType, componentName, targetFilter string) error {
+	return linkerUnlink.UnlinkComponent(sourceDir, cl.targets, cl.formatter, componentType, componentName, targetFilter)
+}
+
 // UnlinkComponentsByType removes all linked components of a specific type from configured targets
 func (cl *ComponentLinker) UnlinkComponentsByType(componentType, targetFilter string, force bool) error {
 	return linkerUnlink.UnlinkComponentsByType(cl.agentsDir, cl.targets, cl.formatter, componentType, targetFilter, force)

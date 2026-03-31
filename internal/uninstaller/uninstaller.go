@@ -249,17 +249,19 @@ func (u *Uninstaller) UninstallAllFromSourceAcrossDirs(repoURL string, extraDirs
 			}
 
 			for _, name := range names {
-				if u.linker != nil {
-					_ = u.linker.UnlinkComponent(componentType, name, "")
-				}
-
-				u.formatter.ProgressMsg(fmt.Sprintf("Removing %s", componentType), name)
-
 				entry, err := metadata.LoadLockFileEntry(m.baseDir, componentType, name)
 				dirName := name
+				// FilesystemName may include a subdir (e.g. "plugins/visual-explainer"),
+				// which is where the symlink in the target was created.
 				if err == nil && entry.FilesystemName != "" {
 					dirName = entry.FilesystemName
 				}
+
+				if u.linker != nil {
+					_ = u.linker.UnlinkComponentFromDir(m.baseDir, componentType, dirName, "")
+				}
+
+				u.formatter.ProgressMsg(fmt.Sprintf("Removing %s", componentType), name)
 
 				componentDir := filepath.Join(m.baseDir, componentType, dirName)
 				if err := os.RemoveAll(componentDir); err != nil {
