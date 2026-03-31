@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.2](https://github.com/tjg184/agent-smith/compare/v1.10.1...v1.10.2) (2026-03-31)
+
+
+### Bug Fixes
+
+* update to correct formula schema ([#99](https://github.com/tjg184/agent-smith/issues/99)) ([0e7611c](https://github.com/tjg184/agent-smith/commit/0e7611c399558d82d62ce714402e5975988eeffb))
+
 ## [1.10.1](https://github.com/tjg184/agent-smith/compare/v1.10.0...v1.10.1) (2026-03-31)
 
 
