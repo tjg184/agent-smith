@@ -223,6 +223,14 @@ func TestE2E_UninstallAllFromRepoWorkflow(t *testing.T) {
 
 		t.Logf("Verified component was removed from profile")
 	})
+
+	// Step 4: Verify the profile directory itself was cleaned up (empty repo profile)
+	t.Run("Step4_VerifyProfileDirRemoved", func(t *testing.T) {
+		profileDir := filepath.Join(tempDir, ".agent-smith", "profiles", profileName)
+		testutil.AssertFileNotExists(t, profileDir)
+
+		t.Logf("Verified empty repo profile directory was removed")
+	})
 }
 
 // TestE2E_UninstallNonExistentComponentWorkflow tests error handling when uninstalling non-existent component
