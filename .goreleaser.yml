@@ -42,7 +42,7 @@ release:
   name_template: "v{{.Version}}"
 
 brews:
-  - id: agent-smith
+  - name: agent-smith
     github:
       owner: tjg184
       name: homebrew-tap
