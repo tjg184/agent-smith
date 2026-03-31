@@ -131,22 +131,42 @@ func (u *Uninstaller) UninstallComponent(componentType, name, source string) err
 	return nil
 }
 
-// UninstallAllFromSource removes all components from a specified repository URL
+type componentsByTypeInDir struct {
+	baseDir          string
+	componentsByType map[string][]string
+}
+
+// UninstallAllFromSource removes all components from a specified repository URL.
+// It searches both the base directory and all profile directories.
 func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
-	detector := detector.NewRepositoryDetector()
-	normalizedURL, err := detector.NormalizeURL(repoURL)
+	return u.UninstallAllFromSourceAcrossDirs(repoURL, nil, force)
+}
+
+func (u *Uninstaller) UninstallAllFromSourceAcrossDirs(repoURL string, extraDirs []string, force bool) error {
+	det := detector.NewRepositoryDetector()
+	normalizedURL, err := det.NormalizeURL(repoURL)
 	if err != nil {
 		return fmt.Errorf("invalid repository URL: %w", err)
 	}
 
-	componentsByType, err := u.findComponentsBySource(normalizedURL)
-	if err != nil {
-		return fmt.Errorf("failed to find components: %w", err)
+	searchDirs := append([]string{u.baseDir}, extraDirs...)
+
+	var allMatches []componentsByTypeInDir
+	for _, dir := range searchDirs {
+		byType, err := u.findComponentsBySourceInDir(dir, normalizedURL)
+		if err != nil {
+			return fmt.Errorf("failed to find components in %s: %w", dir, err)
+		}
+		if len(byType) > 0 {
+			allMatches = append(allMatches, componentsByTypeInDir{baseDir: dir, componentsByType: byType})
+		}
 	}
 
 	totalComponents := 0
-	for _, names := range componentsByType {
-		totalComponents += len(names)
+	for _, m := range allMatches {
+		for _, names := range m.componentsByType {
+			totalComponents += len(names)
+		}
 	}
 
 	if totalComponents == 0 {
@@ -163,16 +183,20 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 	u.formatter.InfoMsg("Components to be removed:")
 	u.formatter.EmptyLine()
 
-	for componentType, names := range componentsByType {
-		if len(names) > 0 {
-			u.formatter.Info("%s (%d):", strings.Title(componentType), len(names))
-			for _, name := range names {
-				linkedTargets := u.findLinkedTargets(componentType, name)
-
-				if len(linkedTargets) > 0 {
-					u.formatter.ListItem("%s (linked to: %s)", name, strings.Join(linkedTargets, ", "))
-				} else {
-					u.formatter.ListItem("%s", name)
+	for _, m := range allMatches {
+		if len(m.componentsByType) > 0 {
+			u.formatter.Info("From %s:", m.baseDir)
+			for componentType, names := range m.componentsByType {
+				if len(names) > 0 {
+					u.formatter.Info("  %s (%d):", strings.Title(componentType), len(names))
+					for _, name := range names {
+						linkedTargets := u.findLinkedTargets(componentType, name)
+						if len(linkedTargets) > 0 {
+							u.formatter.ListItem("  %s (linked to: %s)", name, strings.Join(linkedTargets, ", "))
+						} else {
+							u.formatter.ListItem("  %s", name)
+						}
+					}
 				}
 			}
 			u.formatter.EmptyLine()
@@ -181,15 +205,15 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 
 	u.formatter.InfoMsg("Directories to be deleted:")
 	u.formatter.EmptyLine()
-	for componentType, names := range componentsByType {
-		if len(names) > 0 {
+	for _, m := range allMatches {
+		for componentType, names := range m.componentsByType {
 			for _, name := range names {
-				entry, err := metadata.LoadLockFileEntry(u.baseDir, componentType, name)
+				entry, err := metadata.LoadLockFileEntry(m.baseDir, componentType, name)
 				dirName := name
 				if err == nil && entry.FilesystemName != "" {
 					dirName = entry.FilesystemName
 				}
-				componentDir := filepath.Join(u.baseDir, componentType, dirName)
+				componentDir := filepath.Join(m.baseDir, componentType, dirName)
 				u.formatter.ListItem("%s", componentDir)
 			}
 		}
@@ -216,46 +240,45 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 
 	removed := 0
 	failed := 0
-	var failedComponents []string
 
-	for _, componentType := range []string{"skills", "agents", "commands"} {
-		names, exists := componentsByType[componentType]
-		if !exists || len(names) == 0 {
-			continue
-		}
-
-		for _, name := range names {
-			if u.linker != nil {
-				_ = u.linker.UnlinkComponent(componentType, name, "")
-			}
-
-			u.formatter.ProgressMsg(fmt.Sprintf("Removing %s", componentType), name)
-
-			entry, err := metadata.LoadLockFileEntry(u.baseDir, componentType, name)
-			dirName := name
-			if err == nil && entry.FilesystemName != "" {
-				dirName = entry.FilesystemName
-			}
-
-			componentDir := filepath.Join(u.baseDir, componentType, dirName)
-			if err := os.RemoveAll(componentDir); err != nil {
-				u.formatter.ProgressFailed()
-				u.formatter.ErrorMsg("Failed to remove %s: %s (%v)", componentType, name, err)
-				failed++
-				failedComponents = append(failedComponents, fmt.Sprintf("%s/%s", componentType, name))
+	for _, m := range allMatches {
+		for _, componentType := range []string{"skills", "agents", "commands"} {
+			names, exists := m.componentsByType[componentType]
+			if !exists || len(names) == 0 {
 				continue
 			}
 
-			if err := metadata.RemoveComponentEntry(u.baseDir, componentType, name); err != nil {
-				u.formatter.WarningMsg("Could not update lock file for %s: %s", name, err)
-			}
+			for _, name := range names {
+				if u.linker != nil {
+					_ = u.linker.UnlinkComponent(componentType, name, "")
+				}
 
-			u.formatter.ProgressComplete()
-			removed++
+				u.formatter.ProgressMsg(fmt.Sprintf("Removing %s", componentType), name)
+
+				entry, err := metadata.LoadLockFileEntry(m.baseDir, componentType, name)
+				dirName := name
+				if err == nil && entry.FilesystemName != "" {
+					dirName = entry.FilesystemName
+				}
+
+				componentDir := filepath.Join(m.baseDir, componentType, dirName)
+				if err := os.RemoveAll(componentDir); err != nil {
+					u.formatter.ProgressFailed()
+					u.formatter.ErrorMsg("Failed to remove %s: %s (%v)", componentType, name, err)
+					failed++
+					continue
+				}
+
+				if err := metadata.RemoveComponentEntry(m.baseDir, componentType, name); err != nil {
+					u.formatter.WarningMsg("Could not update lock file for %s: %s", name, err)
+				}
+
+				u.formatter.ProgressComplete()
+				removed++
+			}
 		}
 	}
 
-	// Display summary
 	u.formatter.EmptyLine()
 	u.formatter.CounterSummary(totalComponents, removed, failed, 0)
 
@@ -266,14 +289,17 @@ func (u *Uninstaller) UninstallAllFromSource(repoURL string, force bool) error {
 	return nil
 }
 
-// findComponentsBySource scans lock files and finds all components from a source URL
 func (u *Uninstaller) findComponentsBySource(normalizedURL string) (map[string][]string, error) {
+	return u.findComponentsBySourceInDir(u.baseDir, normalizedURL)
+}
+
+func (u *Uninstaller) findComponentsBySourceInDir(dir, normalizedURL string) (map[string][]string, error) {
 	componentsByType := make(map[string][]string)
 
 	componentTypes := []string{"skills", "agents", "commands"}
 
 	for _, componentType := range componentTypes {
-		lockFilePath := paths.GetComponentLockPath(u.baseDir, componentType)
+		lockFilePath := paths.GetComponentLockPath(dir, componentType)
 
 		if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
 			continue
@@ -320,7 +346,6 @@ func (u *Uninstaller) findComponentsBySource(normalizedURL string) (map[string][
 	return componentsByType, nil
 }
 
-// matchesSourceURL checks if two URLs match (with normalization)
 func (u *Uninstaller) matchesSourceURL(url1, url2 string) bool {
 	if url1 == "" || url2 == "" {
 		return false
@@ -332,7 +357,6 @@ func (u *Uninstaller) matchesSourceURL(url1, url2 string) bool {
 	return normalized1 == normalized2
 }
 
-// normalizeURLForComparison normalizes a URL for comparison purposes
 func normalizeURLForComparison(url string) string {
 	url = strings.TrimSpace(url)
 	url = strings.TrimSuffix(url, "/")
@@ -341,7 +365,6 @@ func normalizeURLForComparison(url string) string {
 	return url
 }
 
-// findLinkedTargets checks which targets a component is currently linked to
 func (u *Uninstaller) findLinkedTargets(componentType, componentName string) []string {
 	var linkedTargets []string
 

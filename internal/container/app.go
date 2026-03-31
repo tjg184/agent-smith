@@ -74,7 +74,7 @@ func (a *App) Run() {
 
 	installService := installsvc.NewService(profileManager, a.logger, a.formatter)
 	updateService := updatesvc.NewService(a.logger, a.formatter)
-	uninstallService := uninstallsvc.NewService(componentLinker, a.logger, a.formatter)
+	uninstallService := uninstallsvc.NewService(componentLinker, a.logger, a.formatter, profileManager)
 	targetService := targetsvc.NewService(a.logger, a.formatter)
 	statusService := statussvc.NewService(profileManager, a.logger, a.formatter)
 	linkService := linksvc.NewService(profileManager, a.logger, a.formatter)
