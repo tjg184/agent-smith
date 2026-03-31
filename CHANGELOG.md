@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/tjg184/agent-smith/compare/v1.9.0...v1.10.0) (2026-03-31)
+
+
+### Features
+
+* add homebrew formula ([#95](https://github.com/tjg184/agent-smith/issues/95)) ([7692ec5](https://github.com/tjg184/agent-smith/commit/7692ec54397be487165f585cd064d90120cc60bc))
+
 ## [1.9.0](https://github.com/tjg184/agent-smith/compare/v1.8.1...v1.9.0) (2026-03-30)
 
 
