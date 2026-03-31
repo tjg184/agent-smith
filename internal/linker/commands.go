@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/tjg184/agent-smith/internal/linker/linkutil"
 )
 
 // linkFlatMdFiles walks srcDir recursively and creates a flat symlink in targetBaseDir
@@ -107,29 +109,11 @@ func unlinkFlatMdFiles(componentName, componentTypeDir, targetBaseDir string) er
 			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 				return err
 			}
-			pruneEmptyDirs(filepath.Dir(path), targetBaseDir)
+			linkutil.PruneEmptyDirs(filepath.Dir(path), targetBaseDir)
 		}
 
 		return nil
 	})
-}
-
-func pruneEmptyDirs(dir, stopAt string) {
-	stopAt = filepath.Clean(stopAt)
-	for {
-		dir = filepath.Clean(dir)
-		if dir == stopAt || !strings.HasPrefix(dir, stopAt) {
-			return
-		}
-		entries, err := os.ReadDir(dir)
-		if err != nil || len(entries) > 0 {
-			return
-		}
-		if err := os.Remove(dir); err != nil {
-			return
-		}
-		dir = filepath.Dir(dir)
-	}
 }
 
 func isFlatMdLinked(componentName, componentTypeDir, targetBaseDir string) bool {

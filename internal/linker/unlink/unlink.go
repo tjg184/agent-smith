@@ -125,6 +125,9 @@ func UnlinkComponent(agentsDir string, targets []config.Target, f *formatter.For
 				failedCount++
 				continue
 			}
+			// Prune empty intermediate directories (e.g. "plugins/") left after
+			// removing a symlink nested below the component root.
+			linkutil.PruneEmptyDirs(filepath.Dir(linkPath), componentDir)
 		}
 
 		f.ProgressComplete()

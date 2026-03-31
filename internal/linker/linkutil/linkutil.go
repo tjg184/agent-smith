@@ -8,6 +8,26 @@ import (
 	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
+// PruneEmptyDirs removes dir and its ancestors up to (but not including) stopAt,
+// as long as each is empty.
+func PruneEmptyDirs(dir, stopAt string) {
+	stopAt = filepath.Clean(stopAt)
+	for {
+		dir = filepath.Clean(dir)
+		if dir == stopAt || !strings.HasPrefix(dir, stopAt) {
+			return
+		}
+		entries, err := os.ReadDir(dir)
+		if err != nil || len(entries) > 0 {
+			return
+		}
+		if err := os.Remove(dir); err != nil {
+			return
+		}
+		dir = filepath.Dir(dir)
+	}
+}
+
 func ProfileFromPath(path string) string {
 	path = filepath.Clean(path)
 
