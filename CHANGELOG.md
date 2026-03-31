@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.10.3](https://github.com/tjg184/agent-smith/compare/v1.10.2...v1.10.3) (2026-03-31)
+
+
+### Bug Fixes
+
+* handle uninstall ([#101](https://github.com/tjg184/agent-smith/issues/101)) ([832d074](https://github.com/tjg184/agent-smith/commit/832d074768d51b65b6a98b75dadb8f6414f6968c))
+* remove linked after uninstall ([#103](https://github.com/tjg184/agent-smith/issues/103)) ([b7e8869](https://github.com/tjg184/agent-smith/commit/b7e88699d056955c0866d62991173dad6019e84c))
+
 ## [1.10.2](https://github.com/tjg184/agent-smith/compare/v1.10.1...v1.10.2) (2026-03-31)
 
 
