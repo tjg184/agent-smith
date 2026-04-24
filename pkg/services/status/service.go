@@ -2,14 +2,11 @@ package status
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/fatih/color"
 	"github.com/tjg184/agent-smith/internal/formatter"
 	"github.com/tjg184/agent-smith/pkg/config"
 	"github.com/tjg184/agent-smith/pkg/logger"
-	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
 	"github.com/tjg184/agent-smith/pkg/services"
 )
@@ -48,14 +45,6 @@ func (s *Service) ShowSystemStatus() error {
 	}
 	s.logger.Debug("[DEBUG] Detected %d target(s)", len(targets))
 
-	agentsDir, err := paths.GetAgentsDir()
-	if err != nil {
-		return fmt.Errorf("failed to get agents directory: %w", err)
-	}
-	s.logger.Debug("[DEBUG] Agents directory: %s", agentsDir)
-
-	agentsCount, skillsCount, commandsCount := s.countBaseComponents(agentsDir)
-
 	f := formatter.New()
 	f.SectionHeader("Agent Smith Status")
 
@@ -79,27 +68,19 @@ func (s *Service) ShowSystemStatus() error {
 		s.formatter.Info("  Detected Targets:   %s", gray("None"))
 	}
 
-	s.formatter.EmptyLine()
-	bold := color.New(color.Bold).SprintFunc()
-	s.formatter.Info("%s", bold("Base Components (~/.agent-smith/)"))
-	s.formatter.Info("  • Agents:           %d", agentsCount)
-	s.formatter.Info("  • Skills:           %d", skillsCount)
-	s.formatter.Info("  • Commands:         %d", commandsCount)
-
-	if activeProfile != "" {
-		profilesList, err := s.profileManager.ScanProfiles()
-		if err == nil {
-			for _, profile := range profilesList {
-				if profile.Name == activeProfile {
-					agents, skills, commands := s.profileManager.CountComponents(profile)
-					s.formatter.EmptyLine()
-					green := color.New(color.FgGreen, color.Bold).SprintFunc()
-					s.formatter.Info("%s", green("Active Profile Components"))
-					s.formatter.Info("  • Agents:           %d", agents)
-					s.formatter.Info("  • Skills:           %d", skills)
-					s.formatter.Info("  • Commands:         %d", commands)
-					break
-				}
+	profilesList, err := s.profileManager.ScanProfiles()
+	if err == nil && len(profilesList) > 0 {
+		s.formatter.EmptyLine()
+		bold := color.New(color.Bold).SprintFunc()
+		s.formatter.Info("%s", bold("Installed Components"))
+		for _, profile := range profilesList {
+			agents, skills, commands := s.profileManager.CountComponents(profile)
+			total := agents + skills + commands
+			if activeProfile == profile.Name {
+				green := color.New(color.FgGreen).SprintFunc()
+				s.formatter.Info("  • %s %s  (%d components)", green(profile.Name), formatter.ColoredSuccess(), total)
+			} else {
+				s.formatter.Info("  • %s  (%d components)", profile.Name, total)
 			}
 		}
 	}
@@ -112,38 +93,6 @@ func (s *Service) ShowSystemStatus() error {
 	s.formatter.EmptyLine()
 
 	return nil
-}
-
-func (s *Service) countBaseComponents(baseDir string) (agents, skills, commands int) {
-	agentsPath := filepath.Join(baseDir, "agents")
-	skillsPath := filepath.Join(baseDir, "skills")
-	commandsPath := filepath.Join(baseDir, "commands")
-
-	if entries, err := os.ReadDir(agentsPath); err == nil {
-		for _, entry := range entries {
-			if entry.IsDir() {
-				agents++
-			}
-		}
-	}
-
-	if entries, err := os.ReadDir(skillsPath); err == nil {
-		for _, entry := range entries {
-			if entry.IsDir() {
-				skills++
-			}
-		}
-	}
-
-	if entries, err := os.ReadDir(commandsPath); err == nil {
-		for _, entry := range entries {
-			if entry.IsDir() {
-				commands++
-			}
-		}
-	}
-
-	return agents, skills, commands
 }
 
 func (s *Service) joinStrings(strings []string, separator string) string {

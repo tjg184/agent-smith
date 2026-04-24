@@ -12,7 +12,6 @@ type InstallService interface {
 type InstallOptions struct {
 	Profile    string
 	InstallDir string
-	Global     bool
 }
 
 type LinkService interface {
@@ -31,6 +30,7 @@ type LinkOptions struct {
 	TargetFilter string
 	Profile      string
 	AllProfiles  bool
+	RepoURL      string
 }
 
 type UnlinkOptions struct {
@@ -38,6 +38,7 @@ type UnlinkOptions struct {
 	Profile      string
 	AllProfiles  bool
 	Force        bool
+	RepoURL      string
 }
 
 type LinkStatusOptions struct {

@@ -210,9 +210,11 @@ EXAMPLES:
 	unlinkCmd.AddCommand(unlinkCommandsCmd)
 
 	unlinkAllCmd := &cobra.Command{
-		Use:   "all",
+		Use:   "all [repository-url]",
 		Short: "Unlink all components from targets",
 		Long: `Unlink all components (skills, agents, and commands) from detected targets.
+
+Optionally provide a repository URL to unlink only components from that specific repository.
 
 By default, only components from the currently active profile are unlinked.
 Use --all-profiles to unlink components from all profiles.
@@ -225,6 +227,9 @@ EXAMPLES:
   # Unlink all components from current profile with confirmation
   agent-smith unlink all
 
+  # Unlink all components from a specific repository
+  agent-smith unlink all owner/repo
+
   # Unlink all components from current profile without confirmation
   agent-smith unlink all --force
 
@@ -236,13 +241,19 @@ EXAMPLES:
 
   # Unlink all components from OpenCode only
   agent-smith unlink all --target opencode`,
-		Args: noArgsWithHelp,
+		Args: rangeArgsWithHelp(0, 1, "agent-smith unlink all [repository-url]"),
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")
 			force, _ := cmd.Flags().GetBool("force")
 			allProfiles, _ := cmd.Flags().GetBool("all-profiles")
 			profile, _ := cmd.Flags().GetString("profile")
-			handleUnlinkAllWithProfile(targetFilter, force, allProfiles, profile)
+
+			var repoURL string
+			if len(args) == 1 {
+				repoURL = args[0]
+			}
+
+			handleUnlinkAllWithProfile(targetFilter, repoURL, force, allProfiles, profile)
 		},
 	}
 	addForceFlag(unlinkAllCmd)

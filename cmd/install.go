@@ -87,17 +87,13 @@ EXAMPLES:
   # Force creation of a new profile with a custom name
   agent-smith install skill openai/cookbook gpt-skill --profile work
 
-  # Install globally to ~/.agent-smith/ without creating a profile
-  agent-smith install skill openai/cookbook gpt-skill --global
-
   # Install to custom directory for testing (isolated from ~/.agent-smith/)
    agent-smith install skill ./my-skill test-skill --install-dir ./test-components`,
 		Args: exactArgsWithHelp(2, "agent-smith install skill <repository-url> <skill-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
 			installDir, _ := cmd.Flags().GetString("install-dir")
-			global, _ := cmd.Flags().GetBool("global")
-			handleAddSkill(args[0], args[1], profile, installDir, global)
+			handleAddSkill(args[0], args[1], profile, installDir)
 		},
 	}
 	addInstallFlags(installSkillCmd)
@@ -149,17 +145,13 @@ EXAMPLES:
   # Force creation of a new profile with a custom name
   agent-smith install agent openai/assistant coding-agent --profile work
 
-  # Install globally to ~/.agent-smith/ without creating a profile
-  agent-smith install agent openai/assistant coding-agent --global
-
   # Install to custom directory for testing (isolated from ~/.agent-smith/)
    agent-smith install agent ./my-agent test-agent --install-dir ./test-components`,
 		Args: exactArgsWithHelp(2, "agent-smith install agent <repository-url> <agent-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
 			installDir, _ := cmd.Flags().GetString("install-dir")
-			global, _ := cmd.Flags().GetBool("global")
-			handleAddAgent(args[0], args[1], profile, installDir, global)
+			handleAddAgent(args[0], args[1], profile, installDir)
 		},
 	}
 	addInstallFlags(installAgentCmd)
@@ -211,17 +203,13 @@ EXAMPLES:
   # Force creation of a new profile with a custom name
   agent-smith install command cli-tools/formatter json-formatter --profile work
 
-  # Install globally to ~/.agent-smith/ without creating a profile
-  agent-smith install command cli-tools/formatter json-formatter --global
-
   # Install to custom directory for testing (isolated from ~/.agent-smith/)
    agent-smith install command ./my-command test-command --install-dir ./test-components`,
 		Args: exactArgsWithHelp(2, "agent-smith install command <repository-url> <command-name>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
 			installDir, _ := cmd.Flags().GetString("install-dir")
-			global, _ := cmd.Flags().GetBool("global")
-			handleAddCommand(args[0], args[1], profile, installDir, global)
+			handleAddCommand(args[0], args[1], profile, installDir)
 		},
 	}
 	addInstallFlags(installCommandCmd)
@@ -242,17 +230,11 @@ the components from the repository. The profile name is generated from the
 repository URL (e.g., "owner-repo"). If a profile already exists for the same
 repository, it will be reused and updated.
 
-Repository-sourced profiles make it easy to:
-  - Keep all components from a repo organized together
-  - Update all components from the repo with 'update all'
-  - Switch between different repositories
-
 REQUIRED PARAMETERS:
   <repository-url>  The URL or path to the git repository containing components
 
 EXAMPLES:
   # Download all components from GitHub using shorthand
-  # Creates profile: openai-cookbook (📦)
   agent-smith install all openai/cookbook
 
   # Download using full URL
@@ -260,9 +242,6 @@ EXAMPLES:
 
   # Download from local repository
   agent-smith install all /path/to/local/repo
-
-  # Install globally to ~/.agent-smith/ without creating a profile
-  agent-smith install all openai/cookbook --global
 
   # Install to a custom directory (project-local, no profile)
    agent-smith install all openai/cookbook --install-dir ./tools
@@ -273,13 +252,11 @@ EXAMPLES:
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
 			installDir, _ := cmd.Flags().GetString("install-dir")
-			global, _ := cmd.Flags().GetBool("global")
-			handleAddAll(args[0], profile, installDir, global)
+			handleAddAll(args[0], profile, installDir)
 		},
 	}
 	installAllCmd.Flags().StringP("profile", "p", "", "Force creation of a new profile with a custom name")
 	installAllCmd.Flags().StringP("install-dir", "i", "", "Install to a custom directory instead of ~/.agent-smith/")
-	installAllCmd.Flags().BoolP("global", "g", false, "Install to ~/.agent-smith/ base without creating a profile")
 	installCmd.AddCommand(installAllCmd)
 
 	rootCmd.AddCommand(installCmd)

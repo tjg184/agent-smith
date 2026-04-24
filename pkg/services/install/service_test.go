@@ -63,21 +63,6 @@ func TestValidateInstallOptions_MutuallyExclusiveFlags(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "global and profile both set",
-			opts:    services.InstallOptions{Global: true, Profile: "myprofile"},
-			wantErr: true,
-		},
-		{
-			name:    "global and install-dir both set",
-			opts:    services.InstallOptions{Global: true, InstallDir: "/tmp/foo"},
-			wantErr: true,
-		},
-		{
-			name:    "only global set",
-			opts:    services.InstallOptions{Global: true},
-			wantErr: false,
-		},
-		{
 			name:    "only profile set",
 			opts:    services.InstallOptions{Profile: "myprofile"},
 			wantErr: false,
@@ -107,117 +92,88 @@ func TestValidateInstallOptions_MutuallyExclusiveFlags(t *testing.T) {
 	}
 }
 
-// TestInstallSkill_GlobalDoesNotCreateProfile verifies that passing Global:true
-// does not create a profile directory, even though a valid local repo is provided.
-func TestInstallSkill_GlobalDoesNotCreateProfile(t *testing.T) {
+// TestInstallSkill_CreatesRepoProfile verifies that InstallSkill always creates a
+// repository-sourced profile rather than installing to the base directory.
+func TestInstallSkill_CreatesRepoProfile(t *testing.T) {
 	svc, tmpHome := newTestService(t)
 
 	repoPath := createLocalSkillRepo(t)
 
-	err := svc.InstallSkill(repoPath, "test-skill", services.InstallOptions{Global: true})
+	err := svc.InstallSkill(repoPath, "test-skill", services.InstallOptions{})
 	if err != nil {
-		t.Fatalf("InstallSkill with Global:true failed: %v", err)
+		t.Fatalf("InstallSkill failed: %v", err)
 	}
 
 	profilesPath := profilesDir(tmpHome)
 	entries, readErr := os.ReadDir(profilesPath)
-	if os.IsNotExist(readErr) {
-		// profiles dir not created at all — correct
-		return
-	}
 	if readErr != nil {
 		t.Fatalf("unexpected error reading profiles dir: %v", readErr)
 	}
-	if len(entries) > 0 {
-		names := make([]string, len(entries))
-		for i, e := range entries {
-			names[i] = e.Name()
-		}
-		t.Errorf("expected no profiles to be created, found: %v", names)
+	if len(entries) == 0 {
+		t.Error("expected a repo profile to be created, but profiles dir is empty")
 	}
 }
 
-// TestInstallAgent_GlobalDoesNotCreateProfile mirrors the skill test for agents.
-func TestInstallAgent_GlobalDoesNotCreateProfile(t *testing.T) {
+// TestInstallAgent_CreatesRepoProfile mirrors the skill test for agents.
+func TestInstallAgent_CreatesRepoProfile(t *testing.T) {
 	svc, tmpHome := newTestService(t)
 
 	repoPath := createLocalAgentRepo(t)
 
-	err := svc.InstallAgent(repoPath, "test-agent", services.InstallOptions{Global: true})
+	err := svc.InstallAgent(repoPath, "test-agent", services.InstallOptions{})
 	if err != nil {
-		t.Fatalf("InstallAgent with Global:true failed: %v", err)
+		t.Fatalf("InstallAgent failed: %v", err)
 	}
 
 	profilesPath := profilesDir(tmpHome)
 	entries, readErr := os.ReadDir(profilesPath)
-	if os.IsNotExist(readErr) {
-		return
-	}
 	if readErr != nil {
 		t.Fatalf("unexpected error reading profiles dir: %v", readErr)
 	}
-	if len(entries) > 0 {
-		names := make([]string, len(entries))
-		for i, e := range entries {
-			names[i] = e.Name()
-		}
-		t.Errorf("expected no profiles to be created, found: %v", names)
+	if len(entries) == 0 {
+		t.Error("expected a repo profile to be created, but profiles dir is empty")
 	}
 }
 
-// TestInstallCommand_GlobalDoesNotCreateProfile mirrors the skill test for commands.
-func TestInstallCommand_GlobalDoesNotCreateProfile(t *testing.T) {
+// TestInstallCommand_CreatesRepoProfile mirrors the skill test for commands.
+func TestInstallCommand_CreatesRepoProfile(t *testing.T) {
 	svc, tmpHome := newTestService(t)
 
 	repoPath := createLocalCommandRepo(t)
 
-	err := svc.InstallCommand(repoPath, "test-command", services.InstallOptions{Global: true})
+	err := svc.InstallCommand(repoPath, "test-command", services.InstallOptions{})
 	if err != nil {
-		t.Fatalf("InstallCommand with Global:true failed: %v", err)
+		t.Fatalf("InstallCommand failed: %v", err)
 	}
 
 	profilesPath := profilesDir(tmpHome)
 	entries, readErr := os.ReadDir(profilesPath)
-	if os.IsNotExist(readErr) {
-		return
-	}
 	if readErr != nil {
 		t.Fatalf("unexpected error reading profiles dir: %v", readErr)
 	}
-	if len(entries) > 0 {
-		names := make([]string, len(entries))
-		for i, e := range entries {
-			names[i] = e.Name()
-		}
-		t.Errorf("expected no profiles to be created, found: %v", names)
+	if len(entries) == 0 {
+		t.Error("expected a repo profile to be created, but profiles dir is empty")
 	}
 }
 
-// TestInstallBulk_GlobalDoesNotCreateProfile verifies InstallBulk with Global:true.
-func TestInstallBulk_GlobalDoesNotCreateProfile(t *testing.T) {
+// TestInstallBulk_CreatesRepoProfile verifies InstallBulk always creates a repo profile.
+func TestInstallBulk_CreatesRepoProfile(t *testing.T) {
 	svc, tmpHome := newTestService(t)
 
 	repoPath := createLocalSkillRepo(t)
 
-	err := svc.InstallBulk(repoPath, services.InstallOptions{Global: true})
+	err := svc.InstallBulk(repoPath, services.InstallOptions{})
 	if err != nil {
-		t.Fatalf("InstallBulk with Global:true failed: %v", err)
+		t.Fatalf("InstallBulk failed: %v", err)
 	}
 
 	profilesPath := profilesDir(tmpHome)
 	entries, readErr := os.ReadDir(profilesPath)
-	if os.IsNotExist(readErr) {
-		return
-	}
 	if readErr != nil {
 		t.Fatalf("unexpected error reading profiles dir: %v", readErr)
 	}
-	if len(entries) > 0 {
-		names := make([]string, len(entries))
-		for i, e := range entries {
-			names[i] = e.Name()
-		}
-		t.Errorf("expected no profiles to be created, found: %v", names)
+	if len(entries) == 0 {
+		t.Error("expected a repo profile to be created, but profiles dir is empty")
 	}
 }
 

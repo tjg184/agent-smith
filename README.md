@@ -86,14 +86,7 @@ agent-smith uninstall skill <name>
 agent-smith uninstall all owner/repo
 ```
 
-By default `install` auto-creates a repository-sourced profile to namespace the components. Use `--global` to skip profile creation and install directly to `~/.agent-smith/`:
-
-```bash
-agent-smith install skill owner/repo <name> --global
-agent-smith install all owner/repo --global
-```
-
-`--global` is mutually exclusive with `--profile` and `--install-dir`.
+Components are always installed into a repository-sourced profile, keeping repos isolated from each other (prevents name collisions).
 
 **URL formats:** `owner/repo`, `https://github.com/owner/repo`, `git@github.com:owner/repo.git`, `/path/to/local/repo`
 
@@ -102,7 +95,8 @@ agent-smith install all owner/repo --global
 Link components from `~/.agent-smith/` to your AI editor via symlink.
 
 ```bash
-agent-smith link all                     # Link everything to all editors
+agent-smith link all                     # Link active profile to all editors
+agent-smith link all owner/repo          # Link a specific repo's components
 agent-smith link all --to opencode       # Link to a specific editor
 agent-smith link skill <name>
 agent-smith link skills                  # All skills
@@ -112,9 +106,10 @@ agent-smith link command <name>
 agent-smith link commands
 agent-smith link auto                    # Auto-detect components in current dir
 agent-smith link list                    # List linked components
-agent-smith link status                  # Matrix view: components × editors
-agent-smith link status --all-profiles   # Across all profiles
-agent-smith unlink all
+agent-smith link status                  # Matrix view: all repos × editors
+agent-smith link status --profile <name> # Scope to one repo
+agent-smith unlink all                   # Unlink active profile
+agent-smith unlink all owner/repo        # Unlink a specific repo
 agent-smith unlink skill <name>
 ```
 
@@ -147,13 +142,11 @@ agent-smith status                       # System overview: profile, targets, co
 
 ## Profiles
 
-Profiles are optional. If you just want components available globally without any organization overhead, use `--global` on install commands and skip this section entirely.
-
-Profiles let you organize and switch between different component sets — useful for separating work, personal, and project-specific toolsets.
+Profiles organize components by source repo (auto-created on install) or as custom curated collections. For most users profiles are invisible — you work in terms of repo URLs.
 
 Two profile types:
-- **📦 Repository-sourced** — auto-created by `install all`, tied to a repo
-- **👤 User-created** — manually created for custom collections
+- **📦 Repository-sourced** — auto-created by `install all`, tied to a repo, keeps components isolated
+- **👤 User-created** — manually created for custom collections cherry-picked across repos
 
 ```bash
 # List and inspect
@@ -232,17 +225,24 @@ agent-smith target remove cursor
 
 ## Common Workflows
 
-**Install and use components (profile-free):**
-```bash
-agent-smith install all owner/repo --global
-agent-smith link all
-```
-
-**Install and use components:**
+**Install and use a repo:**
 ```bash
 agent-smith install all owner/repo
-agent-smith link all
-agent-smith status
+agent-smith link all owner/repo
+```
+
+**Use components from multiple repos:**
+```bash
+agent-smith install all owner/repo-a
+agent-smith install all owner/repo-b
+agent-smith link all owner/repo-a
+agent-smith link all owner/repo-b
+```
+
+**Remove a repo from your editor:**
+```bash
+agent-smith unlink all owner/repo        # Remove from editor, keep installed
+agent-smith uninstall all owner/repo     # Remove entirely
 ```
 
 **Switch to a work profile:**

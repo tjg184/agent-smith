@@ -185,15 +185,20 @@ EXAMPLES:
 	linkCmd.AddCommand(linkCommandsCmd)
 
 	linkAllCmd := &cobra.Command{
-		Use:   "all",
+		Use:   "all [repository-url]",
 		Short: "Link all components to editors",
 		Long: `Link all components (skills, agents, commands) to AI editor targets.
 
 This is the most common command - it links everything you've installed to your editors.
 
+Optionally provide a repository URL to link only components from that specific repository.
+
 EXAMPLES:
   # Link all components to all editors (default)
   agent-smith link all
+
+  # Link all components from a specific repository
+  agent-smith link all owner/repo
 
   # Link all components to OpenCode only
   agent-smith link all --to opencode
@@ -206,13 +211,18 @@ EXAMPLES:
 
   # Link all components from all profiles
   agent-smith link all --all-profiles`,
-		Args: noArgsWithHelp,
+		Args: rangeArgsWithHelp(0, 1, "agent-smith link all [repository-url]"),
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("to")
 			profile, _ := cmd.Flags().GetString("profile")
 			allProfiles, _ := cmd.Flags().GetBool("all-profiles")
 
-			handleLinkAll(targetFilter, profile, allProfiles)
+			var repoURL string
+			if len(args) == 1 {
+				repoURL = args[0]
+			}
+
+			handleLinkAll(targetFilter, profile, repoURL, allProfiles)
 		},
 	}
 	addLinkTargetFlags(linkAllCmd)
@@ -266,27 +276,17 @@ EXAMPLES:
 		Short: "Matrix view: components vs editors",
 		Long: `Show a detailed matrix of which components are linked to which editors.
 
-This is more detailed than 'link list' - it shows a table with components as rows
-and editors as columns, making it easy to see exactly what is linked where.
+By default shows all installed repos. Use --profile to scope to a specific one.
 
 EXAMPLES:
-  # Show status for active profile/base
+  # Show status for all installed repos
   agent-smith link status
 
-  # Show status for a specific profile
-  agent-smith link status --profile tjg184-skills
-
-  # Show status for all profiles
-  agent-smith link status --all-profiles
+  # Show status for a specific repo's components
+  agent-smith link status --profile owner-repo
 
   # Show only linked components (hide unlinked)
   agent-smith link status --linked-only
-
-  # Show only linked components across all profiles
-  agent-smith link status --all-profiles --linked-only
-
-  # Show status for specific profiles only (filter)
-  agent-smith link status --all-profiles --profile work,personal
 
 LEGEND:
   ✓ - Valid symlink (linked and working)
@@ -296,14 +296,12 @@ LEGEND:
   ? - Unknown status`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
-			allProfiles, _ := cmd.Flags().GetBool("all-profiles")
 			profileFilter, _ := cmd.Flags().GetStringSlice("profile")
 			linkedOnly, _ := cmd.Flags().GetBool("linked-only")
-			handleLinkStatus(allProfiles, profileFilter, linkedOnly)
+			handleLinkStatus(true, profileFilter, linkedOnly)
 		},
 	}
-	linkStatusCmd.Flags().Bool("all-profiles", false, "Show link status for all profiles")
-	linkStatusCmd.Flags().StringSlice("profile", []string{}, "Show status for specific profile (or filter when used with --all-profiles)")
+	linkStatusCmd.Flags().StringSlice("profile", []string{}, "Scope to a specific profile")
 	linkStatusCmd.Flags().Bool("linked-only", false, "Show only components that have at least one link")
 	linkCmd.AddCommand(linkStatusCmd)
 

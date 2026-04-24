@@ -39,10 +39,6 @@ func (s *Service) InstallSkill(repoURL, name string, opts services.InstallOption
 		return err
 	}
 
-	if opts.Global {
-		return s.installToBase(models.ComponentSkill, repoURL, name)
-	}
-
 	if opts.InstallDir != "" {
 		return s.installToTargetDir(models.ComponentSkill, repoURL, name, opts.InstallDir)
 	} else if opts.Profile != "" {
@@ -54,11 +50,7 @@ func (s *Service) InstallSkill(repoURL, name string, opts services.InstallOption
 		return fmt.Errorf("failed to determine profile for repository: %w", err)
 	}
 
-	if profile != "" {
-		return s.installToProfile(models.ComponentSkill, repoURL, name, profile)
-	}
-
-	return s.installToBase(models.ComponentSkill, repoURL, name)
+	return s.installToProfile(models.ComponentSkill, repoURL, name, profile)
 }
 
 func (s *Service) InstallAgent(repoURL, name string, opts services.InstallOptions) error {
@@ -66,10 +58,6 @@ func (s *Service) InstallAgent(repoURL, name string, opts services.InstallOption
 
 	if err := s.validateInstallOptions(opts); err != nil {
 		return err
-	}
-
-	if opts.Global {
-		return s.installToBase(models.ComponentAgent, repoURL, name)
 	}
 
 	if opts.InstallDir != "" {
@@ -83,11 +71,7 @@ func (s *Service) InstallAgent(repoURL, name string, opts services.InstallOption
 		return fmt.Errorf("failed to determine profile for repository: %w", err)
 	}
 
-	if profile != "" {
-		return s.installToProfile(models.ComponentAgent, repoURL, name, profile)
-	}
-
-	return s.installToBase(models.ComponentAgent, repoURL, name)
+	return s.installToProfile(models.ComponentAgent, repoURL, name, profile)
 }
 
 func (s *Service) InstallCommand(repoURL, name string, opts services.InstallOptions) error {
@@ -95,10 +79,6 @@ func (s *Service) InstallCommand(repoURL, name string, opts services.InstallOpti
 
 	if err := s.validateInstallOptions(opts); err != nil {
 		return err
-	}
-
-	if opts.Global {
-		return s.installToBase(models.ComponentCommand, repoURL, name)
 	}
 
 	if opts.InstallDir != "" {
@@ -112,11 +92,7 @@ func (s *Service) InstallCommand(repoURL, name string, opts services.InstallOpti
 		return fmt.Errorf("failed to determine profile for repository: %w", err)
 	}
 
-	if profile != "" {
-		return s.installToProfile(models.ComponentCommand, repoURL, name, profile)
-	}
-
-	return s.installToBase(models.ComponentCommand, repoURL, name)
+	return s.installToProfile(models.ComponentCommand, repoURL, name, profile)
 }
 
 func (s *Service) InstallBulk(repoURL string, opts services.InstallOptions) error {
@@ -124,10 +100,6 @@ func (s *Service) InstallBulk(repoURL string, opts services.InstallOptions) erro
 
 	if err := s.validateInstallOptions(opts); err != nil {
 		return err
-	}
-
-	if opts.Global {
-		return s.installBulkToBase(repoURL)
 	}
 
 	if opts.InstallDir != "" {
@@ -140,12 +112,6 @@ func (s *Service) InstallBulk(repoURL string, opts services.InstallOptions) erro
 func (s *Service) validateInstallOptions(opts services.InstallOptions) error {
 	if opts.Profile != "" && opts.InstallDir != "" {
 		return fmt.Errorf("cannot specify both --profile and --install-dir flags")
-	}
-	if opts.Global && opts.Profile != "" {
-		return fmt.Errorf("cannot specify both --global and --profile flags")
-	}
-	if opts.Global && opts.InstallDir != "" {
-		return fmt.Errorf("cannot specify both --global and --install-dir flags")
 	}
 	return nil
 }
@@ -183,28 +149,6 @@ func (s *Service) installToProfile(ct models.ComponentType, repoURL, name, profi
 		return fmt.Errorf("failed to download %s: %w", ct, err)
 	}
 	return s.activateProfileWithFeedback(profile)
-}
-
-func (s *Service) installToBase(ct models.ComponentType, repoURL, name string) error {
-	dl, err := downloader.ForType(ct)
-	if err != nil {
-		return fmt.Errorf("failed to create downloader: %w", err)
-	}
-	if err := dl.Download(repoURL, name); err != nil {
-		return fmt.Errorf("failed to download %s: %w", ct, err)
-	}
-	return nil
-}
-
-func (s *Service) installBulkToBase(repoURL string) error {
-	bulkDownloader, err := downloader.NewBulkDownloader()
-	if err != nil {
-		return fmt.Errorf("failed to create downloader: %w", err)
-	}
-	if err := bulkDownloader.AddAll(repoURL); err != nil {
-		return fmt.Errorf("failed to bulk download components: %w", err)
-	}
-	return nil
 }
 
 func (s *Service) installBulkToTargetDir(repoURL, targetDir string) error {
@@ -358,15 +302,13 @@ func (s *Service) activateProfileWithFeedback(profile string) error {
 
 	s.formatter.EmptyLine()
 	if result.Switched {
-		s.formatter.SuccessMsg("Switched profile: %s → %s", result.PreviousProfile, result.NewProfile)
-	} else if result.PreviousProfile == result.NewProfile {
-		s.formatter.SuccessMsg("Profile '%s' is active and ready", result.NewProfile)
+		s.formatter.SuccessMsg("Ready: switched to %s", result.NewProfile)
 	} else {
-		s.formatter.SuccessMsg("Profile activated: %s", result.NewProfile)
+		s.formatter.SuccessMsg("Ready: %s is active", result.NewProfile)
 	}
 
 	s.formatter.EmptyLine()
-	s.formatter.Info("Next: Run 'agent-smith link all' to apply changes to your editor(s)")
+	s.formatter.Info("Run 'agent-smith link all' to apply changes to your editor(s)")
 
 	return nil
 }
