@@ -15,7 +15,7 @@ import (
 	"github.com/tjg184/agent-smith/pkg/profiles/profilemeta"
 )
 
-// profileLabel returns the source repo URL for a profile if available, otherwise the profile name.
+// profileLabel returns "<name> (<url>)" for repo profiles, or just the name.
 func profileLabel(profileName string) string {
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
@@ -25,7 +25,7 @@ func profileLabel(profileName string) string {
 	if err != nil || meta == nil || meta.SourceURL == "" {
 		return profileName
 	}
-	return meta.SourceURL
+	return fmt.Sprintf("%s (%s)", profileName, meta.SourceURL)
 }
 
 type DisplayProfileManager interface {	ScanProfiles() ([]*Profile, error)

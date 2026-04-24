@@ -61,9 +61,8 @@ func TestE2E_LinkStatusWorkflow(t *testing.T) {
 
 		// Verify output contains expected format elements
 		expectedStrings := []string{
-			"=== Link Status Across All Targets ===",
 			"Component",
-			"Profile",
+			"Profile / Repo",
 			"--- Legend ---",
 			"Symbol",
 			"Meaning",
@@ -260,24 +259,24 @@ func TestE2E_LinkStatusAllProfilesWorkflow(t *testing.T) {
 		t.Logf("Created two profiles with different skills")
 	})
 
-	// Step 2: Check link status with --all-profiles
+	// Step 2: Check link status shows all profiles by default
 	t.Run("Step2_LinkStatusAllProfiles", func(t *testing.T) {
-		cmd := exec.Command(binaryPath, "link", "status", "--all-profiles")
+		cmd := exec.Command(binaryPath, "link", "status")
 		output, _ := cmd.CombinedOutput()
 		outputStr := string(output)
 
-		t.Logf("Link status --all-profiles output:\n%s", outputStr)
+		t.Logf("Link status output:\n%s", outputStr)
 
 		// Verify both profiles appear in output (if components were found)
 		if !strings.Contains(outputStr, "No components found") {
 			expectedContent := []string{"profile1", "profile2", "docx", "pdf"}
 			for _, expected := range expectedContent {
 				if !strings.Contains(outputStr, expected) {
-					t.Errorf("Expected %s in --all-profiles output", expected)
+					t.Errorf("Expected %s in link status output", expected)
 				}
 			}
 		}
 
-		t.Logf("Verified --all-profiles shows both profiles")
+		t.Logf("Verified link status shows both profiles")
 	})
 }

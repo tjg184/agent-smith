@@ -108,7 +108,7 @@ func (s *Service) ShowSystemStatus() error {
 	return nil
 }
 
-// sourceURLForProfile returns the source repo URL for a profile, or "" if unavailable or user-defined.
+// sourceURLForProfile returns the source repo URL for the profile, or "" if none (user-created profiles).
 func (s *Service) sourceURLForProfile(profileName string) string {
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {

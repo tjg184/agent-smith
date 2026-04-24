@@ -44,7 +44,7 @@ func (s *Service) showCurrentContext(explicitProfile string) {
 	if profileName == "" {
 		activeProfile, err := s.profileManager.GetActiveProfile()
 		if err != nil {
-			fmt.Printf("  Profile: %s\n", gray("unknown (error checking)"))
+			fmt.Printf("  Repo:    %s\n", gray("unknown (error checking)"))
 			s.formatter.EmptyLine()
 			return
 		}
@@ -52,7 +52,7 @@ func (s *Service) showCurrentContext(explicitProfile string) {
 	}
 
 	if profileName == "" {
-		fmt.Printf("  Profile: %s\n", gray("none"))
+		fmt.Printf("  Repo:    %s\n", gray("none"))
 	} else {
 		repoURL := s.sourceURLForProfile(profileName)
 		if repoURL != "" {
@@ -65,7 +65,7 @@ func (s *Service) showCurrentContext(explicitProfile string) {
 	s.formatter.EmptyLine()
 }
 
-// sourceURLForProfile returns the source repo URL for a profile, or "" if unavailable or user-defined.
+// sourceURLForProfile returns the source repo URL for the profile, or "" if none (user-created profiles).
 func (s *Service) sourceURLForProfile(profileName string) string {
 	profilesDir, err := paths.GetProfilesDir()
 	if err != nil {
@@ -272,7 +272,7 @@ func (s *Service) LinkAll(opts services.LinkOptions) error {
 			}
 		}
 
-		fmt.Printf("\n%s\n", green("✓ Successfully linked components from all profiles"))
+		fmt.Printf("\n%s\n", green("✓ Successfully linked components from all repos"))
 		return nil
 	}
 

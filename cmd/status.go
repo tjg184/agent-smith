@@ -7,7 +7,7 @@ import (
 func init() {
 	statusCmd := &cobra.Command{
 		Use:   "status",
-		Short: "Show current status and active profile",
+		Short: "Show current status",
 		Long: `Display the current configuration status including:
   - Active profile (if any)
   - Detected targets (OpenCode, Claude Code, etc.)
