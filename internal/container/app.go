@@ -8,7 +8,6 @@ import (
 	"github.com/tjg184/agent-smith/internal/formatter"
 	"github.com/tjg184/agent-smith/internal/linker"
 	"github.com/tjg184/agent-smith/pkg/logger"
-	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
 	"github.com/tjg184/agent-smith/pkg/services"
 	findsvc "github.com/tjg184/agent-smith/pkg/services/find"
@@ -269,9 +268,6 @@ func (a *App) Run() {
 			Share: func(profileName, outputFile string) {
 				if profileName == "" {
 					profileName = a.resolveActiveProfile()
-				}
-				if profileName == "base" {
-					profileName = paths.BaseProfileName
 				}
 				if err := profileService.ShareProfile(profileName, outputFile); err != nil {
 					log.Fatal("Failed to share profile:", err)

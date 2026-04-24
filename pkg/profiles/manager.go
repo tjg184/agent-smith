@@ -75,11 +75,8 @@ func (pm *ProfileManager) LoadProfileMetadata(profileName string) (*ProfileMetad
 	return profilemeta.Load(profileDir)
 }
 
-// GetProfileType returns the type of a profile ("repo", "user", "base", or "unknown").
+// GetProfileType returns the type of a profile ("repo", "user", or "unknown").
 func (pm *ProfileManager) GetProfileType(profileName string) (string, error) {
-	if profileName == paths.BaseProfileName {
-		return "base", nil
-	}
 	profileDir := filepath.Join(pm.profilesDir, profileName)
 	return profilemeta.GetProfileType(profileDir)
 }
@@ -428,10 +425,6 @@ func (pm *ProfileManager) DeleteProfile(profileName string) error {
 func (pm *ProfileManager) RenameProfile(oldName, newName string) error {
 	if err := validateProfileName(newName); err != nil {
 		return err
-	}
-
-	if newName == paths.BaseProfileName {
-		return fmt.Errorf("'%s' is a reserved name", paths.BaseProfileName)
 	}
 
 	oldProfile := pm.loadProfile(oldName)

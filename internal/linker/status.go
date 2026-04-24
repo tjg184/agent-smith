@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
 // LinkStatus represents the status of a linked component
@@ -16,7 +14,7 @@ type LinkStatus struct {
 	Target     string
 	Valid      bool
 	TargetPath string
-	Profile    string // paths.BaseProfileName or profile name
+	Profile    string // profile name, or "" if not under a profile
 }
 
 // getSourceDescription returns a human-readable description of the source directory
@@ -46,7 +44,7 @@ func getProfileFromPath(path string) string {
 			return filepath.Base(dir)
 		}
 		if grandparent == dir || grandparent == "." || grandparent == "/" {
-			return paths.BaseProfileName
+			return ""
 		}
 		dir = grandparent
 	}

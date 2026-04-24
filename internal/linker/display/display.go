@@ -28,7 +28,8 @@ func profileLabel(profileName string) string {
 	return fmt.Sprintf("%s (%s)", profileName, meta.SourceURL)
 }
 
-type DisplayProfileManager interface {	ScanProfiles() ([]*Profile, error)
+type DisplayProfileManager interface {
+	ScanProfiles() ([]*Profile, error)
 	GetActiveProfile() (string, error)
 }
 
@@ -92,10 +93,7 @@ func ListLinkedComponents(agentsDir string, targets []config.Target, f *formatte
 				fullPath := filepath.Join(componentDir, entry.Name())
 				linkType, targetPath, valid := linkutil.AnalyzeLinkStatus(fullPath)
 
-				profile := paths.BaseProfileName
-				if targetPath != "" {
-					profile = linkutil.ProfileFromPath(targetPath)
-				}
+				profile := linkutil.ProfileFromPath(targetPath)
 
 				status := LinkStatus{
 					Name:       entry.Name(),
@@ -358,58 +356,6 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 
 	allComponents := make([]ComponentInfo, 0)
 
-	baseDir, err := paths.GetAgentsDir()
-	if err != nil {
-		return fmt.Errorf("failed to get base directory: %w", err)
-	}
-
-	baseComponents := make([]ComponentInfo, 0)
-	for _, componentType := range componentTypes {
-		sourceDir := filepath.Join(baseDir, componentType)
-		if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
-			continue
-		}
-
-		if componentType == "skills" {
-			baseComponents = append(baseComponents, collectLeafSkills(sourceDir, "", baseDir, componentType, resolveProfileForPath)...)
-			continue
-		}
-
-		entries, err := os.ReadDir(sourceDir)
-		if err != nil {
-			continue
-		}
-
-		for _, entry := range entries {
-			if strings.HasPrefix(entry.Name(), ".") {
-				continue
-			}
-			if !entry.IsDir() {
-				continue
-			}
-
-			componentPath := filepath.Join(sourceDir, entry.Name())
-
-			var profile string
-			info, err := os.Lstat(componentPath)
-			if err == nil && info.Mode()&os.ModeSymlink != 0 {
-				profile = profilepicker.GetProfileNameFromSymlink(componentPath)
-				if profile == "" {
-					profile = paths.BaseProfileName
-				}
-			} else {
-				profile = paths.BaseProfileName
-			}
-
-			baseComponents = append(baseComponents, ComponentInfo{
-				Name:     entry.Name(),
-				Type:     componentType,
-				Profile:  profile,
-				BasePath: baseDir,
-			})
-		}
-	}
-
 	profiles, err := pm.ScanProfiles()
 	if err != nil {
 		return fmt.Errorf("failed to scan profiles: %w", err)
@@ -497,9 +443,6 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 		}
 	}
 
-	if len(profileFilter) == 0 {
-		allComponents = append(allComponents, baseComponents...)
-	}
 	allComponents = append(allComponents, profileComponents...)
 
 	if len(allComponents) == 0 {
@@ -616,18 +559,7 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 	f.EmptyLine()
 	f.SubsectionHeader("Summary")
 
-	profileCount := len(filteredProfiles)
-	if len(profileFilter) == 0 {
-		profileCount++
-	}
-	profileCountStr := fmt.Sprintf("%d", profileCount)
-	if len(profileFilter) == 0 {
-		if len(filteredProfiles) == 0 {
-			profileCountStr = fmt.Sprintf("1 (%s only)", paths.BaseProfileName)
-		} else {
-			profileCountStr = fmt.Sprintf("%d (%s + %d custom)", profileCount, paths.BaseProfileName, len(filteredProfiles))
-		}
-	}
+	profileCountStr := fmt.Sprintf("%d", len(filteredProfiles))
 	f.ListItem("Profiles scanned: %s", profileCountStr)
 	f.ListItem("Total components: %d", len(statuses))
 

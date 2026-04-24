@@ -31,10 +31,6 @@ const (
 )
 
 const (
-	BaseProfileName = "(no profile)"
-)
-
-const (
 	AgentsPathPattern   = "/agents/"
 	CommandsPathPattern = "/commands/"
 )
