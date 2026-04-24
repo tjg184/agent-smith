@@ -52,16 +52,10 @@ COMMAND GROUPS:
 FLAGS:
   --to, -t <target>     Target editor (opencode, claudecode, copilot, universal, or all)
                         Default: all detected editors
-  --profile <name>      Link FROM specific profile (bypasses active profile)
+  --profile <name>      Link FROM specific profile (advanced)
 
-PROFILE AWARENESS:
-Link commands automatically use components from your active profile.
-Activate a profile first, then run link commands to apply it to your editors.
-
-  Active profile:    Sources from ~/.agent-smith/profiles/<active-profile>/
-  No profile:        Sources from ~/.agent-smith/ (base installation)
-
-See 'agent-smith profile --help' for profile management.`,
+By default, links components from your active repo.
+Use --profile <name> for advanced profile switching.`,
 	}
 
 	linkSkillCmd := &cobra.Command{
@@ -191,25 +185,26 @@ EXAMPLES:
 
 This is the most common command - it links everything you've installed to your editors.
 
-Optionally provide a repository URL to link only components from that specific repository.
+Optionally provide a repository URL to link only components from that specific repo.
 
 EXAMPLES:
-  # Link all components to all editors (default)
+  # Link everything to all editors
   agent-smith link all
 
-  # Link all components from a specific repository
+  # Link components from a specific repository only
   agent-smith link all owner/repo
 
-  # Link all components to OpenCode only
+  # Link to a specific editor only
   agent-smith link all --to opencode
 
-  # Link all components to the universal target (~/.agents/)
+  # Link to the universal target (~/.agents/)
   agent-smith link all --to universal
 
-  # Link all components from a specific profile
+ADVANCED:
+  # Link from a named profile
   agent-smith link all --profile work
 
-  # Link all components from all profiles
+  # Link from all profiles simultaneously
   agent-smith link all --all-profiles`,
 		Args: rangeArgsWithHelp(0, 1, "agent-smith link all [repository-url]"),
 		Run: func(cmd *cobra.Command, args []string) {

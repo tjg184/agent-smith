@@ -443,7 +443,7 @@ func UnlinkAllComponents(agentsDir string, targets []config.Target, f *formatter
 				profileMsg = " from all profiles"
 			} else if profilesExist {
 				if currentProfileName == paths.BaseProfileName {
-					profileMsg = " from base installation"
+					profileMsg = ""
 				} else {
 					profileMsg = fmt.Sprintf(" from profile '%s'", currentProfileName)
 				}
@@ -472,7 +472,7 @@ func UnlinkAllComponents(agentsDir string, targets []config.Target, f *formatter
 		if totalLinks == 0 {
 			if skippedProfilesCount > 0 {
 				if currentProfileName == paths.BaseProfileName {
-					f.InfoMsg("No symlinked components from base installation to unlink (found %d from profiles)", skippedProfilesCount)
+					f.InfoMsg("No symlinked components to unlink (found %d from other repos)", skippedProfilesCount)
 				} else {
 					f.InfoMsg("No symlinked components from profile '%s' to unlink (found %d from other profiles)", currentProfileName, skippedProfilesCount)
 				}
@@ -608,9 +608,9 @@ func buildHeaderMsg(agentsDir, targetFilter string, targetsToUnlink []config.Tar
 		if allProfiles {
 			return fmt.Sprintf("Unlinking all components (all profiles) from: %s", targetFilter)
 		} else if profilesExist {
-			if currentProfileName == paths.BaseProfileName {
-				return fmt.Sprintf("Unlinking components (base installation) from: %s", targetFilter)
-			}
+		if currentProfileName == paths.BaseProfileName {
+			return fmt.Sprintf("Unlinking components (base) from: %s", targetFilter)
+		}
 			return fmt.Sprintf("Unlinking components (profile '%s') from: %s", currentProfileName, targetFilter)
 		}
 		return fmt.Sprintf("Unlinking components from: %s", targetFilter)
@@ -626,7 +626,7 @@ func buildHeaderMsg(agentsDir, targetFilter string, targetsToUnlink []config.Tar
 		return fmt.Sprintf("Unlinking all components (all profiles) from: %s", targetList)
 	} else if profilesExist {
 		if currentProfileName == paths.BaseProfileName {
-			return fmt.Sprintf("Unlinking components (base installation) from: %s", targetList)
+			return fmt.Sprintf("Unlinking components (base) from: %s", targetList)
 		}
 		return fmt.Sprintf("Unlinking components (profile '%s') from: %s", currentProfileName, targetList)
 	}

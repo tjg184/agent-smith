@@ -26,7 +26,7 @@ func (cl *ComponentLinker) getSourceDescription() string {
 		profileName := filepath.Base(cl.agentsDir)
 		return fmt.Sprintf("Source: %s (profile '%s')", cl.agentsDir, profileName)
 	}
-	return fmt.Sprintf("Source: %s (base installation)", cl.agentsDir)
+	return fmt.Sprintf("Source: %s", cl.agentsDir)
 }
 
 func getProfileFromPath(path string) string {

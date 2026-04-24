@@ -120,7 +120,7 @@ func (s *Service) ListProfiles(opts services.ListProfileOptions) error {
 		return nil
 	}
 
-	table := formatter.NewBoxTable(os.Stdout, []string{"Profile", "Components"})
+	table := formatter.NewBoxTable(os.Stdout, []string{"Profile / Repo", "Components"})
 
 	for _, profile := range filteredProfiles {
 		profileType, err := s.profileManager.GetProfileType(profile.Name)
@@ -199,39 +199,24 @@ func (s *Service) ListProfiles(opts services.ListProfileOptions) error {
 
 	s.formatter.EmptyLine()
 	s.formatter.Info("Legend:")
-	s.formatter.Info("  %s - Currently active profile", formatter.ColoredSuccess())
-	s.formatter.Info("  📦 - Repository-sourced profile")
-	s.formatter.Info("  👤 - User-created profile")
-	s.formatter.Info("  ⊙ - Base installation (no profile)")
+	s.formatter.Info("  %s - Currently active", formatter.ColoredSuccess())
+	if opts.TypeFilter != "repo" {
+		s.formatter.Info("  📦 - Repository-sourced")
+		s.formatter.Info("  👤 - User-created")
+	}
 
-	baseCount := 0
-	profileCount := len(filteredProfiles)
-
+	profileCount := 0
 	for _, p := range filteredProfiles {
-		if p.Name == paths.BaseProfileName {
-			baseCount = 1
-			profileCount--
-			break
+		if p.Name != paths.BaseProfileName {
+			profileCount++
 		}
 	}
 
 	s.formatter.EmptyLine()
 	if opts.ProfileFilter != nil || opts.ActiveOnly || opts.TypeFilter != "" {
-		if baseCount > 0 && profileCount > 0 {
-			s.formatter.Info("Showing: %d profile(s) + base installation", profileCount)
-		} else if baseCount > 0 {
-			s.formatter.Info("Showing: base installation only")
-		} else {
-			s.formatter.Info("Showing: %d profile(s)", profileCount)
-		}
+		s.formatter.Info("Showing: %d profile(s)", profileCount)
 	} else {
-		if baseCount > 0 && profileCount > 0 {
-			s.formatter.Info("Total: %d profile(s) + base installation", profileCount)
-		} else if baseCount > 0 {
-			s.formatter.Info("Total: base installation only")
-		} else {
-			s.formatter.Info("Total: %d profile(s)", profileCount)
-		}
+		s.formatter.Info("Total: %d profile(s)", profileCount)
 	}
 
 	return nil

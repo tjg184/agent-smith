@@ -2,12 +2,15 @@ package status
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/fatih/color"
 	"github.com/tjg184/agent-smith/internal/formatter"
 	"github.com/tjg184/agent-smith/pkg/config"
 	"github.com/tjg184/agent-smith/pkg/logger"
+	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
+	"github.com/tjg184/agent-smith/pkg/profiles/profilemeta"
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
@@ -50,7 +53,12 @@ func (s *Service) ShowSystemStatus() error {
 
 	if activeProfile != "" {
 		green := color.New(color.FgGreen).SprintFunc()
-		s.formatter.Info("  Active Profile:     %s %s", green(activeProfile), formatter.ColoredSuccess())
+		repoURL := s.sourceURLForProfile(activeProfile)
+		if repoURL != "" {
+			s.formatter.Info("  Active Repo:        %s %s", green(repoURL), formatter.ColoredSuccess())
+		} else {
+			s.formatter.Info("  Active Profile:     %s %s", green(activeProfile), formatter.ColoredSuccess())
+		}
 	} else {
 		gray := color.New(color.FgHiBlack).SprintFunc()
 		s.formatter.Info("  Active Profile:     %s", gray("None"))
@@ -76,11 +84,16 @@ func (s *Service) ShowSystemStatus() error {
 		for _, profile := range profilesList {
 			agents, skills, commands := s.profileManager.CountComponents(profile)
 			total := agents + skills + commands
+			repoURL := s.sourceURLForProfile(profile.Name)
+			label := profile.Name
+			if repoURL != "" {
+				label = repoURL
+			}
 			if activeProfile == profile.Name {
 				green := color.New(color.FgGreen).SprintFunc()
-				s.formatter.Info("  • %s %s  (%d components)", green(profile.Name), formatter.ColoredSuccess(), total)
+				s.formatter.Info("  • %s %s  (%d components)", green(label), formatter.ColoredSuccess(), total)
 			} else {
-				s.formatter.Info("  • %s  (%d components)", profile.Name, total)
+				s.formatter.Info("  • %s  (%d components)", label, total)
 			}
 		}
 	}
@@ -93,6 +106,19 @@ func (s *Service) ShowSystemStatus() error {
 	s.formatter.EmptyLine()
 
 	return nil
+}
+
+// sourceURLForProfile returns the source repo URL for a profile, or "" if unavailable or user-defined.
+func (s *Service) sourceURLForProfile(profileName string) string {
+	profilesDir, err := paths.GetProfilesDir()
+	if err != nil {
+		return ""
+	}
+	meta, err := profilemeta.Load(filepath.Join(profilesDir, profileName))
+	if err != nil || meta == nil {
+		return ""
+	}
+	return meta.SourceURL
 }
 
 func (s *Service) joinStrings(strings []string, separator string) string {

@@ -214,33 +214,30 @@ EXAMPLES:
 		Short: "Unlink all components from targets",
 		Long: `Unlink all components (skills, agents, and commands) from detected targets.
 
-Optionally provide a repository URL to unlink only components from that specific repository.
+Optionally provide a repository URL to unlink only components from that specific repo.
 
-By default, only components from the currently active profile are unlinked.
-Use --all-profiles to unlink components from all profiles.
-Use --profile to unlink from a specific profile without switching to it.
-
-This command removes all linked components from OpenCode, Claude Code, or other
-supported targets. Source files in ~/.agent-smith/ are never touched.
+By default, only components from your active repo are unlinked.
+Source files in ~/.agent-smith/ are never touched.
 
 EXAMPLES:
-  # Unlink all components from current profile with confirmation
+  # Unlink all components from your active repo
   agent-smith unlink all
 
   # Unlink all components from a specific repository
   agent-smith unlink all owner/repo
 
-  # Unlink all components from current profile without confirmation
+  # Unlink without confirmation prompt
   agent-smith unlink all --force
 
-  # Unlink all components from all profiles
+  # Unlink from OpenCode only
+  agent-smith unlink all --target opencode
+
+ADVANCED:
+  # Unlink from all profiles simultaneously
   agent-smith unlink all --all-profiles
 
-  # Unlink all components from a specific profile
-  agent-smith unlink all --profile work
-
-  # Unlink all components from OpenCode only
-  agent-smith unlink all --target opencode`,
+  # Unlink from a named profile
+  agent-smith unlink all --profile work`,
 		Args: rangeArgsWithHelp(0, 1, "agent-smith unlink all [repository-url]"),
 		Run: func(cmd *cobra.Command, args []string) {
 			targetFilter, _ := cmd.Flags().GetString("target")

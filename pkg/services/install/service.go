@@ -3,6 +3,7 @@ package install
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/tjg184/agent-smith/internal/downloader"
 	"github.com/tjg184/agent-smith/internal/fileutil"
@@ -11,6 +12,7 @@ import (
 	"github.com/tjg184/agent-smith/pkg/logger"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
+	"github.com/tjg184/agent-smith/pkg/profiles/profilemeta"
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
@@ -301,10 +303,19 @@ func (s *Service) activateProfileWithFeedback(profile string) error {
 	}
 
 	s.formatter.EmptyLine()
+	repoURL := s.sourceURLForProfile(profile)
 	if result.Switched {
-		s.formatter.SuccessMsg("Ready: switched to %s", result.NewProfile)
+		if repoURL != "" {
+			s.formatter.SuccessMsg("Ready: switched to %s", repoURL)
+		} else {
+			s.formatter.SuccessMsg("Ready: switched to %s", result.NewProfile)
+		}
 	} else {
-		s.formatter.SuccessMsg("Ready: %s is active", result.NewProfile)
+		if repoURL != "" {
+			s.formatter.SuccessMsg("Ready: %s is active", repoURL)
+		} else {
+			s.formatter.SuccessMsg("Ready: %s is active", result.NewProfile)
+		}
 	}
 
 	s.formatter.EmptyLine()
@@ -342,4 +353,17 @@ func (s *Service) getOrCreateRepoProfile(repoURL string) (string, error) {
 	}
 
 	return profileName, nil
+}
+
+// sourceURLForProfile returns the source repo URL for a profile, or "" if unavailable or user-defined.
+func (s *Service) sourceURLForProfile(profileName string) string {
+	profilesDir, err := paths.GetProfilesDir()
+	if err != nil {
+		return ""
+	}
+	meta, err := profilemeta.Load(filepath.Join(profilesDir, profileName))
+	if err != nil || meta == nil {
+		return ""
+	}
+	return meta.SourceURL
 }

@@ -220,18 +220,8 @@ EXAMPLES:
 		Short: "Download all components from a git repository",
 		Long: `Download and install all components (skills, agents, and commands) from a git repository.
 
-This command fetches a repository and automatically detects all AI components
-within it, then downloads them to their respective directories. Components are
-detected based on the presence of SKILL.md files or path patterns.
-
-AUTOMATIC PROFILE CREATION:
-By default, this command creates a repository-sourced profile (📦) to namespace
-the components from the repository. The profile name is generated from the
-repository URL (e.g., "owner-repo"). If a profile already exists for the same
-repository, it will be reused and updated.
-
-REQUIRED PARAMETERS:
-  <repository-url>  The URL or path to the git repository containing components
+Fetches the repository and automatically detects all AI components within it,
+then downloads them to their respective directories.
 
 EXAMPLES:
   # Download all components from GitHub using shorthand
@@ -243,11 +233,12 @@ EXAMPLES:
   # Download from local repository
   agent-smith install all /path/to/local/repo
 
-  # Install to a custom directory (project-local, no profile)
-   agent-smith install all openai/cookbook --install-dir ./tools
+  # Install to a custom directory (project-local)
+  agent-smith install all openai/cookbook --install-dir ./tools
 
-   # Force creation of a new profile with a custom name
-   agent-smith install all openai/cookbook --profile my-custom-profile`,
+ADVANCED:
+  # Install under a named profile instead of the auto-generated one
+  agent-smith install all openai/cookbook --profile my-custom-profile`,
 		Args: exactArgsWithHelp(1, "agent-smith install all <repository-url>"),
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")

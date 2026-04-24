@@ -12,10 +12,23 @@ import (
 	"github.com/tjg184/agent-smith/pkg/colors"
 	"github.com/tjg184/agent-smith/pkg/config"
 	"github.com/tjg184/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/pkg/profiles/profilemeta"
 )
 
-type DisplayProfileManager interface {
-	ScanProfiles() ([]*Profile, error)
+// profileLabel returns the source repo URL for a profile if available, otherwise the profile name.
+func profileLabel(profileName string) string {
+	profilesDir, err := paths.GetProfilesDir()
+	if err != nil {
+		return profileName
+	}
+	meta, err := profilemeta.Load(filepath.Join(profilesDir, profileName))
+	if err != nil || meta == nil || meta.SourceURL == "" {
+		return profileName
+	}
+	return meta.SourceURL
+}
+
+type DisplayProfileManager interface {	ScanProfiles() ([]*Profile, error)
 	GetActiveProfile() (string, error)
 }
 
@@ -266,11 +279,10 @@ func ShowLinkStatus(agentsDir string, targets []config.Target, f *formatter.Form
 	}
 
 	f.EmptyLine()
-	f.SectionHeader("Link Status Across All Targets")
 	f.InfoMsg("%s", getSourceDescription(agentsDir))
 	f.EmptyLine()
 
-	headers := []string{"Component", "Profile"}
+	headers := []string{"Component", "Profile / Repo"}
 	for _, targetName := range targetNames {
 		headers = append(headers, displayNames[targetName])
 	}
@@ -309,7 +321,7 @@ func ShowLinkStatus(agentsDir string, targets []config.Target, f *formatter.Form
 			}
 
 			componentName := fmt.Sprintf("  %s", status.Component.Name)
-			row := []string{componentName, status.Component.Profile}
+			row := []string{componentName, profileLabel(status.Component.Profile)}
 
 			for _, targetName := range targetNames {
 				symbol := status.Targets[targetName]
@@ -544,10 +556,8 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 	}
 
 	f.EmptyLine()
-	f.SectionHeader("Link Status Across All Profiles")
-	f.EmptyLine()
 
-	headers := []string{"Component", "Type", "Profile"}
+	headers := []string{"Component", "Type", "Profile / Repo"}
 	for _, targetName := range targetNames {
 		headers = append(headers, displayNames[targetName])
 	}
@@ -587,7 +597,7 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 			}
 
 			componentName := fmt.Sprintf("  %s", status.Component.Name)
-			row := []string{componentName, status.Component.Type, status.Component.Profile}
+			row := []string{componentName, status.Component.Type, profileLabel(status.Component.Profile)}
 
 			for _, targetName := range targetNames {
 				symbol := status.Targets[targetName]
@@ -676,7 +686,7 @@ func getSourceDescription(agentsDir string) string {
 		profileName := filepath.Base(agentsDir)
 		return fmt.Sprintf("Source: %s (profile '%s')", agentsDir, profileName)
 	}
-	return fmt.Sprintf("Source: %s (base installation)", agentsDir)
+	return fmt.Sprintf("Source: %s", agentsDir)
 }
 
 func targetDisplayNames(targets []config.Target) map[string]string {
