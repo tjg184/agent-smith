@@ -57,8 +57,8 @@ func TestE2E_InstallSkillSwitchesProfile(t *testing.T) {
 		}
 
 		// Output should mention the switch
-		if !strings.Contains(outputStr, "Switched profile") && !strings.Contains(outputStr, "Profile activated") {
-			t.Errorf("expected output to mention profile switch/activation, got:\n%s", outputStr)
+		if !strings.Contains(outputStr, "Ready: switched to") && !strings.Contains(outputStr, "Ready:") {
+			t.Errorf("expected output to mention repo activation, got:\n%s", outputStr)
 		}
 	})
 }

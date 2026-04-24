@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
 // PruneEmptyDirs removes dir and its ancestors up to (but not including) stopAt,
@@ -43,7 +41,7 @@ func ProfileFromPath(path string) string {
 			return filepath.Base(dir)
 		}
 		if grandparent == dir || grandparent == "." || grandparent == "/" {
-			return paths.BaseProfileName
+			return ""
 		}
 		dir = grandparent
 	}

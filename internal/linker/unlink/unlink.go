@@ -441,12 +441,8 @@ func UnlinkAllComponents(agentsDir string, targets []config.Target, f *formatter
 			profileMsg := ""
 			if allProfiles {
 				profileMsg = " from all profiles"
-			} else if profilesExist {
-				if currentProfileName == paths.BaseProfileName {
-					profileMsg = " from base installation"
-				} else {
-					profileMsg = fmt.Sprintf(" from profile '%s'", currentProfileName)
-				}
+			} else if profilesExist && currentProfileName != "" {
+				profileMsg = fmt.Sprintf(" from profile '%s'", currentProfileName)
 			}
 			fmt.Printf("This will unlink %d symlinked components%s from: %s", totalLinks, profileMsg, targetStr)
 			fmt.Println()
@@ -471,8 +467,8 @@ func UnlinkAllComponents(agentsDir string, targets []config.Target, f *formatter
 		}
 		if totalLinks == 0 {
 			if skippedProfilesCount > 0 {
-				if currentProfileName == paths.BaseProfileName {
-					f.InfoMsg("No symlinked components from base installation to unlink (found %d from profiles)", skippedProfilesCount)
+				if currentProfileName == "" {
+					f.InfoMsg("No symlinked components to unlink (found %d from other repos)", skippedProfilesCount)
 				} else {
 					f.InfoMsg("No symlinked components from profile '%s' to unlink (found %d from other profiles)", currentProfileName, skippedProfilesCount)
 				}
@@ -559,7 +555,7 @@ func UnlinkAllComponents(agentsDir string, targets []config.Target, f *formatter
 				profileNote := ""
 				if profilesExist && (linkType == "symlink" || linkType == "broken") {
 					profileName := profilepicker.GetProfileNameFromSymlink(fullPath)
-					if profileName != "" && profileName != paths.BaseProfileName {
+					if profileName != "" {
 						profileNote = fmt.Sprintf(" [%s]", profileName)
 					}
 				}
@@ -593,11 +589,7 @@ func UnlinkAllComponents(agentsDir string, targets []config.Target, f *formatter
 			}
 		}
 		f.EmptyLine()
-		if currentProfileName == paths.BaseProfileName {
-			f.InfoMsg("Use --all-profiles flag to unlink components from all profiles")
-		} else {
-			f.InfoMsg("Use --all-profiles flag to unlink components from all profiles, or switch to the respective profile")
-		}
+		f.InfoMsg("Use --all-profiles flag to unlink components from all profiles, or switch to the respective profile")
 	}
 
 	return nil
@@ -607,10 +599,7 @@ func buildHeaderMsg(agentsDir, targetFilter string, targetsToUnlink []config.Tar
 	if targetFilter != "" && targetFilter != "all" {
 		if allProfiles {
 			return fmt.Sprintf("Unlinking all components (all profiles) from: %s", targetFilter)
-		} else if profilesExist {
-			if currentProfileName == paths.BaseProfileName {
-				return fmt.Sprintf("Unlinking components (base installation) from: %s", targetFilter)
-			}
+		} else if profilesExist && currentProfileName != "" {
 			return fmt.Sprintf("Unlinking components (profile '%s') from: %s", currentProfileName, targetFilter)
 		}
 		return fmt.Sprintf("Unlinking components from: %s", targetFilter)
@@ -624,10 +613,7 @@ func buildHeaderMsg(agentsDir, targetFilter string, targetsToUnlink []config.Tar
 
 	if allProfiles {
 		return fmt.Sprintf("Unlinking all components (all profiles) from: %s", targetList)
-	} else if profilesExist {
-		if currentProfileName == paths.BaseProfileName {
-			return fmt.Sprintf("Unlinking components (base installation) from: %s", targetList)
-		}
+	} else if profilesExist && currentProfileName != "" {
 		return fmt.Sprintf("Unlinking components (profile '%s') from: %s", currentProfileName, targetList)
 	}
 	return fmt.Sprintf("Unlinking components from: %s", targetList)
@@ -884,7 +870,7 @@ func removeManagedLeafSymlinks(
 		profileNote := ""
 		if profilesExist && agentsDir != "" {
 			profileName := profilepicker.GetProfileNameFromSymlink(path)
-			if profileName != "" && profileName != paths.BaseProfileName {
+			if profileName != "" {
 				profileNote = fmt.Sprintf(" [%s]", profileName)
 			}
 		}

@@ -2,10 +2,10 @@ package cmd
 
 // InstallHandlers groups handler functions for install commands.
 type InstallHandlers struct {
-	AddSkill   func(repoURL, name, profile, targetDir string, global bool)
-	AddAgent   func(repoURL, name, profile, targetDir string, global bool)
-	AddCommand func(repoURL, name, profile, targetDir string, global bool)
-	AddAll     func(repoURL, profile, targetDir string, global bool)
+	AddSkill   func(repoURL, name, profile, targetDir string)
+	AddAgent   func(repoURL, name, profile, targetDir string)
+	AddCommand func(repoURL, name, profile, targetDir string)
+	AddAll     func(repoURL, profile, targetDir string)
 }
 
 // UpdateHandlers groups handler functions for update commands.
@@ -17,7 +17,7 @@ type UpdateHandlers struct {
 // LinkHandlers groups handler functions for link commands.
 type LinkHandlers struct {
 	Link       func(componentType, componentName, targetFilter, profile string)
-	LinkAll    func(targetFilter, profile string, allProfiles bool)
+	LinkAll    func(targetFilter, profile, repoURL string, allProfiles bool)
 	LinkType   func(componentType, targetFilter, profile string)
 	AutoLink   func()
 	ListLinks  func()
@@ -28,8 +28,8 @@ type LinkHandlers struct {
 type UnlinkHandlers struct {
 	Unlink                func(componentType, componentName, targetFilter string)
 	UnlinkWithProfile     func(componentType, componentName, targetFilter, profile string)
-	UnlinkAll             func(targetFilter string, force bool, allProfiles bool)
-	UnlinkAllWithProfile  func(targetFilter string, force bool, allProfiles bool, profile string)
+	UnlinkAll             func(targetFilter, repoURL string, force bool, allProfiles bool)
+	UnlinkAllWithProfile  func(targetFilter, repoURL string, force bool, allProfiles bool, profile string)
 	UnlinkType            func(componentType, targetFilter string, force bool)
 	UnlinkTypeWithProfile func(componentType, targetFilter string, force bool, profile string)
 }
@@ -101,22 +101,22 @@ type Handlers struct {
 
 // Package-level vars referenced by all cmd/*.go files — do not rename.
 var (
-	handleAddSkill              func(repoURL, name, profile, targetDir string, global bool)
-	handleAddAgent              func(repoURL, name, profile, targetDir string, global bool)
-	handleAddCommand            func(repoURL, name, profile, targetDir string, global bool)
-	handleAddAll                func(repoURL, profile, targetDir string, global bool)
+	handleAddSkill              func(repoURL, name, profile, targetDir string)
+	handleAddAgent              func(repoURL, name, profile, targetDir string)
+	handleAddCommand            func(repoURL, name, profile, targetDir string)
+	handleAddAll                func(repoURL, profile, targetDir string)
 	handleUpdate                func(componentType, componentName, profile string)
 	handleUpdateAll             func(profile string)
 	handleLink                  func(componentType, componentName, targetFilter, profile string)
-	handleLinkAll               func(targetFilter, profile string, allProfiles bool)
+	handleLinkAll               func(targetFilter, profile, repoURL string, allProfiles bool)
 	handleLinkType              func(componentType, targetFilter, profile string)
 	handleAutoLink              func()
 	handleListLinks             func()
 	handleLinkStatus            func(allProfiles bool, profileFilter []string, linkedOnly bool)
 	handleUnlink                func(componentType, componentName, targetFilter string)
 	handleUnlinkWithProfile     func(componentType, componentName, targetFilter, profile string)
-	handleUnlinkAll             func(targetFilter string, force bool, allProfiles bool)
-	handleUnlinkAllWithProfile  func(targetFilter string, force bool, allProfiles bool, profile string)
+	handleUnlinkAll             func(targetFilter, repoURL string, force bool, allProfiles bool)
+	handleUnlinkAllWithProfile  func(targetFilter, repoURL string, force bool, allProfiles bool, profile string)
 	handleUnlinkType            func(componentType, targetFilter string, force bool)
 	handleUnlinkTypeWithProfile func(componentType, targetFilter string, force bool, profile string)
 	handleUninstall             func(componentType, componentName, profile, source string)

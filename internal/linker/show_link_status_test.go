@@ -109,9 +109,8 @@ func TestShowLinkStatus_DefaultBehavior(t *testing.T) {
 
 	// Verify output contains expected elements
 	expectedStrings := []string{
-		"=== Link Status Across All Targets ===",
 		"Component",
-		"Profile",
+		"Profile / Repo",
 		"TARGET1",
 		"TARGET2",
 		"Skills:",
@@ -320,8 +319,8 @@ func TestShowLinkStatus_ProfileDetection(t *testing.T) {
 	}
 
 	// Verify Profile column exists
-	if !strings.Contains(output, "Profile") {
-		t.Errorf("Output should contain Profile column header: %s", output)
+	if !strings.Contains(output, "Profile / Repo") {
+		t.Errorf("Output should contain Profile / Repo column header: %s", output)
 	}
 }
 
@@ -535,7 +534,7 @@ func TestShowLinkStatus_LinkedOnlyAllUnlinked(t *testing.T) {
 	if strings.Contains(output, "unlinked-skill") {
 		t.Error("Output with linkedOnly=true should NOT contain unlinked-skill when all are unlinked")
 	}
-	for _, expected := range []string{"Link Status", "Legend", "Summary"} {
+	for _, expected := range []string{"Legend", "Summary"} {
 		if !strings.Contains(output, expected) {
 			t.Errorf("Output should contain %s", expected)
 		}
@@ -662,7 +661,6 @@ func TestShowLinkStatus_OutputFormat(t *testing.T) {
 
 	// Verify exact format structure (these are critical for backward compatibility)
 	requiredSections := []string{
-		"=== Link Status Across All Targets ===",
 		"Skills:",
 		"--- Legend ---",
 		"--- Summary ---",

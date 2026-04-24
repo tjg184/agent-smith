@@ -8,7 +8,6 @@ import (
 	"github.com/tjg184/agent-smith/internal/formatter"
 	"github.com/tjg184/agent-smith/internal/linker"
 	"github.com/tjg184/agent-smith/pkg/logger"
-	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
 	"github.com/tjg184/agent-smith/pkg/services"
 	findsvc "github.com/tjg184/agent-smith/pkg/services/find"
@@ -84,26 +83,26 @@ func (a *App) Run() {
 
 	cmd.Register(&cmd.Handlers{
 		Install: cmd.InstallHandlers{
-			AddSkill: func(repoURL, name, profile, installDir string, global bool) {
-				opts := services.InstallOptions{Profile: profile, InstallDir: installDir, Global: global}
+			AddSkill: func(repoURL, name, profile, installDir string) {
+				opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
 				if err := installService.InstallSkill(repoURL, name, opts); err != nil {
 					log.Fatal("Failed to install skill:", err)
 				}
 			},
-			AddAgent: func(repoURL, name, profile, installDir string, global bool) {
-				opts := services.InstallOptions{Profile: profile, InstallDir: installDir, Global: global}
+			AddAgent: func(repoURL, name, profile, installDir string) {
+				opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
 				if err := installService.InstallAgent(repoURL, name, opts); err != nil {
 					log.Fatal("Failed to install agent:", err)
 				}
 			},
-			AddCommand: func(repoURL, name, profile, installDir string, global bool) {
-				opts := services.InstallOptions{Profile: profile, InstallDir: installDir, Global: global}
+			AddCommand: func(repoURL, name, profile, installDir string) {
+				opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
 				if err := installService.InstallCommand(repoURL, name, opts); err != nil {
 					log.Fatal("Failed to install command:", err)
 				}
 			},
-			AddAll: func(repoURL, profile, installDir string, global bool) {
-				opts := services.InstallOptions{Profile: profile, InstallDir: installDir, Global: global}
+			AddAll: func(repoURL, profile, installDir string) {
+				opts := services.InstallOptions{Profile: profile, InstallDir: installDir}
 				if err := installService.InstallBulk(repoURL, opts); err != nil {
 					log.Fatal("Failed to bulk install:", err)
 				}
@@ -130,8 +129,8 @@ func (a *App) Run() {
 					log.Fatal("Failed to link component:", err)
 				}
 			},
-			LinkAll: func(targetFilter, profile string, allProfiles bool) {
-				opts := services.LinkOptions{TargetFilter: targetFilter, Profile: profile, AllProfiles: allProfiles}
+			LinkAll: func(targetFilter, profile, repoURL string, allProfiles bool) {
+				opts := services.LinkOptions{TargetFilter: targetFilter, Profile: profile, AllProfiles: allProfiles, RepoURL: repoURL}
 				if err := linkService.LinkAll(opts); err != nil {
 					log.Fatal("Failed to link all components:", err)
 				}
@@ -172,14 +171,14 @@ func (a *App) Run() {
 					log.Fatal("Failed to unlink component:", err)
 				}
 			},
-			UnlinkAll: func(targetFilter string, force bool, allProfiles bool) {
-				opts := services.UnlinkOptions{TargetFilter: targetFilter, Force: force, AllProfiles: allProfiles}
+			UnlinkAll: func(targetFilter, repoURL string, force bool, allProfiles bool) {
+				opts := services.UnlinkOptions{TargetFilter: targetFilter, Force: force, AllProfiles: allProfiles, RepoURL: repoURL}
 				if err := linkService.UnlinkAll(opts); err != nil {
 					log.Fatal("Failed to unlink all components:", err)
 				}
 			},
-			UnlinkAllWithProfile: func(targetFilter string, force bool, allProfiles bool, profile string) {
-				opts := services.UnlinkOptions{TargetFilter: targetFilter, Force: force, AllProfiles: allProfiles, Profile: profile}
+			UnlinkAllWithProfile: func(targetFilter, repoURL string, force bool, allProfiles bool, profile string) {
+				opts := services.UnlinkOptions{TargetFilter: targetFilter, Force: force, AllProfiles: allProfiles, Profile: profile, RepoURL: repoURL}
 				if err := linkService.UnlinkAll(opts); err != nil {
 					log.Fatal("Failed to unlink all components:", err)
 				}
@@ -269,9 +268,6 @@ func (a *App) Run() {
 			Share: func(profileName, outputFile string) {
 				if profileName == "" {
 					profileName = a.resolveActiveProfile()
-				}
-				if profileName == "base" {
-					profileName = paths.BaseProfileName
 				}
 				if err := profileService.ShareProfile(profileName, outputFile); err != nil {
 					log.Fatal("Failed to share profile:", err)

@@ -347,6 +347,26 @@ name: test
 			shouldBeNil:    true,
 			shouldHaveData: false,
 		},
+		{
+			name: "Description with unquoted colons (SKILL.md style)",
+			content: `---
+name: quick-execute
+description: Lightweight pipeline. Triggers on: quick feature, simple change, skip the pipeline, quick-execute, fast-track.
+---
+# Content`,
+			expectedName:   "quick-execute",
+			expectedDesc:   "Lightweight pipeline. Triggers on: quick feature, simple change, skip the pipeline, quick-execute, fast-track.",
+			shouldBeNil:    false,
+			shouldHaveData: true,
+		},
+		{
+			name: "CRLF line endings",
+			content: "---\r\nname: test-component\r\ndescription: Test description\r\n---\r\n# Content",
+			expectedName:   "test-component",
+			expectedDesc:   "Test description",
+			shouldBeNil:    false,
+			shouldHaveData: true,
+		},
 	}
 
 	for _, tt := range tests {

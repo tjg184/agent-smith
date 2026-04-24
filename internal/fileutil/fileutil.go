@@ -180,7 +180,7 @@ func ParseFrontmatter(filePath string) (*models.ComponentFrontmatter, error) {
 			foundClosing = true
 			break
 		}
-		frontmatterLines = append(frontmatterLines, lines[i])
+		frontmatterLines = append(frontmatterLines, line)
 	}
 
 	if !foundClosing {
@@ -192,6 +192,14 @@ func ParseFrontmatter(filePath string) (*models.ComponentFrontmatter, error) {
 	var frontmatter models.ComponentFrontmatter
 
 	if err := yaml.Unmarshal([]byte(frontmatterStr), &frontmatter); err != nil {
+		// Retry with unquoted values auto-quoted — SKILL.md authors often write
+		// prose descriptions containing ": " without YAML quoting.
+		quoted := quoteUnquotedValues(frontmatterStr)
+		if quoted != frontmatterStr {
+			if retryErr := yaml.Unmarshal([]byte(quoted), &frontmatter); retryErr == nil {
+				return &frontmatter, nil
+			}
+		}
 		log.Printf("Warning: Failed to parse YAML frontmatter in %s: %v", filePath, err)
 		return nil, nil
 	}
@@ -199,8 +207,30 @@ func ParseFrontmatter(filePath string) (*models.ComponentFrontmatter, error) {
 	return &frontmatter, nil
 }
 
-// DetermineComponentName determines the component name using frontmatter or filename.
-// Priority: frontmatter.name > filename (without extension)
+// quoteUnquotedValues wraps scalar values containing ": " in double quotes so
+// prose descriptions in SKILL.md frontmatter parse without YAML errors.
+func quoteUnquotedValues(src string) string {
+	lines := strings.Split(src, "\n")
+	for i, line := range lines {
+		colonIdx := strings.Index(line, ": ")
+		if colonIdx < 0 {
+			continue
+		}
+		key := line[:colonIdx]
+		value := line[colonIdx+2:]
+		if strings.HasPrefix(value, `"`) || strings.HasPrefix(value, `'`) {
+			continue
+		}
+		if !strings.Contains(value, ": ") {
+			continue
+		}
+		escaped := strings.ReplaceAll(value, `"`, `\"`)
+		lines[i] = key + `: "` + escaped + `"`
+	}
+	return strings.Join(lines, "\n")
+}
+
+// DetermineComponentName determines the component name using frontmatter or filename.// Priority: frontmatter.name > filename (without extension)
 // Special files (README.md, index.md, main.md) return empty string.
 func DetermineComponentName(frontmatter *models.ComponentFrontmatter, fileName string) string {
 	lowerFileName := strings.ToLower(fileName)

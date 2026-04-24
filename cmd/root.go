@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
@@ -10,6 +11,7 @@ import (
 	"github.com/tjg184/agent-smith/pkg/help"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
+	"github.com/tjg184/agent-smith/pkg/profiles/profilemeta"
 )
 
 // Version is the current version of agent-smith.
@@ -77,7 +79,7 @@ func showWelcomeScreen() {
 	fmt.Printf("  %s Install components from git repositories\n", green("install "))
 	fmt.Printf("  %s Link components to AI editor targets\n", green("link    "))
 	fmt.Printf("  %s Update installed components\n", green("update  "))
-	fmt.Printf("  %s Manage profiles for context switching\n", green("profile "))
+	fmt.Printf("  %s Manage installed repos and profiles\n", green("profile "))
 	fmt.Println()
 
 	fmt.Printf("Run %s for all commands or %s for details.\n",
@@ -99,9 +101,15 @@ func showSystemStatus(bold func(...interface{}) string, cyan func(...interface{}
 	fmt.Println(bold("SYSTEM STATUS"))
 
 	if activeProfile != "" {
-		fmt.Printf("  Profile: %s\n", cyan(activeProfile))
+		label := activeProfile
+		if profilesDir, err := paths.GetProfilesDir(); err == nil {
+			if meta, err := profilemeta.Load(filepath.Join(profilesDir, activeProfile)); err == nil && meta != nil && meta.SourceURL != "" {
+				label = meta.SourceURL
+			}
+		}
+		fmt.Printf("  Repo:    %s\n", cyan(label))
 	} else {
-		fmt.Printf("  Profile: %s\n", gray("none (using base installation)"))
+		fmt.Printf("  Repo:    %s\n", gray("none"))
 	}
 
 	total := skillsCount + agentsCount + commandsCount

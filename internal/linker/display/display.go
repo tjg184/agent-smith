@@ -12,7 +12,21 @@ import (
 	"github.com/tjg184/agent-smith/pkg/colors"
 	"github.com/tjg184/agent-smith/pkg/config"
 	"github.com/tjg184/agent-smith/pkg/paths"
+	"github.com/tjg184/agent-smith/pkg/profiles/profilemeta"
 )
+
+// profileLabel returns "<name> (<url>)" for repo profiles, or just the name.
+func profileLabel(profileName string) string {
+	profilesDir, err := paths.GetProfilesDir()
+	if err != nil {
+		return profileName
+	}
+	meta, err := profilemeta.Load(filepath.Join(profilesDir, profileName))
+	if err != nil || meta == nil || meta.SourceURL == "" {
+		return profileName
+	}
+	return fmt.Sprintf("%s (%s)", profileName, meta.SourceURL)
+}
 
 type DisplayProfileManager interface {
 	ScanProfiles() ([]*Profile, error)
@@ -79,10 +93,7 @@ func ListLinkedComponents(agentsDir string, targets []config.Target, f *formatte
 				fullPath := filepath.Join(componentDir, entry.Name())
 				linkType, targetPath, valid := linkutil.AnalyzeLinkStatus(fullPath)
 
-				profile := paths.BaseProfileName
-				if targetPath != "" {
-					profile = linkutil.ProfileFromPath(targetPath)
-				}
+				profile := linkutil.ProfileFromPath(targetPath)
 
 				status := LinkStatus{
 					Name:       entry.Name(),
@@ -266,11 +277,10 @@ func ShowLinkStatus(agentsDir string, targets []config.Target, f *formatter.Form
 	}
 
 	f.EmptyLine()
-	f.SectionHeader("Link Status Across All Targets")
 	f.InfoMsg("%s", getSourceDescription(agentsDir))
 	f.EmptyLine()
 
-	headers := []string{"Component", "Profile"}
+	headers := []string{"Component", "Profile / Repo"}
 	for _, targetName := range targetNames {
 		headers = append(headers, displayNames[targetName])
 	}
@@ -309,7 +319,7 @@ func ShowLinkStatus(agentsDir string, targets []config.Target, f *formatter.Form
 			}
 
 			componentName := fmt.Sprintf("  %s", status.Component.Name)
-			row := []string{componentName, status.Component.Profile}
+			row := []string{componentName, profileLabel(status.Component.Profile)}
 
 			for _, targetName := range targetNames {
 				symbol := status.Targets[targetName]
@@ -345,58 +355,6 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 	componentTypes := paths.GetComponentTypes()
 
 	allComponents := make([]ComponentInfo, 0)
-
-	baseDir, err := paths.GetAgentsDir()
-	if err != nil {
-		return fmt.Errorf("failed to get base directory: %w", err)
-	}
-
-	baseComponents := make([]ComponentInfo, 0)
-	for _, componentType := range componentTypes {
-		sourceDir := filepath.Join(baseDir, componentType)
-		if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
-			continue
-		}
-
-		if componentType == "skills" {
-			baseComponents = append(baseComponents, collectLeafSkills(sourceDir, "", baseDir, componentType, resolveProfileForPath)...)
-			continue
-		}
-
-		entries, err := os.ReadDir(sourceDir)
-		if err != nil {
-			continue
-		}
-
-		for _, entry := range entries {
-			if strings.HasPrefix(entry.Name(), ".") {
-				continue
-			}
-			if !entry.IsDir() {
-				continue
-			}
-
-			componentPath := filepath.Join(sourceDir, entry.Name())
-
-			var profile string
-			info, err := os.Lstat(componentPath)
-			if err == nil && info.Mode()&os.ModeSymlink != 0 {
-				profile = profilepicker.GetProfileNameFromSymlink(componentPath)
-				if profile == "" {
-					profile = paths.BaseProfileName
-				}
-			} else {
-				profile = paths.BaseProfileName
-			}
-
-			baseComponents = append(baseComponents, ComponentInfo{
-				Name:     entry.Name(),
-				Type:     componentType,
-				Profile:  profile,
-				BasePath: baseDir,
-			})
-		}
-	}
 
 	profiles, err := pm.ScanProfiles()
 	if err != nil {
@@ -485,9 +443,6 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 		}
 	}
 
-	if len(profileFilter) == 0 {
-		allComponents = append(allComponents, baseComponents...)
-	}
 	allComponents = append(allComponents, profileComponents...)
 
 	if len(allComponents) == 0 {
@@ -544,10 +499,8 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 	}
 
 	f.EmptyLine()
-	f.SectionHeader("Link Status Across All Profiles")
-	f.EmptyLine()
 
-	headers := []string{"Component", "Type", "Profile"}
+	headers := []string{"Component", "Type", "Profile / Repo"}
 	for _, targetName := range targetNames {
 		headers = append(headers, displayNames[targetName])
 	}
@@ -587,7 +540,7 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 			}
 
 			componentName := fmt.Sprintf("  %s", status.Component.Name)
-			row := []string{componentName, status.Component.Type, status.Component.Profile}
+			row := []string{componentName, status.Component.Type, profileLabel(status.Component.Profile)}
 
 			for _, targetName := range targetNames {
 				symbol := status.Targets[targetName]
@@ -606,18 +559,7 @@ func ShowAllProfilesLinkStatus(agentsDir string, targets []config.Target, f *for
 	f.EmptyLine()
 	f.SubsectionHeader("Summary")
 
-	profileCount := len(filteredProfiles)
-	if len(profileFilter) == 0 {
-		profileCount++
-	}
-	profileCountStr := fmt.Sprintf("%d", profileCount)
-	if len(profileFilter) == 0 {
-		if len(filteredProfiles) == 0 {
-			profileCountStr = fmt.Sprintf("1 (%s only)", paths.BaseProfileName)
-		} else {
-			profileCountStr = fmt.Sprintf("%d (%s + %d custom)", profileCount, paths.BaseProfileName, len(filteredProfiles))
-		}
-	}
+	profileCountStr := fmt.Sprintf("%d", len(filteredProfiles))
 	f.ListItem("Profiles scanned: %s", profileCountStr)
 	f.ListItem("Total components: %d", len(statuses))
 
@@ -676,7 +618,7 @@ func getSourceDescription(agentsDir string) string {
 		profileName := filepath.Base(agentsDir)
 		return fmt.Sprintf("Source: %s (profile '%s')", agentsDir, profileName)
 	}
-	return fmt.Sprintf("Source: %s (base installation)", agentsDir)
+	return fmt.Sprintf("Source: %s", agentsDir)
 }
 
 func targetDisplayNames(targets []config.Target) map[string]string {

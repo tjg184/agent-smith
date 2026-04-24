@@ -13,6 +13,7 @@ import (
 	"github.com/tjg184/agent-smith/pkg/logger"
 	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
+	"github.com/tjg184/agent-smith/pkg/profiles/profilemeta"
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
@@ -39,20 +40,42 @@ func (s *Service) showCurrentContext(explicitProfile string) {
 	s.formatter.EmptyLine()
 	fmt.Printf("%s\n", bold("Current Context:"))
 
-	if explicitProfile != "" {
-		fmt.Printf("  Profile: %s (explicit)\n", cyan(explicitProfile))
-	} else {
+	profileName := explicitProfile
+	if profileName == "" {
 		activeProfile, err := s.profileManager.GetActiveProfile()
 		if err != nil {
-			fmt.Printf("  Profile: %s\n", gray("unknown (error checking)"))
-		} else if activeProfile != "" {
-			fmt.Printf("  Profile: %s\n", green(activeProfile))
+			fmt.Printf("  Repo:    %s\n", gray("unknown (error checking)"))
+			s.formatter.EmptyLine()
+			return
+		}
+		profileName = activeProfile
+	}
+
+	if profileName == "" {
+		fmt.Printf("  Repo:    %s\n", gray("none"))
+	} else {
+		repoURL := s.sourceURLForProfile(profileName)
+		if repoURL != "" {
+			fmt.Printf("  Repo:    %s\n", cyan(repoURL))
 		} else {
-			fmt.Printf("  Profile: %s\n", gray("none (using base installation)"))
+			fmt.Printf("  Profile: %s\n", green(profileName))
 		}
 	}
 
 	s.formatter.EmptyLine()
+}
+
+// sourceURLForProfile returns the source repo URL for the profile, or "" if none (user-created profiles).
+func (s *Service) sourceURLForProfile(profileName string) string {
+	profilesDir, err := paths.GetProfilesDir()
+	if err != nil {
+		return ""
+	}
+	meta, err := profilemeta.Load(filepath.Join(profilesDir, profileName))
+	if err != nil || meta == nil {
+		return ""
+	}
+	return meta.SourceURL
 }
 
 func (s *Service) createLinker() (*linker.ComponentLinker, error) {
@@ -144,6 +167,34 @@ func (s *Service) validateProfileExists(profile string) error {
 	return nil
 }
 
+// resolveProfileForRepo finds the profile name for a given repo URL.
+// Returns an error if no matching profile is found.
+func (s *Service) resolveProfileForRepo(repoURL string) (string, error) {
+	profilesDir, err := paths.GetProfilesDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get profiles directory: %w", err)
+	}
+
+	profileName, err := profilemeta.FindBySourceURL(profilesDir, repoURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to search profiles: %w", err)
+	}
+
+	if profileName == "" {
+		availableProfiles, scanErr := s.profileManager.ScanProfiles()
+		if scanErr == nil && len(availableProfiles) > 0 {
+			profileNames := make([]string, len(availableProfiles))
+			for i, p := range availableProfiles {
+				profileNames[i] = p.Name
+			}
+			return "", fmt.Errorf("no installed components found for repo '%s'\n\nAvailable profiles:\n  - %s", repoURL, strings.Join(profileNames, "\n  - "))
+		}
+		return "", fmt.Errorf("no installed components found for repo '%s'", repoURL)
+	}
+
+	return profileName, nil
+}
+
 func (s *Service) LinkComponent(componentType, componentName string, opts services.LinkOptions) error {
 	s.showCurrentContext(opts.Profile)
 	cl, err := s.createLinkerWithFilterAndProfile(opts.TargetFilter, opts.Profile)
@@ -158,6 +209,19 @@ func (s *Service) LinkAll(opts services.LinkOptions) error {
 		return fmt.Errorf("cannot use both --all-profiles and --profile flags together")
 	}
 
+	if opts.RepoURL != "" {
+		profileName, err := s.resolveProfileForRepo(opts.RepoURL)
+		if err != nil {
+			return err
+		}
+		s.showCurrentContext(profileName)
+		cl, err := s.createLinkerWithFilterAndProfile(opts.TargetFilter, profileName)
+		if err != nil {
+			return fmt.Errorf("failed to create component linker: %w", err)
+		}
+		return cl.LinkAllComponents()
+	}
+
 	if opts.AllProfiles {
 		profilesList, err := s.profileManager.ScanProfiles()
 		if err != nil {
@@ -165,20 +229,13 @@ func (s *Service) LinkAll(opts services.LinkOptions) error {
 			s.formatter.ErrorMsg("Failed to scan profiles")
 			s.formatter.DetailItem("Error", err.Error())
 			s.formatter.EmptyLine()
-			s.formatter.InfoMsg("The --all-profiles flag requires at least one profile.")
-			s.formatter.InfoMsg("Try running without --all-profiles, or create a profile first:")
-			s.formatter.InfoMsg("  agent-smith profile create <name>")
 			return err
 		}
 
 		if len(profilesList) == 0 {
 			s.formatter.EmptyLine()
-			s.formatter.InfoMsg("No profiles found")
+			s.formatter.InfoMsg("No installed repos found. Run 'agent-smith install all <repo>' to get started.")
 			s.formatter.EmptyLine()
-			s.formatter.InfoMsg("The --all-profiles flag requires at least one profile.")
-			s.formatter.InfoMsg("Options:")
-			s.formatter.InfoMsg("  1. Run without --all-profiles to link components from base installation")
-			s.formatter.InfoMsg("  2. Create a profile first: agent-smith profile create <name>")
 			return fmt.Errorf("no profiles found")
 		}
 
@@ -187,11 +244,15 @@ func (s *Service) LinkAll(opts services.LinkOptions) error {
 		cyan := color.New(color.FgCyan).SprintFunc()
 		gray := color.New(color.FgHiBlack).SprintFunc()
 
-		fmt.Printf("\n%s\n", bold("Linking components from all profiles..."))
+		fmt.Printf("\n%s\n", bold("Linking components from all repos..."))
 		fmt.Println()
 
 		for _, profileItem := range profilesList {
-			fmt.Printf("%s\n", cyan(fmt.Sprintf("Profile: %s", profileItem.Name)))
+			label := s.sourceURLForProfile(profileItem.Name)
+			if label == "" {
+				label = profileItem.Name
+			}
+			fmt.Printf("%s\n", cyan(label))
 
 			cl, err := s.createLinkerWithFilterAndProfile(opts.TargetFilter, profileItem.Name)
 			if err != nil {
@@ -211,7 +272,7 @@ func (s *Service) LinkAll(opts services.LinkOptions) error {
 			}
 		}
 
-		fmt.Printf("\n%s\n", green("✓ Successfully linked components from all profiles"))
+		fmt.Printf("\n%s\n", green("✓ Successfully linked components from all repos"))
 		return nil
 	}
 
@@ -251,6 +312,18 @@ func (s *Service) UnlinkComponent(componentType, componentName string, opts serv
 func (s *Service) UnlinkAll(opts services.UnlinkOptions) error {
 	if opts.AllProfiles && opts.Profile != "" {
 		return fmt.Errorf("cannot use both --all-profiles and --profile flags together")
+	}
+
+	if opts.RepoURL != "" {
+		profileName, err := s.resolveProfileForRepo(opts.RepoURL)
+		if err != nil {
+			return err
+		}
+		cl, err := s.createLinkerWithFilterAndProfile(opts.TargetFilter, profileName)
+		if err != nil {
+			return fmt.Errorf("failed to create component linker: %w", err)
+		}
+		return cl.UnlinkAllComponents(opts.TargetFilter, opts.Force, false)
 	}
 
 	var cl *linker.ComponentLinker
@@ -301,6 +374,15 @@ func (s *Service) ListLinked() error {
 }
 
 func (s *Service) ShowStatus(opts services.LinkStatusOptions) error {
+	// When a profile filter is provided, scope to just that profile.
+	if len(opts.ProfileFilter) > 0 {
+		cl, err := s.createLinkerWithFilterAndProfile("", opts.ProfileFilter[0])
+		if err != nil {
+			return fmt.Errorf("failed to create component linker: %w", err)
+		}
+		return cl.ShowLinkStatus(opts.LinkedOnly)
+	}
+
 	if opts.AllProfiles {
 		profilesList, err := s.profileManager.ScanProfiles()
 		if err != nil {
@@ -308,21 +390,14 @@ func (s *Service) ShowStatus(opts services.LinkStatusOptions) error {
 			s.formatter.ErrorMsg("Failed to scan profiles")
 			s.formatter.DetailItem("Error", err.Error())
 			s.formatter.EmptyLine()
-			s.formatter.InfoMsg("The --all-profiles flag requires at least one profile.")
-			s.formatter.InfoMsg("Try running without --all-profiles, or create a profile first:")
-			s.formatter.InfoMsg("  agent-smith profile create <name>")
 			return err
 		}
 
 		if len(profilesList) == 0 {
 			s.formatter.EmptyLine()
-			s.formatter.InfoMsg("No profiles found")
+			s.formatter.InfoMsg("No installed repos found. Run 'agent-smith install all <repo>' to get started.")
 			s.formatter.EmptyLine()
-			s.formatter.InfoMsg("The --all-profiles flag requires at least one profile.")
-			s.formatter.InfoMsg("Options:")
-			s.formatter.InfoMsg("  1. Run without --all-profiles to show components from base installation")
-			s.formatter.InfoMsg("  2. Create a profile first: agent-smith profile create <name>")
-			return fmt.Errorf("no profiles found")
+			return nil
 		}
 
 		cl, err := s.createLinkerWithProfileManager()
@@ -333,12 +408,7 @@ func (s *Service) ShowStatus(opts services.LinkStatusOptions) error {
 		return cl.ShowAllProfilesLinkStatus(opts.ProfileFilter, opts.LinkedOnly)
 	}
 
-	var profileName string
-	if len(opts.ProfileFilter) > 0 {
-		profileName = opts.ProfileFilter[0]
-	}
-
-	cl, err := s.createLinkerWithFilterAndProfile("", profileName)
+	cl, err := s.createLinkerWithFilterAndProfile("", "")
 	if err != nil {
 		return fmt.Errorf("failed to create component linker: %w", err)
 	}

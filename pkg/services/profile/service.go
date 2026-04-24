@@ -3,13 +3,11 @@ package profile
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/tjg184/agent-smith/internal/formatter"
 	"github.com/tjg184/agent-smith/pkg/logger"
-	"github.com/tjg184/agent-smith/pkg/paths"
 	"github.com/tjg184/agent-smith/pkg/profiles"
 	"github.com/tjg184/agent-smith/pkg/services"
 )
@@ -37,20 +35,6 @@ func (s *Service) ListProfiles(opts services.ListProfileOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to scan profiles: %w", err)
 	}
-
-	baseAgentsDir, err := paths.GetAgentsDir()
-	if err != nil {
-		return fmt.Errorf("failed to get base agents directory: %w", err)
-	}
-
-	baseProfile := s.scanBaseInstallation(baseAgentsDir)
-
-	allProfiles := []*profiles.Profile{}
-	if baseProfile != nil {
-		allProfiles = append(allProfiles, baseProfile)
-	}
-	allProfiles = append(allProfiles, profilesList...)
-	profilesList = allProfiles
 
 	activeProfile, err := s.profileManager.GetActiveProfile()
 	if err != nil {
@@ -120,7 +104,7 @@ func (s *Service) ListProfiles(opts services.ListProfileOptions) error {
 		return nil
 	}
 
-	table := formatter.NewBoxTable(os.Stdout, []string{"Profile", "Components"})
+	table := formatter.NewBoxTable(os.Stdout, []string{"Profile / Repo", "Components"})
 
 	for _, profile := range filteredProfiles {
 		profileType, err := s.profileManager.GetProfileType(profile.Name)
@@ -129,7 +113,7 @@ func (s *Service) ListProfiles(opts services.ListProfileOptions) error {
 		}
 
 		var sourceURL string
-		if profile.Name != paths.BaseProfileName && profileType == "repo" {
+		if profileType == "repo" {
 			metadata, err := s.profileManager.LoadProfileMetadata(profile.Name)
 			if err == nil && metadata != nil {
 				sourceURL = metadata.SourceURL
@@ -169,7 +153,7 @@ func (s *Service) ListProfiles(opts services.ListProfileOptions) error {
 		}
 
 		activeIndicator := " "
-		if profile.Name != paths.BaseProfileName && profile.Name == activeProfile {
+		if profile.Name == activeProfile {
 			activeIndicator = formatter.ColoredSuccess()
 		}
 
@@ -179,8 +163,6 @@ func (s *Service) ListProfiles(opts services.ListProfileOptions) error {
 			typeEmoji = "📦"
 		case "user":
 			typeEmoji = "👤"
-		case "base":
-			typeEmoji = "⊙"
 		default:
 			typeEmoji = "❓"
 		}
@@ -199,39 +181,24 @@ func (s *Service) ListProfiles(opts services.ListProfileOptions) error {
 
 	s.formatter.EmptyLine()
 	s.formatter.Info("Legend:")
-	s.formatter.Info("  %s - Currently active profile", formatter.ColoredSuccess())
-	s.formatter.Info("  📦 - Repository-sourced profile")
-	s.formatter.Info("  👤 - User-created profile")
-	s.formatter.Info("  ⊙ - Base installation (no profile)")
+	s.formatter.Info("  %s - Currently active", formatter.ColoredSuccess())
+	if opts.TypeFilter != "repo" {
+		s.formatter.Info("  📦 - Repository-sourced")
+		s.formatter.Info("  👤 - User-created")
+	}
 
-	baseCount := 0
 	profileCount := len(filteredProfiles)
 
-	for _, p := range filteredProfiles {
-		if p.Name == paths.BaseProfileName {
-			baseCount = 1
-			profileCount--
-			break
-		}
+	label := "profile(s)"
+	if opts.TypeFilter == "repo" {
+		label = "repo(s)"
 	}
 
 	s.formatter.EmptyLine()
 	if opts.ProfileFilter != nil || opts.ActiveOnly || opts.TypeFilter != "" {
-		if baseCount > 0 && profileCount > 0 {
-			s.formatter.Info("Showing: %d profile(s) + base installation", profileCount)
-		} else if baseCount > 0 {
-			s.formatter.Info("Showing: base installation only")
-		} else {
-			s.formatter.Info("Showing: %d profile(s)", profileCount)
-		}
+		s.formatter.Info("Showing: %d %s", profileCount, label)
 	} else {
-		if baseCount > 0 && profileCount > 0 {
-			s.formatter.Info("Total: %d profile(s) + base installation", profileCount)
-		} else if baseCount > 0 {
-			s.formatter.Info("Total: base installation only")
-		} else {
-			s.formatter.Info("Total: %d profile(s)", profileCount)
-		}
+		s.formatter.Info("Total: %d %s", profileCount, label)
 	}
 
 	return nil
@@ -471,90 +438,25 @@ func joinStrings(strs []string, sep string) string {
 	return result
 }
 
-func (s *Service) scanBaseInstallation(baseDir string) *profiles.Profile {
-	baseProfile := &profiles.Profile{
-		Name:     paths.BaseProfileName,
-		BasePath: baseDir,
-	}
-
-	hasComponents := false
-
-	skillsDir := filepath.Join(baseDir, "skills")
-	if entries, err := os.ReadDir(skillsDir); err == nil && len(entries) > 0 {
-		for _, entry := range entries {
-			if entry.IsDir() && !isHidden(entry.Name()) {
-				baseProfile.HasSkills = true
-				hasComponents = true
-				break
-			}
-		}
-	}
-
-	agentsDir := filepath.Join(baseDir, "agents")
-	if entries, err := os.ReadDir(agentsDir); err == nil && len(entries) > 0 {
-		for _, entry := range entries {
-			if entry.IsDir() && !isHidden(entry.Name()) {
-				baseProfile.HasAgents = true
-				hasComponents = true
-				break
-			}
-		}
-	}
-
-	commandsDir := filepath.Join(baseDir, "commands")
-	if entries, err := os.ReadDir(commandsDir); err == nil && len(entries) > 0 {
-		for _, entry := range entries {
-			if entry.IsDir() && !isHidden(entry.Name()) {
-				baseProfile.HasCommands = true
-				hasComponents = true
-				break
-			}
-		}
-	}
-
-	if !hasComponents {
-		return nil
-	}
-
-	return baseProfile
-}
-
-func isHidden(name string) bool {
-	return len(name) > 0 && name[0] == '.'
-}
-
 func (s *Service) ShareProfile(profileName, outputPath string) error {
 	profilesList, err := s.profileManager.ScanProfiles()
 	if err != nil {
 		return fmt.Errorf("failed to scan profiles: %w", err)
 	}
 
-	isBase := profileName == paths.BaseProfileName
 	var targetProfile *profiles.Profile
-
-	if isBase {
-		baseAgentsDir, err := paths.GetAgentsDir()
-		if err != nil {
-			return fmt.Errorf("failed to get base directory: %w", err)
-		}
-		targetProfile = s.scanBaseInstallation(baseAgentsDir)
-		if targetProfile == nil {
-			return fmt.Errorf("base installation is empty - no components to share")
-		}
-	} else {
-		for _, p := range profilesList {
-			if p.Name == profileName {
-				targetProfile = p
-				break
-			}
-		}
-
-		if targetProfile == nil {
-			return fmt.Errorf("profile '%s' not found", profileName)
+	for _, p := range profilesList {
+		if p.Name == profileName {
+			targetProfile = p
+			break
 		}
 	}
 
-	commands, err := s.generateProfileCommands(targetProfile, isBase)
+	if targetProfile == nil {
+		return fmt.Errorf("profile '%s' not found", profileName)
+	}
+
+	commands, err := s.generateProfileCommands(targetProfile)
 	if err != nil {
 		return fmt.Errorf("failed to generate commands: %w", err)
 	}
@@ -571,7 +473,7 @@ func (s *Service) ShareProfile(profileName, outputPath string) error {
 	return nil
 }
 
-func (s *Service) generateProfileCommands(profile *profiles.Profile, isBase bool) (string, error) {
+func (s *Service) generateProfileCommands(profile *profiles.Profile) (string, error) {
 	var buf strings.Builder
 	now := time.Now().Format("2006-01-02")
 
@@ -580,14 +482,12 @@ func (s *Service) generateProfileCommands(profile *profiles.Profile, isBase bool
 	buf.WriteString("#\n")
 	buf.WriteString("# To recreate this profile, copy and run these commands:\n\n")
 
-	if !isBase {
-		buf.WriteString(fmt.Sprintf("agent-smith profile create %s\n", profile.Name))
-		buf.WriteString(fmt.Sprintf("agent-smith profile activate %s\n\n", profile.Name))
-	}
+	buf.WriteString(fmt.Sprintf("agent-smith profile create %s\n", profile.Name))
+	buf.WriteString(fmt.Sprintf("agent-smith profile activate %s\n\n", profile.Name))
 
-	skillCommands, skillShareable, skillTotal := s.generateComponentCommands(profile, "skills", isBase)
-	agentCommands, agentShareable, agentTotal := s.generateComponentCommands(profile, "agents", isBase)
-	commandCommands, commandShareable, commandTotal := s.generateComponentCommands(profile, "commands", isBase)
+	skillCommands, skillShareable, skillTotal := s.generateComponentCommands(profile, "skills")
+	agentCommands, agentShareable, agentTotal := s.generateComponentCommands(profile, "agents")
+	commandCommands, commandShareable, commandTotal := s.generateComponentCommands(profile, "commands")
 
 	totalShareable := skillShareable + agentShareable + commandShareable
 	totalComponents := skillTotal + agentTotal + commandTotal
@@ -659,7 +559,7 @@ func (s *Service) generateProfileCommands(profile *profiles.Profile, isBase bool
 	return buf.String(), nil
 }
 
-func (s *Service) generateComponentCommands(profile *profiles.Profile, componentType string, isBase bool) (string, int, int) {
+func (s *Service) generateComponentCommands(profile *profiles.Profile, componentType string) (string, int, int) {
 	var buf strings.Builder
 	shareableCount := 0
 
@@ -687,18 +587,11 @@ func (s *Service) generateComponentCommands(profile *profiles.Profile, component
 			continue
 		}
 
-		if isBase {
-			buf.WriteString(fmt.Sprintf("agent-smith install %s %s %s\n",
-				singularType,
-				sourceURL,
-				componentName))
-		} else {
-			buf.WriteString(fmt.Sprintf("agent-smith install %s %s %s --profile %s\n",
-				singularType,
-				sourceURL,
-				componentName,
-				profile.Name))
-		}
+		buf.WriteString(fmt.Sprintf("agent-smith install %s %s %s --profile %s\n",
+			singularType,
+			sourceURL,
+			componentName,
+			profile.Name))
 		shareableCount++
 	}
 
