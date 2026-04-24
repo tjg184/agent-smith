@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/tjg184/agent-smith/compare/v1.10.3...v1.11.0) (2026-04-24)
+
+
+### Features
+
+* remove base installation and make more repo focused so profiles are behind the scenes ([#104](https://github.com/tjg184/agent-smith/issues/104)) ([e4f22dc](https://github.com/tjg184/agent-smith/commit/e4f22dc758bf20cebba9f0edb1eea135d8c2a2a3))
+
 ## [1.10.3](https://github.com/tjg184/agent-smith/compare/v1.10.2...v1.10.3) (2026-03-31)
 
 
