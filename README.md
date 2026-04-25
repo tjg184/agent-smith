@@ -10,14 +10,24 @@ Agent Smith is a CLI tool for installing, managing, and linking AI components (s
 
 ## Installation
 
+**Homebrew (macOS/Linux):**
 ```bash
-curl -sSL https://raw.githubusercontent.com/tjg184/agent-smith/main/scripts/install.sh | bash
+brew install tjg184/homebrew-tap/agent-smith
 ```
 
-After installation, add `~/.agent-smith/bin` to your PATH and restart your shell.
+**Upgrade:**
+```bash
+brew upgrade agent-smith
+```
 
 <details>
 <summary>Other install methods</summary>
+
+**Curl installer:**
+```bash
+curl -sSL https://raw.githubusercontent.com/tjg184/agent-smith/main/scripts/install.sh | bash
+```
+After installation, add `~/.agent-smith/bin` to your PATH and restart your shell.
 
 **Specific version:**
 ```bash
@@ -35,16 +45,19 @@ git clone https://github.com/tjg184/agent-smith.git
 cd agent-smith && just build && just install
 ```
 
-**Update:**
+**Update (curl installer):**
 ```bash
 curl -sSL https://raw.githubusercontent.com/tjg184/agent-smith/main/scripts/install.sh | bash --force
 ```
 
 **Uninstall:**
 ```bash
-# Binary only
+# Homebrew
+brew uninstall agent-smith
+
+# Curl installer — binary only
 curl -sSL https://raw.githubusercontent.com/tjg184/agent-smith/main/scripts/uninstall.sh | bash
-# Binary + all data (skills, agents, profiles)
+# Curl installer — binary + all data (skills, agents, profiles)
 curl -sSL https://raw.githubusercontent.com/tjg184/agent-smith/main/scripts/uninstall.sh | bash -s -- --purge
 ```
 </details>
