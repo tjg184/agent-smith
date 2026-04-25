@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/tjg184/agent-smith/compare/v1.11.0...v1.12.0) (2026-04-25)
+
+
+### Features
+
+* cut release ([#107](https://github.com/tjg184/agent-smith/issues/107)) ([f176af2](https://github.com/tjg184/agent-smith/commit/f176af2afcb4dfd7ab4624c7fc65a652fa8e177c))
+
 ## [1.11.0](https://github.com/tjg184/agent-smith/compare/v1.10.3...v1.11.0) (2026-04-24)
 
 
