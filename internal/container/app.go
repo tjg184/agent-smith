@@ -72,7 +72,7 @@ func (a *App) Run() {
 	}
 
 	installService := installsvc.NewService(profileManager, a.logger, a.formatter)
-	updateService := updatesvc.NewService(a.logger, a.formatter)
+	updateService := updatesvc.NewService(profileManager, a.logger, a.formatter)
 	uninstallService := uninstallsvc.NewService(componentLinker, a.logger, a.formatter, profileManager)
 	targetService := targetsvc.NewService(a.logger, a.formatter)
 	statusService := statussvc.NewService(profileManager, a.logger, a.formatter)
@@ -115,8 +115,8 @@ func (a *App) Run() {
 					log.Fatal("Failed to update component:", err)
 				}
 			},
-			UpdateAll: func(profile string) {
-				opts := services.UpdateOptions{Profile: profile}
+			UpdateAll: func(profile, repoURL string) {
+				opts := services.UpdateOptions{Profile: profile, RepoURL: repoURL}
 				if err := updateService.UpdateAll(opts); err != nil {
 					log.Fatal("Failed to update all components:", err)
 				}

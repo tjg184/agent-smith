@@ -11,7 +11,7 @@ type InstallHandlers struct {
 // UpdateHandlers groups handler functions for update commands.
 type UpdateHandlers struct {
 	Update    func(componentType, componentName, profile string)
-	UpdateAll func(profile string)
+	UpdateAll func(profile, repoURL string)
 }
 
 // LinkHandlers groups handler functions for link commands.
@@ -106,7 +106,7 @@ var (
 	handleAddCommand            func(repoURL, name, profile, targetDir string)
 	handleAddAll                func(repoURL, profile, targetDir string)
 	handleUpdate                func(componentType, componentName, profile string)
-	handleUpdateAll             func(profile string)
+	handleUpdateAll             func(profile, repoURL string)
 	handleLink                  func(componentType, componentName, targetFilter, profile string)
 	handleLinkAll               func(targetFilter, profile, repoURL string, allProfiles bool)
 	handleLinkType              func(componentType, targetFilter, profile string)

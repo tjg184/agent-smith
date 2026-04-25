@@ -6,21 +6,25 @@ import (
 	"github.com/tjg184/agent-smith/internal/formatter"
 	"github.com/tjg184/agent-smith/internal/updater"
 	"github.com/tjg184/agent-smith/pkg/logger"
+	"github.com/tjg184/agent-smith/pkg/profiles"
 	"github.com/tjg184/agent-smith/pkg/services"
 )
 
 type Service struct {
-	logger    *logger.Logger
-	formatter *formatter.Formatter
+	profileManager *profiles.ProfileManager
+	logger         *logger.Logger
+	formatter      *formatter.Formatter
 }
 
 func NewService(
+	pm *profiles.ProfileManager,
 	logger *logger.Logger,
 	formatter *formatter.Formatter,
 ) services.UpdateService {
 	return &Service{
-		logger:    logger,
-		formatter: formatter,
+		profileManager: pm,
+		logger:         logger,
+		formatter:      formatter,
 	}
 }
 
@@ -43,16 +47,39 @@ func (s *Service) UpdateComponent(componentType, componentName string, opts serv
 }
 
 func (s *Service) UpdateAll(opts services.UpdateOptions) error {
-	detector, err := s.createUpdateDetector(opts.Profile)
+	resolved, err := s.resolveProfile(opts)
+	if err != nil {
+		return err
+	}
+
+	detector, err := s.createUpdateDetector(resolved.Profile)
 	if err != nil {
 		return fmt.Errorf("failed to create update detector: %w", err)
 	}
 
-	if err := detector.UpdateAll(); err != nil {
+	if err := detector.UpdateAll(resolved.RepoURL); err != nil {
 		return fmt.Errorf("failed to update components: %w", err)
 	}
 
 	return nil
+}
+
+// resolveProfile finds the profile that owns the given repo URL when no explicit
+// profile is set, mirroring how materialize resolves its profile.
+func (s *Service) resolveProfile(opts services.UpdateOptions) (services.UpdateOptions, error) {
+	if opts.RepoURL == "" || opts.Profile != "" {
+		return opts, nil
+	}
+	profileName, err := s.profileManager.FindProfileBySourceURL(opts.RepoURL)
+	if err != nil {
+		return opts, fmt.Errorf("failed to look up profile for repo '%s': %w", opts.RepoURL, err)
+	}
+	if profileName == "" {
+		return opts, fmt.Errorf("no installed profile found for repository '%s'", opts.RepoURL)
+	}
+	opts.Profile = profileName
+	opts.RepoURL = ""
+	return opts, nil
 }
 
 func (s *Service) CheckForUpdates(opts services.UpdateOptions) ([]services.UpdateInfo, error) {

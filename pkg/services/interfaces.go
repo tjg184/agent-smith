@@ -121,6 +121,7 @@ type UpdateService interface {
 
 type UpdateOptions struct {
 	Profile string
+	RepoURL string
 }
 
 type UpdateInfo struct {

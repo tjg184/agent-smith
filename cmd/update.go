@@ -8,13 +8,14 @@ import (
 
 func init() {
 	updateCmd := &cobra.Command{
-		Use:   "update <type|all> [name]",
+		Use:   "update <type|all> [name|repository-url]",
 		Short: "Check and update a component or all components",
 		Long: `Check and update a specific component or all downloaded components.
 
 USAGE:
-  agent-smith update <type> <name>  - Update a specific component
-  agent-smith update all            - Update all downloaded components
+  agent-smith update <type> <name>              - Update a specific component
+  agent-smith update all                        - Update all downloaded components
+  agent-smith update all [repository-url]       - Update all components from a specific repo
 
 EXAMPLES:
   # Update a specific skill
@@ -22,6 +23,9 @@ EXAMPLES:
 
   # Update all components
   agent-smith update all
+
+  # Update only components from a specific repository
+  agent-smith update all owner/repo
 
   # Update components in a specific profile (bypasses active profile)
   agent-smith update all --profile work
@@ -47,7 +51,11 @@ EXAMPLES:
 		Run: func(cmd *cobra.Command, args []string) {
 			profile, _ := cmd.Flags().GetString("profile")
 			if args[0] == "all" {
-				handleUpdateAll(profile)
+				var repoURL string
+				if len(args) == 2 {
+					repoURL = args[1]
+				}
+				handleUpdateAll(profile, repoURL)
 			} else {
 				handleUpdate(args[0], args[1], profile)
 			}
