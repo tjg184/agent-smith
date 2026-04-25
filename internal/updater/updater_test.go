@@ -589,7 +589,7 @@ func TestUpdateAll_NoComponents(t *testing.T) {
 	detector := NewUpdateDetectorWithBaseDir(tempDir)
 
 	// Update all (should complete without errors even with no components)
-	err = detector.UpdateAll()
+	err = detector.UpdateAll("")
 	if err != nil {
 		t.Fatalf("UpdateAll failed: %v", err)
 	}
@@ -690,7 +690,7 @@ func TestUpdateAll_EmptyDirectories(t *testing.T) {
 	detector := NewUpdateDetectorWithBaseDir(tempDir)
 
 	// Update all (should complete without errors)
-	err = detector.UpdateAll()
+	err = detector.UpdateAll("")
 	if err != nil {
 		t.Fatalf("UpdateAll failed: %v", err)
 	}

@@ -216,7 +216,7 @@ type componentUpdateInfo struct {
 	Metadata *models.ComponentEntry
 }
 
-func (ud *UpdateDetector) UpdateAll() error {
+func (ud *UpdateDetector) UpdateAll(repoURLFilter string) error {
 	// Show location header
 	if ud.profileName != "" {
 		fmt.Printf("%s\n\n", styles.InfoArrowFormat(fmt.Sprintf("Updating components in: %s", ud.baseDir)))
@@ -228,6 +228,30 @@ func (ud *UpdateDetector) UpdateAll() error {
 	componentsByRepo, totalComponents, err := ud.groupComponentsByRepository()
 	if err != nil {
 		return err
+	}
+
+	// Filter to a specific repo if requested
+	if repoURLFilter != "" {
+		normalizedFilter, normalizeErr := ud.detector.NormalizeURL(repoURLFilter)
+		if normalizeErr != nil {
+			return fmt.Errorf("failed to normalize repository URL: %w", normalizeErr)
+		}
+		filtered := make(map[string][]componentUpdateInfo)
+		for repoURL, components := range componentsByRepo {
+			normalizedRepo, normalizeErr := ud.detector.NormalizeURL(repoURL)
+			if normalizeErr != nil {
+				continue
+			}
+			if normalizedRepo == normalizedFilter {
+				filtered[repoURL] = components
+				totalComponents = len(components)
+			}
+		}
+		if len(filtered) == 0 {
+			fmt.Printf("No components found for repository '%s'.\n", repoURLFilter)
+			return nil
+		}
+		componentsByRepo = filtered
 	}
 
 	if totalComponents == 0 {

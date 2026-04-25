@@ -116,11 +116,31 @@ func (s *Service) MaterializeComponent(componentType, componentName string, opts
 }
 
 func (s *Service) MaterializeAll(opts services.MaterializeOptions) error {
-	return matsync.MaterializeAll(s.syncDeps(), opts)
+	resolved, err := s.resolveRepoURL(opts)
+	if err != nil {
+		return err
+	}
+	return matsync.MaterializeAll(s.syncDeps(), resolved)
 }
 
 func (s *Service) MaterializeByType(componentType string, opts services.MaterializeOptions) error {
-	return matsync.MaterializeByType(s.syncDeps(), componentType, opts)
+	resolved, err := s.resolveRepoURL(opts)
+	if err != nil {
+		return err
+	}
+	return matsync.MaterializeByType(s.syncDeps(), componentType, resolved)
+}
+
+func (s *Service) resolveRepoURL(opts services.MaterializeOptions) (services.MaterializeOptions, error) {
+	if opts.RepoURL == "" || opts.Profile != "" {
+		return opts, nil
+	}
+	profileName, err := s.profileManager.FindProfileBySourceURL(opts.RepoURL)
+	if err != nil {
+		return opts, fmt.Errorf("no installed components found for repo '%s'", opts.RepoURL)
+	}
+	opts.Profile = profileName
+	return opts, nil
 }
 
 func (s *Service) ListMaterialized(opts services.ListMaterializedOptions) error {

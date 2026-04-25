@@ -72,7 +72,7 @@ func (a *App) Run() {
 	}
 
 	installService := installsvc.NewService(profileManager, a.logger, a.formatter)
-	updateService := updatesvc.NewService(a.logger, a.formatter)
+	updateService := updatesvc.NewService(profileManager, a.logger, a.formatter)
 	uninstallService := uninstallsvc.NewService(componentLinker, a.logger, a.formatter, profileManager)
 	targetService := targetsvc.NewService(a.logger, a.formatter)
 	statusService := statussvc.NewService(profileManager, a.logger, a.formatter)
@@ -115,8 +115,8 @@ func (a *App) Run() {
 					log.Fatal("Failed to update component:", err)
 				}
 			},
-			UpdateAll: func(profile string) {
-				opts := services.UpdateOptions{Profile: profile}
+			UpdateAll: func(profile, repoURL string) {
+				opts := services.UpdateOptions{Profile: profile, RepoURL: repoURL}
 				if err := updateService.UpdateAll(opts); err != nil {
 					log.Fatal("Failed to update all components:", err)
 				}
@@ -310,14 +310,14 @@ func (a *App) Run() {
 					os.Exit(1)
 				}
 			},
-			Type: func(componentType, target, projectDir string, force, dryRun bool, profile string) {
-				opts := services.MaterializeOptions{Target: target, ProjectDir: projectDir, Profile: profile, Force: force, DryRun: dryRun}
+			Type: func(componentType, target, projectDir string, force, dryRun bool, profile, repoURL string) {
+				opts := services.MaterializeOptions{Target: target, ProjectDir: projectDir, Profile: profile, RepoURL: repoURL, Force: force, DryRun: dryRun}
 				if err := materializeService.MaterializeByType(componentType, opts); err != nil {
 					os.Exit(1)
 				}
 			},
-			All: func(target, projectDir string, force, dryRun bool, profile string) {
-				opts := services.MaterializeOptions{Target: target, ProjectDir: projectDir, Profile: profile, Force: force, DryRun: dryRun}
+			All: func(target, projectDir string, force, dryRun bool, profile, repoURL string) {
+				opts := services.MaterializeOptions{Target: target, ProjectDir: projectDir, Profile: profile, RepoURL: repoURL, Force: force, DryRun: dryRun}
 				if err := materializeService.MaterializeAll(opts); err != nil {
 					os.Exit(1)
 				}

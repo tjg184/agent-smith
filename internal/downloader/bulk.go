@@ -43,6 +43,15 @@ func NewBulkDownloader() (*BulkDownloader, error) {
 	}, nil
 }
 
+// NewBulkDownloaderForValidation creates a BulkDownloader suitable only for ValidateRepo.
+// It does not create any base directories on disk.
+func NewBulkDownloaderForValidation() *BulkDownloader {
+	return &BulkDownloader{
+		detector:  detector.NewRepositoryDetector(),
+		formatter: formatter.New(),
+	}
+}
+
 // NewBulkDownloaderWithTargetDir creates a new BulkDownloader instance that installs to a custom target directory
 func NewBulkDownloaderWithTargetDir(targetDir string) (*BulkDownloader, error) {
 	skillDl, err := ForTypeWithTargetDir(models.ComponentSkill, targetDir)

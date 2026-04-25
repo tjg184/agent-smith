@@ -127,6 +127,7 @@ agent-smith find skill api --json
 
 ```bash
 agent-smith update all                   # Update all installed components
+agent-smith update all owner/repo        # Update components from a specific repo (finds profile automatically)
 agent-smith update skills <name>         # Update a specific skill
 agent-smith update agents <name>
 agent-smith update commands <name>
@@ -184,6 +185,7 @@ Materialize copies components from `~/.agent-smith/` into your **project directo
 # Copy to project
 agent-smith materialize skill <name> --target opencode
 agent-smith materialize all --target opencode
+agent-smith materialize all owner/repo --target opencode  # Only components from a specific repo
 agent-smith materialize all --target all
 agent-smith materialize all --target opencode --dry-run   # Preview
 

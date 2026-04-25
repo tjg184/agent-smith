@@ -101,7 +101,7 @@ func TestCountManagedLeafSymlinks_DeeplyNested(t *testing.T) {
 		makeSymlink(t, target, filepath.Join(categoryDir, p))
 	}
 
-	count, err := countManagedLeafSymlinks(categoryDir, "")
+	count, err := countManagedLeafSymlinks(categoryDir, "", "")
 	if err != nil {
 		t.Fatalf("countManagedLeafSymlinks: %v", err)
 	}

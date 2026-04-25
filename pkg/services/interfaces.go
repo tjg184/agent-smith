@@ -82,6 +82,7 @@ type MaterializeOptions struct {
 	Target     string
 	ProjectDir string
 	Profile    string
+	RepoURL    string
 	Source     string
 	Force      bool
 	DryRun     bool
@@ -120,6 +121,7 @@ type UpdateService interface {
 
 type UpdateOptions struct {
 	Profile string
+	RepoURL string
 }
 
 type UpdateInfo struct {
