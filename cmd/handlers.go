@@ -71,8 +71,8 @@ type TargetHandlers struct {
 // MaterializeHandlers groups handler functions for materialize commands.
 type MaterializeHandlers struct {
 	Component func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile, source string)
-	Type      func(componentType, target, projectDir string, force, dryRun bool, fromProfile string)
-	All       func(target, projectDir string, force, dryRun bool, fromProfile string)
+	Type      func(componentType, target, projectDir string, force, dryRun bool, fromProfile, repoURL string)
+	All       func(target, projectDir string, force, dryRun bool, fromProfile, repoURL string)
 	List      func(projectDir string)
 	Info      func(componentType, componentName, target, projectDir, source string)
 	Status    func(target, projectDir string)
@@ -138,8 +138,8 @@ var (
 	handleTargetRemove          func(name string)
 	handleTargetList            func()
 	handleMaterializeComponent  func(componentType, componentName, target, projectDir string, force, dryRun bool, fromProfile, source string)
-	handleMaterializeType       func(componentType, target, projectDir string, force, dryRun bool, fromProfile string)
-	handleMaterializeAll        func(target, projectDir string, force, dryRun bool, fromProfile string)
+	handleMaterializeType       func(componentType, target, projectDir string, force, dryRun bool, fromProfile, repoURL string)
+	handleMaterializeAll        func(target, projectDir string, force, dryRun bool, fromProfile, repoURL string)
 	handleMaterializeList       func(projectDir string)
 	handleMaterializeInfo       func(componentType, componentName, target, projectDir, source string)
 	handleMaterializeStatus     func(target, projectDir string)

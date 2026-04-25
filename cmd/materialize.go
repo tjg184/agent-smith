@@ -23,7 +23,11 @@ func makeMaterializeTypeRun(componentType string) func(*cobra.Command, []string)
 		force, _ := cmd.Flags().GetBool("force")
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 		profile, _ := cmd.Flags().GetString("profile")
-		handleMaterializeType(componentType, target, projectDir, force, dryRun, profile)
+		var repoURL string
+		if len(args) == 1 {
+			repoURL = args[0]
+		}
+		handleMaterializeType(componentType, target, projectDir, force, dryRun, profile, repoURL)
 	}
 }
 
@@ -162,13 +166,15 @@ EXAMPLES:
 	materializeCmd.AddCommand(materializeCommandCmd)
 
 	materializeSkillsCmd := &cobra.Command{
-		Use:   "skills",
+		Use:   "skills [repository-url]",
 		Short: "Materialize all skills to project directories",
 		Long: `Materialize all skills to project directories.
 
 This command copies all skills from ~/.agent-smith/skills/ to .opencode/skills/
 or .claude/skills/ with full provenance tracking. It continues on error with
 individual components.
+
+Optionally provide a repository URL to materialize only skills from that specific repo.
 
 The target can be specified with --target flag or AGENT_SMITH_TARGET environment variable.
 
@@ -179,12 +185,15 @@ EXAMPLES:
   # Materialize all skills to Claude Code
   agent-smith materialize skills --target claudecode
 
+  # Materialize skills from a specific repository
+  agent-smith materialize skills owner/repo --target opencode
+
   # Materialize all skills from a specific profile
   agent-smith materialize skills --target opencode --profile work
 
   # Preview without making changes
   agent-smith materialize skills --target opencode --dry-run`,
-		Args: noArgsWithHelp,
+		Args: rangeArgsWithHelp(0, 1, "agent-smith materialize skills [repository-url]"),
 		Run:  makeMaterializeTypeRun("skills"),
 	}
 	addMaterializeFlags(materializeSkillsCmd)
@@ -192,13 +201,15 @@ EXAMPLES:
 	materializeCmd.AddCommand(materializeSkillsCmd)
 
 	materializeAgentsCmd := &cobra.Command{
-		Use:   "agents",
+		Use:   "agents [repository-url]",
 		Short: "Materialize all agents to project directories",
 		Long: `Materialize all agents to project directories.
 
 This command copies all agents from ~/.agent-smith/agents/ to .opencode/agents/
 or .claude/agents/ with full provenance tracking. It continues on error with
 individual components.
+
+Optionally provide a repository URL to materialize only agents from that specific repo.
 
 The target can be specified with --target flag or AGENT_SMITH_TARGET environment variable.
 
@@ -209,12 +220,15 @@ EXAMPLES:
   # Materialize all agents to Claude Code
   agent-smith materialize agents --target claudecode
 
+  # Materialize agents from a specific repository
+  agent-smith materialize agents owner/repo --target opencode
+
   # Materialize all agents from a specific profile
   agent-smith materialize agents --target opencode --profile work
 
   # Preview without making changes
   agent-smith materialize agents --target opencode --dry-run`,
-		Args: noArgsWithHelp,
+		Args: rangeArgsWithHelp(0, 1, "agent-smith materialize agents [repository-url]"),
 		Run:  makeMaterializeTypeRun("agents"),
 	}
 	addMaterializeFlags(materializeAgentsCmd)
@@ -222,13 +236,15 @@ EXAMPLES:
 	materializeCmd.AddCommand(materializeAgentsCmd)
 
 	materializeCommandsCmd := &cobra.Command{
-		Use:   "commands",
+		Use:   "commands [repository-url]",
 		Short: "Materialize all commands to project directories",
 		Long: `Materialize all commands to project directories.
 
 This command copies all commands from ~/.agent-smith/commands/ to .opencode/commands/
 or .claude/commands/ with full provenance tracking. It continues on error with
 individual components.
+
+Optionally provide a repository URL to materialize only commands from that specific repo.
 
 The target can be specified with --target flag or AGENT_SMITH_TARGET environment variable.
 
@@ -239,12 +255,15 @@ EXAMPLES:
   # Materialize all commands to Claude Code
   agent-smith materialize commands --target claudecode
 
+  # Materialize commands from a specific repository
+  agent-smith materialize commands owner/repo --target opencode
+
   # Materialize all commands from a specific profile
   agent-smith materialize commands --target opencode --profile work
 
   # Preview without making changes
   agent-smith materialize commands --target opencode --dry-run`,
-		Args: noArgsWithHelp,
+		Args: rangeArgsWithHelp(0, 1, "agent-smith materialize commands [repository-url]"),
 		Run:  makeMaterializeTypeRun("commands"),
 	}
 	addMaterializeFlags(materializeCommandsCmd)
@@ -252,12 +271,14 @@ EXAMPLES:
 	materializeCmd.AddCommand(materializeCommandsCmd)
 
 	materializeAllCmd := &cobra.Command{
-		Use:   "all",
+		Use:   "all [repository-url]",
 		Short: "Materialize all installed components to project directories",
 		Long: `Materialize all installed components (skills, agents, commands) to project directories.
 
 This command copies all components from ~/.agent-smith/ to .opencode/ or .claude/
 with full provenance tracking. It continues on error with individual components.
+
+Optionally provide a repository URL to materialize only components from that specific repo.
 
 The target can be specified with --target flag or AGENT_SMITH_TARGET environment variable.
 
@@ -268,6 +289,9 @@ EXAMPLES:
   # Materialize all to both targets
   agent-smith materialize all --target all
 
+  # Materialize only components from a specific repository
+  agent-smith materialize all owner/repo --target opencode
+
   # Use environment variable for default target
   export AGENT_SMITH_TARGET=claudecode
   agent-smith materialize all
@@ -277,14 +301,18 @@ EXAMPLES:
 
   # Preview without making changes
   agent-smith materialize all --target opencode --dry-run`,
-		Args: cobra.NoArgs,
+		Args: rangeArgsWithHelp(0, 1, "agent-smith materialize all [repository-url]"),
 		Run: func(cmd *cobra.Command, args []string) {
 			target, _ := cmd.Flags().GetString("target")
 			projectDir, _ := cmd.Flags().GetString("project-dir")
 			force, _ := cmd.Flags().GetBool("force")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			profile, _ := cmd.Flags().GetString("profile")
-			handleMaterializeAll(target, projectDir, force, dryRun, profile)
+			var repoURL string
+			if len(args) == 1 {
+				repoURL = args[0]
+			}
+			handleMaterializeAll(target, projectDir, force, dryRun, profile, repoURL)
 		},
 	}
 	addMaterializeFlags(materializeAllCmd)

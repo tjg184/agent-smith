@@ -82,6 +82,7 @@ type MaterializeOptions struct {
 	Target     string
 	ProjectDir string
 	Profile    string
+	RepoURL    string
 	Source     string
 	Force      bool
 	DryRun     bool

@@ -178,10 +178,7 @@ func (s *Service) installBulkToTargetDir(repoURL, targetDir string) error {
 
 func (s *Service) installBulkToProfile(repoURL, profile string) error {
 	s.logger.Info("Validating repository: %s", repoURL)
-	validationDownloader, err := downloader.NewBulkDownloader()
-	if err != nil {
-		return fmt.Errorf("failed to create downloader: %w", err)
-	}
+	validationDownloader := downloader.NewBulkDownloaderForValidation()
 	tempDir, components, err := validationDownloader.ValidateRepo(repoURL)
 	if err != nil {
 		return fmt.Errorf("repository validation failed: %w", err)

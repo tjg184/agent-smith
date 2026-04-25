@@ -310,14 +310,14 @@ func (a *App) Run() {
 					os.Exit(1)
 				}
 			},
-			Type: func(componentType, target, projectDir string, force, dryRun bool, profile string) {
-				opts := services.MaterializeOptions{Target: target, ProjectDir: projectDir, Profile: profile, Force: force, DryRun: dryRun}
+			Type: func(componentType, target, projectDir string, force, dryRun bool, profile, repoURL string) {
+				opts := services.MaterializeOptions{Target: target, ProjectDir: projectDir, Profile: profile, RepoURL: repoURL, Force: force, DryRun: dryRun}
 				if err := materializeService.MaterializeByType(componentType, opts); err != nil {
 					os.Exit(1)
 				}
 			},
-			All: func(target, projectDir string, force, dryRun bool, profile string) {
-				opts := services.MaterializeOptions{Target: target, ProjectDir: projectDir, Profile: profile, Force: force, DryRun: dryRun}
+			All: func(target, projectDir string, force, dryRun bool, profile, repoURL string) {
+				opts := services.MaterializeOptions{Target: target, ProjectDir: projectDir, Profile: profile, RepoURL: repoURL, Force: force, DryRun: dryRun}
 				if err := materializeService.MaterializeAll(opts); err != nil {
 					os.Exit(1)
 				}
