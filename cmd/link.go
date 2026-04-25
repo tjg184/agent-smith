@@ -297,7 +297,7 @@ LEGEND:
 		},
 	}
 	linkStatusCmd.Flags().StringSlice("profile", []string{}, "Scope to a specific profile")
-	linkStatusCmd.Flags().Bool("linked-only", false, "Show only components that have at least one link")
+	linkStatusCmd.Flags().BoolP("linked-only", "l", false, "Show only components that have at least one link")
 	linkCmd.AddCommand(linkStatusCmd)
 
 	rootCmd.AddCommand(linkCmd)
