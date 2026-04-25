@@ -287,9 +287,9 @@ agent-smith materialize update
 
 ## Troubleshooting
 
-**"command not found: agent-smith"** — Add `~/.agent-smith/bin` to PATH and restart shell.
+**"command not found: agent-smith"** — If installed via Homebrew, run `brew doctor` to diagnose PATH issues. If installed via the curl installer, add `~/.agent-smith/bin` to your PATH and restart your shell.
 
-**"permission denied"** — `chmod +x ~/.agent-smith/bin/agent-smith`
+**"permission denied"** — Curl installer only: `chmod +x ~/.agent-smith/bin/agent-smith`
 
 **"checksum mismatch"** — Network issue; re-run the installer.
 
