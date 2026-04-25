@@ -208,7 +208,7 @@ func UnlinkComponentsByType(agentsDir string, targets []config.Target, f *format
 
 			if linkType == "copied" {
 				if componentType == "skills" && isManagedCategoryDir(fullPath) {
-					leafCount, _ := countManagedLeafSymlinks(fullPath, "")
+					leafCount, _ := countManagedLeafSymlinks(fullPath, "", "")
 					totalLinks += leafCount
 				} else {
 					copiedDirs++
@@ -351,6 +351,8 @@ func UnlinkAllComponents(agentsDir string, targets []config.Target, f *formatter
 
 	componentTypes := paths.GetComponentTypes()
 
+	currentProfileName := linkutil.ProfileFromPath(agentsDir)
+
 	totalLinks := 0
 	copiedDirs := 0
 	skippedProfilesCount := 0
@@ -384,8 +386,16 @@ func UnlinkAllComponents(agentsDir string, targets []config.Target, f *formatter
 					// A real directory may be a managed category dir containing
 					// individual leaf symlinks rather than a true copy.
 					if componentType == "skills" && isManagedCategoryDir(fullPath) {
-						leafCount, _ := countManagedLeafSymlinks(fullPath, agentsDir)
-						totalLinks += leafCount
+						profileFilter := ""
+						if !allProfiles {
+							profileFilter = currentProfileName
+						}
+						leafCount, _ := countManagedLeafSymlinks(fullPath, agentsDir, profileFilter)
+						if leafCount > 0 {
+							totalLinks++
+						} else {
+							copiedDirs++
+						}
 					} else {
 						copiedDirs++
 					}
@@ -422,7 +432,6 @@ func UnlinkAllComponents(agentsDir string, targets []config.Target, f *formatter
 		return nil
 	}
 
-	currentProfileName := linkutil.ProfileFromPath(agentsDir)
 	profilesExist := anyProfilesExist()
 
 	if !force {
@@ -446,24 +455,6 @@ func UnlinkAllComponents(agentsDir string, targets []config.Target, f *formatter
 			}
 			fmt.Printf("This will unlink %d symlinked components%s from: %s", totalLinks, profileMsg, targetStr)
 			fmt.Println()
-		}
-		if copiedDirs > 0 {
-			f.InfoMsg("Note: %d copied directories will be skipped (not deleted)", copiedDirs)
-		}
-		if skippedProfilesCount > 0 && !allProfiles {
-			profileNames := make([]string, 0, len(skippedProfilesMap))
-			for profileName := range skippedProfilesMap {
-				profileNames = append(profileNames, profileName)
-			}
-			if len(profileNames) == 1 {
-				f.InfoMsg("Note: %d components from profile '%s' will be skipped", skippedProfilesCount, profileNames[0])
-			} else if len(profileNames) > 1 {
-				f.InfoMsg("Note: %d components from other profiles will be skipped:", skippedProfilesCount)
-				for _, profileName := range profileNames {
-					count := skippedProfilesMap[profileName]
-					fmt.Printf("  - %s: %d components\n", profileName, count)
-				}
-			}
 		}
 		if totalLinks == 0 {
 			if skippedProfilesCount > 0 {
@@ -791,7 +782,7 @@ func isManagedCategoryDir(dir string) bool {
 }
 
 // agentsDir non-empty: only symlinks that point into agent-smith are counted.
-func countManagedLeafSymlinks(categoryDir, agentsDir string) (count int, err error) {
+func countManagedLeafSymlinks(categoryDir, agentsDir, profileFilter string) (count int, err error) {
 	err = filepath.WalkDir(categoryDir, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -805,6 +796,12 @@ func countManagedLeafSymlinks(categoryDir, agentsDir string) (count int, err err
 		}
 		if agentsDir != "" {
 			if ok, checkErr := isSymlinkFromAgentSmith(agentsDir, path); checkErr != nil || !ok {
+				return nil
+			}
+		}
+		if profileFilter != "" {
+			profileName := profilepicker.GetProfileNameFromSymlink(path)
+			if profileName != profileFilter {
 				return nil
 			}
 		}
