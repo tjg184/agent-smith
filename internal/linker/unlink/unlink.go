@@ -753,6 +753,7 @@ func unlinkFlatMdFiles(componentName, componentTypeDir, targetBaseDir string) er
 }
 
 // Contains at least one symlink (at any depth) and no regular files at any depth.
+// Dot-files (e.g. .DS_Store) are ignored and do not disqualify the directory.
 func isManagedCategoryDir(dir string) bool {
 	hasSymlink := false
 	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
@@ -760,6 +761,9 @@ func isManagedCategoryDir(dir string) bool {
 			return err
 		}
 		if path == dir {
+			return nil
+		}
+		if strings.HasPrefix(d.Name(), ".") {
 			return nil
 		}
 		info, err := d.Info()
@@ -782,10 +786,14 @@ func isManagedCategoryDir(dir string) bool {
 }
 
 // agentsDir non-empty: only symlinks that point into agent-smith are counted.
+// Dot-files (e.g. .DS_Store) are ignored.
 func countManagedLeafSymlinks(categoryDir, agentsDir, profileFilter string) (count int, err error) {
 	err = filepath.WalkDir(categoryDir, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
+		}
+		if strings.HasPrefix(d.Name(), ".") {
+			return nil
 		}
 		info, infoErr := d.Info()
 		if infoErr != nil {

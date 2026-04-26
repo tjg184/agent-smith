@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/tjg184/agent-smith/pkg/paths"
 )
 
 type TargetType string
@@ -15,8 +17,6 @@ const (
 	TargetUniversal  TargetType = "universal"
 )
 
-// builtInTargetDef holds constructor functions for a single built-in target.
-// Adding a new built-in target requires only a new entry here plus a *_target.go file.
 type builtInTargetDef struct {
 	targetType         TargetType
 	constructor        func() (Target, error)
@@ -24,30 +24,47 @@ type builtInTargetDef struct {
 	isUniversal        bool
 }
 
-// builtInTargetDefs is the single authoritative registry of all built-in targets.
-// Order determines detection priority: OpenCode > Claude Code > Copilot > Universal.
-var builtInTargetDefs = []builtInTargetDef{
-	{
-		targetType:         TargetOpenCode,
-		constructor:        func() (Target, error) { return NewOpencodeTarget() },
-		projectConstructor: func(dir string) Target { return NewOpencodeTargetWithDir(dir) },
-	},
-	{
-		targetType:         TargetClaudeCode,
-		constructor:        func() (Target, error) { return NewClaudeCodeTarget() },
-		projectConstructor: func(dir string) Target { return NewClaudeCodeTargetWithDir(dir) },
-	},
-	{
-		targetType:         TargetCopilot,
-		constructor:        func() (Target, error) { return NewCopilotTarget() },
-		projectConstructor: func(dir string) Target { return NewCopilotTargetWithDir(dir) },
-	},
-	{
-		targetType:         TargetUniversal,
-		constructor:        func() (Target, error) { return NewUniversalTarget() },
-		projectConstructor: func(dir string) Target { return NewUniversalTargetWithDir(dir) },
-		isUniversal:        true,
-	},
+func newTargetFromSpec(spec targetSpec) (Target, error) {
+	dir, err := paths.ExpandHome(spec.globalDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to expand %s directory: %w", spec.name, err)
+	}
+	return &genericTarget{
+		baseTarget:  baseTarget{baseDir: dir, projectDirName: spec.projectDir},
+		name:        spec.name,
+		displayName: spec.displayName,
+		isUniversal: spec.isUniversal,
+	}, nil
+}
+
+func newTargetFromSpecWithDir(spec targetSpec, dir string) Target {
+	return &genericTarget{
+		baseTarget:  baseTarget{baseDir: dir, projectDirName: spec.projectDir},
+		name:        spec.name,
+		displayName: spec.displayName,
+		isUniversal: spec.isUniversal,
+	}
+}
+
+// builtInTargetDefs is derived from builtInTargetSpecs.
+// To add a new built-in target, add a line to target_specs.go only.
+var builtInTargetDefs = func() []builtInTargetDef {
+	defs := make([]builtInTargetDef, len(builtInTargetSpecs))
+	for i, spec := range builtInTargetSpecs {
+		s := spec
+		defs[i] = builtInTargetDef{
+			targetType:         TargetType(s.name),
+			constructor:        func() (Target, error) { return newTargetFromSpec(s) },
+			projectConstructor: func(dir string) Target { return newTargetFromSpecWithDir(s, dir) },
+			isUniversal:        s.isUniversal,
+		}
+	}
+	return defs
+}()
+
+// NewUniversalTarget is provided for callers that need the universal target explicitly.
+func NewUniversalTarget() (Target, error) {
+	return NewTarget(string(TargetUniversal))
 }
 
 func builtInTargetNames() []string {
@@ -138,7 +155,7 @@ func DetectTarget() (Target, error) {
 		}
 	}
 
-	return NewOpencodeTarget()
+	return NewTarget(string(TargetOpenCode))
 }
 
 func GetAvailableTargets() []string {
@@ -161,15 +178,21 @@ func GetAllTargetTypes() []string {
 
 func DetectAllTargets() ([]Target, error) {
 	var targets []Target
+	seenProjectDirs := make(map[string]bool)
 
 	for _, def := range builtInTargetDefs {
 		target, err := def.constructor()
 		if err != nil {
 			continue
 		}
+		projectDir := target.GetProjectDirName()
+		if seenProjectDirs[projectDir] {
+			continue
+		}
 		baseDir, _ := target.GetGlobalBaseDir()
 		if _, err := os.Stat(baseDir); err == nil {
 			targets = append(targets, target)
+			seenProjectDirs[projectDir] = true
 		}
 	}
 
@@ -181,15 +204,20 @@ func DetectAllTargets() ([]Target, error) {
 				fmt.Fprintf(os.Stderr, "Warning: failed to load custom target %s: %v\n", customTargetConfig.Name, err)
 				continue
 			}
+			projectDir := customTarget.GetProjectDirName()
+			if seenProjectDirs[projectDir] {
+				continue
+			}
 			baseDir, _ := customTarget.GetGlobalBaseDir()
 			if _, err := os.Stat(baseDir); err == nil {
 				targets = append(targets, customTarget)
+				seenProjectDirs[projectDir] = true
 			}
 		}
 	}
 
 	if len(targets) == 0 {
-		opencodeTarget, err := NewOpencodeTarget()
+		opencodeTarget, err := NewTarget(string(TargetOpenCode))
 		if err != nil {
 			return nil, err
 		}

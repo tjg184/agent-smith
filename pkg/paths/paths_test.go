@@ -26,25 +26,6 @@ func TestGetAgentsDir(t *testing.T) {
 	}
 }
 
-func TestGetOpencodeDir(t *testing.T) {
-	opencodeDir, err := GetOpencodeDir()
-	if err != nil {
-		t.Fatalf("GetOpencodeDir() error = %v", err)
-	}
-
-	home, _ := os.UserHomeDir()
-	expected := filepath.Join(home, ".config", "opencode")
-
-	if opencodeDir != expected {
-		t.Errorf("GetOpencodeDir() = %v, want %v", opencodeDir, expected)
-	}
-
-	// Should not contain ~
-	if strings.Contains(opencodeDir, "~") {
-		t.Errorf("GetOpencodeDir() contains unexpanded ~: %v", opencodeDir)
-	}
-}
-
 func TestGetSkillsDir(t *testing.T) {
 	skillsDir, err := GetSkillsDir()
 	if err != nil {

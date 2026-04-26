@@ -88,6 +88,43 @@ func TestIsManagedCategoryDir_Empty(t *testing.T) {
 	}
 }
 
+func TestIsManagedCategoryDir_DotFilesIgnored(t *testing.T) {
+	dir := t.TempDir()
+	target := t.TempDir()
+
+	leaf := filepath.Join(dir, "some-skill")
+	makeSymlink(t, target, leaf)
+
+	// macOS writes .DS_Store files into directories; they must not disqualify it.
+	if err := os.WriteFile(filepath.Join(dir, ".DS_Store"), []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if !isManagedCategoryDir(dir) {
+		t.Error("expected dir with only dot-files and symlinks to be managed")
+	}
+}
+
+func TestCountManagedLeafSymlinks_DotFilesIgnored(t *testing.T) {
+	categoryDir := t.TempDir()
+	target := t.TempDir()
+
+	makeSymlink(t, target, filepath.Join(categoryDir, "skill-a"))
+	makeSymlink(t, target, filepath.Join(categoryDir, "skill-b"))
+
+	if err := os.WriteFile(filepath.Join(categoryDir, ".DS_Store"), []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := countManagedLeafSymlinks(categoryDir, "", "")
+	if err != nil {
+		t.Fatalf("countManagedLeafSymlinks: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("got %d, want 2", count)
+	}
+}
+
 func TestCountManagedLeafSymlinks_DeeplyNested(t *testing.T) {
 	categoryDir := t.TempDir()
 	target := t.TempDir()

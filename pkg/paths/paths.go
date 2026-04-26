@@ -7,11 +7,7 @@ import (
 )
 
 const (
-	AgentsDir     = "~/.agent-smith"
-	OpencodeDir   = "~/.config/opencode"
-	ClaudeCodeDir = "~/.claude"
-	CopilotDir    = "~/.copilot"
-	UniversalDir  = "~/.agents"
+	AgentsDir = "~/.agent-smith"
 )
 
 const (
@@ -67,22 +63,6 @@ func GetAgentsDir() (string, error) {
 	return ExpandHome(AgentsDir)
 }
 
-func GetOpencodeDir() (string, error) {
-	return ExpandHome(OpencodeDir)
-}
-
-func GetClaudeCodeDir() (string, error) {
-	return ExpandHome(ClaudeCodeDir)
-}
-
-func GetCopilotDir() (string, error) {
-	return ExpandHome(CopilotDir)
-}
-
-func GetUniversalDir() (string, error) {
-	return ExpandHome(UniversalDir)
-}
-
 func GetSkillsDir() (string, error) {
 	baseDir, err := GetAgentsDir()
 	if err != nil {
@@ -108,7 +88,7 @@ func GetCommandsDir() (string, error) {
 }
 
 func GetDetectionConfigPath() (string, error) {
-	configDir, err := GetOpencodeDir()
+	configDir, err := ExpandHome("~/.config/opencode")
 	if err != nil {
 		return "", err
 	}
