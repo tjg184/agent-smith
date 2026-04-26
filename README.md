@@ -2,11 +2,15 @@
 
 ![Agent Smith](./agent-smith.jpg)
 
-Agent Smith is a CLI tool for installing, managing, and linking AI components (skills, agents, and commands) from git repositories to your AI editor.
+Agent Smith is a package manager for AI agents, skills, and commands — think npm or pip, but for your AI editor ecosystem.
 
-- **Skills** — Reusable prompt instructions (e.g. "write a PRD", "review architecture")
-- **Agents** — Autonomous sub-agents with a defined role
-- **Commands** — Slash commands available in your editor
+It lets you discover, install, update, and manage modular AI components from git repositories, then link or materialize them into your editor of choice.
+
+- 🤖 **Agents** — Autonomous sub-agents with a defined role
+- 🧩 **Skills** — Reusable prompt instructions (e.g. "write a PRD", "review architecture")
+- ⚡ **Commands** — Slash commands available in your editor
+
+Whether you're building, extending, or orchestrating automated agents, Agent Smith keeps your AI stack organized and up to date.
 
 ## Installation
 
