@@ -374,9 +374,12 @@ func (s *Service) ListLinked() error {
 }
 
 func (s *Service) ShowStatus(opts services.LinkStatusOptions) error {
-	// When a profile filter is provided, scope to just that profile.
-	if len(opts.ProfileFilter) > 0 {
-		cl, err := s.createLinkerWithFilterAndProfile("", opts.ProfileFilter[0])
+	if opts.AllProfiles && opts.Profile != "" {
+		return fmt.Errorf("cannot use both --all-profiles and --profile flags together")
+	}
+
+	if opts.Profile != "" {
+		cl, err := s.createLinkerWithFilterAndProfile("", opts.Profile)
 		if err != nil {
 			return fmt.Errorf("failed to create component linker: %w", err)
 		}
@@ -405,10 +408,18 @@ func (s *Service) ShowStatus(opts services.LinkStatusOptions) error {
 			return fmt.Errorf("failed to create component linker: %w", err)
 		}
 
-		return cl.ShowAllProfilesLinkStatus(opts.ProfileFilter, opts.LinkedOnly)
+		return cl.ShowAllProfilesLinkStatus(nil, opts.LinkedOnly)
 	}
 
-	cl, err := s.createLinkerWithFilterAndProfile("", "")
+	activeProfile, err := s.profileManager.GetActiveProfile()
+	if err != nil {
+		return fmt.Errorf("failed to get active profile: %w", err)
+	}
+	if activeProfile == "" {
+		return fmt.Errorf("no active profile; activate one or use --profile or --all-profiles")
+	}
+
+	cl, err := s.createLinkerWithFilterAndProfile("", activeProfile)
 	if err != nil {
 		return fmt.Errorf("failed to create component linker: %w", err)
 	}

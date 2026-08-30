@@ -21,7 +21,7 @@ type LinkHandlers struct {
 	LinkType   func(componentType, targetFilter, profile string)
 	AutoLink   func()
 	ListLinks  func()
-	LinkStatus func(allProfiles bool, profileFilter []string, linkedOnly bool)
+	LinkStatus func(allProfiles bool, profile string, linkedOnly bool)
 }
 
 // UnlinkHandlers groups handler functions for unlink commands.
@@ -112,7 +112,7 @@ var (
 	handleLinkType              func(componentType, targetFilter, profile string)
 	handleAutoLink              func()
 	handleListLinks             func()
-	handleLinkStatus            func(allProfiles bool, profileFilter []string, linkedOnly bool)
+	handleLinkStatus            func(allProfiles bool, profile string, linkedOnly bool)
 	handleUnlink                func(componentType, componentName, targetFilter string)
 	handleUnlinkWithProfile     func(componentType, componentName, targetFilter, profile string)
 	handleUnlinkAll             func(targetFilter, repoURL string, force bool, allProfiles bool)

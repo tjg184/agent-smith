@@ -215,8 +215,7 @@ func TestE2E_LinkStatusProfileWorkflow(t *testing.T) {
 	})
 }
 
-// TestE2E_LinkStatusAllProfilesWorkflow verifies `link status --all-profiles` shows all profiles
-// Tests the workflow: create multiple profiles → install to each → check status with --all-profiles
+// TestE2E_LinkStatusAllProfilesWorkflow verifies each link status scope.
 func TestE2E_LinkStatusAllProfilesWorkflow(t *testing.T) {
 	tempDir := testutil.CreateTempDir(t, "agent-smith-e2e-link-status-all-*")
 	oldHome := os.Getenv("HOME")
@@ -259,24 +258,100 @@ func TestE2E_LinkStatusAllProfilesWorkflow(t *testing.T) {
 		t.Logf("Created two profiles with different skills")
 	})
 
-	// Step 2: Check link status shows all profiles by default
-	t.Run("Step2_LinkStatusAllProfiles", func(t *testing.T) {
+	// Step 2: Activate profile1 so it becomes the default status scope.
+	t.Run("Step2_ActivateProfile", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "profile", "activate", "profile1")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Activate profile1 failed: %v\nOutput: %s", err, string(output))
+		}
+	})
+
+	// Step 3: Check the default status shows only the active profile.
+	t.Run("Step3_LinkStatusActiveProfile", func(t *testing.T) {
 		cmd := exec.Command(binaryPath, "link", "status")
-		output, _ := cmd.CombinedOutput()
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Link status for active profile failed: %v\nOutput: %s", err, string(output))
+		}
 		outputStr := string(output)
 
 		t.Logf("Link status output:\n%s", outputStr)
 
-		// Verify both profiles appear in output (if components were found)
 		if !strings.Contains(outputStr, "No components found") {
-			expectedContent := []string{"profile1", "profile2", "docx", "pdf"}
-			for _, expected := range expectedContent {
+			if !strings.Contains(outputStr, "docx") {
+				t.Errorf("Expected active profile component docx in link status output")
+			}
+			if strings.Contains(outputStr, "pdf") {
+				t.Errorf("Did not expect inactive profile component pdf in link status output")
+			}
+		}
+	})
+
+	// Step 4: An explicit profile overrides the active profile.
+	t.Run("Step4_LinkStatusExplicitProfile", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "link", "status", "--profile", "profile2")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Link status for explicit profile failed: %v\nOutput: %s", err, string(output))
+		}
+		outputStr := string(output)
+
+		if !strings.Contains(outputStr, "No components found") {
+			if !strings.Contains(outputStr, "pdf") {
+				t.Errorf("Expected explicit profile component pdf in link status output")
+			}
+			if strings.Contains(outputStr, "docx") {
+				t.Errorf("Did not expect active profile component docx in explicit profile output")
+			}
+		}
+	})
+
+	// Step 5: All profiles is an explicit global overview.
+	t.Run("Step5_LinkStatusAllProfiles", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "link", "status", "--all-profiles")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Link status for all profiles failed: %v\nOutput: %s", err, string(output))
+		}
+		outputStr := string(output)
+
+		if !strings.Contains(outputStr, "No components found") {
+			for _, expected := range []string{"profile1", "profile2", "docx", "pdf"} {
 				if !strings.Contains(outputStr, expected) {
-					t.Errorf("Expected %s in link status output", expected)
+					t.Errorf("Expected %s in all-profiles link status output", expected)
 				}
 			}
 		}
+	})
 
-		t.Logf("Verified link status shows both profiles")
+	// Step 6: Conflicting explicit scopes fail.
+	t.Run("Step6_LinkStatusConflictingScopes", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "link", "status", "--profile", "profile1", "--all-profiles")
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			t.Fatalf("Expected conflicting scopes to fail\nOutput: %s", string(output))
+		}
+		if !strings.Contains(string(output), "cannot use both --all-profiles and --profile flags together") {
+			t.Errorf("Expected conflicting scope error, got: %s", string(output))
+		}
+	})
+
+	// Step 7: No active profile requires an explicit scope.
+	t.Run("Step7_LinkStatusWithoutActiveProfile", func(t *testing.T) {
+		deactivateCmd := exec.Command(binaryPath, "profile", "deactivate")
+		output, err := deactivateCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Deactivate profile failed: %v\nOutput: %s", err, string(output))
+		}
+
+		cmd := exec.Command(binaryPath, "link", "status")
+		output, err = cmd.CombinedOutput()
+		if err == nil {
+			t.Fatalf("Expected status without active profile to fail\nOutput: %s", string(output))
+		}
+		if !strings.Contains(string(output), "no active profile; activate one or use --profile or --all-profiles") {
+			t.Errorf("Expected missing active profile error, got: %s", string(output))
+		}
 	})
 }
