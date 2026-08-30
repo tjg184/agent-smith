@@ -123,8 +123,9 @@ agent-smith link command <name>
 agent-smith link commands
 agent-smith link auto                    # Auto-detect components in current dir
 agent-smith link list                    # List linked components
-agent-smith link status                  # Matrix view: all repos × editors
-agent-smith link status --profile <name> # Scope to one repo
+agent-smith link status                  # Matrix view: active profile × editors
+agent-smith link status --profile <name> # Scope to one profile
+agent-smith link status --all-profiles   # Matrix view: all profiles × editors
 agent-smith unlink all                   # Unlink active profile
 agent-smith unlink all owner/repo        # Unlink a specific repo
 agent-smith unlink skill <name>

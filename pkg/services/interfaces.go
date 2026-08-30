@@ -42,9 +42,9 @@ type UnlinkOptions struct {
 }
 
 type LinkStatusOptions struct {
-	AllProfiles   bool
-	ProfileFilter []string
-	LinkedOnly    bool
+	AllProfiles bool
+	Profile     string
+	LinkedOnly  bool
 }
 
 type ProfileService interface {

@@ -271,14 +271,18 @@ EXAMPLES:
 		Short: "Matrix view: components vs editors",
 		Long: `Show a detailed matrix of which components are linked to which editors.
 
-By default shows all installed repos. Use --profile to scope to a specific one.
+By default shows the active profile. Use --profile to inspect another profile,
+or --all-profiles for every installed profile.
 
 EXAMPLES:
-  # Show status for all installed repos
+  # Show status for the active profile
   agent-smith link status
 
-  # Show status for a specific repo's components
-  agent-smith link status --profile owner-repo
+  # Show status for a specific profile
+  agent-smith link status --profile work
+
+  # Show status for every profile
+  agent-smith link status --all-profiles
 
   # Show only linked components (hide unlinked)
   agent-smith link status --linked-only
@@ -291,12 +295,14 @@ LEGEND:
   ? - Unknown status`,
 		Args: noArgsWithHelp,
 		Run: func(cmd *cobra.Command, args []string) {
-			profileFilter, _ := cmd.Flags().GetStringSlice("profile")
+			allProfiles, _ := cmd.Flags().GetBool("all-profiles")
+			profile, _ := cmd.Flags().GetString("profile")
 			linkedOnly, _ := cmd.Flags().GetBool("linked-only")
-			handleLinkStatus(true, profileFilter, linkedOnly)
+			handleLinkStatus(allProfiles, profile, linkedOnly)
 		},
 	}
-	linkStatusCmd.Flags().StringSlice("profile", []string{}, "Scope to a specific profile")
+	linkStatusCmd.Flags().Bool("all-profiles", false, "Show status for every profile")
+	linkStatusCmd.Flags().String("profile", "", "Show status for a specific profile")
 	linkStatusCmd.Flags().BoolP("linked-only", "l", false, "Show only components that have at least one link")
 	linkCmd.AddCommand(linkStatusCmd)
 

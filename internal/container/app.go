@@ -151,8 +151,8 @@ func (a *App) Run() {
 					log.Fatal("Failed to list linked components:", err)
 				}
 			},
-			LinkStatus: func(allProfiles bool, profileFilter []string, linkedOnly bool) {
-				opts := services.LinkStatusOptions{AllProfiles: allProfiles, ProfileFilter: profileFilter, LinkedOnly: linkedOnly}
+			LinkStatus: func(allProfiles bool, profile string, linkedOnly bool) {
+				opts := services.LinkStatusOptions{AllProfiles: allProfiles, Profile: profile, LinkedOnly: linkedOnly}
 				if err := linkService.ShowStatus(opts); err != nil {
 					log.Fatal("Failed to show link status:", err)
 				}
