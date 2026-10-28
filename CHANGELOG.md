@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.1](https://github.com/tjg184/agent-smith/compare/v1.13.0...v1.13.1) (2026-08-30)
+
+
+### Bug Fixes
+
+* **link:** scope status to active profile ([#115](https://github.com/tjg184/agent-smith/issues/115)) ([b26dbe6](https://github.com/tjg184/agent-smith/commit/b26dbe6f56bbca7b94236603ce93db8ab88d8812))
+
 ## [1.13.0](https://github.com/tjg184/agent-smith/compare/v1.12.0...v1.13.0) (2026-04-26)
 
 
